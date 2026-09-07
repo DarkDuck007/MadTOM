@@ -127,4 +127,24 @@ public class TelemetryAndMetricsTests
         Assert.False(collectionChanged);
         Assert.Equal(6, vm.Nodes.Count);
     }
+
+    [Fact]
+    public void DualSparklineControl_RenderCalculations_DoNotThrowOnNarrowWidth()
+    {
+        // Test that clamp bounds do not invert when width is narrow or fractional
+        const double yAxisWidth = 26.0;
+        double w = 25.573486328125; // Exact value from crash report
+        double tipW = 75.0;
+
+        double minMouseX = yAxisWidth;
+        double maxMouseX = Math.Max(minMouseX, w);
+        double mouseX = Math.Clamp(10.0, minMouseX, maxMouseX);
+        Assert.True(mouseX >= minMouseX);
+
+        double minTipX = yAxisWidth + 2;
+        double maxTipX = Math.Max(minTipX, w - tipW - 2);
+        double targetX = yAxisWidth + 5;
+        double tipX = Math.Clamp(targetX - tipW / 2.0, minTipX, maxTipX);
+        Assert.True(tipX >= minTipX);
+    }
 }

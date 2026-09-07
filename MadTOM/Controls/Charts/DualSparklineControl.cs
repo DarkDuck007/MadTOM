@@ -160,9 +160,11 @@ public sealed class DualSparklineControl : Control
         DrawSeriesLine(context, s2, pen2, yAxisWidth, chartW, h, minVal, range, isSecondary: true);
 
         // Hover Crosshair & Info Tooltip across the whole container
-        if (_hoverPoint.HasValue && count >= 2)
+        if (_hoverPoint.HasValue && count >= 2 && chartW > 0)
         {
-            double mouseX = Math.Clamp(_hoverPoint.Value.X, yAxisWidth, w);
+            double minMouseX = yAxisWidth;
+            double maxMouseX = Math.Max(minMouseX, w);
+            double mouseX = Math.Clamp(_hoverPoint.Value.X, minMouseX, maxMouseX);
             double step = chartW / (count - 1);
             int idx = Math.Clamp((int)Math.Round((mouseX - yAxisWidth) / step), 0, count - 1);
             double targetX = yAxisWidth + idx * step;
@@ -194,8 +196,10 @@ public sealed class DualSparklineControl : Control
 
             double tipW = tooltipText.Width + 8;
             double tipH = tooltipText.Height + 4;
-            double tipX = Math.Clamp(targetX - tipW / 2.0, yAxisWidth + 2, w - tipW - 2);
-            double tipY = (dotY1 + dotY2) / 2.0 > h / 2.0 ? 2 : h - tipH - 2;
+            double minTipX = yAxisWidth + 2;
+            double maxTipX = Math.Max(minTipX, w - tipW - 2);
+            double tipX = Math.Clamp(targetX - tipW / 2.0, minTipX, maxTipX);
+            double tipY = (dotY1 + dotY2) / 2.0 > h / 2.0 ? 2 : Math.Max(0, h - tipH - 2);
 
             var tipRect = new RoundedRect(new Rect(tipX, tipY, tipW, tipH), 3);
             context.DrawRectangle(TooltipBg, TooltipBorder, tipRect);

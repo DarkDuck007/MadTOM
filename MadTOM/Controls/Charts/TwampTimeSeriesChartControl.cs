@@ -169,7 +169,7 @@ public sealed class TwampTimeSeriesChartControl : Control
 
         // Apply zoom and pan transformation
         double zoom = Math.Max(1.0, Math.Min(8.0, ZoomLevel));
-        double maxPan = (zoom - 1.0) * plotW;
+        double maxPan = Math.Max(0.0, (zoom - 1.0) * plotW);
         double pan = Math.Clamp(PanOffset, 0.0, maxPan);
 
         double effectiveW = plotW * zoom;
@@ -336,7 +336,7 @@ public sealed class TwampTimeSeriesChartControl : Control
         double dataFrac = (relX + oldPan) / (plotW * oldZoom);
 
         double newZoom = Math.Clamp(oldZoom + (deltaY * 0.25), minZoom, maxZoom);
-        double newMaxPan = (newZoom - 1.0) * plotW;
+        double newMaxPan = Math.Max(0.0, (newZoom - 1.0) * plotW);
         double newPan = (dataFrac * plotW * newZoom) - relX;
 
         return (newZoom, Math.Clamp(newPan, 0.0, newMaxPan));
@@ -386,7 +386,7 @@ public sealed class TwampTimeSeriesChartControl : Control
         const double leftPad = 46.0;
         const double rightPad = 16.0;
         double plotW = Math.Max(10.0, Bounds.Width - leftPad - rightPad);
-        double maxPan = (ZoomLevel - 1.0) * plotW;
+        double maxPan = Math.Max(0.0, (ZoomLevel - 1.0) * plotW);
 
         if (e.Pointer.Type == PointerType.Touch && _activeTouchPoints.ContainsKey(e.Pointer.Id))
         {
@@ -400,7 +400,7 @@ public sealed class TwampTimeSeriesChartControl : Control
                 double newZoom = Math.Clamp(_multiTouchStartZoom * scale, 1.0, 8.0);
                 double relX = Math.Clamp(_multiTouchStartCenter.X - leftPad, 0.0, plotW);
                 double dataFrac = (relX + _multiTouchStartPan) / (plotW * _multiTouchStartZoom);
-                double newMaxPan = (newZoom - 1.0) * plotW;
+                double newMaxPan = Math.Max(0.0, (newZoom - 1.0) * plotW);
                 double newPan = (dataFrac * plotW * newZoom) - relX;
 
                 PanOffset = Math.Clamp(newPan, 0.0, newMaxPan);
@@ -467,7 +467,7 @@ public sealed class TwampTimeSeriesChartControl : Control
         const double leftPad = 46.0;
         const double rightPad = 16.0;
         double plotW = Math.Max(10.0, Bounds.Width - leftPad - rightPad);
-        double maxPan = (ZoomLevel - 1.0) * plotW;
+        double maxPan = Math.Max(0.0, (ZoomLevel - 1.0) * plotW);
 
         // Trackpad horizontal scroll
         if (Math.Abs(e.Delta.X) > 0.001 && maxPan > 0)
