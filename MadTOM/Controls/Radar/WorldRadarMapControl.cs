@@ -9,48 +9,48 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.Platform;
-using Avalonia.Threading;
 
 namespace MadTOM.Controls.Radar;
 
 public sealed class WorldRadarMapControl : Control
 {
-    private sealed class RegionData
+    private sealed class CountryData
     {
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public string DefaultFill { get; set; } = "#334155";
-        public string Traffic { get; set; } = string.Empty;
-        public string Rtt { get; set; } = string.Empty;
         public List<string> Paths { get; set; } = new();
 
         public List<Geometry> Geometries { get; } = new();
-        public IBrush CachedBrush { get; set; } = Brushes.SlateGray;
         public Rect Bounds { get; set; }
-    }
-
-    private sealed class TransitArc
-    {
-        public Point P1 { get; set; }
-        public Point Control { get; set; }
-        public Point P2 { get; set; }
-        public Color Color { get; set; }
-        public double Width { get; set; }
+        public Point Center { get; set; }
     }
 
     private sealed class PopNode
     {
+        public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public Point Location { get; set; }
         public Color Color { get; set; }
         public string Label { get; set; } = string.Empty;
     }
 
+    private sealed class TransitVector
+    {
+        public Point Origin { get; set; }
+        public Point Destination { get; set; }
+        public Point ControlPoint { get; set; }
+        public Color Color { get; set; }
+        public double Thickness { get; set; } = 2.0;
+    }
+
     public static readonly StyledProperty<string> ScopedNodeIdProperty =
-        AvaloniaProperty.Register<WorldRadarMapControl, string>(nameof(ScopedNodeId), "aggregated");
+        AvaloniaProperty.Register<WorldRadarMapControl, string>(nameof(ScopedNodeId), "Aggregated (All Hosts - Global Fleet)");
+
+    public static readonly StyledProperty<string> HoveredCountryNameProperty =
+        AvaloniaProperty.Register<WorldRadarMapControl, string>(nameof(HoveredCountryName), string.Empty, defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
 
     public static readonly StyledProperty<string> HoveredRegionNameProperty =
-        AvaloniaProperty.Register<WorldRadarMapControl, string>(nameof(HoveredRegionName), string.Empty);
+        AvaloniaProperty.Register<WorldRadarMapControl, string>(nameof(HoveredRegionName), string.Empty, defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
 
     public static readonly StyledProperty<string> HoveredTrafficRateProperty =
         AvaloniaProperty.Register<WorldRadarMapControl, string>(nameof(HoveredTrafficRate), string.Empty);
@@ -58,22 +58,22 @@ public sealed class WorldRadarMapControl : Control
     public static readonly StyledProperty<string> HoveredRttProperty =
         AvaloniaProperty.Register<WorldRadarMapControl, string>(nameof(HoveredRtt), string.Empty);
 
+    public static readonly StyledProperty<bool> IsCountryHoveredProperty =
+        AvaloniaProperty.Register<WorldRadarMapControl, bool>(nameof(IsCountryHovered), false);
+
     public static readonly StyledProperty<bool> IsRegionHoveredProperty =
         AvaloniaProperty.Register<WorldRadarMapControl, bool>(nameof(IsRegionHovered), false);
 
     private static readonly IBrush OceanBrush = new ImmutableSolidColorBrush(Color.FromRgb(5, 8, 17));
-    private static readonly IPen PathPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromRgb(15, 23, 42)), 0.5);
+    private static readonly IBrush DefaultCountryBrush = new ImmutableSolidColorBrush(Color.FromRgb(25, 36, 52));
+    private static readonly IPen CountryBorderPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromRgb(15, 23, 42)), 0.6);
+    private static readonly IBrush HoveredCountryBrush = new ImmutableSolidColorBrush(Color.FromRgb(56, 189, 248));
+    private static readonly IPen HoveredCountryPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromRgb(186, 230, 253)), 1.5);
     private static readonly Typeface MonoBoldTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.Bold);
 
-    private readonly List<RegionData> _regions = new();
-    private readonly List<TransitArc> _transitArcs = new();
+    private readonly List<CountryData> _countries = new();
     private readonly List<PopNode> _popNodes = new();
-    private readonly DispatcherTimer _animTimer;
-
-    private double _dashPhase;
-    private double _pulseRadius = 14.0;
-    private bool _pulseExpanding = true;
-    private RegionData? _activeHoverRegion;
+    private CountryData? _activeHoverCountry;
 
     public string ScopedNodeId
     {
@@ -81,10 +81,24 @@ public sealed class WorldRadarMapControl : Control
         set => SetValue(ScopedNodeIdProperty, value);
     }
 
+    public string HoveredCountryName
+    {
+        get => GetValue(HoveredCountryNameProperty);
+        set
+        {
+            SetValue(HoveredCountryNameProperty, value);
+            SetValue(HoveredRegionNameProperty, value);
+        }
+    }
+
     public string HoveredRegionName
     {
         get => GetValue(HoveredRegionNameProperty);
-        set => SetValue(HoveredRegionNameProperty, value);
+        set
+        {
+            SetValue(HoveredRegionNameProperty, value);
+            SetValue(HoveredCountryNameProperty, value);
+        }
     }
 
     public string HoveredTrafficRate
@@ -99,83 +113,75 @@ public sealed class WorldRadarMapControl : Control
         set => SetValue(HoveredRttProperty, value);
     }
 
+    public bool IsCountryHovered
+    {
+        get => GetValue(IsCountryHoveredProperty);
+        set
+        {
+            SetValue(IsCountryHoveredProperty, value);
+            SetValue(IsRegionHoveredProperty, value);
+        }
+    }
+
     public bool IsRegionHovered
     {
         get => GetValue(IsRegionHoveredProperty);
-        set => SetValue(IsRegionHoveredProperty, value);
+        set
+        {
+            SetValue(IsRegionHoveredProperty, value);
+            SetValue(IsCountryHoveredProperty, value);
+        }
     }
 
     static WorldRadarMapControl()
     {
-        AffectsRender<WorldRadarMapControl>(ScopedNodeIdProperty, IsRegionHoveredProperty);
+        AffectsRender<WorldRadarMapControl>(ScopedNodeIdProperty, IsCountryHoveredProperty, IsRegionHoveredProperty);
     }
 
     public WorldRadarMapControl()
     {
         ClipToBounds = true;
-        LoadRegions();
-        InitializeTransitNetwork();
+        LoadMapGeometries();
+        InitializePopNodes();
+    }
 
-        _animTimer = new DispatcherTimer(DispatcherPriority.Render)
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == ScopedNodeIdProperty)
         {
-            Interval = TimeSpan.FromMilliseconds(40)
-        };
-        _animTimer.Tick += (s, e) =>
-        {
-            _dashPhase = (_dashPhase + 1.2) % 24.0;
-
-            if (_pulseExpanding)
-            {
-                _pulseRadius += 0.35;
-                if (_pulseRadius >= 24.0) _pulseExpanding = false;
-            }
-            else
-            {
-                _pulseRadius -= 0.35;
-                if (_pulseRadius <= 14.0) _pulseExpanding = true;
-            }
-
             InvalidateVisual();
-        };
+        }
     }
 
-    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnAttachedToVisualTree(e);
-        _animTimer.Start();
-    }
-
-    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnDetachedFromVisualTree(e);
-        _animTimer.Stop();
-    }
-
-    private void LoadRegions()
+    private void LoadMapGeometries()
     {
         try
         {
-            var uri = new Uri("avares://MadTOM/Assets/Maps/world-regions.json");
+            Uri uri = new("avares://MadTOM/Assets/Maps/world-countries.json");
+            if (!AssetLoader.Exists(uri))
+            {
+                uri = new Uri("avares://MadTOM/Assets/Maps/world-regions.json");
+            }
+
             if (AssetLoader.Exists(uri))
             {
                 using var stream = AssetLoader.Open(uri);
                 using var reader = new StreamReader(stream);
                 var json = reader.ReadToEnd();
-                var parsed = JsonSerializer.Deserialize<List<RegionData>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var parsed = JsonSerializer.Deserialize<List<CountryData>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (parsed != null)
                 {
-                    foreach (var r in parsed)
+                    foreach (var c in parsed)
                     {
-                        Color.TryParse(r.DefaultFill, out var col);
-                        r.CachedBrush = new ImmutableSolidColorBrush(col);
                         double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
 
-                        foreach (var pathStr in r.Paths)
+                        foreach (var pathStr in c.Paths)
                         {
                             try
                             {
                                 var geom = Geometry.Parse(pathStr);
-                                r.Geometries.Add(geom);
+                                c.Geometries.Add(geom);
                                 var b = geom.Bounds;
                                 if (b.Left < minX) minX = b.Left;
                                 if (b.Top < minY) minY = b.Top;
@@ -184,8 +190,13 @@ public sealed class WorldRadarMapControl : Control
                             }
                             catch { }
                         }
-                        r.Bounds = new Rect(minX, minY, Math.Max(1, maxX - minX), Math.Max(1, maxY - minY));
-                        _regions.Add(r);
+
+                        if (minX != double.MaxValue)
+                        {
+                            c.Bounds = new Rect(minX, minY, Math.Max(1, maxX - minX), Math.Max(1, maxY - minY));
+                            c.Center = new Point(minX + (maxX - minX) / 2.0, minY + (maxY - minY) / 2.0);
+                            _countries.Add(c);
+                        }
                     }
                 }
             }
@@ -193,17 +204,12 @@ public sealed class WorldRadarMapControl : Control
         catch { }
     }
 
-    private void InitializeTransitNetwork()
+    private void InitializePopNodes()
     {
-        _transitArcs.Add(new TransitArc { P1 = new Point(590, 255), Control = new Point(1150, 50), P2 = new Point(1715, 270), Color = Color.FromRgb(249, 115, 22), Width = 3.5 });
-        _transitArcs.Add(new TransitArc { P1 = new Point(1045, 200), Control = new Point(1380, 120), P2 = new Point(1715, 270), Color = Color.FromRgb(245, 158, 11), Width = 3.0 });
-        _transitArcs.Add(new TransitArc { P1 = new Point(590, 255), Control = new Point(815, 140), P2 = new Point(1045, 200), Color = Color.FromRgb(245, 158, 11), Width = 2.5 });
-        _transitArcs.Add(new TransitArc { P1 = new Point(1572, 495), Control = new Point(1660, 380), P2 = new Point(1715, 270), Color = Color.FromRgb(234, 88, 12), Width = 2.5 });
-
-        _popNodes.Add(new PopNode { Name = "TYO", Location = new Point(1715, 270), Color = Color.FromRgb(6, 182, 212), Label = "TYO (Gander-01) - 1.8ms" });
-        _popNodes.Add(new PopNode { Name = "IAD", Location = new Point(590, 255), Color = Color.FromRgb(249, 115, 22), Label = "IAD (Edge-01) - 78ms" });
-        _popNodes.Add(new PopNode { Name = "FRA", Location = new Point(1045, 200), Color = Color.FromRgb(245, 158, 11), Label = "FRA (Cache-04) - 142ms" });
-        _popNodes.Add(new PopNode { Name = "SIN", Location = new Point(1572, 495), Color = Color.FromRgb(16, 185, 129), Label = "SIN (Gateway) - 62ms" });
+        _popNodes.Add(new PopNode { Id = "gander-epyc-01", Name = "TYO", Location = new Point(1715, 270), Color = Color.FromRgb(6, 182, 212), Label = "TYO (Tokyo) - 1.8ms" });
+        _popNodes.Add(new PopNode { Id = "iad-edge-01", Name = "IAD", Location = new Point(590, 255), Color = Color.FromRgb(249, 115, 22), Label = "IAD (US East) - 78ms" });
+        _popNodes.Add(new PopNode { Id = "fra-cache-04", Name = "FRA", Location = new Point(1045, 200), Color = Color.FromRgb(245, 158, 11), Label = "FRA (Frankfurt) - 142ms" });
+        _popNodes.Add(new PopNode { Id = "sin-gateway-01", Name = "SIN", Location = new Point(1572, 495), Color = Color.FromRgb(16, 185, 129), Label = "SIN (Singapore) - 62ms" });
     }
 
     public override void Render(DrawingContext context)
@@ -227,56 +233,188 @@ public sealed class WorldRadarMapControl : Control
 
         using (context.PushTransform(Matrix.CreateTranslation(offsetX, offsetY) * Matrix.CreateScale(scale, scale)))
         {
-            // Draw Regions
-            foreach (var reg in _regions)
-            {
-                bool isHovered = reg == _activeHoverRegion;
-                IBrush fillBrush = isHovered ? Brushes.LightCyan : reg.CachedBrush;
+            string scoped = ScopedNodeId ?? string.Empty;
+            string scopedLower = scoped.ToLowerInvariant();
+            bool isAggregated = scopedLower.Contains("aggregated") || string.IsNullOrWhiteSpace(scoped);
 
-                foreach (var geom in reg.Geometries)
+            // 1. Draw Country Polygons
+            foreach (var country in _countries)
+            {
+                bool isHovered = country == _activeHoverCountry;
+                IBrush fillBrush;
+                IPen borderPen;
+
+                if (isHovered)
                 {
-                    context.DrawGeometry(fillBrush, PathPen, geom);
+                    fillBrush = HoveredCountryBrush;
+                    borderPen = HoveredCountryPen;
+                }
+                else
+                {
+                    fillBrush = GetCountryChoroplethBrush(country.Name, country.Id, scopedLower);
+                    borderPen = CountryBorderPen;
+                }
+
+                foreach (var geom in country.Geometries)
+                {
+                    context.DrawGeometry(fillBrush, borderPen, geom);
                 }
             }
 
-            // Draw Animated Transit Arcs
-            var dashStyle = new ImmutableDashStyle([12, 8], _dashPhase);
-            foreach (var arc in _transitArcs)
+            // 2. Draw Static Transit Vectors
+            var vectors = GetTransitVectors(scopedLower);
+            foreach (var vec in vectors)
             {
-                var pen = new ImmutablePen(new ImmutableSolidColorBrush(arc.Color), arc.Width, dashStyle);
+                var pen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(160, vec.Color.R, vec.Color.G, vec.Color.B)), vec.Thickness);
                 var geom = new StreamGeometry();
                 using (var c = geom.Open())
                 {
-                    c.BeginFigure(arc.P1, false);
-                    c.QuadraticBezierTo(arc.Control, arc.P2);
+                    c.BeginFigure(vec.Origin, false);
+                    c.QuadraticBezierTo(vec.ControlPoint, vec.Destination);
                 }
                 context.DrawGeometry(null, pen, geom);
             }
 
-            // Draw POP Stations
+            // 3. Draw POP Stations
             foreach (var pop in _popNodes)
             {
+                bool isTargetNode = !isAggregated && (scopedLower.Contains(pop.Id) || scopedLower.Contains(pop.Name.ToLowerInvariant()));
                 var fillBrush = new ImmutableSolidColorBrush(pop.Color);
-                var pulsePen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(180, pop.Color.R, pop.Color.G, pop.Color.B)), 1.8);
 
-                context.DrawEllipse(fillBrush, null, pop.Location, 7.5, 7.5);
-                context.DrawEllipse(null, pulsePen, pop.Location, _pulseRadius, _pulseRadius);
+                if (isTargetNode)
+                {
+                    // Emphasized target node: concentric rings & brighter core
+                    var outerPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(120, pop.Color.R, pop.Color.G, pop.Color.B)), 3.0);
+                    var innerPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(200, 255, 255, 255)), 2.0);
+                    context.DrawEllipse(null, outerPen, pop.Location, 18, 18);
+                    context.DrawEllipse(null, innerPen, pop.Location, 12, 12);
+                    context.DrawEllipse(fillBrush, null, pop.Location, 7.5, 7.5);
+                }
+                else
+                {
+                    var ringPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(80, pop.Color.R, pop.Color.G, pop.Color.B)), 1.5);
+                    context.DrawEllipse(null, ringPen, pop.Location, 12, 12);
+                    context.DrawEllipse(fillBrush, null, pop.Location, 5.5, 5.5);
+                }
+
+                var labelBrush = isTargetNode
+                    ? new ImmutableSolidColorBrush(Color.FromRgb(255, 255, 255))
+                    : new ImmutableSolidColorBrush(Color.FromRgb(148, 163, 184));
 
                 var ft = new FormattedText(
                     pop.Label,
                     CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight,
                     MonoBoldTypeface,
-                    16.0,
-                    new ImmutableSolidColorBrush(Color.FromRgb(203, 213, 225)));
+                    isTargetNode ? 14.0 : 12.0,
+                    labelBrush);
 
-                double textX = pop.Location.X + 16;
-                double textY = pop.Location.Y - 8;
-                if (pop.Name == "IAD") textX = pop.Location.X - 180;
+                double textX = pop.Location.X + 14;
+                double textY = pop.Location.Y - 7;
+                if (pop.Name == "IAD") textX = pop.Location.X - 165;
 
                 context.DrawText(ft, new Point(textX, textY));
             }
         }
+    }
+
+    private static IBrush GetCountryChoroplethBrush(string name, string id, string scopedLower)
+    {
+        string n = name.ToLowerInvariant();
+        string c = id.ToUpperInvariant();
+
+        if (scopedLower.Contains("gander"))
+        {
+            if (n.Contains("japan") || c == "JP") return new ImmutableSolidColorBrush(Color.FromRgb(234, 88, 12));
+            if (n.Contains("united states") || c == "US") return new ImmutableSolidColorBrush(Color.FromRgb(16, 185, 129));
+            if (n.Contains("singapore") || c == "SG") return new ImmutableSolidColorBrush(Color.FromRgb(6, 182, 212));
+            if (n.Contains("germany") || c == "DE") return new ImmutableSolidColorBrush(Color.FromRgb(245, 158, 11));
+        }
+        else if (scopedLower.Contains("iad") || scopedLower.Contains("edge"))
+        {
+            if (n.Contains("united states") || c == "US") return new ImmutableSolidColorBrush(Color.FromRgb(234, 88, 12));
+            if (n.Contains("germany") || c == "DE") return new ImmutableSolidColorBrush(Color.FromRgb(245, 158, 11));
+            if (n.Contains("united kingdom") || c == "GB") return new ImmutableSolidColorBrush(Color.FromRgb(99, 102, 241));
+            if (n.Contains("japan") || c == "JP") return new ImmutableSolidColorBrush(Color.FromRgb(6, 182, 212));
+        }
+        else if (scopedLower.Contains("fra") || scopedLower.Contains("cache"))
+        {
+            if (n.Contains("germany") || c == "DE") return new ImmutableSolidColorBrush(Color.FromRgb(234, 88, 12));
+            if (n.Contains("france") || c == "FR") return new ImmutableSolidColorBrush(Color.FromRgb(6, 182, 212));
+            if (n.Contains("united kingdom") || c == "GB") return new ImmutableSolidColorBrush(Color.FromRgb(99, 102, 241));
+            if (n.Contains("united states") || c == "US") return new ImmutableSolidColorBrush(Color.FromRgb(16, 185, 129));
+        }
+        else if (scopedLower.Contains("sin") || scopedLower.Contains("gateway"))
+        {
+            if (n.Contains("singapore") || c == "SG") return new ImmutableSolidColorBrush(Color.FromRgb(234, 88, 12));
+            if (n.Contains("japan") || c == "JP") return new ImmutableSolidColorBrush(Color.FromRgb(6, 182, 212));
+            if (n.Contains("australia") || c == "AU") return new ImmutableSolidColorBrush(Color.FromRgb(16, 185, 129));
+            if (n.Contains("united states") || c == "US") return new ImmutableSolidColorBrush(Color.FromRgb(245, 158, 11));
+        }
+        else
+        {
+            // Global Aggregated
+            if (n.Contains("japan") || c == "JP") return new ImmutableSolidColorBrush(Color.FromRgb(234, 88, 12));
+            if (n.Contains("united states") || c == "US") return new ImmutableSolidColorBrush(Color.FromRgb(16, 185, 129));
+            if (n.Contains("germany") || c == "DE") return new ImmutableSolidColorBrush(Color.FromRgb(245, 158, 11));
+            if (n.Contains("singapore") || c == "SG") return new ImmutableSolidColorBrush(Color.FromRgb(99, 102, 241));
+            if (n.Contains("united kingdom") || c == "GB") return new ImmutableSolidColorBrush(Color.FromRgb(56, 189, 248));
+            if (n.Contains("france") || c == "FR") return new ImmutableSolidColorBrush(Color.FromRgb(14, 165, 233));
+            if (n.Contains("australia") || c == "AU") return new ImmutableSolidColorBrush(Color.FromRgb(168, 85, 247));
+            if (n.Contains("canada") || c == "CA") return new ImmutableSolidColorBrush(Color.FromRgb(34, 197, 94));
+        }
+
+        return DefaultCountryBrush;
+    }
+
+    private static List<TransitVector> GetTransitVectors(string scopedLower)
+    {
+        var list = new List<TransitVector>();
+
+        Point tyo = new(1715, 270);
+        Point iad = new(590, 255);
+        Point fra = new(1045, 200);
+        Point sin = new(1572, 495);
+
+        if (scopedLower.Contains("gander"))
+        {
+            // Vectors arriving at TYO
+            list.Add(new TransitVector { Origin = iad, ControlPoint = new Point(1150, 80), Destination = tyo, Color = Color.FromRgb(249, 115, 22), Thickness = 2.5 });
+            list.Add(new TransitVector { Origin = sin, ControlPoint = new Point(1660, 380), Destination = tyo, Color = Color.FromRgb(6, 182, 212), Thickness = 2.0 });
+            list.Add(new TransitVector { Origin = fra, ControlPoint = new Point(1380, 120), Destination = tyo, Color = Color.FromRgb(245, 158, 11), Thickness = 1.8 });
+        }
+        else if (scopedLower.Contains("iad") || scopedLower.Contains("edge"))
+        {
+            // Vectors arriving at IAD
+            list.Add(new TransitVector { Origin = fra, ControlPoint = new Point(815, 140), Destination = iad, Color = Color.FromRgb(245, 158, 11), Thickness = 2.5 });
+            list.Add(new TransitVector { Origin = new Point(1005, 160), ControlPoint = new Point(800, 180), Destination = iad, Color = Color.FromRgb(99, 102, 241), Thickness = 2.0 });
+            list.Add(new TransitVector { Origin = tyo, ControlPoint = new Point(1150, 80), Destination = iad, Color = Color.FromRgb(6, 182, 212), Thickness = 1.8 });
+        }
+        else if (scopedLower.Contains("fra") || scopedLower.Contains("cache"))
+        {
+            // Vectors arriving at FRA
+            list.Add(new TransitVector { Origin = iad, ControlPoint = new Point(815, 140), Destination = fra, Color = Color.FromRgb(249, 115, 22), Thickness = 2.5 });
+            list.Add(new TransitVector { Origin = new Point(995, 210), ControlPoint = new Point(1020, 205), Destination = fra, Color = Color.FromRgb(6, 182, 212), Thickness = 2.0 });
+            list.Add(new TransitVector { Origin = new Point(1005, 160), ControlPoint = new Point(1025, 180), Destination = fra, Color = Color.FromRgb(99, 102, 241), Thickness = 2.0 });
+        }
+        else if (scopedLower.Contains("sin") || scopedLower.Contains("gateway"))
+        {
+            // Vectors arriving at SIN
+            list.Add(new TransitVector { Origin = tyo, ControlPoint = new Point(1660, 380), Destination = sin, Color = Color.FromRgb(6, 182, 212), Thickness = 2.5 });
+            list.Add(new TransitVector { Origin = new Point(1740, 700), ControlPoint = new Point(1680, 600), Destination = sin, Color = Color.FromRgb(16, 185, 129), Thickness = 2.0 });
+            list.Add(new TransitVector { Origin = iad, ControlPoint = new Point(1100, 380), Destination = sin, Color = Color.FromRgb(245, 158, 11), Thickness = 1.8 });
+        }
+        else
+        {
+            // Global Aggregate Transit Grid
+            list.Add(new TransitVector { Origin = iad, ControlPoint = new Point(1150, 70), Destination = tyo, Color = Color.FromRgb(249, 115, 22), Thickness = 2.5 });
+            list.Add(new TransitVector { Origin = fra, ControlPoint = new Point(1380, 120), Destination = tyo, Color = Color.FromRgb(245, 158, 11), Thickness = 2.0 });
+            list.Add(new TransitVector { Origin = iad, ControlPoint = new Point(815, 140), Destination = fra, Color = Color.FromRgb(245, 158, 11), Thickness = 2.0 });
+            list.Add(new TransitVector { Origin = sin, ControlPoint = new Point(1660, 380), Destination = tyo, Color = Color.FromRgb(16, 185, 129), Thickness = 2.0 });
+            list.Add(new TransitVector { Origin = fra, ControlPoint = new Point(1300, 350), Destination = sin, Color = Color.FromRgb(99, 102, 241), Thickness = 1.8 });
+        }
+
+        return list;
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -297,16 +435,16 @@ public sealed class WorldRadarMapControl : Control
         double mapY = (pt.Y - offsetY) / scale;
         var mapPt = new Point(mapX, mapY);
 
-        RegionData? found = null;
-        foreach (var reg in _regions)
+        CountryData? found = null;
+        foreach (var country in _countries)
         {
-            if (reg.Bounds.Contains(mapPt))
+            if (country.Bounds.Contains(mapPt))
             {
-                foreach (var geom in reg.Geometries)
+                foreach (var geom in country.Geometries)
                 {
                     if (geom.FillContains(mapPt))
                     {
-                        found = reg;
+                        found = country;
                         break;
                     }
                 }
@@ -314,18 +452,24 @@ public sealed class WorldRadarMapControl : Control
             }
         }
 
-        if (found != _activeHoverRegion)
+        if (found != _activeHoverCountry)
         {
-            _activeHoverRegion = found;
+            _activeHoverCountry = found;
             if (found != null)
             {
+                HoveredCountryName = found.Name;
                 HoveredRegionName = found.Name;
-                HoveredTrafficRate = found.Traffic;
-                HoveredRtt = found.Rtt;
+                var (traffic, rtt) = GetCountryTelemetry(found.Name, found.Id, ScopedNodeId);
+                HoveredTrafficRate = traffic;
+                HoveredRtt = rtt;
+                IsCountryHovered = true;
                 IsRegionHovered = true;
             }
             else
             {
+                HoveredCountryName = string.Empty;
+                HoveredRegionName = string.Empty;
+                IsCountryHovered = false;
                 IsRegionHovered = false;
             }
             InvalidateVisual();
@@ -335,9 +479,52 @@ public sealed class WorldRadarMapControl : Control
     protected override void OnPointerExited(PointerEventArgs e)
     {
         base.OnPointerExited(e);
-        _activeHoverRegion = null;
+        _activeHoverCountry = null;
+        HoveredCountryName = string.Empty;
+        HoveredRegionName = string.Empty;
+        IsCountryHovered = false;
         IsRegionHovered = false;
         InvalidateVisual();
+    }
+
+    private static (string traffic, string rtt) GetCountryTelemetry(string name, string id, string scoped)
+    {
+        string n = name.ToLowerInvariant();
+        string c = id.ToUpperInvariant();
+        string s = (scoped ?? string.Empty).ToLowerInvariant();
+
+        if (n.Contains("japan") || c == "JP")
+        {
+            if (s.Contains("gander")) return ("28.3 Gbps", "1.2ms");
+            return ("44.8 Gbps", "1.8ms");
+        }
+        if (n.Contains("united states") || c == "US")
+        {
+            if (s.Contains("iad")) return ("41.4 Gbps", "11ms");
+            return ("23.9 Gbps", "78ms");
+        }
+        if (n.Contains("germany") || c == "DE")
+        {
+            if (s.Contains("fra")) return ("18.8 Gbps", "3.5ms");
+            return ("12.1 Gbps", "142ms");
+        }
+        if (n.Contains("singapore") || c == "SG")
+        {
+            if (s.Contains("sin")) return ("16.2 Gbps", "1.5ms");
+            return ("7.4 Gbps", "62ms");
+        }
+        if (n.Contains("united kingdom") || c == "GB") return ("9.5 Gbps", "72ms");
+        if (n.Contains("france") || c == "FR") return ("7.1 Gbps", "88ms");
+        if (n.Contains("australia") || c == "AU") return ("5.4 Gbps", "98ms");
+        if (n.Contains("canada") || c == "CA") return ("4.8 Gbps", "82ms");
+        if (n.Contains("brazil") || c == "BR") return ("3.2 Gbps", "165ms");
+        if (n.Contains("china") || c == "CN") return ("8.4 Gbps", "52ms");
+        if (n.Contains("india") || c == "IN") return ("6.1 Gbps", "85ms");
+
+        int hash = Math.Abs(name.GetHashCode());
+        double rate = 0.5 + (hash % 40) / 10.0;
+        int latency = 30 + (hash % 150);
+        return ($"{rate:F1} Gbps", $"{latency}ms");
     }
 }
 

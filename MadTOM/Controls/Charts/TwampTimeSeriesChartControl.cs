@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -29,12 +30,14 @@ public sealed class TwampTimeSeriesChartControl : Control
     public static readonly StyledProperty<double> PanOffsetProperty =
         AvaloniaProperty.Register<TwampTimeSeriesChartControl, double>(nameof(PanOffset), 0.0);
 
-    private static readonly IPen GridPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(50, 30, 41, 59)), 1);
-    private static readonly IPen CrosshairPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(180, 100, 116, 139)), 1,
+    private static readonly IPen GridPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(40, 148, 163, 184)), 1,
+        new ImmutableDashStyle([2, 4], 0));
+
+    private static readonly IPen CrosshairPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(180, 56, 189, 248)), 1,
         new ImmutableDashStyle([3, 3], 0));
 
     private static readonly IPen ForwardPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromRgb(6, 182, 212)), 2.0);
-    private static readonly IBrush ForwardFillBrush = new ImmutableSolidColorBrush(Color.FromArgb(25, 6, 182, 212));
+    private static readonly IBrush ForwardFillBrush = new ImmutableSolidColorBrush(Color.FromArgb(35, 6, 182, 212));
 
     private static readonly IPen ReversePen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromRgb(99, 102, 241)), 2.0);
     private static readonly IBrush ReverseFillBrush = new ImmutableSolidColorBrush(Color.FromArgb(25, 99, 102, 241));
@@ -51,6 +54,12 @@ public sealed class TwampTimeSeriesChartControl : Control
     private bool _isDragging;
     private Point _dragStartPoint;
     private double _dragStartPan;
+
+    private readonly Dictionary<long, Point> _activeTouchPoints = new();
+    private double _multiTouchStartDistance;
+    private double _multiTouchStartZoom = 1.0;
+    private double _multiTouchStartPan;
+    private Point _multiTouchStartCenter;
 
     public double[] ForwardSeries
     {
@@ -159,7 +168,7 @@ public sealed class TwampTimeSeriesChartControl : Control
         }
 
         // Apply zoom and pan transformation
-        double zoom = Math.Max(1.0, Math.Min(5.0, ZoomLevel));
+        double zoom = Math.Max(1.0, Math.Min(8.0, ZoomLevel));
         double maxPan = (zoom - 1.0) * plotW;
         double pan = Math.Clamp(PanOffset, 0.0, maxPan);
 
@@ -311,53 +320,185 @@ public sealed class TwampTimeSeriesChartControl : Control
         }
     }
 
-    protected override void OnPointerMoved(PointerEventArgs e)
+    public static (double newZoom, double newPan) ComputeCursorAnchoredZoom(
+        double oldZoom,
+        double oldPan,
+        double deltaY,
+        double cursorX,
+        double leftPad,
+        double plotW,
+        double minZoom = 1.0,
+        double maxZoom = 8.0)
     {
-        base.OnPointerMoved(e);
-        _hoverPoint = e.GetPosition(this);
+        if (plotW <= 0) return (oldZoom, oldPan);
 
-        if (_isDragging && _hoverPoint.HasValue)
-        {
-            double deltaX = _hoverPoint.Value.X - _dragStartPoint.X;
-            PanOffset = _dragStartPan - deltaX;
-        }
+        double relX = Math.Clamp(cursorX - leftPad, 0.0, plotW);
+        double dataFrac = (relX + oldPan) / (plotW * oldZoom);
 
-        InvalidateVisual();
+        double newZoom = Math.Clamp(oldZoom + (deltaY * 0.25), minZoom, maxZoom);
+        double newMaxPan = (newZoom - 1.0) * plotW;
+        double newPan = (dataFrac * plotW * newZoom) - relX;
+
+        return (newZoom, Math.Clamp(newPan, 0.0, newMaxPan));
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var p = e.GetCurrentPoint(this);
+
+        if (e.Pointer.Type == PointerType.Touch)
         {
-            _isDragging = true;
-            _dragStartPoint = e.GetPosition(this);
-            _dragStartPan = PanOffset;
+            _activeTouchPoints[e.Pointer.Id] = p.Position;
+            if (_activeTouchPoints.Count == 2)
+            {
+                _isDragging = false;
+                var pts = _activeTouchPoints.Values.ToArray();
+                _multiTouchStartDistance = Math.Max(10.0, Math.Abs(pts[0].X - pts[1].X));
+                _multiTouchStartZoom = ZoomLevel;
+                _multiTouchStartPan = PanOffset;
+                _multiTouchStartCenter = new Point((pts[0].X + pts[1].X) / 2.0, (pts[0].Y + pts[1].Y) / 2.0);
+            }
+            else if (_activeTouchPoints.Count == 1)
+            {
+                _isDragging = true;
+                _dragStartPoint = p.Position;
+                _dragStartPan = PanOffset;
+            }
             e.Handled = true;
         }
+        else if (p.Properties.IsLeftButtonPressed)
+        {
+            _isDragging = true;
+            _dragStartPoint = p.Position;
+            _dragStartPan = PanOffset;
+            e.Pointer.Capture(this);
+            Cursor = new Cursor(StandardCursorType.Hand);
+            e.Handled = true;
+        }
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        _hoverPoint = e.GetPosition(this);
+
+        const double leftPad = 46.0;
+        const double rightPad = 16.0;
+        double plotW = Math.Max(10.0, Bounds.Width - leftPad - rightPad);
+        double maxPan = (ZoomLevel - 1.0) * plotW;
+
+        if (e.Pointer.Type == PointerType.Touch && _activeTouchPoints.ContainsKey(e.Pointer.Id))
+        {
+            _activeTouchPoints[e.Pointer.Id] = e.GetPosition(this);
+            if (_activeTouchPoints.Count >= 2)
+            {
+                var pts = _activeTouchPoints.Values.Take(2).ToArray();
+                double currentDistance = Math.Max(10.0, Math.Abs(pts[0].X - pts[1].X));
+                double scale = currentDistance / _multiTouchStartDistance;
+
+                double newZoom = Math.Clamp(_multiTouchStartZoom * scale, 1.0, 8.0);
+                double relX = Math.Clamp(_multiTouchStartCenter.X - leftPad, 0.0, plotW);
+                double dataFrac = (relX + _multiTouchStartPan) / (plotW * _multiTouchStartZoom);
+                double newMaxPan = (newZoom - 1.0) * plotW;
+                double newPan = (dataFrac * plotW * newZoom) - relX;
+
+                PanOffset = Math.Clamp(newPan, 0.0, newMaxPan);
+                ZoomLevel = newZoom;
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (_isDragging && _hoverPoint.HasValue)
+        {
+            double deltaX = _hoverPoint.Value.X - _dragStartPoint.X;
+            PanOffset = Math.Clamp(_dragStartPan - deltaX, 0.0, maxPan);
+            Cursor = new Cursor(StandardCursorType.Hand);
+        }
+        else
+        {
+            if (ZoomLevel > 1.05 && _hoverPoint.HasValue && _hoverPoint.Value.X >= leftPad && _hoverPoint.Value.X <= Bounds.Width - rightPad)
+            {
+                Cursor = new Cursor(StandardCursorType.SizeWestEast);
+            }
+            else
+            {
+                Cursor = Cursor.Default;
+            }
+        }
+
+        InvalidateVisual();
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        if (e.Pointer.Type == PointerType.Touch)
+        {
+            _activeTouchPoints.Remove(e.Pointer.Id);
+            if (_activeTouchPoints.Count == 0)
+            {
+                _isDragging = false;
+            }
+        }
+        else if (_isDragging)
+        {
+            _isDragging = false;
+            e.Pointer.Capture(null);
+            Cursor = ZoomLevel > 1.05 ? new Cursor(StandardCursorType.SizeWestEast) : Cursor.Default;
+            InvalidateVisual();
+        }
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
         _isDragging = false;
+        Cursor = Cursor.Default;
+        InvalidateVisual();
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        double delta = e.Delta.Y;
-        double newZoom = Math.Clamp(ZoomLevel + (delta * 0.25), 1.0, 5.0);
-        ZoomLevel = newZoom;
-        InvalidateVisual();
-        e.Handled = true;
+
+        const double leftPad = 46.0;
+        const double rightPad = 16.0;
+        double plotW = Math.Max(10.0, Bounds.Width - leftPad - rightPad);
+        double maxPan = (ZoomLevel - 1.0) * plotW;
+
+        // Trackpad horizontal scroll
+        if (Math.Abs(e.Delta.X) > 0.001 && maxPan > 0)
+        {
+            PanOffset = Math.Clamp(PanOffset - (e.Delta.X * 24.0), 0.0, maxPan);
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        // Vertical wheel delta -> Cursor-Anchored Zoom
+        double deltaY = e.Delta.Y;
+        if (Math.Abs(deltaY) > 0.001)
+        {
+            Point cursorPt = _hoverPoint ?? e.GetPosition(this);
+            var (newZoom, newPan) = ComputeCursorAnchoredZoom(ZoomLevel, PanOffset, deltaY, cursorPt.X, leftPad, plotW, 1.0, 8.0);
+            PanOffset = newPan;
+            ZoomLevel = newZoom;
+            InvalidateVisual();
+            e.Handled = true;
+        }
     }
 
     protected override void OnPointerExited(PointerEventArgs e)
     {
         base.OnPointerExited(e);
         _hoverPoint = null;
-        _isDragging = false;
+        if (!_isDragging)
+        {
+            Cursor = Cursor.Default;
+        }
         InvalidateVisual();
     }
 }

@@ -130,7 +130,8 @@
                             ClipToBounds="True">
                         <Grid>
                             <radar:WorldRadarMapControl x:Name="RadarMap"
-                                                        ScopedNodeId="{Binding ScopedNodeId}"/>
+                                                        ScopedNodeId="{Binding ScopedNodeId}"
+                                                        HoveredCountryName="{Binding HoveredCountry, Mode=TwoWay}"/>
 
                             <!-- Floating Region Hover Card -->
                             <Border Background="#E60A0F1D"
@@ -141,10 +142,10 @@
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Top"
                                     Margin="12"
-                                    IsVisible="{Binding #RadarMap.IsRegionHovered}"
+                                    IsVisible="{Binding #RadarMap.IsCountryHovered}"
                                     BoxShadow="0 4 20 #80000000">
                                 <StackPanel Spacing="2">
-                                    <TextBlock Text="{Binding #RadarMap.HoveredRegionName}"
+                                    <TextBlock Text="{Binding #RadarMap.HoveredCountryName}"
                                                FontFamily="{StaticResource MonoFontFamily}"
                                                FontWeight="Bold"
                                                FontSize="12"
@@ -176,21 +177,49 @@
                         <ItemsControl ItemsSource="{Binding TopOrigins}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:OriginShareItem">
-                                    <StackPanel Spacing="3" Margin="0,3">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <TextBlock Text="{Binding CountryFlag}" FontSize="11"/>
-                                                <TextBlock Text="{Binding CountryName}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="1" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextPrimaryBrush}">
-                                                <Run Text="{Binding Percentage, StringFormat={}{0:F1}%}" FontWeight="Bold"/>
-                                                <Run Text=" (" Foreground="{DynamicResource TextMutedBrush}"/>
-                                                <Run Text="{Binding Latency}" Foreground="{DynamicResource AccentTextBrush}"/>
-                                                <Run Text=")" Foreground="{DynamicResource TextMutedBrush}"/>
-                                            </TextBlock>
-                                        </Grid>
-                                        <ProgressBar Value="{Binding Percentage}" Maximum="100" Height="4" CornerRadius="2" Foreground="#06B6D4" Background="#1E293B"/>
-                                    </StackPanel>
+                                    <Border Classes="originItem"
+                                            Classes.muted="{Binding IsMuted}"
+                                            Classes.highlighted="{Binding IsHovered}"
+                                            CornerRadius="6"
+                                            Padding="6,4"
+                                            Margin="0,2">
+                                        <Border.Styles>
+                                            <Style Selector="Border.originItem">
+                                                <Setter Property="Opacity" Value="1.0"/>
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="Transitions">
+                                                    <Transitions>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.18"/>
+                                                    </Transitions>
+                                                </Setter>
+                                            </Style>
+                                            <Style Selector="Border.originItem.muted">
+                                                <Setter Property="Opacity" Value="0.25"/>
+                                            </Style>
+                                            <Style Selector="Border.originItem.highlighted">
+                                                <Setter Property="Opacity" Value="1.0"/>
+                                                <Setter Property="Background" Value="#1E1B4B"/>
+                                                <Setter Property="BorderBrush" Value="#4F46E5"/>
+                                            </Style>
+                                        </Border.Styles>
+                                        <StackPanel Spacing="3">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <TextBlock Text="{Binding CountryFlag}" FontSize="11"/>
+                                                    <TextBlock Text="{Binding CountryName}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextPrimaryBrush}">
+                                                    <Run Text="{Binding Percentage, StringFormat={}{0:F1}%}" FontWeight="Bold"/>
+                                                    <Run Text=" (" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    <Run Text="{Binding Latency}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                    <Run Text=")" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                </TextBlock>
+                                            </Grid>
+                                            <ProgressBar Value="{Binding Percentage}" Maximum="100" Height="4" CornerRadius="2" Foreground="{Binding BarColor}" Background="#1E293B"/>
+                                        </StackPanel>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
