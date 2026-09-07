@@ -47,8 +47,7 @@ public sealed class TwampTimeSeriesChartControl : Control
     private static readonly IPen TooltipBorder = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromRgb(51, 65, 85)), 1);
     private static readonly Typeface MonoTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
 
-    private bool _isHovering;
-    private Point _hoverPoint;
+    private Point? _hoverPoint;
     private bool _isDragging;
     private Point _dragStartPoint;
     private double _dragStartPan;
@@ -112,6 +111,9 @@ public sealed class TwampTimeSeriesChartControl : Control
         double w = Bounds.Width;
         double h = Bounds.Height;
         if (w < 40 || h < 40) return;
+
+        // Transparent background across entire bounds for continuous hit-testing
+        context.FillRectangle(Brushes.Transparent, new Rect(0, 0, w, h));
 
         const double leftPad = 46.0;
         const double rightPad = 16.0;
@@ -177,9 +179,9 @@ public sealed class TwampTimeSeriesChartControl : Control
             DrawPoints(context, rev, leftPad, topPad, plotH, stepX, pan, minY, maxY, Brushes.Indigo);
 
             // Crosshair
-            if (_isHovering && _hoverPoint.X >= leftPad && _hoverPoint.X <= w - rightPad)
+            if (_hoverPoint.HasValue && _hoverPoint.Value.X >= leftPad && _hoverPoint.Value.X <= w - rightPad)
             {
-                double hx = _hoverPoint.X;
+                double hx = _hoverPoint.Value.X;
                 context.DrawLine(CrosshairPen, new Point(hx, topPad), new Point(hx, topPad + plotH));
             }
         }
@@ -205,9 +207,9 @@ public sealed class TwampTimeSeriesChartControl : Control
         }
 
         // Draw Hover Tooltip Box
-        if (_isHovering && _hoverPoint.X >= leftPad && _hoverPoint.X <= w - rightPad && _hoverPoint.Y >= topPad && _hoverPoint.Y <= h - bottomPad)
+        if (_hoverPoint.HasValue && _hoverPoint.Value.X >= leftPad && _hoverPoint.Value.X <= w - rightPad && _hoverPoint.Value.Y >= topPad && _hoverPoint.Value.Y <= h - bottomPad)
         {
-            double mouseRelX = _hoverPoint.X - leftPad + pan;
+            double mouseRelX = _hoverPoint.Value.X - leftPad + pan;
             int nearestIdx = Math.Clamp((int)Math.Round(mouseRelX / stepX), 0, count - 1);
 
             double curFwd = nearestIdx < fwd.Length ? fwd[nearestIdx] : 0;
@@ -226,11 +228,11 @@ public sealed class TwampTimeSeriesChartControl : Control
 
             double tipW = ft.Width + 16;
             double tipH = ft.Height + 12;
-            double tipX = Math.Min(w - tipW - 10, _hoverPoint.X + 12);
-            double tipY = Math.Max(topPad + 5, _hoverPoint.Y - tipH - 5);
+            double tipX = Math.Min(w - tipW - 10, _hoverPoint.Value.X + 12);
+            double tipY = Math.Max(topPad + 5, _hoverPoint.Value.Y - tipH - 5);
 
-            context.FillRectangle(TooltipBg, new Rect(tipX, tipY, tipW, tipH), 6);
-            context.DrawRectangle(null, TooltipBorder, new Rect(tipX, tipY, tipW, tipH), 6);
+            var tipRect = new RoundedRect(new Rect(tipX, tipY, tipW, tipH), 6);
+            context.DrawRectangle(TooltipBg, TooltipBorder, tipRect);
             context.DrawText(ft, new Point(tipX + 8, tipY + 6));
         }
     }
@@ -313,11 +315,10 @@ public sealed class TwampTimeSeriesChartControl : Control
     {
         base.OnPointerMoved(e);
         _hoverPoint = e.GetPosition(this);
-        _isHovering = true;
 
-        if (_isDragging)
+        if (_isDragging && _hoverPoint.HasValue)
         {
-            double deltaX = _hoverPoint.X - _dragStartPoint.X;
+            double deltaX = _hoverPoint.Value.X - _dragStartPoint.X;
             PanOffset = _dragStartPan - deltaX;
         }
 
@@ -355,7 +356,7 @@ public sealed class TwampTimeSeriesChartControl : Control
     protected override void OnPointerExited(PointerEventArgs e)
     {
         base.OnPointerExited(e);
-        _isHovering = false;
+        _hoverPoint = null;
         _isDragging = false;
         InvalidateVisual();
     }

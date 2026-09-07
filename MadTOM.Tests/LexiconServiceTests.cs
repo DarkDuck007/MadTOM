@@ -4,6 +4,7 @@ using Xunit;
 
 namespace MadTOM.Tests;
 
+[Collection("Lexicon")]
 public class LexiconServiceTests
 {
     [Fact]

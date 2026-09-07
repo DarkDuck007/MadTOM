@@ -155,10 +155,7 @@
                         Padding="2">
                     <core:MicroCoreStripControl CoreCount="{Binding Node.Cores}"
                                                 CoreLoads="{Binding Node.CoreLoads}"
-                                                HostId="{Binding Node.Id}"
-                                                HoveredIndex="{Binding HoveredIndex, Mode=TwoWay}"
-                                                HoveredLoad="{Binding HoveredLoad, Mode=TwoWay}"
-                                                IsHovered="{Binding IsHovered, Mode=TwoWay}"/>
+                                                HostId="{Binding Node.Id}"/>
                 </Border>
             </StackPanel>
 

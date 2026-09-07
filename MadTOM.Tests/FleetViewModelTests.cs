@@ -11,7 +11,7 @@ public class FleetViewModelTests
 
     public FleetViewModelTests()
     {
-        _dataProvider = new MockTelemetryDataProvider();
+        _dataProvider = new MockTelemetryDataProvider(startBackgroundTimer: false);
     }
 
     [Fact]

@@ -108,4 +108,23 @@ public class TelemetryAndMetricsTests
         Assert.False(vm.IsCustomScopeModalOpen);
         Assert.Equal("5m", vm.SelectedScope);
     }
+
+    [Fact]
+    public void SidebarViewModel_DoesNotReplaceNodesOnTelemetryUpdate()
+    {
+        using var provider = new MockTelemetryDataProvider(startBackgroundTimer: false);
+        var vm = new SidebarViewModel(provider);
+
+        Assert.Equal(6, vm.Nodes.Count);
+
+        bool collectionChanged = false;
+        vm.Nodes.CollectionChanged += (s, e) => collectionChanged = true;
+
+        var existingNode = provider.GetFleetNodes()[0];
+        existingNode.Twamp.ForwardMs = 99.9;
+
+        // Collection should not emit Replace events for existing nodes
+        Assert.False(collectionChanged);
+        Assert.Equal(6, vm.Nodes.Count);
+    }
 }

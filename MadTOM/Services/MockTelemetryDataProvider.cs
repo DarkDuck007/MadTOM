@@ -26,7 +26,7 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
 
         if (startBackgroundTimer)
         {
-            _streamTimer = new Timer(OnStreamTick, null, 1000, 1000);
+            _streamTimer = new Timer(OnStreamTick, null, 100, 100);
         }
     }
 

@@ -135,7 +135,7 @@ public sealed class MicroCoreStripControl : Control
         }
 
         // Floating tooltip beside mouse cursor
-        if (IsHovered && HoveredIndex >= 0 && _lastPointerPos.HasValue)
+        if (HoveredIndex >= 0 && _lastPointerPos.HasValue)
         {
             RenderHoverTooltip(context, w, h, _lastPointerPos.Value);
         }
@@ -143,7 +143,12 @@ public sealed class MicroCoreStripControl : Control
 
     private void RenderHoverTooltip(DrawingContext context, double w, double h, Point pt)
     {
-        string text = $"T#{HoveredIndex}: {HoveredLoad * 100:F1}%";
+        var loads = CoreLoads;
+        float currentLoad = (loads != null && HoveredIndex >= 0 && HoveredIndex < loads.Length)
+            ? loads[HoveredIndex]
+            : HoveredLoad;
+
+        string text = $"T#{HoveredIndex}: {currentLoad * 100:F1}%";
 
         var ft = new FormattedText(
             text,
@@ -205,10 +210,7 @@ public sealed class MicroCoreStripControl : Control
             int col = (int)(relX / step);
             int row = (int)(relY / step);
 
-            bool inCellX = (relX - col * step) <= L.CellSize;
-            bool inCellY = (relY - row * step) <= L.CellSize;
-
-            if (inCellX && inCellY && col >= 0 && col < L.Cols && row >= 0 && row < L.Rows)
+            if (col >= 0 && col < L.Cols && row >= 0 && row < L.Rows)
             {
                 int idx = (row * L.Cols) + col;
                 if (idx >= 0 && idx < CoreCount)

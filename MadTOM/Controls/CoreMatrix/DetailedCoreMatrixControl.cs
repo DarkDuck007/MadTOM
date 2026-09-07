@@ -163,9 +163,41 @@ public sealed class DetailedCoreMatrixControl : Control
     private void RenderHoverTooltip(DrawingContext context, double w, double h, Point pt)
     {
         int threadNo = _hoveredLocalIdx >= 0 ? _hoveredLocalIdx : HoveredThreadIndex;
+
+        float currentLoad = HoveredLoad;
+        if (IsAggregatedMode)
+        {
+            var nodes = ClusterNodes;
+            if (nodes != null)
+            {
+                int sum = 0;
+                foreach (var node in nodes)
+                {
+                    if (HoveredThreadIndex >= sum && HoveredThreadIndex < sum + node.Cores)
+                    {
+                        int localIdx = HoveredThreadIndex - sum;
+                        if (node.CoreLoads != null && localIdx < node.CoreLoads.Length)
+                        {
+                            currentLoad = node.CoreLoads[localIdx];
+                        }
+                        break;
+                    }
+                    sum += node.Cores;
+                }
+            }
+        }
+        else
+        {
+            var loads = CoreLoads;
+            if (loads != null && HoveredThreadIndex >= 0 && HoveredThreadIndex < loads.Length)
+            {
+                currentLoad = loads[HoveredThreadIndex];
+            }
+        }
+
         string text = IsAggregatedMode && !string.IsNullOrEmpty(HoveredHostId)
-            ? $"{HoveredHostId}  T#{threadNo}: {HoveredLoad * 100:F1}%"
-            : $"Thread #{threadNo}: {HoveredLoad * 100:F1}%";
+            ? $"{HoveredHostId}  T#{threadNo}: {currentLoad * 100:F1}%"
+            : $"Thread #{threadNo}: {currentLoad * 100:F1}%";
 
         var ft = new FormattedText(
             text,

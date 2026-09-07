@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MadTOM.Models;
@@ -36,12 +37,15 @@ public partial class SidebarViewModel : ViewModelBase
 
         _telemetryProvider.NodeTelemetryUpdated += (s, updatedNode) =>
         {
-            for (int i = 0; i < Nodes.Count; i++)
+            if (!Nodes.Any(n => n.Id.Equals(updatedNode.Id, StringComparison.OrdinalIgnoreCase)))
             {
-                if (Nodes[i].Id.Equals(updatedNode.Id, StringComparison.OrdinalIgnoreCase))
+                if (Avalonia.Threading.Dispatcher.UIThread?.CheckAccess() == false)
                 {
-                    Nodes[i] = updatedNode;
-                    break;
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => Nodes.Add(updatedNode));
+                }
+                else
+                {
+                    Nodes.Add(updatedNode);
                 }
             }
         };
