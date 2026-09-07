@@ -1,0 +1,70 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+[Dd]ebug*/
+[Rr]elease*/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+# Test results and code coverage
+[Tt]est[Rr]esult*/
+[Tt]est[Ll]ogs/
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+*.trx
+
+# NuGet packages and generated metadata
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+project.assets.json
+project.nuget.cache
+
+# IDE and editor files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.DotSettings.user
+_ReSharper*/
+*.resharper
+
+# Build, profiling, and tooling byproducts
+Generated Files/
+BenchmarkDotNet.Artifacts/
+StyleCopReport.xml
+*.binlog
+*.log
+*.svclog
+*.tmp
+*.cache
+*.pdb
+*.opendb
+*.VC.db
+*.pidb
+*.booproj
+
+# Local development certificates and secrets
+*.pfx
+*.publishsettings
+*.pubxml.user
+secrets.json
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+

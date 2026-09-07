@@ -1,0 +1,118 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MadTOM.ViewModels"
+             xmlns:fleet="using:MadTOM.Views.Fleet"
+             xmlns:loc="using:MadTOM.Localization"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="800"
+             x:Class="MadTOM.Views.Fleet.FleetView"
+             x:DataType="vm:FleetViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Button.filter-btn">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.filter-btn.active">
+            <Setter Property="Background" Value="#0891B2" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="20" Margin="24">
+
+            <!-- Title & Filter Toolbar -->
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                
+                <!-- Left Title Section -->
+                <StackPanel Grid.Column="0" Grid.Row="0" Spacing="4">
+                    <Border Background="#0C1E30"
+                            BorderBrush="#0891B2"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            HorizontalAlignment="Left">
+                        <TextBlock Text="{loc:Loc level1Badge}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
+
+                    <TextBlock Text="{loc:Loc fleetTitle}"
+                               FontWeight="ExtraBold"
+                               FontSize="20"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                    <TextBlock Text="{loc:Loc fleetSubtitle}"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </StackPanel>
+
+                <!-- Right Search & Filter Pills -->
+                <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <!-- Search Input -->
+                    <TextBox Text="{Binding SearchText, Mode=TwoWay}"
+                             PlaceholderText="Filter hostname, IP, core count..."
+                             FontFamily="{StaticResource MonoFontFamily}"
+                             FontSize="11"
+                             Width="220"
+                             Background="#04060B"
+                             BorderBrush="{DynamicResource BorderBrush}"
+                             CornerRadius="8"
+                             Padding="10,6"/>
+
+                    <!-- Filter Buttons -->
+                    <Border Background="#070D17"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="2">
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                            <Button Content="All"
+                                    Classes="filter-btn"
+                                    Classes.active="{Binding IsAllSelected}"
+                                    Command="{Binding SetFilterCommand}"
+                                    CommandParameter="all"/>
+
+                            <Button Content="{loc:Loc filterBaremetal}"
+                                    Classes="filter-btn"
+                                    Classes.active="{Binding IsBaremetalSelected}"
+                                    Command="{Binding SetFilterCommand}"
+                                    CommandParameter="baremetal"/>
+
+                            <Button Content="{loc:Loc filterVm}"
+                                    Classes="filter-btn"
+                                    Classes.active="{Binding IsVmSelected}"
+                                    Command="{Binding SetFilterCommand}"
+                                    CommandParameter="vm"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- Responsive Cards Grid -->
+            <ItemsControl ItemsSource="{Binding Cards}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" ItemWidth="350" Margin="0,0,-16,0" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FleetNodeCardViewModel">
+                        <fleet:HostCardView Margin="0,0,16,16" DataContext="{Binding}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

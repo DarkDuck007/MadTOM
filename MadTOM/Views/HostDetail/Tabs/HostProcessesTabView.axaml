@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MadTOM.ViewModels"
+             xmlns:models="using:MadTOM.Models"
+             xmlns:loc="using:MadTOM.Localization"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="600"
+             x:Class="MadTOM.Views.HostDetail.Tabs.HostProcessesTabView"
+             x:DataType="vm:HostProcessesTabViewModel">
+
+    <Border Background="#070A12"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="16">
+        <StackPanel Spacing="14">
+
+            <!-- Filter & Refresh Toolbar -->
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0"
+                         Text="{Binding SearchFilter, Mode=TwoWay}"
+                         PlaceholderText="Filter process PID, name, user..."
+                         FontFamily="{StaticResource MonoFontFamily}"
+                         FontSize="11"
+                         Width="260"
+                         HorizontalAlignment="Left"
+                         Background="#04060B"
+                         BorderBrush="{DynamicResource BorderBrush}"
+                         CornerRadius="6"
+                         Padding="10,6"/>
+
+                <Button Grid.Column="1"
+                        Command="{Binding RefreshCommand}"
+                        Background="#1E293B"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="12,6">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="↻" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Refresh" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- Process Table -->
+            <Border Background="#090F1C"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    ClipToBounds="True">
+                <StackPanel>
+                    <!-- Header Row -->
+                    <Border Background="#0B1324" Padding="12,8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="70,*,120,80,80,110,140">
+                            <TextBlock Grid.Column="0" Text="PID" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="1" Text="COMMAND" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="2" Text="USER" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="3" Text="THREADS" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="4" Text="CPU %" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="5" Text="MEMORY" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="6" Text="ACTIONS" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Items -->
+                    <ItemsControl ItemsSource="{Binding Processes}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:ProcessInfoModel">
+                                <Border Padding="12,8" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1">
+                                    <Grid ColumnDefinitions="70,*,120,80,80,110,140">
+                                        <TextBlock Grid.Column="0" Text="{Binding Pid}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding User}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding Threads}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding Cpu, StringFormat={}{0:F1}%}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="5" Text="{Binding Mem}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+
+                                        <!-- Actions -->
+                                        <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                                            <Button Content="{loc:Loc processTerm}"
+                                                    Command="{Binding ((vm:HostProcessesTabViewModel)DataContext).DispatchTermCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="#1E293B"
+                                                    BorderBrush="#334155"
+                                                    BorderThickness="1"
+                                                    Foreground="{DynamicResource WarningBrush}"
+                                                    FontFamily="{StaticResource MonoFontFamily}"
+                                                    FontSize="10"
+                                                    FontWeight="Bold"
+                                                    Padding="6,2"
+                                                    CornerRadius="4"/>
+                                            <Button Content="{loc:Loc processKill}"
+                                                    Command="{Binding ((vm:HostProcessesTabViewModel)DataContext).DispatchKillCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="#4C0519"
+                                                    BorderBrush="#9F1239"
+                                                    BorderThickness="1"
+                                                    Foreground="#FDA4AF"
+                                                    FontFamily="{StaticResource MonoFontFamily}"
+                                                    FontSize="10"
+                                                    FontWeight="Bold"
+                                                    Padding="6,2"
+                                                    CornerRadius="4"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </Border>
+</UserControl>

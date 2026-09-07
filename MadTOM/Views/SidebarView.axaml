@@ -1,0 +1,326 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MadTOM.ViewModels"
+             xmlns:models="using:MadTOM.Models"
+             xmlns:converters="using:MadTOM.Common.Converters"
+             xmlns:loc="using:MadTOM.Localization"
+             mc:Ignorable="d" d:DesignWidth="240" d:DesignHeight="800"
+             x:Class="MadTOM.Views.SidebarView"
+             x:DataType="vm:SidebarViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Button.nav-item">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.nav-item.active">
+            <Setter Property="Background" Value="#162E3B" />
+            <Setter Property="BorderBrush" Value="#0E7490" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="{DynamicResource SidebarBgBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="0,0,1,0"
+            Width="{Binding SidebarWidth}">
+        <Border.Transitions>
+            <Transitions>
+                <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="CubicEaseOut" />
+            </Transitions>
+        </Border.Transitions>
+
+        <Grid RowDefinitions="Auto,*,Auto">
+
+            <!-- Top Navigation Section -->
+            <Border Grid.Row="0"
+                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="{Binding IsCollapsed, Converter={x:Static converters:ValueConverters.BoolToNavPadding}}">
+                <Panel>
+                    <!-- Expanded Nav -->
+                    <StackPanel Spacing="6" IsVisible="{Binding !IsCollapsed}">
+                    <TextBlock Text="{loc:Loc navSectionViews}"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               LetterSpacing="1"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               Margin="4,0,0,4"/>
+
+                    <!-- Fleet Matrix Button -->
+                    <Button Command="{Binding NavigateCommand}"
+                            CommandParameter="fleet"
+                            Classes="nav-item"
+                            Classes.active="{Binding IsFleetActive}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Padding="12,8"
+                            CornerRadius="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="⊞" FontSize="13" Foreground="{DynamicResource AccentTextBrush}"/>
+                            <TextBlock Text="{loc:Loc navFleetMatrix}"
+                                       FontSize="11"
+                                       FontWeight="Medium"
+                                       Foreground="{DynamicResource AccentTextBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Global Radar Button -->
+                    <Button Command="{Binding NavigateCommand}"
+                            CommandParameter="radar"
+                            Classes="nav-item"
+                            Classes.active="{Binding IsRadarActive}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Padding="12,8"
+                            CornerRadius="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="◎" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{loc:Loc navGlobalRadar}"
+                                       FontSize="11"
+                                       FontWeight="Medium"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Collapsed Nav (Icon-Only Rail) -->
+                <StackPanel Spacing="8" HorizontalAlignment="Center" IsVisible="{Binding IsCollapsed}">
+                    <Button Command="{Binding NavigateCommand}"
+                            CommandParameter="fleet"
+                            Classes="nav-item"
+                            Classes.active="{Binding IsFleetActive}"
+                            Width="44" Height="40"
+                            CornerRadius="8"
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            ToolTip.Tip="{loc:Loc navFleetMatrix}">
+                        <TextBlock Text="⊞" FontSize="16" Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Button>
+
+                    <Button Command="{Binding NavigateCommand}"
+                            CommandParameter="radar"
+                            Classes="nav-item"
+                            Classes.active="{Binding IsRadarActive}"
+                            Width="44" Height="40"
+                            CornerRadius="8"
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            ToolTip.Tip="{loc:Loc navGlobalRadar}">
+                        <TextBlock Text="◎" FontSize="16" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </Button>
+                </StackPanel>
+                </Panel>
+            </Border>
+
+            <!-- Middle Scrollable Section: Active Nodes -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16" Margin="{Binding IsCollapsed, Converter={x:Static converters:ValueConverters.BoolToScrollMargin}}">
+
+                    <!-- Expanded Nodes View -->
+                    <Border Background="#070D17"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="8,6"
+                            IsVisible="{Binding !IsCollapsed}">
+                        <StackPanel Spacing="6">
+                            <Button Command="{Binding ToggleNodesExpandedCommand}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0"
+                                    Cursor="Hand"
+                                    HorizontalAlignment="Stretch">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding IsNodesExpanded, Converter={x:Static converters:ValueConverters.BoolToArrow}}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="{loc:Loc navSectionNodes}"
+                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="2"
+                                            Background="#083344"
+                                            BorderBrush="#155E75"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="6,1">
+                                        <TextBlock Text="6 Online"
+                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                   FontSize="9"
+                                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                                    </Border>
+                                </Grid>
+                            </Button>
+
+                            <!-- Node items list -->
+                            <ItemsControl ItemsSource="{Binding Nodes}"
+                                          IsVisible="{Binding IsNodesExpanded}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:FleetNodeModel">
+                                        <Button Command="{Binding ((vm:SidebarViewModel)DataContext).SelectHostCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding Id}"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Stretch"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Padding="6,4"
+                                                CornerRadius="6"
+                                                Cursor="Hand">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <Ellipse Grid.Column="0"
+                                                         Width="6"
+                                                         Height="6"
+                                                         Fill="{Binding Status, Converter={x:Static converters:ValueConverters.StatusToBrush}}"
+                                                         Margin="0,0,8,0"
+                                                         VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Id}"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding Cores, StringFormat={}{0}T}"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Collapsed Nodes View (Compact Dot Rail) -->
+                    <StackPanel Spacing="6" HorizontalAlignment="Center" IsVisible="{Binding IsCollapsed}">
+                        <ItemsControl ItemsSource="{Binding Nodes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="models:FleetNodeModel">
+                                    <Button Command="{Binding ((vm:SidebarViewModel)DataContext).SelectHostCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding Id}"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Padding="4"
+                                            Cursor="Hand"
+                                            ToolTip.Tip="{Binding Id}">
+                                        <Border Width="28" Height="28"
+                                                Background="#070D17"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6">
+                                            <Ellipse Width="7" Height="7"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center"
+                                                     Fill="{Binding Status, Converter={x:Static converters:ValueConverters.StatusToBrush}}"/>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Bottom Row: DOCKED ENGINE SERVICES & FOOTER -->
+            <Border Grid.Row="2"
+                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                    BorderThickness="0,1,0,0"
+                    Background="#050810">
+                <StackPanel>
+                    <!-- Expanded Engine Services -->
+                    <StackPanel Spacing="6" Margin="12,12,12,8" IsVisible="{Binding !IsCollapsed}">
+                        <TextBlock Text="ENGINE SERVICES"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   LetterSpacing="1"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="4,0,0,0"/>
+
+                        <Border Background="#04060B" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8,5">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="RFC 5357 TWAMP" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Column="1" Text="ONLINE" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#04060B" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8,5">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="NFLOG Group 100" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Column="1" Text="ATTACHED" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#04060B" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8,5">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="ZSTD Cache" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Column="1" Text="6.4x (24MB)" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Collapsed Engine Services (Icon Rail) -->
+                    <StackPanel Spacing="8" Margin="0,10,0,8" HorizontalAlignment="Center" IsVisible="{Binding IsCollapsed}">
+                        <Border Width="32" Height="28" Background="#04060B" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                                ToolTip.Tip="RFC 5357 TWAMP: ONLINE">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3">
+                                <TextBlock Text="⚡" FontSize="10"/>
+                                <Ellipse Width="5" Height="5" Fill="{DynamicResource HealthyBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Width="32" Height="28" Background="#04060B" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                                ToolTip.Tip="NFLOG Group 100: ATTACHED">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3">
+                                <TextBlock Text="🛡️" FontSize="10"/>
+                                <Ellipse Width="5" Height="5" Fill="{DynamicResource HealthyBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Width="32" Height="28" Background="#04060B" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                                ToolTip.Tip="ZSTD Cache: 6.4x (24MB)">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3">
+                                <TextBlock Text="💾" FontSize="10"/>
+                                <Ellipse Width="5" Height="5" Fill="{DynamicResource AccentBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Bottom Left Rail Footer -->
+                    <Border BorderBrush="{DynamicResource BorderSubtleBrush}"
+                            BorderThickness="0,1,0,0"
+                            Padding="{Binding IsCollapsed, Converter={x:Static converters:ValueConverters.BoolToFooterPadding}}">
+                        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding !IsCollapsed}">
+                            <TextBlock Grid.Column="0"
+                                       Text="IPC: loopback:50051"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       VerticalAlignment="Center"/>
+                            <Ellipse Grid.Column="1"
+                                     Width="7"
+                                     Height="7"
+                                     Fill="{DynamicResource HealthyBrush}"
+                                     VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+        </Grid>
+    </Border>
+</UserControl>

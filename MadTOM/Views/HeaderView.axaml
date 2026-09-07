@@ -1,0 +1,125 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MadTOM.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="56"
+             x:Class="MadTOM.Views.HeaderView"
+             x:DataType="vm:HeaderViewModel">
+
+    <Border Background="{DynamicResource HeaderBgBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="0,0,0,1"
+            Height="56"
+            Padding="16,0">
+        <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+            
+            <!-- Left: Brand & Collapse Toggle Button -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Button Command="{Binding ToggleSidebarCollapseCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Cursor="Hand"
+                        ToolTip.Tip="Toggle Left Sidebar">
+                    <Border Background="#1D4ED8"
+                            CornerRadius="8"
+                            Padding="8,5">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="⚡" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                            <TextBlock Text="MAD TOM"
+                                       IsVisible="{Binding !IsSidebarCollapsed}"
+                                       FontWeight="ExtraBold"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       FontSize="13"
+                                       LetterSpacing="1"
+                                       Foreground="White"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Button>
+
+                <TextBlock Text="Telemetry &amp; Operations Matrix"
+                           IsVisible="{Binding !IsSidebarCollapsed}"
+                           FontWeight="Bold"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           VerticalAlignment="Center"/>
+
+                <Border Background="#164E63"
+                        BorderBrush="#0E7490"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="6,2"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="v0.5.2"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontSize="10"
+                               Foreground="{DynamicResource AccentTextBrush}"/>
+                </Border>
+            </StackPanel>
+
+            <!-- Center: Global Real-Time Cluster Telemetry Summary -->
+            <Border Grid.Column="1"
+                    HorizontalAlignment="Center"
+                    Background="#070D17"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="12,6">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse Width="7" Height="7" Fill="{DynamicResource HealthyBrush}"/>
+                        <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}">
+                            <Run Text="6 Hosts ("/>
+                            <Run Text="{Binding ClusterSummary.GanderCount, Mode=OneWay}"/>
+                            <Run Text=" Ganders / "/>
+                            <Run Text="{Binding ClusterSummary.GoslingCount, Mode=OneWay}"/>
+                            <Run Text=" Goslings)"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <TextBlock Text="|" Foreground="{DynamicResource BorderBrush}" VerticalAlignment="Center"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="P95 TWAMP:" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Text="↑ 1.8ms" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                        <TextBlock Text="↓ 2.4ms" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource IndigoBrush}"/>
+                    </StackPanel>
+
+                    <TextBlock Text="|" Foreground="{DynamicResource BorderBrush}" VerticalAlignment="Center"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="Global Egress:" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Text="148.2 Gbps" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource HealthyBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Right: Persona Dropdown Switcher -->
+            <ComboBox Grid.Column="2"
+                      ItemsSource="{Binding AvailablePersonas}"
+                      SelectedItem="{Binding SelectedPersona, Mode=TwoWay}"
+                      Width="165"
+                      FontSize="11"
+                      FontFamily="{StaticResource MonoFontFamily}"
+                      Background="#070D17"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Padding="8,4"
+                      VerticalAlignment="Center"
+                      ToolTip.Tip="Select Language / System Lexicon">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PersonaOption">
+                        <TextBlock Text="{Binding DisplayName}"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+        </Grid>
+    </Border>
+</UserControl>
+

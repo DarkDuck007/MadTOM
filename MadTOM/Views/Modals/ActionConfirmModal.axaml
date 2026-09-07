@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MadTOM.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="300"
+             x:Class="MadTOM.Views.Modals.ActionConfirmModal"
+             x:DataType="vm:MainViewModel">
+
+    <!-- Scrim Backdrop -->
+    <Grid Background="#B3000000">
+        <!-- Dialog Container -->
+        <Border Background="#0C1220"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                Padding="24"
+                Width="440"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                BoxShadow="0 10 30 #A0000000">
+            <StackPanel Spacing="16">
+                <!-- Header -->
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="⚠️" FontSize="18" VerticalAlignment="Center"/>
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding ModalTitle}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Dispatching daemon RPC to target host."
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Parameter Details Box -->
+                <Border Background="#070A12"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="14">
+                    <StackPanel Spacing="4">
+                        <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
+                            <Run Text="Target Node: "/>
+                            <Run Text="{Binding ModalHostId}" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                        </TextBlock>
+                        <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
+                            <Run Text="Target Command: "/>
+                            <Run Text="{Binding ModalCommandName}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </TextBlock>
+                        <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
+                            <Run Text="Signal Descriptor: "/>
+                            <Run Text="{Binding ModalSignalName}" FontWeight="Bold" Foreground="{DynamicResource CriticalBrush}"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Actions -->
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button Content="Cancel"
+                            Command="{Binding CancelActionModalCommand}"
+                            Background="#1E293B"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            Foreground="{DynamicResource TextSecondaryBrush}"
+                            FontFamily="{StaticResource MonoFontFamily}"
+                            FontSize="11"
+                            Padding="14,6"
+                            CornerRadius="6"/>
+
+                    <Button Content="Dispatch Signal"
+                            Command="{Binding ConfirmActionModalCommand}"
+                            Background="#E11D48"
+                            Foreground="White"
+                            FontFamily="{StaticResource MonoFontFamily}"
+                            FontWeight="Bold"
+                            FontSize="11"
+                            Padding="14,6"
+                            CornerRadius="6"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
+

@@ -1,0 +1,238 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MadTOM.ViewModels"
+             xmlns:core="using:MadTOM.Controls.CoreMatrix"
+             xmlns:charts="using:MadTOM.Controls.Charts"
+             xmlns:converters="using:MadTOM.Common.Converters"
+             xmlns:loc="using:MadTOM.Localization"
+             mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="320"
+             x:Class="MadTOM.Views.Fleet.HostCardView"
+             x:DataType="vm:FleetNodeCardViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.host-card">
+            <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.18" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.host-card:pointerover">
+            <Setter Property="Background" Value="#111B2F" />
+            <Setter Property="BorderBrush" Value="#0E7490" />
+            <Setter Property="BoxShadow" Value="0 8 22 #3506B6D4" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="host-card"
+            BorderBrush="{Binding Node.Status, Converter={x:Static converters:ValueConverters.StatusToBorderBrush}}"
+            BorderThickness="1"
+            CornerRadius="14"
+            Padding="14"
+            BoxShadow="0 6 18 #30000000"
+            PointerPressed="OnCardPointerPressed">
+        <StackPanel Spacing="10">
+
+            <!-- Top Row: Identity & Role Badge -->
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8"
+                             Fill="{Binding Node.Status, Converter={x:Static converters:ValueConverters.StatusToBrush}}"
+                             VerticalAlignment="Center"/>
+                    <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding Node.Id}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource TextMutedBrush}">
+                            <Run Text="{Binding Node.Ip}"/>
+                            <Run Text=" • "/>
+                            <Run Text="{Binding Node.Cores, Mode=OneWay}"/>
+                            <Run Text=" Cores"/>
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Grid.Column="1"
+                        Background="{Binding Node.Role, Converter={x:Static converters:ValueConverters.RoleToBadgeBg}}"
+                        BorderBrush="{Binding Node.Role, Converter={x:Static converters:ValueConverters.RoleToBadgeBorder}}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="6,2"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Node.Role, Converter={x:Static converters:ValueConverters.RoleToBadgeFg}, ConverterParameter=text}"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontSize="9"
+                               FontWeight="Bold"
+                               Foreground="{Binding Node.Role, Converter={x:Static converters:ValueConverters.RoleToBadgeFg}}">
+                        <!-- Evaluates to GANDER or GOSLING -->
+                        <Run Text="{Binding Node.Role}"/>
+                    </TextBlock>
+                </Border>
+            </Grid>
+
+            <!-- Directional TWAMP Indicator Bar -->
+            <Border Background="#070A12"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="8,5">
+                <Grid ColumnDefinitions="*,Auto,*,Auto,*">
+                    <!-- Forward Egress -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding Node.Twamp.ForwardMs, StringFormat={}↑ {0:F1}ms}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                        <TextBlock Text="{Binding Node.Twamp.JitterUp, StringFormat={}±{0:F2}ms}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="9"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1" Text="|" Foreground="{DynamicResource BorderBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Reverse Ingress -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding Node.Twamp.ReverseMs, StringFormat={}↓ {0:F1}ms}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource IndigoBrush}"/>
+                        <TextBlock Text="{Binding Node.Twamp.JitterDown, StringFormat={}±{0:F2}ms}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="9"
+                                   Foreground="{DynamicResource IndigoBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="3" Text="|" Foreground="{DynamicResource BorderBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Path Asymmetry -->
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding Node.Twamp.AsymmetryMs, StringFormat={}Δ {0:F2}ms}"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontWeight="Bold"
+                               FontSize="11"
+                               Foreground="{DynamicResource WarningBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <!-- Fluid Micro-Core Strip -->
+            <StackPanel Spacing="3">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
+                        <Run Text="Flock ("/>
+                        <Run Text="{Binding Node.Cores, Mode=OneWay}"/>
+                        <Run Text=" Threads)"/>
+                    </TextBlock>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Node.CpuAvgPct, StringFormat={}CPU Load: {0:F1}%}"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontWeight="Bold"
+                               FontSize="10"
+                               Foreground="{DynamicResource HealthyBrush}"/>
+                </Grid>
+
+                <Border Background="#04060B"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Height="56"
+                        Padding="2">
+                    <core:MicroCoreStripControl CoreCount="{Binding Node.Cores}"
+                                                CoreLoads="{Binding Node.CoreLoads}"
+                                                HostId="{Binding Node.Id}"
+                                                HoveredIndex="{Binding HoveredIndex, Mode=TwoWay}"
+                                                HoveredLoad="{Binding HoveredLoad, Mode=TwoWay}"
+                                                IsHovered="{Binding IsHovered, Mode=TwoWay}"/>
+                </Border>
+            </StackPanel>
+
+            <!-- Dual Sparklines: Transit and Resources -->
+            <Grid ColumnDefinitions="*,*" Margin="0,2,0,0">
+                <!-- TWAMP Transit Sparkline -->
+                <Border Grid.Column="0"
+                        Background="#04060B"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="6"
+                        Margin="0,0,4,0">
+                    <StackPanel Spacing="2">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="TWAMP TRANSIT" FontFamily="{StaticResource MonoFontFamily}" FontSize="8" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="1" Text="↑ / ↓" FontFamily="{StaticResource MonoFontFamily}" FontSize="8" Foreground="{DynamicResource AccentTextBrush}"/>
+                        </Grid>
+                        <charts:DualSparklineControl Height="32"
+                                                     Mode="Network"
+                                                     Series1="{Binding Node.SparkNetUp}"
+                                                     Series2="{Binding Node.SparkNetDown}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Resources Sparkline -->
+                <Border Grid.Column="1"
+                        Background="#04060B"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="6"
+                        Margin="4,0,0,0">
+                    <StackPanel Spacing="2">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="RESOURCES" FontFamily="{StaticResource MonoFontFamily}" FontSize="8" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="1" Text="CPU / RAM" FontFamily="{StaticResource MonoFontFamily}" FontSize="8" Foreground="{DynamicResource WarningBrush}"/>
+                        </Grid>
+                        <charts:DualSparklineControl Height="32"
+                                                     Mode="Resources"
+                                                     Series1="{Binding Node.SparkCpu}"
+                                                     Series2="{Binding Node.SparkRam}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Card Footer -->
+            <Border BorderBrush="{DynamicResource BorderSubtleBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="0,6,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center">
+                        <Run Text="RAM: "/>
+                        <Run Text="{Binding Node.RamUsedPct, Mode=OneWay, StringFormat={}{0:F1}%}"/>
+                        <Run Text=" of "/>
+                        <Run Text="{Binding Node.RamTotal, Mode=OneWay}"/>
+                    </TextBlock>
+
+                    <Button Grid.Column="1"
+                            Command="{Binding OpenDetailCommand}"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="6,2"
+                            CornerRadius="4">
+                        <TextBlock Text="Deep Dive →"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+        </StackPanel>
+    </Border>
+</UserControl>
+
