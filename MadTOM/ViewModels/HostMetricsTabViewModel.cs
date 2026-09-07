@@ -33,10 +33,19 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     }
 
     [ObservableProperty]
-    private DateTimeOffset _customStartDate = DateTimeOffset.Now.AddHours(-1);
+    private bool _isCustomScopeModalOpen;
 
     [ObservableProperty]
-    private DateTimeOffset _customEndDate = DateTimeOffset.Now;
+    private DateTimeOffset? _customStartDate = DateTimeOffset.Now.AddHours(-1);
+
+    [ObservableProperty]
+    private TimeSpan? _customStartTime = DateTime.Now.AddHours(-1).TimeOfDay;
+
+    [ObservableProperty]
+    private DateTimeOffset? _customEndDate = DateTimeOffset.Now;
+
+    [ObservableProperty]
+    private TimeSpan? _customEndTime = DateTime.Now.TimeOfDay;
 
     [ObservableProperty]
     private double[] _forwardSeries = Array.Empty<double>();
@@ -67,14 +76,43 @@ public partial class HostMetricsTabViewModel : ViewModelBase
 
     public HostMetricsTabViewModel()
     {
-        GenerateSeries(1.84, 3.12);
+        GenerateSeries(1.84, 3.12, 1200);
     }
 
     [RelayCommand]
     public void SetScope(string scope)
     {
         SelectedScope = scope;
+        if (scope.Equals("custom", StringComparison.OrdinalIgnoreCase))
+        {
+            IsCustomScopeModalOpen = true;
+            return;
+        }
+
         NotificationService.Instance.ShowToast($"Observation scope adjusted to {scope}");
+    }
+
+    [RelayCommand]
+    public void ApplyCustomScope()
+    {
+        IsCustomScopeModalOpen = false;
+        string startStr = CustomStartDate?.ToString("yyyy-MM-dd") ?? "Start";
+        string startTimeStr = CustomStartTime.HasValue ? $" {CustomStartTime.Value.Hours:D2}:{CustomStartTime.Value.Minutes:D2}" : "";
+        string endStr = CustomEndDate?.ToString("yyyy-MM-dd") ?? "End";
+        string endTimeStr = CustomEndTime.HasValue ? $" {CustomEndTime.Value.Hours:D2}:{CustomEndTime.Value.Minutes:D2}" : "";
+
+        NotificationService.Instance.ShowToast($"Applied custom window: {startStr}{startTimeStr} → {endStr}{endTimeStr}");
+        GenerateSeries(1.84, 3.12, 1200);
+    }
+
+    [RelayCommand]
+    public void CancelCustomScope()
+    {
+        IsCustomScopeModalOpen = false;
+        if (SelectedScope.Equals("custom", StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedScope = "5m";
+        }
     }
 
     public void UpdateForNode(string hostId, FleetNodeModel? node, IReadOnlyList<FleetNodeModel> allNodes)
@@ -86,7 +124,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         {
             IsAggregatedMode = true;
             ThreadCount = allNodes.Sum(n => n.Cores);
-            GenerateSeries(1.84, 3.12);
+            GenerateSeries(1.84, 3.12, 1200);
             return;
         }
 
@@ -95,27 +133,74 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         {
             ThreadCount = node.Cores;
             CoreLoads = node.CoreLoads;
-            GenerateSeries(node.Twamp.ForwardMs, node.Twamp.ReverseMs);
+            GenerateSeries(node.Twamp.ForwardMs, node.Twamp.ReverseMs, 1200);
         }
     }
 
-    private void GenerateSeries(double baseFwd, double baseRev)
+    public void PushLiveSample(double fwd, double rev)
     {
-        const int points = 24;
+        int count = ForwardSeries.Length;
+        if (count == 0)
+        {
+            GenerateSeries(fwd, rev, 1200);
+            return;
+        }
+
+        var nextFwd = new double[count];
+        var nextRev = new double[count];
+        var nextAsym = new double[count];
+        var nextLabels = new string[count];
+
+        Array.Copy(ForwardSeries, 1, nextFwd, 0, count - 1);
+        Array.Copy(ReverseSeries, 1, nextRev, 0, count - 1);
+        Array.Copy(AsymmetrySeries, 1, nextAsym, 0, count - 1);
+
+        nextFwd[count - 1] = Math.Round(fwd, 2);
+        nextRev[count - 1] = Math.Round(rev, 2);
+        nextAsym[count - 1] = Math.Round(Math.Abs(fwd - rev), 2);
+
+        if (TimeLabels != null && TimeLabels.Length == count)
+        {
+            Array.Copy(TimeLabels, 1, nextLabels, 0, count - 1);
+            nextLabels[count - 1] = "now";
+        }
+        else
+        {
+            for (int i = 0; i < count; i++)
+            {
+                int s = count - 1 - i;
+                nextLabels[i] = s == 0 ? "now" : $"{s}s";
+            }
+        }
+
+        ForwardSeries = nextFwd;
+        ReverseSeries = nextRev;
+        AsymmetrySeries = nextAsym;
+        TimeLabels = nextLabels;
+    }
+
+    private void GenerateSeries(double baseFwd, double baseRev, int points = 1200)
+    {
         var fwd = new double[points];
         var rev = new double[points];
         var asym = new double[points];
         var labels = new string[points];
 
+        double curFwd = baseFwd;
+        double curRev = baseRev;
+
         for (int i = 0; i < points; i++)
         {
-            labels[i] = $"{i * 5}s ago";
-            fwd[i] = Math.Round(baseFwd + (_rand.NextDouble() - 0.5) * 0.4, 2);
-            rev[i] = Math.Round(baseRev + (_rand.NextDouble() - 0.5) * 0.6, 2);
-            asym[i] = Math.Round(Math.Abs(fwd[i] - rev[i]), 2);
+            curFwd = Math.Clamp(curFwd + (_rand.NextDouble() - 0.5) * 0.1, 0.4, 60.0);
+            curRev = Math.Clamp(curRev + (_rand.NextDouble() - 0.5) * 0.15, 0.6, 70.0);
+            fwd[i] = Math.Round(curFwd, 2);
+            rev[i] = Math.Round(curRev, 2);
+            asym[i] = Math.Round(Math.Abs(curFwd - curRev), 2);
+
+            int secondsAgo = points - 1 - i;
+            labels[i] = secondsAgo == 0 ? "now" : $"{secondsAgo}s";
         }
 
-        Array.Reverse(labels);
         ForwardSeries = fwd;
         ReverseSeries = rev;
         AsymmetrySeries = asym;

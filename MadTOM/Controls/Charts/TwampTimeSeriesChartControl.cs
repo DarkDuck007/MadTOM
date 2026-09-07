@@ -298,8 +298,10 @@ public sealed class TwampTimeSeriesChartControl : Control
     private static void DrawPoints(DrawingContext context, double[] data, double leftPad, double topPad,
         double plotH, double stepX, double pan, double minY, double maxY, IBrush brush)
     {
+        if (data.Length == 0) return;
         double range = Math.Max(0.1, maxY - minY);
-        for (int i = 0; i < data.Length; i++)
+        int stride = Math.Max(1, (int)Math.Round(10.0 / Math.Max(0.001, stepX)));
+        for (int i = 0; i < data.Length; i += stride)
         {
             double x = leftPad + (i * stepX) - pan;
             double y = topPad + plotH * (1.0 - (data[i] - minY) / range);

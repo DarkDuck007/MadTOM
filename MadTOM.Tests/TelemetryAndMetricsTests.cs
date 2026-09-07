@@ -1,0 +1,111 @@
+using System;
+using System.Linq;
+using MadTOM.Models;
+using MadTOM.Services;
+using MadTOM.ViewModels;
+using Xunit;
+
+namespace MadTOM.Tests;
+
+public class TelemetryAndMetricsTests
+{
+    [Fact]
+    public void MockTelemetryDataProvider_Initializes60SampleSparklines()
+    {
+        using var provider = new MockTelemetryDataProvider(startBackgroundTimer: false);
+        var nodes = provider.GetFleetNodes();
+
+        Assert.NotEmpty(nodes);
+        foreach (var node in nodes)
+        {
+            Assert.Equal(60, node.SparkNetUp.Length);
+            Assert.Equal(60, node.SparkNetDown.Length);
+            Assert.Equal(60, node.SparkCpu.Length);
+            Assert.Equal(60, node.SparkRam.Length);
+            Assert.Equal(node.Cores, node.CoreLoads.Length);
+        }
+    }
+
+    [Fact]
+    public void TwampTelemetryModel_CalculatesAndNotifiesAsymmetry()
+    {
+        var model = new TwampTelemetryModel
+        {
+            ForwardMs = 2.0,
+            ReverseMs = 5.5
+        };
+
+        Assert.Equal(3.5, model.AsymmetryMs);
+
+        bool asymmetryFired = false;
+        model.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(model.AsymmetryMs)) asymmetryFired = true;
+        };
+
+        model.ForwardMs = 6.0;
+        Assert.True(asymmetryFired);
+        Assert.Equal(0.5, model.AsymmetryMs);
+    }
+
+    [Fact]
+    public void HostMetricsTabViewModel_Initializes1200Points()
+    {
+        var vm = new HostMetricsTabViewModel();
+
+        Assert.Equal(1200, vm.ForwardSeries.Length);
+        Assert.Equal(1200, vm.ReverseSeries.Length);
+        Assert.Equal(1200, vm.AsymmetrySeries.Length);
+        Assert.Equal(1200, vm.TimeLabels.Length);
+        Assert.Equal("now", vm.TimeLabels[^1]);
+    }
+
+    [Fact]
+    public void HostMetricsTabViewModel_PushLiveSample_Maintains1200PointsAndRollsBuffer()
+    {
+        var vm = new HostMetricsTabViewModel();
+        double oldFirst = vm.ForwardSeries[1];
+
+        vm.PushLiveSample(12.34, 18.76);
+
+        Assert.Equal(1200, vm.ForwardSeries.Length);
+        Assert.Equal(1200, vm.ReverseSeries.Length);
+        Assert.Equal(1200, vm.AsymmetrySeries.Length);
+        Assert.Equal(12.34, vm.ForwardSeries[^1]);
+        Assert.Equal(18.76, vm.ReverseSeries[^1]);
+        Assert.Equal(6.42, vm.AsymmetrySeries[^1]);
+        Assert.Equal(oldFirst, vm.ForwardSeries[0]);
+    }
+
+    [Fact]
+    public void HostMetricsTabViewModel_CustomScopeModal_ControlsVisibilityAndApply()
+    {
+        var vm = new HostMetricsTabViewModel();
+
+        Assert.False(vm.IsCustomScopeModalOpen);
+        Assert.False(vm.IsScopeCustom);
+
+        vm.SetScope("custom");
+        Assert.True(vm.IsCustomScopeModalOpen);
+        Assert.True(vm.IsScopeCustom);
+
+        vm.CustomStartDate = DateTimeOffset.Now.AddDays(-1);
+        vm.CustomEndDate = DateTimeOffset.Now;
+        vm.ApplyCustomScope();
+
+        Assert.False(vm.IsCustomScopeModalOpen);
+        Assert.Equal(1200, vm.ForwardSeries.Length);
+    }
+
+    [Fact]
+    public void HostMetricsTabViewModel_CustomScopeModal_CancelRevertsScope()
+    {
+        var vm = new HostMetricsTabViewModel();
+        vm.SetScope("custom");
+        Assert.True(vm.IsCustomScopeModalOpen);
+
+        vm.CancelCustomScope();
+        Assert.False(vm.IsCustomScopeModalOpen);
+        Assert.Equal("5m", vm.SelectedScope);
+    }
+}

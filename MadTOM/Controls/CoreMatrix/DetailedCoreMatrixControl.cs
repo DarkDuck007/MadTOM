@@ -42,6 +42,8 @@ public sealed class DetailedCoreMatrixControl : Control
 
     private static readonly IPen HoverPen = new ImmutablePen(Brushes.White, 2.0);
     private static readonly Typeface MonospaceTypeface = new(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
+    private static readonly IBrush TooltipBg = new ImmutableSolidColorBrush(Color.FromArgb(238, 10, 15, 29));
+    private static readonly IPen TooltipBorder = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(190, 6, 182, 212)), 1.2);
 
     private static readonly Dictionary<string, (Color Color, IPen Pen, IBrush Brush)> NodeColors = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -128,6 +130,9 @@ public sealed class DetailedCoreMatrixControl : Control
         ClipToBounds = true;
     }
 
+    private Point? _lastPointerPos;
+    private int _hoveredLocalIdx = -1;
+
     public override void Render(DrawingContext context)
     {
         base.Render(context);
@@ -135,6 +140,9 @@ public sealed class DetailedCoreMatrixControl : Control
         double w = Bounds.Width;
         double h = Bounds.Height;
         if (w < 20 || h < 20) return;
+
+        // Ensure full hit-testing over empty space
+        context.FillRectangle(Brushes.Transparent, new Rect(0, 0, w, h));
 
         if (IsAggregatedMode)
         {
@@ -144,6 +152,59 @@ public sealed class DetailedCoreMatrixControl : Control
         {
             RenderSingleHostMatrix(context, w, h);
         }
+
+        // Floating tooltip beside mouse cursor
+        if (IsHovered && HoveredThreadIndex >= 0 && _lastPointerPos.HasValue)
+        {
+            RenderHoverTooltip(context, w, h, _lastPointerPos.Value);
+        }
+    }
+
+    private void RenderHoverTooltip(DrawingContext context, double w, double h, Point pt)
+    {
+        int threadNo = _hoveredLocalIdx >= 0 ? _hoveredLocalIdx : HoveredThreadIndex;
+        string text = IsAggregatedMode && !string.IsNullOrEmpty(HoveredHostId)
+            ? $"{HoveredHostId}  T#{threadNo}: {HoveredLoad * 100:F1}%"
+            : $"Thread #{threadNo}: {HoveredLoad * 100:F1}%";
+
+        var ft = new FormattedText(
+            text,
+            CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight,
+            MonospaceTypeface,
+            10.0,
+            Brushes.White);
+
+        double padH = 8.0;
+        double padV = 5.0;
+        double tipW = ft.Width + (padH * 2.0);
+        double tipH = ft.Height + (padV * 2.0);
+
+        // Position beside mouse
+        double tipX = pt.X + 12.0;
+        double tipY = pt.Y - tipH - 4.0;
+
+        if (tipX + tipW > w - 4.0)
+        {
+            tipX = pt.X - tipW - 8.0;
+        }
+        if (tipX < 4.0)
+        {
+            tipX = 4.0;
+        }
+
+        if (tipY < 4.0)
+        {
+            tipY = pt.Y + 16.0;
+        }
+        if (tipY + tipH > h - 4.0)
+        {
+            tipY = h - tipH - 4.0;
+        }
+
+        var tipRect = new RoundedRect(new Rect(tipX, tipY, tipW, tipH), 5.0);
+        context.DrawRectangle(TooltipBg, TooltipBorder, tipRect);
+        context.DrawText(ft, new Point(tipX + padH, tipY + padV));
     }
 
     private void RenderSingleHostMatrix(DrawingContext context, double w, double h)
@@ -261,6 +322,7 @@ public sealed class DetailedCoreMatrixControl : Control
     {
         base.OnPointerMoved(e);
         var pt = e.GetPosition(this);
+        _lastPointerPos = pt;
 
         if (IsAggregatedMode)
         {
@@ -289,11 +351,13 @@ public sealed class DetailedCoreMatrixControl : Control
                     {
                         HoveredHostId = node.Id;
                         int localIdx = idx - sum;
+                        _hoveredLocalIdx = localIdx;
                         HoveredLoad = (node.CoreLoads != null && localIdx < node.CoreLoads.Length) ? node.CoreLoads[localIdx] : 0.0f;
                         break;
                     }
                     sum += node.Cores;
                 }
+                InvalidateVisual();
                 return;
             }
         }
@@ -315,9 +379,11 @@ public sealed class DetailedCoreMatrixControl : Control
                     if (idx >= 0 && idx < ThreadCount)
                     {
                         HoveredThreadIndex = idx;
+                        _hoveredLocalIdx = idx;
                         IsHovered = true;
                         HoveredHostId = TargetHostId;
                         HoveredLoad = (CoreLoads != null && idx < CoreLoads.Length) ? CoreLoads[idx] : 0.0f;
+                        InvalidateVisual();
                         return;
                     }
                 }
@@ -327,7 +393,9 @@ public sealed class DetailedCoreMatrixControl : Control
         if (HoveredThreadIndex != -1)
         {
             HoveredThreadIndex = -1;
+            _hoveredLocalIdx = -1;
             IsHovered = false;
+            InvalidateVisual();
         }
     }
 
@@ -335,7 +403,10 @@ public sealed class DetailedCoreMatrixControl : Control
     {
         base.OnPointerExited(e);
         HoveredThreadIndex = -1;
+        _hoveredLocalIdx = -1;
+        _lastPointerPos = null;
         IsHovered = false;
+        InvalidateVisual();
     }
 }
 

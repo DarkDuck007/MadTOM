@@ -92,6 +92,9 @@ public sealed class DualSparklineControl : Control
         double h = Bounds.Height;
         if (w < 40 || h < 16) return;
 
+        // Ensure full container area is hit-testable even over empty space
+        context.FillRectangle(Brushes.Transparent, new Rect(0, 0, w, h));
+
         var s1 = Series1 ?? Array.Empty<double>();
         var s2 = Series2 ?? Array.Empty<double>();
         int count = Math.Max(s1.Length, s2.Length);
@@ -156,50 +159,47 @@ public sealed class DualSparklineControl : Control
         DrawSeriesLine(context, s1, pen1, yAxisWidth, chartW, h, minVal, range, isSecondary: false);
         DrawSeriesLine(context, s2, pen2, yAxisWidth, chartW, h, minVal, range, isSecondary: true);
 
-        // Hover Crosshair & Info Tooltip
+        // Hover Crosshair & Info Tooltip across the whole container
         if (_hoverPoint.HasValue && count >= 2)
         {
-            double mouseX = _hoverPoint.Value.X;
-            if (mouseX >= yAxisWidth && mouseX <= w)
-            {
-                double step = chartW / (count - 1);
-                int idx = Math.Clamp((int)Math.Round((mouseX - yAxisWidth) / step), 0, count - 1);
-                double targetX = yAxisWidth + idx * step;
+            double mouseX = Math.Clamp(_hoverPoint.Value.X, yAxisWidth, w);
+            double step = chartW / (count - 1);
+            int idx = Math.Clamp((int)Math.Round((mouseX - yAxisWidth) / step), 0, count - 1);
+            double targetX = yAxisWidth + idx * step;
 
-                // Draw vertical crosshair line
-                context.DrawLine(CrosshairPen, new Point(targetX, 2), new Point(targetX, h - 2));
+            // Draw vertical crosshair line cutting the curves
+            context.DrawLine(CrosshairPen, new Point(targetX, 2), new Point(targetX, h - 2));
 
-                double v1 = idx < s1.Length ? s1[idx] : 0.0;
-                double v2 = idx < s2.Length ? s2[idx] : 0.0;
+            double v1 = idx < s1.Length ? s1[idx] : 0.0;
+            double v2 = idx < s2.Length ? s2[idx] : 0.0;
 
-                // Draw curve dots
-                double dotY1 = ComputeY(v1, minVal, range, h, isSecondary: false);
-                double dotY2 = ComputeY(v2, minVal, range, h, isSecondary: true);
-                context.DrawEllipse(pen1.Brush, null, new Point(targetX, dotY1), 2.5, 2.5);
-                context.DrawEllipse(pen2.Brush, null, new Point(targetX, dotY2), 2.5, 2.5);
+            // Draw curve dots
+            double dotY1 = ComputeY(v1, minVal, range, h, isSecondary: false);
+            double dotY2 = ComputeY(v2, minVal, range, h, isSecondary: true);
+            context.DrawEllipse(pen1.Brush, null, new Point(targetX, dotY1), 2.5, 2.5);
+            context.DrawEllipse(pen2.Brush, null, new Point(targetX, dotY2), 2.5, 2.5);
 
-                // Format hover tooltip
-                string info = Mode == SparklineMode.Network
-                    ? $"TX:{v1:0.00}G RX:{v2:0.00}G"
-                    : $"CPU:{v1:0.0}% RAM:{v2:0.0}%";
+            // Format hover tooltip
+            string info = Mode == SparklineMode.Network
+                ? $"TX:{v1:0.00}G RX:{v2:0.00}G"
+                : $"CPU:{v1:0.0}% RAM:{v2:0.0}%";
 
-                var tooltipText = new FormattedText(
-                    info,
-                    CultureInfo.InvariantCulture,
-                    FlowDirection.LeftToRight,
-                    MonoTypeface,
-                    8.5,
-                    WhiteTextBrush);
+            var tooltipText = new FormattedText(
+                info,
+                CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                MonoTypeface,
+                8.5,
+                WhiteTextBrush);
 
-                double tipW = tooltipText.Width + 8;
-                double tipH = tooltipText.Height + 4;
-                double tipX = Math.Clamp(targetX - tipW / 2.0, yAxisWidth + 2, w - tipW - 2);
-                double tipY = (dotY1 + dotY2) / 2.0 > h / 2.0 ? 2 : h - tipH - 2;
+            double tipW = tooltipText.Width + 8;
+            double tipH = tooltipText.Height + 4;
+            double tipX = Math.Clamp(targetX - tipW / 2.0, yAxisWidth + 2, w - tipW - 2);
+            double tipY = (dotY1 + dotY2) / 2.0 > h / 2.0 ? 2 : h - tipH - 2;
 
-                var tipRect = new RoundedRect(new Rect(tipX, tipY, tipW, tipH), 3);
-                context.DrawRectangle(TooltipBg, TooltipBorder, tipRect);
-                context.DrawText(tooltipText, new Point(tipX + 4, tipY + 2));
-            }
+            var tipRect = new RoundedRect(new Rect(tipX, tipY, tipW, tipH), 3);
+            context.DrawRectangle(TooltipBg, TooltipBorder, tipRect);
+            context.DrawText(tooltipText, new Point(tipX + 4, tipY + 2));
         }
     }
 

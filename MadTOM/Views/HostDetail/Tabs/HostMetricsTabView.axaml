@@ -27,7 +27,8 @@
         </Style>
     </UserControl.Styles>
 
-    <StackPanel Spacing="16">
+    <Grid>
+        <StackPanel Spacing="16">
 
         <!-- Scope & Time Toolbar -->
         <Border Background="#070A12"
@@ -168,6 +169,108 @@
             </StackPanel>
         </Border>
 
-    </StackPanel>
+        </StackPanel>
+
+        <!-- Custom Observation Window Modal Overlay -->
+        <Border Background="#B3000000"
+                IsVisible="{Binding IsCustomScopeModalOpen}"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Border Background="#0D1117"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="24"
+                    Width="460"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    BoxShadow="0 8 32 #80000000">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Custom Time Window"
+                                       FontWeight="Bold"
+                                       FontSize="15"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Specify start and end telemetry capture bounds"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Content="✕"
+                                Command="{Binding CancelCustomScopeCommand}"
+                                Background="Transparent"
+                                Foreground="{DynamicResource TextMutedBrush}"
+                                Cursor="Hand"
+                                FontSize="14"
+                                Padding="6,2"/>
+                    </Grid>
+
+                    <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                    <!-- Start Window -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="START DATE &amp; TIME"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                        <Grid ColumnDefinitions="*,*">
+                            <DatePicker Grid.Column="0"
+                                        SelectedDate="{Binding CustomStartDate, Mode=TwoWay}"
+                                        Margin="0,0,4,0"/>
+                            <TimePicker Grid.Column="1"
+                                        SelectedTime="{Binding CustomStartTime, Mode=TwoWay}"
+                                        Margin="4,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- End Window -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="END DATE &amp; TIME"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource IndigoBrush}"/>
+                        <Grid ColumnDefinitions="*,*">
+                            <DatePicker Grid.Column="0"
+                                        SelectedDate="{Binding CustomEndDate, Mode=TwoWay}"
+                                        Margin="0,0,4,0"/>
+                            <TimePicker Grid.Column="1"
+                                        SelectedTime="{Binding CustomEndTime, Mode=TwoWay}"
+                                        Margin="4,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Action Buttons -->
+                    <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                        <Button Grid.Column="0"
+                                Content="Cancel"
+                                Command="{Binding CancelCustomScopeCommand}"
+                                Background="#1E293B"
+                                Foreground="{DynamicResource TextPrimaryBrush}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Padding="12,8"
+                                Margin="0,0,6,0"
+                                CornerRadius="6"
+                                Cursor="Hand"/>
+                        <Button Grid.Column="1"
+                                Content="Apply Window"
+                                Command="{Binding ApplyCustomScopeCommand}"
+                                Background="#0891B2"
+                                Foreground="White"
+                                FontWeight="Bold"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Padding="12,8"
+                                Margin="6,0,0,0"
+                                CornerRadius="6"
+                                Cursor="Hand"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
 </UserControl>
 

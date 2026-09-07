@@ -91,6 +91,24 @@ public partial class HostDetailViewModel : ViewModelBase
 
         PopulateHostOptions();
         UpdateHostView("gander-epyc-01");
+
+        _telemetryProvider.NodeTelemetryUpdated += (s, updatedNode) =>
+        {
+            if (IsAggregated)
+            {
+                MetricsTab.PushLiveSample(updatedNode.Twamp.ForwardMs, updatedNode.Twamp.ReverseMs);
+            }
+            else if (SelectedHostId.Equals(updatedNode.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                TwampUpText = $"↑ {updatedNode.Twamp.ForwardMs:F2}ms";
+                TwampDownText = $"↓ {updatedNode.Twamp.ReverseMs:F2}ms";
+                TwampAsymText = $"Path Asymmetry Δ: {updatedNode.Twamp.AsymmetryMs:F2}ms";
+                RamUsedSpec = $"{updatedNode.RamUsedPct:F1}% Used (Active Allocation)";
+
+                MetricsTab.PushLiveSample(updatedNode.Twamp.ForwardMs, updatedNode.Twamp.ReverseMs);
+                MetricsTab.CoreLoads = updatedNode.CoreLoads;
+            }
+        };
     }
 
     private void PopulateHostOptions()

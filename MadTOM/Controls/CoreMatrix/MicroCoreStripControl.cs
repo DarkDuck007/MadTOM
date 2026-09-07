@@ -29,6 +29,8 @@ public sealed class MicroCoreStripControl : Control
         AvaloniaProperty.Register<MicroCoreStripControl, bool>(nameof(IsHovered), false);
 
     private static readonly IPen HoverPen = new ImmutablePen(Brushes.White, 1.5);
+    private static readonly IBrush TooltipBg = new ImmutableSolidColorBrush(Color.FromArgb(235, 10, 15, 29));
+    private static readonly IPen TooltipBorder = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(180, 6, 182, 212)), 1.0);
 
     private CoreLayoutResult _currentLayout;
 
@@ -68,6 +70,9 @@ public sealed class MicroCoreStripControl : Control
         set => SetValue(IsHoveredProperty, value);
     }
 
+    private static readonly Typeface MonoTypeface = new("Consolas, Courier New, Monospace");
+    private Point? _lastPointerPos;
+
     static MicroCoreStripControl()
     {
         AffectsRender<MicroCoreStripControl>(CoreCountProperty, CoreLoadsProperty, HoveredIndexProperty);
@@ -85,6 +90,9 @@ public sealed class MicroCoreStripControl : Control
         double w = Bounds.Width;
         double h = Bounds.Height;
         if (w < 10 || h < 10) return;
+
+        // Transparent background for seamless hit-testing across entire control
+        context.FillRectangle(Brushes.Transparent, new Rect(0, 0, w, h));
 
         const double padX = 4.0;
         const double padY = 3.0;
@@ -125,12 +133,62 @@ public sealed class MicroCoreStripControl : Control
                 context.DrawRectangle(null, HoverPen, rect);
             }
         }
+
+        // Floating tooltip beside mouse cursor
+        if (IsHovered && HoveredIndex >= 0 && _lastPointerPos.HasValue)
+        {
+            RenderHoverTooltip(context, w, h, _lastPointerPos.Value);
+        }
+    }
+
+    private void RenderHoverTooltip(DrawingContext context, double w, double h, Point pt)
+    {
+        string text = $"T#{HoveredIndex}: {HoveredLoad * 100:F1}%";
+
+        var ft = new FormattedText(
+            text,
+            System.Globalization.CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight,
+            MonoTypeface,
+            9.0,
+            Brushes.White);
+
+        double padH = 6.0;
+        double padV = 3.0;
+        double tipW = ft.Width + (padH * 2.0);
+        double tipH = ft.Height + (padV * 2.0);
+
+        double tipX = pt.X + 10.0;
+        double tipY = pt.Y - tipH - 3.0;
+
+        if (tipX + tipW > w - 2.0)
+        {
+            tipX = pt.X - tipW - 6.0;
+        }
+        if (tipX < 2.0)
+        {
+            tipX = 2.0;
+        }
+
+        if (tipY < 2.0)
+        {
+            tipY = pt.Y + 12.0;
+        }
+        if (tipY + tipH > h - 2.0)
+        {
+            tipY = h - tipH - 2.0;
+        }
+
+        var tipRect = new RoundedRect(new Rect(tipX, tipY, tipW, tipH), 4.0);
+        context.DrawRectangle(TooltipBg, TooltipBorder, tipRect);
+        context.DrawText(ft, new Point(tipX + padH, tipY + padV));
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
         var pt = e.GetPosition(this);
+        _lastPointerPos = pt;
 
         var L = _currentLayout;
         const double padX = 4.0;
@@ -158,6 +216,7 @@ public sealed class MicroCoreStripControl : Control
                     HoveredIndex = idx;
                     IsHovered = true;
                     HoveredLoad = (CoreLoads != null && idx < CoreLoads.Length) ? CoreLoads[idx] : 0.0f;
+                    InvalidateVisual();
                     return;
                 }
             }
@@ -167,6 +226,7 @@ public sealed class MicroCoreStripControl : Control
         {
             HoveredIndex = -1;
             IsHovered = false;
+            InvalidateVisual();
         }
     }
 
@@ -174,7 +234,9 @@ public sealed class MicroCoreStripControl : Control
     {
         base.OnPointerExited(e);
         HoveredIndex = -1;
+        _lastPointerPos = null;
         IsHovered = false;
+        InvalidateVisual();
     }
 }
 

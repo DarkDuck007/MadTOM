@@ -34,33 +34,69 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
     {
         _nodes.Add(CreateNode("gander-epyc-01", "baremetal", "10.0.10.2", "Dual AMD EPYC 9996", 1024, "512 GB", 28.9, 41.2, "healthy",
             1.84, 3.12, 0.12, 0.28,
-            [1.8, 1.9, 1.7, 2.1, 1.8, 1.84], [3.1, 3.0, 3.4, 3.2, 3.3, 3.12],
-            [38, 42, 40, 45, 41, 41], [28, 28, 29, 29, 28, 29]));
+            GenerateInitialSeries(60, 1.84, 0.35, 0.5, 10.0),
+            GenerateInitialSeries(60, 3.12, 0.45, 1.0, 15.0),
+            GenerateInitialSeries(60, 41.2, 3.5, 10.0, 95.0),
+            GenerateInitialSeries(60, 28.9, 0.8, 15.0, 80.0)));
 
         _nodes.Add(CreateNode("gander-storage-02", "baremetal", "10.0.10.8", "AMD EPYC 9654", 256, "256 GB", 68.2, 74.5, "warning",
             4.20, 11.80, 0.45, 2.40,
-            [3.8, 4.0, 4.1, 4.4, 4.1, 4.2], [8.5, 9.2, 10.4, 11.2, 12.0, 11.8],
-            [65, 70, 72, 78, 76, 75], [64, 65, 66, 67, 68, 68]));
+            GenerateInitialSeries(60, 4.20, 0.6, 1.0, 20.0),
+            GenerateInitialSeries(60, 11.80, 1.2, 3.0, 35.0),
+            GenerateInitialSeries(60, 74.5, 4.0, 30.0, 98.0),
+            GenerateInitialSeries(60, 68.2, 1.0, 30.0, 90.0)));
 
         _nodes.Add(CreateNode("gosling-edge-01", "vm", "10.0.40.11", "Virtual EPYC vCPU", 64, "64 GB", 44.0, 22.4, "healthy",
             8.20, 8.45, 0.32, 0.35,
-            [8.1, 8.2, 8.3, 8.1, 8.2, 8.2], [8.4, 8.3, 8.5, 8.6, 8.4, 8.45],
-            [20, 22, 25, 23, 22, 22], [43, 44, 44, 44, 44, 44]));
+            GenerateInitialSeries(60, 8.20, 0.4, 2.0, 25.0),
+            GenerateInitialSeries(60, 8.45, 0.4, 2.0, 25.0),
+            GenerateInitialSeries(60, 22.4, 2.5, 5.0, 80.0),
+            GenerateInitialSeries(60, 44.0, 0.5, 20.0, 70.0)));
 
         _nodes.Add(CreateNode("gosling-cache-04", "vm", "10.0.40.15", "Virtual Xeon Gold", 32, "32 GB", 82.5, 56.1, "healthy",
             2.10, 2.25, 0.08, 0.11,
-            [2.0, 2.1, 2.1, 2.2, 2.0, 2.1], [2.2, 2.3, 2.2, 2.4, 2.3, 2.25],
-            [52, 54, 58, 55, 57, 56], [80, 81, 81, 82, 82, 83]));
+            GenerateInitialSeries(60, 2.10, 0.3, 0.5, 12.0),
+            GenerateInitialSeries(60, 2.25, 0.3, 0.5, 12.0),
+            GenerateInitialSeries(60, 56.1, 3.0, 15.0, 95.0),
+            GenerateInitialSeries(60, 82.5, 0.6, 40.0, 95.0)));
 
         _nodes.Add(CreateNode("gander-transatlantic-01", "baremetal", "198.51.100.22", "Dual AMD EPYC 9754", 512, "384 GB", 35.1, 48.0, "healthy",
             38.4, 74.2, 1.10, 4.80,
-            [37.8, 38.0, 38.5, 38.2, 38.9, 38.4], [70.5, 72.1, 75.8, 73.4, 76.0, 74.2],
-            [44, 46, 50, 48, 47, 48], [34, 35, 35, 35, 35, 35]));
+            GenerateInitialSeries(60, 38.4, 2.0, 10.0, 80.0),
+            GenerateInitialSeries(60, 74.2, 3.5, 20.0, 120.0),
+            GenerateInitialSeries(60, 48.0, 3.2, 15.0, 90.0),
+            GenerateInitialSeries(60, 35.1, 0.7, 15.0, 80.0)));
 
         _nodes.Add(CreateNode("gosling-ingress-gw", "vm", "10.0.40.88", "Virtual EPYC vCPU", 16, "16 GB", 91.0, 89.4, "critical",
             14.8, 46.2, 3.40, 14.80,
-            [12.0, 13.5, 14.2, 14.0, 15.1, 14.8], [32.0, 38.4, 44.0, 48.2, 45.0, 46.2],
-            [78, 82, 86, 91, 88, 89], [88, 89, 90, 91, 91, 91]));
+            GenerateInitialSeries(60, 14.8, 1.5, 5.0, 50.0),
+            GenerateInitialSeries(60, 46.2, 4.0, 15.0, 95.0),
+            GenerateInitialSeries(60, 89.4, 4.5, 40.0, 99.0),
+            GenerateInitialSeries(60, 91.0, 0.8, 50.0, 99.0)));
+    }
+
+    private double[] GenerateInitialSeries(int count, double baseVal, double variance, double min, double max)
+    {
+        var arr = new double[count];
+        double curr = baseVal;
+        for (int i = 0; i < count; i++)
+        {
+            curr += (_random.NextDouble() - 0.5) * variance;
+            curr = Math.Clamp(curr, min, max);
+            arr[i] = Math.Round(curr, 2);
+        }
+        return arr;
+    }
+
+    private static double[] PushSample(double[] existing, double newVal, int maxCapacity = 60)
+    {
+        var next = new double[maxCapacity];
+        int copyLen = Math.Min(existing.Length, maxCapacity - 1);
+        int srcOffset = Math.Max(0, existing.Length - copyLen);
+        int destOffset = maxCapacity - 1 - copyLen;
+        Array.Copy(existing, srcOffset, next, destOffset, copyLen);
+        next[maxCapacity - 1] = Math.Round(newVal, 2);
+        return next;
     }
 
     private FleetNodeModel CreateNode(string id, string role, string ip, string cpuModel, int cores,
@@ -157,21 +193,55 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
 
     private void OnStreamTick(object? state)
     {
-        // Random slight fluctuation to simulated TWAMP metrics and core loads
+        // Random slight fluctuation to simulated TWAMP metrics, sparklines, and core loads
         foreach (var node in _nodes)
         {
-            node.Twamp.ForwardMs = Math.Max(0.5, Math.Round(node.Twamp.ForwardMs + (_random.NextDouble() - 0.5) * 0.2, 2));
-            node.Twamp.ReverseMs = Math.Max(0.8, Math.Round(node.Twamp.ReverseMs + (_random.NextDouble() - 0.5) * 0.3, 2));
+            node.Twamp.ForwardMs = Math.Max(0.5, Math.Round(node.Twamp.ForwardMs + (_random.NextDouble() - 0.5) * 0.25, 2));
+            node.Twamp.ReverseMs = Math.Max(0.8, Math.Round(node.Twamp.ReverseMs + (_random.NextDouble() - 0.5) * 0.35, 2));
+            node.Twamp.JitterUp = Math.Max(0.02, Math.Round(node.Twamp.JitterUp + (_random.NextDouble() - 0.5) * 0.05, 2));
+            node.Twamp.JitterDown = Math.Max(0.04, Math.Round(node.Twamp.JitterDown + (_random.NextDouble() - 0.5) * 0.08, 2));
 
-            // Shift a few core loads
-            int countToMutate = Math.Min(16, node.Cores);
+            double lastTx = node.SparkNetUp.Length > 0 ? node.SparkNetUp[^1] : 2.0;
+            double nextTx = Math.Clamp(Math.Round(lastTx + (_random.NextDouble() - 0.5) * 0.3, 2), 0.5, 95.0);
+            node.SparkNetUp = PushSample(node.SparkNetUp, nextTx, 60);
+
+            double lastRx = node.SparkNetDown.Length > 0 ? node.SparkNetDown[^1] : 3.0;
+            double nextRx = Math.Clamp(Math.Round(lastRx + (_random.NextDouble() - 0.5) * 0.4, 2), 0.5, 95.0);
+            node.SparkNetDown = PushSample(node.SparkNetDown, nextRx, 60);
+
+            double nextCpu = Math.Clamp(Math.Round(node.CpuAvgPct + (_random.NextDouble() - 0.5) * 2.5, 1), 5.0, 99.0);
+            node.CpuAvgPct = nextCpu;
+            node.SparkCpu = PushSample(node.SparkCpu, nextCpu, 60);
+
+            double nextRam = Math.Clamp(Math.Round(node.RamUsedPct + (_random.NextDouble() - 0.5) * 0.4, 1), 10.0, 99.0);
+            node.RamUsedPct = nextRam;
+            node.SparkRam = PushSample(node.SparkRam, nextRam, 60);
+
+            // Shift a slice of core loads
+            var loads = (float[])node.CoreLoads.Clone();
+            int countToMutate = Math.Min(32, node.Cores);
             for (int i = 0; i < countToMutate; i++)
             {
                 int coreIdx = _random.Next(node.Cores);
-                node.CoreLoads[coreIdx] = (float)Math.Clamp(node.CoreLoads[coreIdx] + (_random.NextDouble() - 0.5) * 0.15, 0.05, 0.98);
+                loads[coreIdx] = (float)Math.Clamp(loads[coreIdx] + (_random.NextDouble() - 0.5) * 0.2, 0.05, 0.98);
             }
+            node.CoreLoads = loads;
 
-            NodeTelemetryUpdated?.Invoke(this, node);
+            try
+            {
+                if (Avalonia.Threading.Dispatcher.UIThread?.CheckAccess() == false)
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => NodeTelemetryUpdated?.Invoke(this, node));
+                }
+                else
+                {
+                    NodeTelemetryUpdated?.Invoke(this, node);
+                }
+            }
+            catch
+            {
+                NodeTelemetryUpdated?.Invoke(this, node);
+            }
         }
 
         // Live journal log stream

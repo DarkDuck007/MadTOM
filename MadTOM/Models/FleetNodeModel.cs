@@ -1,36 +1,73 @@
 using System;
-using System.Collections.Generic;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace MadTOM.Models;
 
-public sealed class TwampTelemetryModel
+public sealed partial class TwampTelemetryModel : ObservableObject
 {
-    public double ForwardMs { get; set; }
-    public double ReverseMs { get; set; }
-    public double JitterUp { get; set; }
-    public double JitterDown { get; set; }
+    [ObservableProperty]
+    private double _forwardMs;
+
+    [ObservableProperty]
+    private double _reverseMs;
+
+    [ObservableProperty]
+    private double _jitterUp;
+
+    [ObservableProperty]
+    private double _jitterDown;
+
     public double AsymmetryMs => Math.Round(Math.Abs(ForwardMs - ReverseMs), 2);
+
+    partial void OnForwardMsChanged(double value) => OnPropertyChanged(nameof(AsymmetryMs));
+    partial void OnReverseMsChanged(double value) => OnPropertyChanged(nameof(AsymmetryMs));
 }
 
-public sealed class FleetNodeModel
+public sealed partial class FleetNodeModel : ObservableObject
 {
-    public string Id { get; set; } = string.Empty;
-    public string Role { get; set; } = "baremetal"; // baremetal or vm
-    public string Ip { get; set; } = string.Empty;
-    public string CpuModel { get; set; } = string.Empty;
-    public int Cores { get; set; } = 64;
-    public string RamTotal { get; set; } = "64 GB";
-    public double RamUsedPct { get; set; } = 30.0;
-    public double CpuAvgPct { get; set; } = 40.0;
-    public string Status { get; set; } = "healthy"; // healthy, warning, critical
+    [ObservableProperty]
+    private string _id = string.Empty;
 
-    public TwampTelemetryModel Twamp { get; set; } = new();
+    [ObservableProperty]
+    private string _role = "baremetal"; // baremetal or vm
 
-    public double[] SparkNetUp { get; set; } = Array.Empty<double>();
-    public double[] SparkNetDown { get; set; } = Array.Empty<double>();
-    public double[] SparkCpu { get; set; } = Array.Empty<double>();
-    public double[] SparkRam { get; set; } = Array.Empty<double>();
+    [ObservableProperty]
+    private string _ip = string.Empty;
 
-    public float[] CoreLoads { get; set; } = Array.Empty<float>();
+    [ObservableProperty]
+    private string _cpuModel = string.Empty;
+
+    [ObservableProperty]
+    private int _cores = 64;
+
+    [ObservableProperty]
+    private string _ramTotal = "64 GB";
+
+    [ObservableProperty]
+    private double _ramUsedPct = 30.0;
+
+    [ObservableProperty]
+    private double _cpuAvgPct = 40.0;
+
+    [ObservableProperty]
+    private string _status = "healthy"; // healthy, warning, critical
+
+    [ObservableProperty]
+    private TwampTelemetryModel _twamp = new();
+
+    [ObservableProperty]
+    private double[] _sparkNetUp = Array.Empty<double>();
+
+    [ObservableProperty]
+    private double[] _sparkNetDown = Array.Empty<double>();
+
+    [ObservableProperty]
+    private double[] _sparkCpu = Array.Empty<double>();
+
+    [ObservableProperty]
+    private double[] _sparkRam = Array.Empty<double>();
+
+    [ObservableProperty]
+    private float[] _coreLoads = Array.Empty<float>();
 }
 
