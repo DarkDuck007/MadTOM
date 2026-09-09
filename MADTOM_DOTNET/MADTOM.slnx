@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/MADTOM.PluginContracts/MADTOM.PluginContracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Host/">
+    <Project Path="src/Host/MADTOM.Console/MADTOM.Console.csproj" />
+  </Folder>
+  <Folder Name="/src/Plugins/" />
+  <Folder Name="/src/Plugins/Telemetry/">
+    <Project Path="src/Plugins/Telemetry/MADTOM.Plugins.Telemetry.App/MADTOM.Plugins.Telemetry.App.csproj" />
+    <Project Path="src/Plugins/Telemetry/MADTOM.Plugins.Telemetry/MADTOM.Plugins.Telemetry.csproj" />
+  </Folder>
+  <Project Path="MadTOM.Tests/MadTOM.Tests.csproj" />
+</Solution>
