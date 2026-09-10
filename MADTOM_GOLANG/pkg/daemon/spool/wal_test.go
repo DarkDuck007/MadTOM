@@ -174,3 +174,61 @@ func TestLegacyMultiRecordSegmentIsFullyReplayed(t *testing.T) {
 		t.Fatal("legacy segment records lost")
 	}
 }
+
+func TestReadBatchChunkAndRangeAck(t *testing.T) {
+	dir := t.TempDir()
+	wal, err := NewWALManager(dir, "node-chunk", 10<<20, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer wal.Close()
+
+	// Write 50 separate segments
+	for i := 1; i <= 50; i++ {
+		_, err := wal.WriteMetrics([]*madtomv1.SystemMetrics{
+			{NodeId: "node-chunk", TimestampUnixNano: int64(i)},
+		})
+		if err != nil {
+			t.Fatalf("write failed on %d: %v", i, err)
+		}
+	}
+
+	// Read chunk of up to 20 samples
+	chunk1, err := wal.ReadBatchChunk(20)
+	if err != nil {
+		t.Fatalf("ReadBatchChunk(20) failed: %v", err)
+	}
+	if len(chunk1.Samples) != 20 {
+		t.Fatalf("expected 20 samples, got %d", len(chunk1.Samples))
+	}
+	if chunk1.SegmentId != "segment-00000001.wal:segment-00000020.wal" {
+		t.Fatalf("unexpected segment ID range: %q", chunk1.SegmentId)
+	}
+
+	// Acknowledge range 1..20
+	if err := wal.AcknowledgeSegment(chunk1.SegmentId); err != nil {
+		t.Fatalf("AcknowledgeSegment range failed: %v", err)
+	}
+
+	// Read remaining chunk of 50 samples (should have 30 remaining)
+	chunk2, err := wal.ReadBatchChunk(50)
+	if err != nil {
+		t.Fatalf("ReadBatchChunk(50) failed: %v", err)
+	}
+	if len(chunk2.Samples) != 30 {
+		t.Fatalf("expected 30 samples remaining, got %d", len(chunk2.Samples))
+	}
+	if chunk2.SegmentId != "segment-00000021.wal:segment-00000050.wal" {
+		t.Fatalf("unexpected second segment ID range: %q", chunk2.SegmentId)
+	}
+
+	// Acknowledge range 21..50
+	if err := wal.AcknowledgeSegment(chunk2.SegmentId); err != nil {
+		t.Fatalf("AcknowledgeSegment range failed: %v", err)
+	}
+
+	// Verify all backlog is cleared
+	if wal.HasPendingBacklog() {
+		t.Fatal("expected no pending backlog after acknowledging all chunks")
+	}
+}

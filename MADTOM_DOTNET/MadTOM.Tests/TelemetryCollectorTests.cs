@@ -185,9 +185,10 @@ public class TelemetryCollectorTests
         };
         daemonProc.Start();
 
+        string tempCollectors = System.IO.Path.Combine(tempDir, "collectors.json");
         try
         {
-            var manager = new MultiCollectorManager();
+            var manager = new MultiCollectorManager(tempCollectors);
             manager.RemoveCollector("127.0.0.1:50051");
             manager.AddCollector("Lab Gateway", $"127.0.0.1:{testPort}");
 

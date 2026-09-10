@@ -8,7 +8,7 @@ using Xunit;
 
 namespace MadTOM.Tests;
 
-[Collection("Lexicon")]
+[Collection("GlobalSingletons")]
 public class PluginLifecycleTests
 {
     private sealed class TestHostContext : IPluginHostContext, ILexiconHost, IThemeHost, IPluginNotificationService
@@ -46,8 +46,14 @@ public class PluginLifecycleTests
             return fallback ?? key;
         }
 
-        public string CurrentTheme => "default-dark";
+        public string CurrentTheme { get; private set; } = "default-dark";
         public event EventHandler<string>? CurrentThemeChanged;
+
+        public void SetTheme(string theme)
+        {
+            CurrentTheme = theme;
+            CurrentThemeChanged?.Invoke(this, theme);
+        }
 
         public void ShowToast(string message, string icon = "ℹ️", int durationMs = 3000)
         {
@@ -106,6 +112,22 @@ public class PluginLifecycleTests
         Assert.Equal("MEOW!", host.GetString("test-plugin", "greeting"));
 
         Assert.Equal("fallback_val", host.GetString("test-plugin", "missing_key", "fallback_val"));
+    }
+
+    [Fact]
+    public async Task TelemetryPluginModule_SubscribesToHostThemeChanges()
+    {
+        var host = new TestHostContext();
+        var module = new TelemetryPluginModule();
+        await module.InitializeAsync(host);
+
+        host.SetTheme("pure-light");
+        Assert.Equal("pure-light", MadTOM.Theming.ThemeService.Instance.CurrentTheme);
+
+        host.SetTheme("anti-bleed-grey");
+        Assert.Equal("anti-bleed-grey", MadTOM.Theming.ThemeService.Instance.CurrentTheme);
+
+        await module.DisposeAsync();
     }
 }
 

@@ -44,6 +44,13 @@ public class TelemetryPluginModule : IPluginModule
         // Listen for global culture/lexicon changes from MADTOM Console
         hostContext.Lexicons.CurrentLexiconChanged += OnGlobalLexiconChanged;
 
+        // Listen for global theme changes from MADTOM Console
+        hostContext.Themes.CurrentThemeChanged += OnGlobalThemeChanged;
+        if (!string.IsNullOrWhiteSpace(hostContext.Themes.CurrentTheme))
+        {
+            MadTOM.Theming.ThemeService.Instance.ApplyTheme(hostContext.Themes.CurrentTheme);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -82,6 +89,11 @@ public class TelemetryPluginModule : IPluginModule
     private void OnGlobalLexiconChanged(object? sender, string newLexicon)
     {
         LexiconService.Instance.LoadLexicon(newLexicon);
+    }
+
+    private void OnGlobalThemeChanged(object? sender, string newTheme)
+    {
+        MadTOM.Theming.ThemeService.Instance.ApplyTheme(newTheme);
     }
 
     public Control CreateView()
@@ -137,6 +149,7 @@ public class TelemetryPluginModule : IPluginModule
         if (_hostContext != null)
         {
             _hostContext.Lexicons.CurrentLexiconChanged -= OnGlobalLexiconChanged;
+            _hostContext.Themes.CurrentThemeChanged -= OnGlobalThemeChanged;
         }
 
         _rootView = null;

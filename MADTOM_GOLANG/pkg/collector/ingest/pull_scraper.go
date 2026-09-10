@@ -109,7 +109,7 @@ func (p *PullScraper) executeScrape(target *ScrapeTarget) {
 		NodeId:             target.NodeID,
 		LastAckedSegmentId: target.LastAckedSeg,
 		LastAckedOffset:    target.LastAckedOffset,
-		MaxSamples:         100,
+		MaxSamples:         500,
 		Config:             p.pipeline.reg.TransportConfig(target.NodeID),
 	}
 

@@ -154,6 +154,75 @@ func (w *WALManager) WriteMetrics(samples []*madtomv1.SystemMetrics) (*madtomv1.
 	return batch, nil
 }
 
+const DefaultChunkMaxSamples = 500
+
+// ReadBatchChunk reads up to maxSamples from pending WAL segments.
+// If multiple segments are combined, batch.SegmentId contains the range "firstSegment:lastSegment".
+func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, error) {
+	if maxSamples <= 0 {
+		maxSamples = DefaultChunkMaxSamples
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	segments, err := w.listSegments()
+	if err != nil || len(segments) == 0 {
+		return nil, nil
+	}
+
+	var allSamples []*madtomv1.SystemMetrics
+	var firstSeg, lastSeg segmentMeta
+	var lastOffset int64
+
+	for i, seg := range segments {
+		samples, offset, err := w.readSegmentFileLocked(seg)
+		if err != nil {
+			return nil, err
+		}
+		if len(samples) == 0 {
+			continue
+		}
+		if len(allSamples) == 0 {
+			firstSeg = seg
+		}
+		lastSeg = seg
+		lastOffset = offset
+		allSamples = append(allSamples, samples...)
+
+		if len(allSamples) >= maxSamples || i == len(segments)-1 {
+			break
+		}
+	}
+
+	if len(allSamples) == 0 {
+		return nil, nil
+	}
+
+	segID := firstSeg.name
+	if firstSeg.name != lastSeg.name {
+		segID = fmt.Sprintf("%s:%s", firstSeg.name, lastSeg.name)
+	}
+
+	batch := &madtomv1.TelemetryBatch{
+		NodeId:        w.nodeID,
+		SegmentId:     segID,
+		SegmentOffset: lastOffset,
+		IsBacklog:     len(segments) > 1 || len(allSamples) > 1,
+		Samples:       allSamples,
+	}
+
+	if w.enableZstd && w.encoder != nil && len(allSamples) > 5 {
+		rawBytes, err := proto.Marshal(&madtomv1.TelemetryBatch{Samples: allSamples})
+		if err == nil {
+			batch.IsCompressed = true
+			batch.CompressedPayload = w.encoder.EncodeAll(rawBytes, make([]byte, 0, len(rawBytes)))
+			batch.Samples = nil
+		}
+	}
+
+	return batch, nil
+}
+
 // ReadOldestBatch reads the next pending un-acknowledged batch from the oldest segment.
 func (w *WALManager) ReadOldestBatch() (*madtomv1.TelemetryBatch, error) {
 	w.mu.Lock()
@@ -165,15 +234,33 @@ func (w *WALManager) ReadOldestBatch() (*madtomv1.TelemetryBatch, error) {
 	}
 
 	oldest := segments[0]
-	f, err := os.Open(oldest.path)
+	samples, offset, err := w.readSegmentFileLocked(oldest)
 	if err != nil {
 		return nil, err
 	}
+	if len(samples) == 0 {
+		return nil, nil
+	}
+
+	batch := &madtomv1.TelemetryBatch{
+		NodeId:        w.nodeID,
+		SegmentId:     oldest.name,
+		SegmentOffset: offset,
+		IsBacklog:     true,
+		Samples:       samples,
+	}
+
+	return batch, nil
+}
+
+func (w *WALManager) readSegmentFileLocked(seg segmentMeta) ([]*madtomv1.SystemMetrics, int64, error) {
+	f, err := os.Open(seg.path)
+	if err != nil {
+		return nil, 0, err
+	}
 	defer f.Close()
 
-	// Recover older spool files which may contain multiple batches. A segment
-	// acknowledgement covers all records, so return every record before deletion.
-	batch := &madtomv1.TelemetryBatch{NodeId: w.nodeID, SegmentId: oldest.name, IsBacklog: true}
+	var samples []*madtomv1.SystemMetrics
 	var offset int64
 	for {
 		var lenBuf [4]byte
@@ -182,19 +269,19 @@ func (w *WALManager) ReadOldestBatch() (*madtomv1.TelemetryBatch, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("incomplete WAL header: %w", err)
+			return nil, 0, fmt.Errorf("incomplete WAL header: %w", err)
 		}
 		length := int64(binary.BigEndian.Uint32(lenBuf[:]))
-		if length <= 0 || length > oldest.size-offset-4 {
-			return nil, fmt.Errorf("invalid WAL record length")
+		if length <= 0 || length > seg.size-offset-4 {
+			return nil, 0, fmt.Errorf("invalid WAL record length")
 		}
 		payload := make([]byte, length)
 		if _, err := io.ReadFull(f, payload); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		record := &madtomv1.TelemetryBatch{}
 		if err := proto.Unmarshal(payload, record); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if record.IsCompressed {
 			decoder := w.decoder
@@ -202,42 +289,47 @@ func (w *WALManager) ReadOldestBatch() (*madtomv1.TelemetryBatch, error) {
 				var err error
 				decoder, err = zstd.NewReader(nil)
 				if err != nil {
-					return nil, err
+					return nil, 0, err
 				}
 				defer decoder.Close()
 			}
 			raw, err := decoder.DecodeAll(record.CompressedPayload, nil)
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			inner := &madtomv1.TelemetryBatch{}
 			if err := proto.Unmarshal(raw, inner); err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			record.Samples = inner.Samples
 		}
-		batch.Samples = append(batch.Samples, record.Samples...)
+		samples = append(samples, record.Samples...)
 		offset += 4 + length
 	}
-	if offset == 0 {
-		return nil, nil
-	}
-	batch.SegmentOffset = offset
-
-	return batch, nil
+	return samples, offset, nil
 }
 
-// AcknowledgeSegment removes or marks a segment file as acknowledged after collector confirmation.
+// AcknowledgeSegment removes or marks segment file(s) as acknowledged after collector confirmation.
+// Supports single segment "segment-00000001.wal" and range "segment-00000001.wal:segment-00000050.wal".
 func (w *WALManager) AcknowledgeSegment(segmentID string) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	if filepath.Base(segmentID) != segmentID || !strings.HasPrefix(segmentID, WalFilePrefix) || !strings.HasSuffix(segmentID, WalFileSuffix) {
+	parts := strings.Split(segmentID, ":")
+	if len(parts) == 1 {
+		return w.acknowledgeSingleSegmentLocked(parts[0])
+	} else if len(parts) == 2 {
+		return w.acknowledgeRangeLocked(parts[0], parts[1])
+	}
+	return fmt.Errorf("invalid segment ID format: %q", segmentID)
+}
+
+func (w *WALManager) acknowledgeSingleSegmentLocked(seg string) error {
+	if filepath.Base(seg) != seg || !strings.HasPrefix(seg, WalFilePrefix) || !strings.HasSuffix(seg, WalFileSuffix) {
 		return fmt.Errorf("invalid segment ID")
 	}
-	targetPath := filepath.Join(w.dir, segmentID)
-	// If the acknowledged file is currently open, close it first
-	if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == segmentID {
+	targetPath := filepath.Join(w.dir, seg)
+	if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == seg {
 		_ = w.currentFile.Sync()
 		_ = w.currentFile.Close()
 		w.currentFile = nil
@@ -246,7 +338,54 @@ func (w *WALManager) AcknowledgeSegment(segmentID string) error {
 	}
 
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove acknowledged segment %s: %w", segmentID, err)
+		return fmt.Errorf("failed to remove acknowledged segment %s: %w", seg, err)
+	}
+
+	return nil
+}
+
+func (w *WALManager) acknowledgeRangeLocked(startSeg, endSeg string) error {
+	if filepath.Base(startSeg) != startSeg || !strings.HasPrefix(startSeg, WalFilePrefix) || !strings.HasSuffix(startSeg, WalFileSuffix) {
+		return fmt.Errorf("invalid start segment ID: %q", startSeg)
+	}
+	if filepath.Base(endSeg) != endSeg || !strings.HasPrefix(endSeg, WalFilePrefix) || !strings.HasSuffix(endSeg, WalFileSuffix) {
+		return fmt.Errorf("invalid end segment ID: %q", endSeg)
+	}
+
+	startSeqStr := strings.TrimSuffix(strings.TrimPrefix(startSeg, WalFilePrefix), WalFileSuffix)
+	startSeq, err := strconv.ParseInt(startSeqStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid start segment sequence: %w", err)
+	}
+
+	endSeqStr := strings.TrimSuffix(strings.TrimPrefix(endSeg, WalFilePrefix), WalFileSuffix)
+	endSeq, err := strconv.ParseInt(endSeqStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid end segment sequence: %w", err)
+	}
+
+	if startSeq > endSeq {
+		return fmt.Errorf("invalid segment sequence range: %d > %d", startSeq, endSeq)
+	}
+
+	segments, err := w.listSegments()
+	if err != nil {
+		return err
+	}
+
+	for _, seg := range segments {
+		if seg.seq >= startSeq && seg.seq <= endSeq {
+			if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == seg.name {
+				_ = w.currentFile.Sync()
+				_ = w.currentFile.Close()
+				w.currentFile = nil
+				w.currentBytes = 0
+				w.currentOffset = 0
+			}
+			if err := os.Remove(seg.path); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("failed to remove acknowledged segment %s: %w", seg.name, err)
+			}
+		}
 	}
 
 	return nil

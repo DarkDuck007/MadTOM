@@ -15,6 +15,14 @@ type Point struct {
 	Value             float64
 }
 
+// MetricRecord represents a single point across any node and metric.
+type MetricRecord struct {
+	NodeID        string
+	MetricName    string
+	TimestampNano int64
+	Value         float64
+}
+
 // TSDB manages the embedded Pebble time-series storage engine.
 type TSDB struct {
 	mu sync.RWMutex
@@ -60,6 +68,29 @@ func (t *TSDB) PutMetricsBatch(nodeID string, metricName string, points []Point)
 	for _, pt := range points {
 		key := makeKey(nodeID, metricName, pt.TimestampUnixNano)
 		binary.BigEndian.PutUint64(valBytes, math.Float64bits(pt.Value))
+		if err := batch.Set(key, valBytes, nil); err != nil {
+			return err
+		}
+	}
+
+	return batch.Commit(pebble.Sync)
+}
+
+// PutRecordsBatch inserts multiple metric points across any nodes and metrics in a single atomic Pebble batch with one fsync.
+func (t *TSDB) PutRecordsBatch(records []MetricRecord) error {
+	if len(records) == 0 {
+		return nil
+	}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	batch := t.db.NewBatch()
+	defer batch.Close()
+
+	valBytes := make([]byte, 8)
+	for _, r := range records {
+		key := makeKey(r.NodeID, r.MetricName, r.TimestampNano)
+		binary.BigEndian.PutUint64(valBytes, math.Float64bits(r.Value))
 		if err := batch.Set(key, valBytes, nil); err != nil {
 			return err
 		}

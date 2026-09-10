@@ -397,9 +397,10 @@ if [ ! -d "\$TARGET_DIR" ]; then
 fi
 
 echo "    Copying binary from $REMOTE_TMP to \$TARGET_BIN (sudo)"
-run_sudo cp "$REMOTE_TMP" "\$TARGET_BIN"
-run_sudo chmod 755 "\$TARGET_BIN"
-run_sudo chown root:root "\$TARGET_BIN" 2>/dev/null || true
+run_sudo cp -f "$REMOTE_TMP" "\${TARGET_BIN}.new"
+run_sudo chmod 755 "\${TARGET_BIN}.new"
+run_sudo chown root:root "\${TARGET_BIN}.new" 2>/dev/null || true
+run_sudo mv -f "\${TARGET_BIN}.new" "\$TARGET_BIN"
 
 # Cleanup staging file
 rm -f "$REMOTE_TMP"
@@ -417,9 +418,10 @@ if command -v systemctl >/dev/null 2>&1; then
             run_sudo mkdir -p "\$SERVICE_EXEC_DIR"
         fi
         echo "    Notice: Service specifies ExecStart=\$SERVICE_EXEC, syncing binary there"
-        run_sudo cp "\$TARGET_BIN" "\$SERVICE_EXEC"
-        run_sudo chmod 755 "\$SERVICE_EXEC"
-        run_sudo chown root:root "\$SERVICE_EXEC" 2>/dev/null || true
+        run_sudo cp -f "\$TARGET_BIN" "\${SERVICE_EXEC}.new"
+        run_sudo chmod 755 "\${SERVICE_EXEC}.new"
+        run_sudo chown root:root "\${SERVICE_EXEC}.new" 2>/dev/null || true
+        run_sudo mv -f "\${SERVICE_EXEC}.new" "\$SERVICE_EXEC"
     fi
 
     run_sudo systemctl daemon-reload 2>/dev/null || true

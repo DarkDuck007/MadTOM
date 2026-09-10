@@ -58,68 +58,85 @@ func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) err
 
 	p.reg.RegisterOrTouch(batch.NodeId, mode, nil)
 
+	var records []storage.MetricRecord
+	var latestSample *madtomv1.SystemMetrics
+
 	for _, sample := range samples {
 		if sample == nil {
 			continue
 		}
 		sample.NodeId = batch.NodeId
-		if err := p.ingestSample(batch.NodeId, sample); err != nil {
-			return err
+		records = appendSampleRecords(records, batch.NodeId, sample)
+		if latestSample == nil || sample.TimestampUnixNano > latestSample.TimestampUnixNano {
+			latestSample = sample
 		}
-		p.fanOutLive(batch.NodeId, sample)
+	}
+
+	if len(records) > 0 {
+		if err := p.tsdb.PutRecordsBatch(records); err != nil {
+			return fmt.Errorf("tsdb put batch: %w", err)
+		}
+	}
+
+	if latestSample != nil {
+		p.fanOutLive(batch.NodeId, latestSample)
 	}
 
 	return nil
 }
 
-func (p *Pipeline) ingestSample(nodeID string, s *madtomv1.SystemMetrics) error {
-	var writeErr error
-	put := func(node, metric string, ts int64, value float64) {
-		if writeErr == nil {
-			writeErr = p.tsdb.PutMetric(node, metric, ts, value)
-		}
-	}
+func appendSampleRecords(records []storage.MetricRecord, nodeID string, s *madtomv1.SystemMetrics) []storage.MetricRecord {
 	ts := s.TimestampUnixNano
+	add := func(metric string, val float64) {
+		records = append(records, storage.MetricRecord{
+			NodeID:        nodeID,
+			MetricName:    metric,
+			TimestampNano: ts,
+			Value:         val,
+		})
+	}
+
 	if s.Twamp != nil && s.Twamp.Available {
-		put(nodeID, "twamp.rtt", ts, s.Twamp.RttMs)
+		add("twamp.rtt", s.Twamp.RttMs)
 		if s.Twamp.OneWayAvailable {
-			put(nodeID, "twamp.forward", ts, s.Twamp.ForwardMs)
-			put(nodeID, "twamp.reverse", ts, s.Twamp.ReverseMs)
+			add("twamp.forward", s.Twamp.ForwardMs)
+			add("twamp.reverse", s.Twamp.ReverseMs)
 		}
 	}
 
 	if s.Cpu != nil {
-		put(nodeID, "cpu.total", ts, s.Cpu.TotalPct)
-		put(nodeID, "cpu.user", ts, s.Cpu.UserPct)
-		put(nodeID, "cpu.system", ts, s.Cpu.SystemPct)
-		put(nodeID, "cpu.iowait", ts, s.Cpu.IowaitPct)
+		add("cpu.total", s.Cpu.TotalPct)
+		add("cpu.user", s.Cpu.UserPct)
+		add("cpu.system", s.Cpu.SystemPct)
+		add("cpu.iowait", s.Cpu.IowaitPct)
 	}
 
 	if s.Memory != nil {
-		put(nodeID, "memory.total", ts, float64(s.Memory.MemTotalBytes))
-		put(nodeID, "memory.available", ts, float64(s.Memory.MemAvailableBytes))
-		put(nodeID, "memory.used", ts, float64(s.Memory.MemTotalBytes-s.Memory.MemAvailableBytes))
-		put(nodeID, "memory.swap_total", ts, float64(s.Memory.SwapTotalBytes))
-		put(nodeID, "memory.swap_free", ts, float64(s.Memory.SwapFreeBytes))
+		add("memory.total", float64(s.Memory.MemTotalBytes))
+		add("memory.available", float64(s.Memory.MemAvailableBytes))
+		add("memory.used", float64(s.Memory.MemTotalBytes-s.Memory.MemAvailableBytes))
+		add("memory.swap_total", float64(s.Memory.SwapTotalBytes))
+		add("memory.swap_free", float64(s.Memory.SwapFreeBytes))
 		if s.Memory.ZramRatio > 0 {
-			put(nodeID, "memory.zram_ratio", ts, s.Memory.ZramRatio)
+			add("memory.zram_ratio", s.Memory.ZramRatio)
 		}
 	}
 
 	if s.Power != nil {
 		if s.Power.BatteryPresent {
-			put(nodeID, "power.battery_pct", ts, s.Power.BatteryPct)
-			put(nodeID, "power.rate_watts", ts, s.Power.RateWatts)
+			add("power.battery_pct", s.Power.BatteryPct)
+			add("power.rate_watts", s.Power.RateWatts)
 		}
 	}
 
 	if s.Network != nil {
 		for _, nic := range s.Network.Interfaces {
-			put(nodeID, fmt.Sprintf("nic.%s.rx_bytes", nic.Name), ts, float64(nic.RxBytes))
-			put(nodeID, fmt.Sprintf("nic.%s.tx_bytes", nic.Name), ts, float64(nic.TxBytes))
+			add(fmt.Sprintf("nic.%s.rx_bytes", nic.Name), float64(nic.RxBytes))
+			add(fmt.Sprintf("nic.%s.tx_bytes", nic.Name), float64(nic.TxBytes))
 		}
 	}
-	return writeErr
+
+	return records
 }
 
 func (p *Pipeline) fanOutLive(nodeID string, sample *madtomv1.SystemMetrics) {

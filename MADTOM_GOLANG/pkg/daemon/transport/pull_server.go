@@ -110,19 +110,17 @@ func (s *PullServer) PollTelemetry(ctx context.Context, req *madtomv1.PollReques
 	}
 	// Acknowledge previously scraped segment if requested
 	if req.LastAckedSegmentId != "" {
-		pending, err := s.wal.ReadOldestBatch()
-		if err != nil {
-			return nil, err
-		}
-		if pending != nil && pending.SegmentId == req.LastAckedSegmentId && pending.SegmentOffset == req.LastAckedOffset {
-			if err := s.wal.AcknowledgeSegment(req.LastAckedSegmentId); err != nil {
-				return nil, err
-			}
+		if err := s.wal.AcknowledgeSegment(req.LastAckedSegmentId); err != nil {
+			log.Printf("[PullServer] Error acknowledging segment %s: %v", req.LastAckedSegmentId, err)
 		}
 	}
 
-	// 1. Drain oldest offline segment if available
-	batch, err := s.wal.ReadOldestBatch()
+	// 1. Drain pending backlog chunk if available
+	maxSamples := int(req.MaxSamples)
+	if maxSamples <= 0 {
+		maxSamples = spool.DefaultChunkMaxSamples
+	}
+	batch, err := s.wal.ReadBatchChunk(maxSamples)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "read spool: %v", err)
 	}
@@ -167,7 +165,7 @@ func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBat
 	}
 	s.mu.Unlock()
 	for {
-		batch, err := s.wal.ReadOldestBatch()
+		batch, err := s.wal.ReadBatchChunk(spool.DefaultChunkMaxSamples)
 		if err != nil {
 			return err
 		}

@@ -48,3 +48,49 @@ func TestPebbleTSDB(t *testing.T) {
 		t.Fatalf("unexpected point values: first=%f, last=%f", points[0].Value, points[10].Value)
 	}
 }
+
+func TestPutRecordsBatch(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "madtom-tsdb-multitest-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	db, err := OpenTSDB(tempDir)
+	if err != nil {
+		t.Fatalf("failed to open TSDB: %v", err)
+	}
+	defer db.Close()
+
+	baseTime := time.Now().UnixNano()
+	var records []MetricRecord
+	for i := 0; i < 50; i++ {
+		ts := baseTime + int64(i)*1_000_000_000
+		records = append(records, MetricRecord{
+			NodeID:        "node-A",
+			MetricName:    "cpu.total",
+			TimestampNano: ts,
+			Value:         float64(i),
+		})
+		records = append(records, MetricRecord{
+			NodeID:        "node-A",
+			MetricName:    "memory.used",
+			TimestampNano: ts,
+			Value:         float64(i * 1024),
+		})
+	}
+
+	if err := db.PutRecordsBatch(records); err != nil {
+		t.Fatalf("PutRecordsBatch failed: %v", err)
+	}
+
+	cpuPts, err := db.QueryRange("node-A", "cpu.total", baseTime, baseTime+50*1_000_000_000)
+	if err != nil || len(cpuPts) != 50 {
+		t.Fatalf("expected 50 cpu points, got %d, err: %v", len(cpuPts), err)
+	}
+
+	memPts, err := db.QueryRange("node-A", "memory.used", baseTime, baseTime+50*1_000_000_000)
+	if err != nil || len(memPts) != 50 {
+		t.Fatalf("expected 50 mem points, got %d, err: %v", len(memPts), err)
+	}
+}

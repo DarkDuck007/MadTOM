@@ -4,6 +4,7 @@ using Xunit;
 
 namespace MadTOM.Tests;
 
+[Collection("GlobalSingletons")]
 public class ThemeServiceTests
 {
     [Fact]
@@ -63,6 +64,45 @@ public class ThemeServiceTests
 
         service.ApplyTheme("default-dark");
         Assert.Equal("default-dark", changedTheme);
+    }
+
+    [Fact]
+    public void AvailableThemes_ContainsAllBuiltinThemes()
+    {
+        var service = ThemeService.Instance;
+        var themes = service.AvailableThemes;
+
+        Assert.True(themes.Count >= 8);
+        Assert.Contains("default-dark", themes);
+        Assert.Contains("pure-light", themes);
+        Assert.Contains("paper-white", themes);
+        Assert.Contains("minimal-mono", themes);
+        Assert.Contains("anti-bleed-grey", themes);
+        Assert.Contains("tft-amber-terminal", themes);
+        Assert.Contains("high-contrast", themes);
+        Assert.Contains("solarized-dark", themes);
+    }
+
+    [Theory]
+    [InlineData("pure-light", "#f8fafc", "#0284c7")]
+    [InlineData("paper-white", "#fbf9f5", "#b45309")]
+    [InlineData("minimal-mono", "#121214", "#e4e4e7")]
+    [InlineData("anti-bleed-grey", "#23272e", "#00d4ff")]
+    [InlineData("tft-amber-terminal", "#1b1c18", "#ffb000")]
+    [InlineData("solarized-dark", "#002b36", "#2aa198")]
+    public void ApplyTheme_LoadsCorrectPaletteColors(string themeName, string expectedBgHex, string expectedAccentHex)
+    {
+        var service = ThemeService.Instance;
+        service.ApplyTheme(themeName);
+        Assert.Equal(themeName, service.CurrentTheme);
+
+        var bg = service.GetColor("Background");
+        var expectedBg = Color.Parse(expectedBgHex);
+        Assert.Equal(expectedBg, bg);
+
+        var accent = service.GetColor("Accent");
+        var expectedAccent = Color.Parse(expectedAccentHex);
+        Assert.Equal(expectedAccent, accent);
     }
 }
 

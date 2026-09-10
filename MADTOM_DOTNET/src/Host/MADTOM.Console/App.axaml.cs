@@ -17,7 +17,7 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
-    public override async void OnFrameworkInitializationCompleted()
+    public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -26,11 +26,11 @@ public partial class App : Application
 
             // Register primary Telemetry plugin
             var telemetryModule = new TelemetryPluginModule();
-            await _pluginManager.RegisterModuleAsync(telemetryModule);
+            _pluginManager.RegisterModuleAsync(telemetryModule).GetAwaiter().GetResult();
 
             // Register sample plugins for multi-module switching
-            await _pluginManager.RegisterModuleAsync(new SysadminPlaceholderPluginModule());
-            await _pluginManager.RegisterModuleAsync(new EscPlaceholderPluginModule());
+            _pluginManager.RegisterModuleAsync(new SysadminPlaceholderPluginModule()).GetAwaiter().GetResult();
+            _pluginManager.RegisterModuleAsync(new EscPlaceholderPluginModule()).GetAwaiter().GetResult();
 
             var viewModel = new ConsoleMainViewModel(hostContext, _pluginManager);
 

@@ -30,6 +30,30 @@ public sealed partial class PluginItemViewModel : ObservableObject
     }
 }
 
+public sealed partial class ThemeOption : ObservableObject
+{
+    public string Key { get; }
+    public string DisplayName { get; }
+    public string Category { get; }
+    public string PreviewBg { get; }
+    public string PreviewAccent { get; }
+    public IRelayCommand SelectCommand { get; }
+
+    [ObservableProperty]
+    private bool _isActive;
+
+    public ThemeOption(string key, string displayName, string category, string previewBg, string previewAccent, Action<string> onSelect, bool isActive = false)
+    {
+        Key = key;
+        DisplayName = displayName;
+        Category = category;
+        PreviewBg = previewBg;
+        PreviewAccent = previewAccent;
+        IsActive = isActive;
+        SelectCommand = new RelayCommand(() => onSelect(key));
+    }
+}
+
 public sealed partial class ConsoleMainViewModel : ObservableObject
 {
     private readonly ConsoleHostContext _hostContext;
@@ -37,6 +61,7 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     private DispatcherTimer? _toastTimer;
 
     public ObservableCollection<PluginItemViewModel> Plugins { get; } = new();
+    public ObservableCollection<ThemeOption> AvailableThemes { get; } = new();
 
     [ObservableProperty]
     private PluginItemViewModel? _selectedPlugin;
@@ -85,6 +110,42 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         {
             SelectPlugin(first);
         }
+
+        InitializeThemes();
+    }
+
+    private void InitializeThemes()
+    {
+        (string key, string name, string cat, string bg, string acc)[] themes =
+        [
+            ("default-dark", "Default Dark", "Dark", "#070a12", "#06b6d4"),
+            ("pure-light", "Pure Light", "Light", "#f8fafc", "#0284c7"),
+            ("paper-white", "Paper White", "Light", "#fbf9f5", "#b45309"),
+            ("minimal-mono", "Minimal Mono", "Minimal", "#121212", "#e0e0e0"),
+            ("anti-bleed-grey", "IPS Neutralizer", "IPS / Anti-Bleed", "#23272e", "#00d4ff"),
+            ("tft-amber-terminal", "TFT Amber CRT", "TFT / High-Angle", "#1b1c18", "#ffb000"),
+            ("high-contrast", "High Contrast", "High Contrast", "#000000", "#00f0ff"),
+            ("solarized-dark", "Solarized Dark", "Dark", "#002b36", "#2aa198"),
+        ];
+
+        foreach (var (key, name, cat, bg, acc) in themes)
+        {
+            AvailableThemes.Add(new ThemeOption(key, name, cat, bg, acc, SwitchTheme, key.Equals(ActiveTheme, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
+    [RelayCommand]
+    public void SwitchTheme(string themeKey)
+    {
+        ActiveTheme = themeKey;
+        foreach (var t in AvailableThemes)
+        {
+            t.IsActive = t.Key.Equals(themeKey, StringComparison.OrdinalIgnoreCase);
+        }
+
+        _hostContext.SetTheme(themeKey);
+        MadTOM.Theming.ThemeService.Instance.ApplyTheme(themeKey);
+        ShowToast($"Theme changed to {themeKey}", "🎨");
     }
 
     [RelayCommand]

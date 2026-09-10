@@ -2,13 +2,14 @@ package transport
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/DarkDuck007/madtom/pkg/daemon/collector"
 	"github.com/DarkDuck007/madtom/pkg/daemon/spool"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"sync"
-	"time"
 )
 
 // PushClient samples independently of the connection and sends one durable batch
@@ -85,7 +86,7 @@ func (p *PushClient) connect() {
 		return
 	}
 	for ctx.Err() == nil {
-		batch, err := p.wal.ReadOldestBatch()
+		batch, err := p.wal.ReadBatchChunk(spool.DefaultChunkMaxSamples)
 		if err != nil {
 			return
 		}
