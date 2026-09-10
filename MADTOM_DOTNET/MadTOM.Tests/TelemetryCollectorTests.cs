@@ -40,7 +40,7 @@ public class TelemetryCollectorTests
     [Fact]
     public void MultiCollectorManager_TracksConfiguredEndpoints()
     {
-        var manager = new MultiCollectorManager();
+        var manager = new MultiCollectorManager(":memory:");
         // Starts with default localhost
         Assert.Single(manager.ConfiguredEndpoints);
         Assert.Equal("127.0.0.1:50051", manager.ConfiguredEndpoints[0].Address);
@@ -52,6 +52,43 @@ public class TelemetryCollectorTests
         // Remove collector
         manager.RemoveCollector("192.168.1.50:50051");
         Assert.Single(manager.ConfiguredEndpoints);
+    }
+
+    [Fact]
+    public void MultiCollectorManager_PersistsEndpointsToDisk()
+    {
+        var tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"madtom_collectors_test_{Guid.NewGuid():N}.json");
+        try
+        {
+            var manager1 = new MultiCollectorManager(tempFile);
+            Assert.Single(manager1.ConfiguredEndpoints);
+            Assert.Equal("127.0.0.1:50051", manager1.ConfiguredEndpoints[0].Address);
+
+            // Add second and third collectors
+            manager1.AddCollector("Remote Hub", "192.168.1.100:50051");
+            manager1.AddCollector("Cloud Hub", "10.0.0.1:50051");
+            Assert.Equal(3, manager1.ConfiguredEndpoints.Count);
+
+            // Second manager loading from the same file
+            var manager2 = new MultiCollectorManager(tempFile);
+            Assert.Equal(3, manager2.ConfiguredEndpoints.Count);
+            Assert.Contains(manager2.ConfiguredEndpoints, e => e.Address == "192.168.1.100:50051");
+            Assert.Contains(manager2.ConfiguredEndpoints, e => e.Address == "10.0.0.1:50051");
+
+            // Remove an endpoint
+            manager2.RemoveCollector("192.168.1.100:50051");
+            Assert.Equal(2, manager2.ConfiguredEndpoints.Count);
+
+            // Third manager confirms the removal was persisted
+            var manager3 = new MultiCollectorManager(tempFile);
+            Assert.Equal(2, manager3.ConfiguredEndpoints.Count);
+            Assert.DoesNotContain(manager3.ConfiguredEndpoints, e => e.Address == "192.168.1.100:50051");
+            Assert.Contains(manager3.ConfiguredEndpoints, e => e.Address == "10.0.0.1:50051");
+        }
+        finally
+        {
+            if (System.IO.File.Exists(tempFile)) System.IO.File.Delete(tempFile);
+        }
     }
 
     [Fact]
@@ -72,7 +109,7 @@ public class TelemetryCollectorTests
     [Fact]
     public void CollectorSettingsViewModel_AddAndRemoveEndpoints()
     {
-        var manager = new MultiCollectorManager();
+        var manager = new MultiCollectorManager(":memory:");
         var provider = new CollectorTelemetryDataProvider(manager);
         var vm = new MadTOM.ViewModels.CollectorSettingsViewModel(manager, provider);
 
@@ -94,7 +131,7 @@ public class TelemetryCollectorTests
     [Fact]
     public void CollectorTelemetryDataProvider_GetClusterSummary_WorksWithEmptyAndDiscoveredNodes()
     {
-        var manager = new MultiCollectorManager();
+        var manager = new MultiCollectorManager(":memory:");
         var provider = new CollectorTelemetryDataProvider(manager);
 
         var summary = provider.GetClusterSummary();

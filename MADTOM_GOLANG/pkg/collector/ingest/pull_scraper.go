@@ -17,6 +17,7 @@ type ScrapeTarget struct {
 	Interval        time.Duration
 	LastAckedSeg    string
 	LastAckedOffset int64
+	conn            *grpc.ClientConn
 }
 
 // PullScraper periodically scrapes pull-mode node daemons.
@@ -67,6 +68,14 @@ func (p *PullScraper) Start() {
 func (p *PullScraper) Stop() {
 	p.stopOnce.Do(func() { close(p.stopChan); p.cancel() })
 	p.wg.Wait()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, target := range p.targets {
+		if target.conn != nil {
+			_ = target.conn.Close()
+			target.conn = nil
+		}
+	}
 }
 
 func (p *PullScraper) scrapeLoop(target *ScrapeTarget) {
@@ -84,16 +93,18 @@ func (p *PullScraper) scrapeLoop(target *ScrapeTarget) {
 }
 
 func (p *PullScraper) executeScrape(target *ScrapeTarget) {
-	dialCtx, dialCancel := context.WithTimeout(p.ctx, 3*time.Second)
-	conn, err := grpc.DialContext(dialCtx, target.Address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-	dialCancel()
-	if err != nil {
-		log.Printf("[Scraper] Failed to dial node %s at %s: %v", target.NodeID, target.Address, err)
-		return
+	if target.conn == nil {
+		dialCtx, dialCancel := context.WithTimeout(p.ctx, 3*time.Second)
+		conn, err := grpc.DialContext(dialCtx, target.Address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		dialCancel()
+		if err != nil {
+			log.Printf("[Scraper] Failed to dial node %s at %s: %v", target.NodeID, target.Address, err)
+			return
+		}
+		target.conn = conn
 	}
-	defer conn.Close()
 
-	client := madtomv1.NewIngestServiceClient(conn)
+	client := madtomv1.NewIngestServiceClient(target.conn)
 	req := &madtomv1.PollRequest{
 		NodeId:             target.NodeID,
 		LastAckedSegmentId: target.LastAckedSeg,
@@ -112,10 +123,14 @@ func (p *PullScraper) executeScrape(target *ScrapeTarget) {
 		cancel()
 		if err != nil {
 			log.Printf("[Scraper] Poll error from %s at %s after %d batches this cycle: %v", target.NodeID, target.Address, i, err)
+			_ = target.conn.Close()
+			target.conn = nil
 			return
 		}
 		if batch == nil || batch.NodeId != target.NodeID {
 			log.Printf("[Scraper] Unexpected batch identity from %s at %s: %q", target.NodeID, target.Address, batch.GetNodeId())
+			_ = target.conn.Close()
+			target.conn = nil
 			return
 		}
 		if err := p.pipeline.ProcessBatch(batch, "PULL"); err != nil {

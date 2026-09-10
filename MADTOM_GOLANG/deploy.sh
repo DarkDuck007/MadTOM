@@ -28,6 +28,17 @@ REMOTE_TMP_DIR="${REMOTE_TMP_DIR:-/tmp}"
 # Default SSH port
 SSH_PORT="${SSH_PORT:-22}"
 
+# Host architecture detection
+HOST_UNAME="$(uname -m)"
+case "$HOST_UNAME" in
+    x86_64)               DEFAULT_ARCH="amd64" ;;
+    aarch64|arm64|armv8*) DEFAULT_ARCH="arm64" ;;
+    armv7*|armv6*|armhf)  DEFAULT_ARCH="arm" ;;
+    *)                    DEFAULT_ARCH="amd64" ;;
+esac
+
+TARGET_ARCH="auto"
+
 # ------------------------------------------------------------------------------
 # Usage & Argument Parsing
 # ------------------------------------------------------------------------------
@@ -45,11 +56,17 @@ Options:
   -b, --binary PATH     Local binary to deploy (default: $LOCAL_BIN)
   -d, --dest PATH       Remote destination path (default: $DEST_PATH)
   -s, --service NAME    Remote systemd service name (default: $SERVICE_NAME)
+  -a, --arch ARCH       Target architecture:
+                          - amd64   (x86_64)
+                          - arm64   (ARM 64-bit / aarch64)
+                          - arm     (ARM 32-bit v7 / armhf)
+                          - auto    (detect remote architecture via SSH, default)
   --build               Build the Go binary locally before deploying
   --help                Show this help message and exit
 
 Examples:
   $(basename "$0") root@192.168.1.100
+  $(basename "$0") -u danial -h 10.0.0.12 -a arm64 --build
   $(basename "$0") -u danial -h 10.0.0.12 -b bin/madtom-collector -d /opt/madtom-collector -s madtom-collector.service
 EOF
 }
@@ -83,6 +100,16 @@ while [[ $# -gt 0 ]]; do
             ;;
         -s|--service)
             SERVICE_NAME="$2"
+            shift 2
+            ;;
+        -a|--arch)
+            case "${2,,}" in
+                amd64|x86_64|x64)          TARGET_ARCH="amd64" ;;
+                arm64|aarch64|linux-arm64) TARGET_ARCH="arm64" ;;
+                arm|armv7|armhf|linux-arm) TARGET_ARCH="arm" ;;
+                auto)                      TARGET_ARCH="auto" ;;
+                *)                         TARGET_ARCH="$2" ;;
+            esac
             shift 2
             ;;
         --build)
@@ -149,53 +176,6 @@ if [ -z "$SSH_PASS" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# Optional Build Step or Binary Verification
-# ------------------------------------------------------------------------------
-
-if [ "$DO_BUILD" -eq 1 ] || [ ! -f "$LOCAL_BIN" ]; then
-    if [ ! -f "$LOCAL_BIN" ]; then
-        echo "==> Local binary '$LOCAL_BIN' not found. Compiling Go executable..."
-    else
-        echo "==> Building Go executable (--build specified)..."
-    fi
-
-    # Determine which binary to build based on LOCAL_BIN name
-    BIN_NAME="$(basename "$LOCAL_BIN")"
-    CMD_DIR=""
-    if [ -d "$SCRIPT_DIR/cmd/$BIN_NAME" ]; then
-        CMD_DIR="./cmd/$BIN_NAME"
-    elif [ -d "$SCRIPT_DIR/cmd/madtom-daemon" ]; then
-        CMD_DIR="./cmd/madtom-daemon"
-    elif [ -d "$SCRIPT_DIR/cmd/madtom-collector" ]; then
-        CMD_DIR="./cmd/madtom-collector"
-    fi
-
-    if [ -n "$CMD_DIR" ]; then
-        mkdir -p "$(dirname "$LOCAL_BIN")"
-        (cd "$SCRIPT_DIR" && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o "$LOCAL_BIN" "$CMD_DIR")
-        echo "==> Built: $LOCAL_BIN"
-    else
-        echo "Error: Cannot find Go source to build $LOCAL_BIN. Please compile it first." >&2
-        exit 1
-    fi
-fi
-
-if [ ! -f "$LOCAL_BIN" ]; then
-    echo "Error: Local binary '$LOCAL_BIN' not found." >&2
-    exit 1
-fi
-
-BIN_SIZE="$(du -h "$LOCAL_BIN" | cut -f1)"
-echo "----------------------------------------------------------------"
-echo "MADTOM Backend Deployment"
-echo "----------------------------------------------------------------"
-echo "  Target Host  : ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
-echo "  Local Binary : $LOCAL_BIN ($BIN_SIZE)"
-echo "  Destination  : $DEST_PATH"
-echo "  Service Name : $SERVICE_NAME"
-echo "----------------------------------------------------------------"
-
-# ------------------------------------------------------------------------------
 # SSH & SCP Execution Wrapper (uses sshpass or secure SSH_ASKPASS)
 # ------------------------------------------------------------------------------
 
@@ -257,6 +237,125 @@ run_scp() {
 }
 
 # ------------------------------------------------------------------------------
+# Remote Architecture Detection
+# ------------------------------------------------------------------------------
+
+if [ "$TARGET_ARCH" = "auto" ]; then
+    echo "==> Probing remote architecture on ${SSH_USER}@${SSH_HOST}..."
+    REMOTE_MACHINE="$(run_ssh uname -m 2>/dev/null || true)"
+    REMOTE_MACHINE="$(echo "$REMOTE_MACHINE" | tr -d '\r\n[:space:]')"
+    if [ -n "$REMOTE_MACHINE" ]; then
+        case "$REMOTE_MACHINE" in
+            x86_64|amd64)         TARGET_ARCH="amd64" ;;
+            aarch64|arm64|armv8*) TARGET_ARCH="arm64" ;;
+            armv7*|armv6*|armhf)  TARGET_ARCH="arm" ;;
+            i386|i686)            TARGET_ARCH="386" ;;
+            *)                    TARGET_ARCH="$DEFAULT_ARCH" ;;
+        esac
+        echo "    Detected remote architecture: $REMOTE_MACHINE (mapped to GOARCH=$TARGET_ARCH)"
+    else
+        echo "    Notice: Could not detect remote architecture via SSH. Defaulting to host architecture: $DEFAULT_ARCH"
+        TARGET_ARCH="$DEFAULT_ARCH"
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# Binary Architecture Verification & Compilation
+# ------------------------------------------------------------------------------
+
+get_binary_arch() {
+    local bin_path="$1"
+    if [ ! -f "$bin_path" ]; then
+        echo "none"
+        return
+    fi
+    local file_desc
+    file_desc="$(file -b "$bin_path" 2>/dev/null || true)"
+    if echo "$file_desc" | grep -qi "aarch64"; then
+        echo "arm64"
+    elif echo "$file_desc" | grep -qi "ARM"; then
+        echo "arm"
+    elif echo "$file_desc" | grep -qi "x86-64"; then
+        echo "amd64"
+    elif echo "$file_desc" | grep -qi "Intel 80386"; then
+        echo "386"
+    else
+        echo "unknown"
+    fi
+}
+
+if [ -f "$LOCAL_BIN" ]; then
+    BIN_ARCH="$(get_binary_arch "$LOCAL_BIN")"
+    if [ "$BIN_ARCH" != "$TARGET_ARCH" ] && [ "$BIN_ARCH" != "unknown" ]; then
+        echo "==> Local binary '$LOCAL_BIN' architecture ($BIN_ARCH) does not match target architecture ($TARGET_ARCH)."
+        echo "    Recompiling Go binary for linux/$TARGET_ARCH..."
+        DO_BUILD=1
+    fi
+fi
+
+if [ "$DO_BUILD" -eq 1 ] || [ ! -f "$LOCAL_BIN" ]; then
+    if [ ! -f "$LOCAL_BIN" ]; then
+        echo "==> Local binary '$LOCAL_BIN' not found. Compiling for linux/$TARGET_ARCH..."
+    else
+        echo "==> Building Go executable for linux/$TARGET_ARCH (--build specified)..."
+    fi
+
+    # Determine which binary to build based on LOCAL_BIN name
+    BIN_NAME="$(basename "$LOCAL_BIN")"
+    CMD_DIR=""
+    if [ -d "$SCRIPT_DIR/cmd/$BIN_NAME" ]; then
+        CMD_DIR="./cmd/$BIN_NAME"
+    elif [ -d "$SCRIPT_DIR/cmd/madtom-daemon" ]; then
+        CMD_DIR="./cmd/madtom-daemon"
+    elif [ -d "$SCRIPT_DIR/cmd/madtom-collector" ]; then
+        CMD_DIR="./cmd/madtom-collector"
+    fi
+
+    if [ -n "$CMD_DIR" ]; then
+        mkdir -p "$(dirname "$LOCAL_BIN")"
+        GOARM_ARG=()
+        if [ "$TARGET_ARCH" = "arm" ]; then
+            GOARM_ARG=("GOARM=7")
+        fi
+        (cd "$SCRIPT_DIR" && env CGO_ENABLED=0 GOOS=linux GOARCH="$TARGET_ARCH" "${GOARM_ARG[@]}" go build -ldflags="-s -w" -o "$LOCAL_BIN" "$CMD_DIR")
+        
+        # Also store arch-specific binary in bin/linux_${TARGET_ARCH}/
+        mkdir -p "$SCRIPT_DIR/bin/linux_${TARGET_ARCH}"
+        cp -f "$LOCAL_BIN" "$SCRIPT_DIR/bin/linux_${TARGET_ARCH}/$BIN_NAME" 2>/dev/null || true
+        
+        echo "==> Built: $LOCAL_BIN (Target: linux/$TARGET_ARCH)"
+    else
+        echo "Error: Cannot find Go source to build $LOCAL_BIN. Please compile it first." >&2
+        exit 1
+    fi
+fi
+
+if [ ! -f "$LOCAL_BIN" ]; then
+    echo "Error: Local binary '$LOCAL_BIN' not found." >&2
+    exit 1
+fi
+
+BIN_NAME="$(basename "$LOCAL_BIN")"
+if [ "$(basename "$DEST_PATH")" != "$BIN_NAME" ]; then
+    TARGET_DIR="$DEST_PATH"
+    TARGET_BIN="$DEST_PATH/$BIN_NAME"
+else
+    TARGET_DIR="$(dirname "$DEST_PATH")"
+    TARGET_BIN="$DEST_PATH"
+fi
+
+BIN_SIZE="$(du -h "$LOCAL_BIN" | cut -f1)"
+echo "----------------------------------------------------------------"
+echo "MADTOM Backend Deployment"
+echo "----------------------------------------------------------------"
+echo "  Target Host  : ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
+echo "  Architecture : linux/${TARGET_ARCH}"
+echo "  Local Binary : $LOCAL_BIN ($BIN_SIZE)"
+echo "  Destination  : $TARGET_BIN"
+echo "  Service Name : $SERVICE_NAME"
+echo "----------------------------------------------------------------"
+
+# ------------------------------------------------------------------------------
 # Step 1: Upload Executable to Remote Temp Directory
 # ------------------------------------------------------------------------------
 
@@ -268,7 +367,7 @@ run_scp "$LOCAL_BIN" "${SSH_USER}@${SSH_HOST}:${REMOTE_TMP}"
 # Step 2: Install Executable via Sudo & Step 3: Restart Service
 # ------------------------------------------------------------------------------
 
-echo "==> [2/3] Installing binary to $DEST_PATH with sudo ..."
+echo "==> [2/3] Installing binary to $TARGET_BIN with sudo ..."
 echo "==> [3/3] Restarting systemd service: $SERVICE_NAME ..."
 
 # The remote script reads the password from standard input so it is never
@@ -283,22 +382,46 @@ run_sudo() {
     printf '%s\n' "\$SUDO_PASS" | sudo -S -p '' "\$@"
 }
 
-DEST_DIR="\$(dirname "$DEST_PATH")"
-if [ ! -d "\$DEST_DIR" ]; then
-    echo "    Creating destination directory: \$DEST_DIR"
-    run_sudo mkdir -p "\$DEST_DIR"
+TARGET_DIR="$TARGET_DIR"
+TARGET_BIN="$TARGET_BIN"
+
+# If TARGET_DIR exists as a regular file (from a previous erroneous deployment), remove it
+if [ -f "\$TARGET_DIR" ]; then
+    echo "    Cleaning up existing regular file at directory path: \$TARGET_DIR"
+    run_sudo rm -f "\$TARGET_DIR"
 fi
 
-echo "    Copying binary from $REMOTE_TMP to $DEST_PATH (sudo)"
-run_sudo cp "$REMOTE_TMP" "$DEST_PATH"
-run_sudo chmod 755 "$DEST_PATH"
-run_sudo chown root:root "$DEST_PATH" 2>/dev/null || true
+if [ ! -d "\$TARGET_DIR" ]; then
+    echo "    Creating destination directory: \$TARGET_DIR"
+    run_sudo mkdir -p "\$TARGET_DIR"
+fi
+
+echo "    Copying binary from $REMOTE_TMP to \$TARGET_BIN (sudo)"
+run_sudo cp "$REMOTE_TMP" "\$TARGET_BIN"
+run_sudo chmod 755 "\$TARGET_BIN"
+run_sudo chown root:root "\$TARGET_BIN" 2>/dev/null || true
 
 # Cleanup staging file
 rm -f "$REMOTE_TMP"
 
 # Systemd operations
 if command -v systemctl >/dev/null 2>&1; then
+    # Inspect service definition to ensure binary path matches ExecStart
+    SERVICE_EXEC="\$(run_sudo systemctl cat "$SERVICE_NAME" 2>/dev/null | grep -E '^\s*ExecStart=' | head -n1 | awk '{print \$1}' | sed 's/^\s*ExecStart=//' || true)"
+    if [ -n "\$SERVICE_EXEC" ] && [ "\$SERVICE_EXEC" != "\$TARGET_BIN" ]; then
+        SERVICE_EXEC_DIR="\$(dirname "\$SERVICE_EXEC")"
+        if [ -f "\$SERVICE_EXEC_DIR" ]; then
+            run_sudo rm -f "\$SERVICE_EXEC_DIR"
+        fi
+        if [ ! -d "\$SERVICE_EXEC_DIR" ]; then
+            run_sudo mkdir -p "\$SERVICE_EXEC_DIR"
+        fi
+        echo "    Notice: Service specifies ExecStart=\$SERVICE_EXEC, syncing binary there"
+        run_sudo cp "\$TARGET_BIN" "\$SERVICE_EXEC"
+        run_sudo chmod 755 "\$SERVICE_EXEC"
+        run_sudo chown root:root "\$SERVICE_EXEC" 2>/dev/null || true
+    fi
+
     run_sudo systemctl daemon-reload 2>/dev/null || true
     echo "    Restarting service: $SERVICE_NAME"
     run_sudo systemctl restart "$SERVICE_NAME"
@@ -323,7 +446,7 @@ printf '%s\n' "$SSH_PASS" | run_ssh "bash -c $(printf %q "$REMOTE_SCRIPT")"
 echo "----------------------------------------------------------------"
 echo " Deployment completed successfully!"
 echo "   Host    : ${SSH_USER}@${SSH_HOST}"
-echo "   Binary  : $DEST_PATH"
+echo "   Binary  : $TARGET_BIN"
 echo "   Service : $SERVICE_NAME (Restarted)"
 echo "----------------------------------------------------------------"
 

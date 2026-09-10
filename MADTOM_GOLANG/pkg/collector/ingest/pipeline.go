@@ -3,7 +3,6 @@ package ingest
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/DarkDuck007/madtom/pkg/collector/registry"
 	"github.com/DarkDuck007/madtom/pkg/collector/storage"
@@ -60,15 +59,14 @@ func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) err
 	p.reg.RegisterOrTouch(batch.NodeId, mode, nil)
 
 	for _, sample := range samples {
-		if sample == nil || sample.NodeId != batch.NodeId {
-			return fmt.Errorf("sample node ID mismatch")
+		if sample == nil {
+			continue
 		}
+		sample.NodeId = batch.NodeId
 		if err := p.ingestSample(batch.NodeId, sample); err != nil {
 			return err
 		}
-		if time.Since(time.Unix(0, sample.TimestampUnixNano)) < 30*time.Second {
-			p.fanOutLive(batch.NodeId, sample)
-		}
+		p.fanOutLive(batch.NodeId, sample)
 	}
 
 	return nil

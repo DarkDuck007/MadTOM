@@ -20,11 +20,18 @@ NC='\033[0m' # No Color
 CONFIG="Debug"
 RUN_TESTS=false
 CLEAN_BUILD=false
+ARCH_ARG=""
 
 usage() {
     echo -e "${BOLD}Usage:${NC} $0 [OPTIONS]"
     echo ""
     echo -e "${BOLD}Options:${NC}"
+    echo "  -a, --arch ARCH Target architecture for Go backend:"
+    echo "                  - amd64   (x86_64)"
+    echo "                  - arm64   (ARM 64-bit / aarch64)"
+    echo "                  - arm     (ARM 32-bit v7 / armhf)"
+    echo "                  - all     (build all architectures)"
+    echo "                  (default: host architecture)"
     echo "  --release       Build both Go and .NET projects with Release optimizations"
     echo "  --debug         Build projects in Debug configuration (default)"
     echo "  --test          Run automated unit tests after compiling"
@@ -36,6 +43,10 @@ usage() {
 # Parse CLI arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -a|--arch)
+            ARCH_ARG="$2"
+            shift 2
+            ;;
         --release)
             CONFIG="Release"
             shift
@@ -64,6 +75,9 @@ done
 
 echo -e "${BOLD}${CYAN}=== MADTOM Project Build ===${NC}"
 echo -e "Configuration : ${BOLD}${CONFIG}${NC}"
+if [ -n "$ARCH_ARG" ]; then
+    echo -e "Go Architecture: ${BOLD}${ARCH_ARG}${NC}"
+fi
 echo -e "Root Directory: ${ROOT_DIR}"
 echo ""
 
@@ -92,20 +106,17 @@ fi
 # 2. Compile Go Projects (madtom-collector and madtom-daemon)
 # ------------------------------------------------------------------------------
 echo -e "${BOLD}${CYAN}[1/2] Compiling Go Services (MADTOM_GOLANG)...${NC}"
-mkdir -p "$GO_DIR/bin"
-
-GO_FLAGS=("-buildvcs=false")
-if [[ "$CONFIG" == "Release" ]]; then
-    GO_FLAGS+=("-ldflags=-s -w")
+GO_BUILD_CMD=("$GO_DIR/build.sh")
+if [ "$CONFIG" == "Release" ]; then
+    GO_BUILD_CMD+=("--release")
+else
+    GO_BUILD_CMD+=("--debug")
+fi
+if [ -n "$ARCH_ARG" ]; then
+    GO_BUILD_CMD+=("-a" "$ARCH_ARG")
 fi
 
-echo -e "  -> Building ${BOLD}madtom-collector${NC}..."
-(cd "$GO_DIR" && go build "${GO_FLAGS[@]}" -o "$GO_DIR/bin/madtom-collector" ./cmd/madtom-collector)
-
-echo -e "  -> Building ${BOLD}madtom-daemon${NC}..."
-(cd "$GO_DIR" && go build "${GO_FLAGS[@]}" -o "$GO_DIR/bin/madtom-daemon" ./cmd/madtom-daemon)
-
-echo -e "${GREEN}✓ Go binaries built successfully in ${GO_DIR}/bin/${NC}"
+"${GO_BUILD_CMD[@]}"
 echo ""
 
 # ------------------------------------------------------------------------------

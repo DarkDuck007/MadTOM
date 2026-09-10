@@ -231,9 +231,9 @@ public sealed class MetricHistoryChartControl : Control
         Point MapPoint(long tsNano, double val, int idx, int totalCount)
         {
             double xFrac;
-            if (useTimeMapping && tsNano >= wStart)
+            if (useTimeMapping)
             {
-                xFrac = Math.Clamp((double)(tsNano - wStart) / timeSpanNano, 0.0, 1.0);
+                xFrac = (double)(tsNano - wStart) / timeSpanNano;
             }
             else
             {

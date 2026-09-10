@@ -447,7 +447,23 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     graph.Labels = Array.Empty<string>();
                 }
 
-                graph.Status = maxPoints == 0 ? "No measurements in this time window" : $"{maxPoints} points · {start.ToLocalTime():HH:mm:ss} – {end.ToLocalTime():HH:mm:ss}";
+                if (maxPoints == 0)
+                {
+                    graph.Status = "No measurements in this time window";
+                }
+                else
+                {
+                    long latestNano = primary?.Timestamps.LastOrDefault() ?? 0;
+                    if (latestNano > 0 && (windowEndNano - latestNano) > 60_000_000_000L)
+                    {
+                        var latestDt = DateTimeOffset.FromUnixTimeMilliseconds(latestNano / 1_000_000L).ToLocalTime();
+                        graph.Status = $"{maxPoints} points · window {start.ToLocalTime():HH:mm:ss}–{end.ToLocalTime():HH:mm:ss} (data ends at {latestDt:HH:mm:ss})";
+                    }
+                    else
+                    {
+                        graph.Status = $"{maxPoints} points · {start.ToLocalTime():HH:mm:ss} – {end.ToLocalTime():HH:mm:ss}";
+                    }
+                }
             }));
         }
         catch (OperationCanceledException) { }
