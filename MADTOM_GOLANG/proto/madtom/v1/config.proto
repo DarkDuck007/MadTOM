@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package madtom.v1;
+
+option go_package = "github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1";
+option csharp_namespace = "MADTOM.Plugins.Telemetry.Proto.V1";
+
+// ConfigService coordinates collection settings and opt-in switches for nodes.
+service ConfigService {
+  rpc GetNodeConfig(GetNodeConfigRequest) returns (NodeConfig);
+  rpc UpdateNodeConfig(UpdateNodeConfigRequest) returns (ConfigAck);
+}
+
+message GetNodeConfigRequest {
+  string node_id = 1;
+}
+
+message UpdateNodeConfigRequest {
+  string node_id = 1;
+  NodeConfig config = 2;
+}
+
+// NodeConfig controls what the daemon measures and what the collector retains.
+message NodeConfig {
+  string node_id = 1;
+  
+  // Opt-in Collection Switches (Daemon Level)
+  bool collect_cpu_overall = 2;
+  bool collect_cpu_per_core = 3;
+  bool collect_memory_basic = 4;
+  bool collect_memory_swap_zram = 5;
+  bool collect_power_battery = 6;
+  bool collect_network_interfaces = 7;
+  bool collect_network_connections = 8;
+
+  // Polling cadences (milliseconds)
+  uint32 fast_poll_interval_ms = 9;   // Default 1000ms (1s)
+  uint32 normal_poll_interval_ms = 10; // Default 10000ms (10s)
+  uint32 slow_poll_interval_ms = 11;   // Default 30000ms (30s)
+
+  // Spooling & Compression
+  bool enable_zstd_compression = 12;
+  string twamp_target = 14; // TWAMP Light UDP reflector host:port; empty disables probes
+  bool twamp_clocks_synchronized = 15; // Operator assertion; reflector must also set its S bit
+  uint64 max_spool_bytes = 13;        // Default 1,073,741,824 (1 GB)
+}
+
+message ConfigAck {
+  bool success = 1;
+  string message = 2;
+}
+

@@ -88,27 +88,17 @@ public class RadarAndChartGestureTests
         using var provider = new MockTelemetryDataProvider(startBackgroundTimer: false);
         var vm = new GlobalRadarViewModel(provider);
 
-        // Initially aggregated
-        Assert.Contains(vm.TopOrigins, o => o.CountryName == "Japan");
-        Assert.Equal("184.2 Gbps", vm.EgressRate);
-
-        // Switch to Tokyo host
-        vm.ScopedNodeId = "gander-epyc-01";
-        Assert.Equal("48.6 Gbps", vm.EgressRate);
-        Assert.Contains("TYO", vm.ActiveVectorsBadge);
-        Assert.Equal("Japan", vm.TopOrigins[0].CountryName);
-        Assert.True(vm.TopOrigins[0].Percentage > 50.0);
-
-        // Switch to US host
-        vm.ScopedNodeId = "iad-edge-01";
-        Assert.Equal("64.2 Gbps", vm.EgressRate);
-        Assert.Contains("IAD", vm.ActiveVectorsBadge);
-        Assert.Equal("United States", vm.TopOrigins[0].CountryName);
-        Assert.True(vm.TopOrigins[0].Percentage > 60.0);
-
-        // Switch back to aggregated
-        vm.ScopedNodeId = "Aggregated (All Hosts - Global Fleet)";
-        Assert.Equal("184.2 Gbps", vm.EgressRate);
+        Assert.Equal(provider.GetFleetNodes().Count, vm.Topology.Count);
+        Assert.Empty(vm.TopOrigins);
+        var node = provider.GetFleetNodes()[0];
+        node.TxBytesPerSecond = 125000;
+        vm.ScopedNodeId = node.Id;
+        Assert.Single(vm.Topology);
+        Assert.Contains(node.Id, vm.Topology[0]);
+        Assert.Equal("1.000 Mbps", vm.EgressRate);
+        vm.ScopedNodeId = "missing-node";
+        Assert.Empty(vm.Topology);
+        Assert.Empty(vm.Interfaces);
     }
 
     [Fact]
@@ -117,6 +107,8 @@ public class RadarAndChartGestureTests
         using var provider = new MockTelemetryDataProvider(startBackgroundTimer: false);
         var vm = new GlobalRadarViewModel(provider);
 
+        vm.TopOrigins.Add(new OriginShareItem { CountryName = "Japan" });
+        vm.TopOrigins.Add(new OriginShareItem { CountryName = "Germany" });
         // Hover over Japan
         vm.HoveredCountry = "Japan";
 

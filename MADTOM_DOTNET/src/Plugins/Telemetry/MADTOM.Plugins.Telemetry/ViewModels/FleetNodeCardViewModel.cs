@@ -20,6 +20,7 @@ public partial class FleetNodeCardViewModel : ViewModelBase
     private bool _isHovered;
 
     public event Action<string>? OpenDetailRequested;
+    public event Action<FleetNodeModel>? ConfigureNodeRequested;
 
     public FleetNodeCardViewModel(FleetNodeModel node)
     {
@@ -30,6 +31,12 @@ public partial class FleetNodeCardViewModel : ViewModelBase
     public void OpenDetail()
     {
         OpenDetailRequested?.Invoke(Node.Id);
+    }
+
+    [RelayCommand]
+    public void ConfigureNode()
+    {
+        ConfigureNodeRequested?.Invoke(Node);
     }
 }
 

@@ -68,3 +68,12 @@ secrets.json
 Thumbs.db
 Desktop.ini
 
+# Go build and dependency artifacts
+/MADTOM_GOLANG/**/bin/
+*.test
+*.out
+/MADTOM_GOLANG/**/vendor/
+go.work
+go.work.sum
+
+

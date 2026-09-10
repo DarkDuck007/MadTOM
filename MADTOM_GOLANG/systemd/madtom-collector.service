@@ -1,0 +1,83 @@
+[Unit]
+Description=MADTOM Telemetry Collector Hub (madtom-collector)
+Documentation=https://github.com/DarkDuck007/madtom
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# ------------------------------------------------------------------------------
+# COMMAND ARGUMENT REFERENCE FOR madtom-collector
+# ------------------------------------------------------------------------------
+# ALL possible command arguments accepted by madtom-collector:
+#
+#   -name <string>
+#       Display name for this collector instance.
+#       Displayed on node cards in the MADTOM UI to distinguish collectors.
+#       Default: "Local Collector"
+#
+#   -port <port>
+#       TCP port for the unified gRPC service (serves both daemon ingestion
+#       and operator UI queries & live streams).
+#       Default: 50051
+#
+#   -data-dir <path>
+#       Directory path for CockroachDB Pebble TSDB time-series storage.
+#       Stores historical metrics with big-endian timestamp prefix indexing.
+#       Default: /tmp/madtom/collector_data (Recommended for systemd: /var/lib/madtom-collector/data)
+#
+#   -pull-targets <node-id@host:port,...>
+#       Comma-separated list of pull-mode daemon endpoints for the scraper
+#       engine to periodically poll (e.g. "node-1@10.0.0.21:50052,node-2@10.0.0.22:50052").
+#       Default: "" (Disabled; collector operates in passive push-receiving mode)
+#
+#   -pull-interval <duration>
+#       Polling frequency for pull-mode daemon targets (e.g. "1s", "500ms").
+#       Default: 1s (Provides full 1Hz real-time telemetry resolution)
+#
+#   -reverse-push-targets <node-id@host:port,...>
+#       Comma-separated list of reverse-push endpoints (e.g. "node-3@10.0.0.23:50052").
+#       Collector initiates the TCP connection to a listening daemon behind NAT/firewalls,
+#       and the daemon pushes its telemetry stream across that channel.
+#       Default: "" (Disabled)
+# ------------------------------------------------------------------------------
+
+# Active minimal command required for running the collector hub:
+ExecStart=/opt/madtom-collector \
+    -port 50051 \
+    -data-dir /var/lib/madtom-collector/data
+
+# Example 1: Full configuration with custom collector name and persistent TSDB:
+# ExecStart=/opt/madtom-collector \
+#     -name "Primary Lab Collector" \
+#     -port 50051 \
+#     -data-dir /var/lib/madtom-collector/data
+
+# Example 2: Ingesting from pull-mode daemons across a subnet:
+# ExecStart=/opt/madtom-collector \
+#     -name "Datacenter Collector" \
+#     -port 50051 \
+#     -data-dir /var/lib/madtom-collector/data \
+#     -pull-targets "server-01@10.0.0.11:50052,server-02@10.0.0.12:50052"
+
+# Example 3: Hybrid setup with pull targets and reverse-push targets:
+# ExecStart=/opt/madtom-collector \
+#     -name "Hybrid Collector" \
+#     -port 50051 \
+#     -data-dir /var/lib/madtom-collector/data \
+#     -pull-targets "edge-01@192.168.10.1:50052" \
+#     -reverse-push-targets "dmz-proxy@172.16.0.5:50052"
+
+Restart=always
+RestartSec=3s
+LimitNOFILE=65536
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

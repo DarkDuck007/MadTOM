@@ -21,6 +21,9 @@ public partial class SidebarViewModel : ViewModelBase
     [ObservableProperty]
     private string? _selectedHostId;
 
+    [ObservableProperty]
+    private int _onlineCount;
+
     public ObservableCollection<FleetNodeModel> Nodes { get; } = new();
 
     public event Action<string>? ViewChangeRequested;
@@ -34,21 +37,41 @@ public partial class SidebarViewModel : ViewModelBase
         {
             Nodes.Add(node);
         }
+        UpdateOnlineCount();
+
+        Nodes.CollectionChanged += (_, _) => UpdateOnlineCount();
 
         _telemetryProvider.NodeTelemetryUpdated += (s, updatedNode) =>
         {
-            if (!Nodes.Any(n => n.Id.Equals(updatedNode.Id, StringComparison.OrdinalIgnoreCase)))
+            void Apply()
             {
-                if (Avalonia.Threading.Dispatcher.UIThread?.CheckAccess() == false)
-                {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => Nodes.Add(updatedNode));
-                }
-                else
+                var existing = Nodes.FirstOrDefault(n => n.Id.Equals(updatedNode.Id, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
                 {
                     Nodes.Add(updatedNode);
                 }
+                else
+                {
+                    existing.Status = updatedNode.Status;
+                }
+                UpdateOnlineCount();
+            }
+
+            if (Avalonia.Threading.Dispatcher.UIThread?.CheckAccess() == false)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(Apply);
+            }
+            else
+            {
+                Apply();
             }
         };
+    }
+
+    private void UpdateOnlineCount()
+    {
+        OnlineCount = Nodes.Count(n => n.Status.Equals("healthy", StringComparison.OrdinalIgnoreCase) ||
+                                       n.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
     }
 
     [RelayCommand]

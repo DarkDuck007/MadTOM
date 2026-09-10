@@ -5,6 +5,14 @@ namespace MadTOM.Models;
 
 public sealed partial class TwampTelemetryModel : ObservableObject
 {
+    [ObservableProperty] private bool _available;
+    [ObservableProperty] private bool _oneWayAvailable;
+    [ObservableProperty] private double _rttMs;
+    [ObservableProperty] private string _error = "No TWAMP reflector configured";
+    public string DisplayText => Available ? $"RTT {RttMs:F2} ms" : "Unavailable";
+    partial void OnAvailableChanged(bool value) => OnPropertyChanged(nameof(DisplayText));
+    partial void OnRttMsChanged(double value) => OnPropertyChanged(nameof(DisplayText));
+
     [ObservableProperty]
     private double _forwardMs;
 
@@ -25,6 +33,18 @@ public sealed partial class TwampTelemetryModel : ObservableObject
 
 public sealed partial class FleetNodeModel : ObservableObject
 {
+    [ObservableProperty] private bool _viewCpuMatrix = true;
+    [ObservableProperty] private bool _viewSwapZram = true;
+    [ObservableProperty] private bool _viewPowerBattery = true;
+    [ObservableProperty] private bool _viewNetworkCounters = true;
+    public long TimestampUnixNano { get; set; }
+    public ulong MemoryTotalBytes { get; set; }
+    public double TxBytesPerSecond { get; set; }
+    public double RxBytesPerSecond { get; set; }
+    public System.Collections.Generic.IReadOnlyList<ProcessInfoModel> Processes { get; set; } = Array.Empty<ProcessInfoModel>();
+    public System.Collections.Generic.IReadOnlyList<MADTOM.Plugins.Telemetry.Proto.V1.NicMetric> Interfaces { get; set; } = Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.NicMetric>();
+    public bool ProcessesAvailable { get; set; }
+
     [ObservableProperty]
     private string _id = string.Empty;
 
@@ -38,16 +58,16 @@ public sealed partial class FleetNodeModel : ObservableObject
     private string _cpuModel = string.Empty;
 
     [ObservableProperty]
-    private int _cores = 64;
+    private int _cores = 0;
 
     [ObservableProperty]
-    private string _ramTotal = "64 GB";
+    private string _ramTotal = "Unknown";
 
     [ObservableProperty]
-    private double _ramUsedPct = 30.0;
+    private double _ramUsedPct = 0;
 
     [ObservableProperty]
-    private double _cpuAvgPct = 40.0;
+    private double _cpuAvgPct = 0;
 
     [ObservableProperty]
     private string _status = "healthy"; // healthy, warning, critical
@@ -69,5 +89,32 @@ public sealed partial class FleetNodeModel : ObservableObject
 
     [ObservableProperty]
     private float[] _coreLoads = Array.Empty<float>();
+
+    [ObservableProperty]
+    private string _collectorName = "Local Collector";
+
+    [ObservableProperty]
+    private string _collectorEndpoint = "127.0.0.1:50051";
+
+    [ObservableProperty]
+    private string _os = "Unknown";
+
+    [ObservableProperty]
+    private string _arch = "Unknown";
+
+    [ObservableProperty]
+    private bool _isViewingOptedIn = true;
+
+    [ObservableProperty]
+    private double _batteryPct;
+
+    [ObservableProperty]
+    private bool _hasBattery;
+
+    [ObservableProperty]
+    private double _zramRatio;
+
+    [ObservableProperty]
+    private double _swapUsedPct;
 }
 

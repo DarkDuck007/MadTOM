@@ -10,10 +10,10 @@ using MadTOM.Services;
 
 namespace MadTOM.ViewModels;
 
-public sealed class HostOptionItem
+public sealed partial class HostOptionItem : ObservableObject
 {
     public string Id { get; set; } = string.Empty;
-    public string DisplayText { get; set; } = string.Empty;
+    [ObservableProperty] private string _displayText = string.Empty;
     public override string ToString() => DisplayText;
 }
 
@@ -23,7 +23,7 @@ public partial class HostDetailViewModel : ViewModelBase
     private readonly ILexiconService _lexiconService;
 
     [ObservableProperty]
-    private string _selectedHostId = "gander-epyc-01";
+    private string _selectedHostId = "";
 
     [ObservableProperty]
     private HostOptionItem? _selectedHostOption;
@@ -32,10 +32,10 @@ public partial class HostDetailViewModel : ViewModelBase
     private string _activeTab = "metrics"; // metrics, processes, logs, flight
 
     [ObservableProperty]
-    private string _hostTitle = "gander-epyc-01";
+    private string _hostTitle = "";
 
     [ObservableProperty]
-    private string _roleBadge = "Gander (Anchor)";
+    private string _roleBadge = "";
 
     [ObservableProperty]
     private bool _isBaremetal = true;
@@ -44,26 +44,35 @@ public partial class HostDetailViewModel : ViewModelBase
     private bool _isAggregated;
 
     [ObservableProperty]
-    private string _cpuSpec = "Dual AMD EPYC 9996";
+    private string _cpuSpec = "";
 
     [ObservableProperty]
-    private string _threadsSpec = "1024 Logical Threads (512C/1024T)";
+    private string _threadsSpec = "";
 
     [ObservableProperty]
-    private string _ramSpec = "512 GB DDR5 ECC";
+    private string _ramSpec = "";
 
     [ObservableProperty]
-    private string _ramUsedSpec = "148 GB Used (28.9%)";
+    private string _ramUsedSpec = "";
 
     [ObservableProperty]
-    private string _twampUpText = "↑ 1.84ms";
+    private string _twampUpText = "";
 
     [ObservableProperty]
-    private string _twampDownText = "↓ 3.12ms";
+    private string _twampDownText = "";
 
     [ObservableProperty]
-    private string _twampAsymText = "Path Asymmetry Δ: 1.28ms";
+    private string _twampAsymText = "";
 
+    public bool IsMetricsTab => ActiveTab == "metrics";
+    public bool IsProcessesTab => ActiveTab == "processes";
+    public bool IsLogsTab => ActiveTab == "logs";
+    public bool IsFlightTab => ActiveTab == "flight";
+    partial void OnActiveTabChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsMetricsTab)); OnPropertyChanged(nameof(IsProcessesTab));
+        OnPropertyChanged(nameof(IsLogsTab)); OnPropertyChanged(nameof(IsFlightTab));
+    }
     public ObservableCollection<HostOptionItem> HostOptions { get; } = new();
 
     public HostMetricsTabViewModel MetricsTab { get; }
@@ -90,39 +99,29 @@ public partial class HostDetailViewModel : ViewModelBase
         FlightTab = flightTab;
 
         PopulateHostOptions();
-        UpdateHostView("gander-epyc-01");
+        UpdateHostView(SelectedHostOption?.Id ?? "");
 
-        _telemetryProvider.NodeTelemetryUpdated += (s, updatedNode) =>
+        _telemetryProvider.NodeTelemetryUpdated += (_, node) =>
         {
-            if (IsAggregated)
-            {
-                MetricsTab.PushLiveSample(updatedNode.Twamp.ForwardMs, updatedNode.Twamp.ReverseMs);
-            }
-            else if (SelectedHostId.Equals(updatedNode.Id, StringComparison.OrdinalIgnoreCase))
-            {
-                TwampUpText = $"↑ {updatedNode.Twamp.ForwardMs:F2}ms";
-                TwampDownText = $"↓ {updatedNode.Twamp.ReverseMs:F2}ms";
-                TwampAsymText = $"Path Asymmetry Δ: {updatedNode.Twamp.AsymmetryMs:F2}ms";
-                RamUsedSpec = $"{updatedNode.RamUsedPct:F1}% Used (Active Allocation)";
-
-                MetricsTab.PushLiveSample(updatedNode.Twamp.ForwardMs, updatedNode.Twamp.ReverseMs);
-                MetricsTab.CoreLoads = updatedNode.CoreLoads;
-            }
+            var option = HostOptions.FirstOrDefault(o => o.Id == node.Id);
+            if (option == null) { option = new HostOptionItem { Id = node.Id }; HostOptions.Add(option); }
+            option.DisplayText = $"{node.Id} ({node.Cores}T)";
+            if (IsAggregated || SelectedHostId == node.Id) UpdateHostView(SelectedHostId);
         };
     }
 
     private void PopulateHostOptions()
     {
         HostOptions.Clear();
-        HostOptions.Add(new HostOptionItem { Id = "aggregated", DisplayText = "Aggregated (All Hosts - 1,904 Cores)" });
+        HostOptions.Add(new HostOptionItem { Id = "aggregated", DisplayText = "Aggregated (All Hosts)" });
 
         foreach (var n in _telemetryProvider.GetFleetNodes())
         {
-            string roleLabel = n.Role == "baremetal" ? "Gander" : "Gosling";
+            string roleLabel = n.Role;
             HostOptions.Add(new HostOptionItem { Id = n.Id, DisplayText = $"{n.Id} ({roleLabel} - {n.Cores}T)" });
         }
 
-        SelectedHostOption = HostOptions.FirstOrDefault(o => o.Id == "gander-epyc-01");
+        SelectedHostOption = HostOptions.FirstOrDefault(o => o.Id == "") ?? HostOptions.FirstOrDefault();
     }
 
     partial void OnSelectedHostOptionChanged(HostOptionItem? value)
@@ -136,6 +135,17 @@ public partial class HostDetailViewModel : ViewModelBase
     public void SelectHost(string hostId)
     {
         var opt = HostOptions.FirstOrDefault(o => o.Id.Equals(hostId, StringComparison.OrdinalIgnoreCase));
+        if (opt == null)
+        {
+            var node = _telemetryProvider.GetNode(hostId) ?? _telemetryProvider.GetFleetNodes().FirstOrDefault(n => n.Id.Equals(hostId, StringComparison.OrdinalIgnoreCase));
+            if (node != null)
+            {
+                string roleLabel = node.Role;
+                opt = new HostOptionItem { Id = node.Id, DisplayText = $"{node.Id} ({roleLabel} - {node.Cores}T)" };
+                HostOptions.Add(opt);
+            }
+        }
+
         if (opt != null)
         {
             SelectedHostOption = opt;
@@ -154,47 +164,72 @@ public partial class HostDetailViewModel : ViewModelBase
         if (hostId.Equals("aggregated", StringComparison.OrdinalIgnoreCase))
         {
             IsAggregated = true;
-            HostTitle = "Cluster Fabric (All 6 Hosts)";
-            RoleBadge = "Aggregated Mesh";
+            HostTitle = $"Cluster ({allNodes.Count} Hosts)";
+            RoleBadge = "Aggregated";
             IsBaremetal = false;
-
-            CpuSpec = "AMD EPYC + Xeon Heterogeneous";
-            ThreadsSpec = "1,904 Total Logical Cores (Partitioned)";
-            RamSpec = "1,264 GB Total Cluster RAM";
-            RamUsedSpec = "498 GB Used (39.4% Pool)";
-            TwampUpText = "↑ 1.84ms (P95)";
-            TwampDownText = "↓ 3.12ms (P95)";
-            TwampAsymText = "Cluster Transit Δ: 1.28ms";
+            CpuSpec = "All processors";
+            ThreadsSpec = $"{allNodes.Sum(n => n.Cores)} Logical Threads";
+            var total = allNodes.Sum(n => (double)n.MemoryTotalBytes);
+            RamSpec = $"{total / 1073741824:F1} GB Total RAM";
+            RamUsedSpec = total > 0 ? $"{allNodes.Sum(n => n.RamUsedPct * n.MemoryTotalBytes) / total:F1}% Used" : "Unavailable";
+            TwampUpText = "Unavailable"; TwampDownText = ""; TwampAsymText = "No TWAMP probe configured";
 
             MetricsTab.UpdateForNode("aggregated", null, allNodes);
             ProcessesTab.SetTargetHost("all");
+            FlightTab.SetTargetHost("all");
             return;
         }
 
         IsAggregated = false;
-        var node = allNodes.FirstOrDefault(n => n.Id.Equals(hostId, StringComparison.OrdinalIgnoreCase)) ?? allNodes[0];
+        var node = allNodes.FirstOrDefault(n => n.Id.Equals(hostId, StringComparison.OrdinalIgnoreCase));
+
+        if (node == null)
+        {
+            HostTitle = hostId;
+            IsBaremetal = false;
+            RoleBadge = "Connecting...";
+            CpuSpec = "Waiting for node metrics...";
+            ThreadsSpec = "Probing telemetry stream...";
+            RamSpec = "-";
+            RamUsedSpec = "-";
+            TwampUpText = "-";
+            TwampDownText = "-";
+            TwampAsymText = "-";
+            MetricsTab.UpdateForNode(hostId, null, allNodes);
+            ProcessesTab.SetTargetHost(hostId);
+            FlightTab.SetTargetHost(hostId);
+            return;
+        }
 
         HostTitle = node.Id;
         IsBaremetal = node.Role == "baremetal";
-        RoleBadge = IsBaremetal ? _lexiconService["baremetalBadge"] : _lexiconService["vmBadge"];
+        RoleBadge = $"{node.Role.ToUpperInvariant()} · {node.Status}";
 
         CpuSpec = node.CpuModel;
-        ThreadsSpec = $"{node.Cores} Logical Threads ({node.Cores / 2}C/{node.Cores}T)";
-        RamSpec = $"{node.RamTotal} DDR5 ECC";
+        ThreadsSpec = $"{node.Cores} Logical Threads";
+        RamSpec = node.RamTotal;
         RamUsedSpec = $"{node.RamUsedPct:F1}% Used (Active Allocation)";
 
-        TwampUpText = $"↑ {node.Twamp.ForwardMs:F2}ms";
-        TwampDownText = $"↓ {node.Twamp.ReverseMs:F2}ms";
-        TwampAsymText = $"Path Asymmetry Δ: {node.Twamp.AsymmetryMs:F2}ms";
+        TwampUpText = node.Twamp.DisplayText;
+        TwampDownText = node.Twamp.OneWayAvailable ? $"↑ {node.Twamp.ForwardMs:F2} / ↓ {node.Twamp.ReverseMs:F2} ms" : "";
+        TwampAsymText = node.Twamp.OneWayAvailable ? $"Asymmetry: {node.Twamp.AsymmetryMs:F2} ms" : node.Twamp.Available ? "One-way delay requires synchronized clocks" : node.Twamp.Error;
 
         MetricsTab.UpdateForNode(node.Id, node, allNodes);
         ProcessesTab.SetTargetHost(node.Id);
+        FlightTab.SetTargetHost(node.Id);
     }
 
     [RelayCommand]
     public void SwitchTab(string tab)
     {
         ActiveTab = tab;
+    }
+
+    [RelayCommand]
+    public void OpenGraphSettings()
+    {
+        ActiveTab = "metrics";
+        MetricsTab.IsCustomizationModalOpen = true;
     }
 
     [RelayCommand]

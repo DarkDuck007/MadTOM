@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package madtom.v1;
+
+option go_package = "github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1";
+option csharp_namespace = "MADTOM.Plugins.Telemetry.Proto.V1";
+
+// SystemMetrics represents a point-in-time telemetry sample for a single node.
+message SystemMetrics {
+  int64 timestamp_unix_nano = 1;
+  string node_id = 2;
+  CpuMetrics cpu = 3;
+  MemoryMetrics memory = 4;
+  PowerMetrics power = 5;
+  NetworkMetrics network = 6;
+  repeated ProcessMetric processes = 7;
+  string cpu_model = 8;
+  string os = 9;
+  string arch = 10;
+  bool processes_available = 11;
+  TwampMetrics twamp = 12;
+
+}
+
+// CpuMetrics details processor performance and core states.
+message CpuMetrics {
+  double total_pct = 1;
+  repeated double per_core_pct = 2; // For DetailedCoreMatrixControl
+  double user_pct = 3;
+  double system_pct = 4;
+  double iowait_pct = 5;
+  double idle_pct = 6;
+  double load_1m = 7;
+  double load_5m = 8;
+  double load_15m = 9;
+  uint64 ctxt_switches_sec = 10;
+  repeated uint32 core_freq_mhz = 11;
+}
+
+// MemoryMetrics captures all system memory, swap, and compressed ZRAM metrics.
+message MemoryMetrics {
+  uint64 mem_total_bytes = 1;
+  uint64 mem_free_bytes = 2;
+  uint64 mem_available_bytes = 3;
+  uint64 buffers_bytes = 4;
+  uint64 cached_bytes = 5;
+  uint64 dirty_bytes = 6;
+  uint64 writeback_bytes = 7;
+  uint64 swap_total_bytes = 8;
+  uint64 swap_free_bytes = 9;
+  uint64 zram_orig_bytes = 10;
+  uint64 zram_compr_bytes = 11;
+  double zram_ratio = 12;
+  uint64 pgfault_sec = 13;
+  uint64 pgmajfault_sec = 14;
+}
+
+// PowerMetrics details AC line power, battery state, health and draw.
+message PowerMetrics {
+  bool ac_plugged = 1;
+  bool battery_present = 2;
+  string battery_state = 3; // "Charging", "Discharging", "Full", "Unknown"
+  double battery_pct = 4;
+  double current_energy_wh = 5;
+  double design_capacity_wh = 6;
+  double rate_watts = 7;
+  uint32 cycles = 8;
+  double health_pct = 9;
+}
+
+// NetworkMetrics contains individual network interfaces.
+message NetworkMetrics {
+  repeated NicMetric interfaces = 1;
+}
+
+// NicMetric details traffic counters and physical link parameters for a single NIC.
+message NicMetric {
+  string name = 1;
+  uint64 rx_bytes = 2;
+  uint64 tx_bytes = 3;
+  uint64 rx_packets = 4;
+  uint64 tx_packets = 5;
+  uint64 rx_dropped = 6;
+  uint64 tx_dropped = 7;
+  uint64 rx_errors = 8;
+  uint64 tx_errors = 9;
+  uint32 link_speed_mbps = 10;
+  bool carrier_up = 11;
+  uint32 mtu = 12;
+}
+
+
+message ProcessMetric {
+  int32 pid = 1;
+  string name = 2;
+  string user = 3;
+  uint32 threads = 4;
+  double cpu_pct = 5;
+  uint64 rss_bytes = 6;
+}
+
+message TwampMetrics {
+  string target = 1;
+  bool available = 2;
+  string error = 3;
+  double rtt_ms = 4;
+  double forward_ms = 5;
+  double reverse_ms = 6;
+  bool one_way_available = 7;
+}

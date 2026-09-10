@@ -24,9 +24,7 @@ public partial class HostLogsTabViewModel : ViewModelBase
     {
         _telemetryProvider = telemetryProvider;
 
-        // Seed initial logs
-        Logs.Add(new LogEntryModel { Message = "[STARTUP] madtom-telemetry-engine initialized" });
-        Logs.Add(new LogEntryModel { Message = "[TWAMP] Binding raw capability socket CAP_NET_RAW on eth0" });
+        Logs.Add(new LogEntryModel { Message = "Remote log collection is not available on this collector.", Source = "UI" });
 
         _telemetryProvider.LogReceived += (s, entry) =>
         {

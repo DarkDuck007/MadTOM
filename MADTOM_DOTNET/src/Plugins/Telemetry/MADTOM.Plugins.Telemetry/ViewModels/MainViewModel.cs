@@ -56,6 +56,11 @@ public partial class MainViewModel : ViewModelBase
 
     private DispatcherTimer? _toastTimer;
 
+    public CollectorSettingsViewModel CollectorSettings { get; }
+
+    [ObservableProperty]
+    private bool _isCollectorSettingsOpen;
+
     public MainViewModel(
         ITelemetryDataProvider telemetryProvider,
         ILexiconService lexiconService,
@@ -68,7 +73,7 @@ public partial class MainViewModel : ViewModelBase
         Header = new HeaderViewModel(_lexiconService, _telemetryProvider);
         Sidebar = new SidebarViewModel(_telemetryProvider);
 
-        var metricsTab = new HostMetricsTabViewModel();
+        var metricsTab = new HostMetricsTabViewModel(_telemetryProvider, new GraphLayoutStore(GraphLayoutStore.DefaultPath));
         var processesTab = new HostProcessesTabViewModel(_telemetryProvider);
         var logsTab = new HostLogsTabViewModel(_telemetryProvider);
         var flightTab = new HostFlightTabViewModel(_telemetryProvider);
@@ -77,12 +82,23 @@ public partial class MainViewModel : ViewModelBase
         FleetView = new FleetViewModel(_telemetryProvider);
         GlobalRadarView = new GlobalRadarViewModel(_telemetryProvider);
 
+        var manager = (_telemetryProvider as CollectorTelemetryDataProvider)?.CollectorManager ?? new MultiCollectorManager();
+        CollectorSettings = new CollectorSettingsViewModel(manager, _telemetryProvider);
+        CollectorSettings.CloseRequested += () => IsCollectorSettingsOpen = false;
+
         _currentView = FleetView;
 
         // Wire navigation events
         Sidebar.ViewChangeRequested += NavigateToView;
         Sidebar.HostSelected += OpenHostDetail;
         FleetView.OpenHostDetailRequested += OpenHostDetail;
+        FleetView.OpenCollectorSettingsRequested += OpenCollectorSettings;
+        FleetView.ConfigureNodeRequested += (node) =>
+        {
+            CollectorSettings.RefreshNodes();
+            CollectorSettings.SelectedNode = node;
+            IsCollectorSettingsOpen = true;
+        };
         HostDetailView.BackToFleetRequested += () => NavigateToView("fleet");
 
         // Wire sidebar collapse sync
@@ -128,7 +144,7 @@ public partial class MainViewModel : ViewModelBase
         };
     }
 
-    public MainViewModel() : this(new MockTelemetryDataProvider(), LexiconService.Instance, NotificationService.Instance)
+    public MainViewModel() : this(new CollectorTelemetryDataProvider(new MultiCollectorManager()), LexiconService.Instance, NotificationService.Instance)
     {
     }
 
@@ -162,5 +178,18 @@ public partial class MainViewModel : ViewModelBase
     public void CancelActionModal()
     {
         IsActionModalOpen = false;
+    }
+
+    [RelayCommand]
+    public void OpenCollectorSettings()
+    {
+        CollectorSettings.RefreshNodes();
+        IsCollectorSettingsOpen = true;
+    }
+
+    [RelayCommand]
+    public void CloseCollectorSettings()
+    {
+        IsCollectorSettingsOpen = false;
     }
 }

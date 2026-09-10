@@ -71,11 +71,11 @@
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <Ellipse Width="7" Height="7" Fill="{DynamicResource HealthyBrush}"/>
                         <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}">
-                            <Run Text="6 Hosts ("/>
+                            <Run Text="{Binding ClusterSummary.HostCount}"/><Run Text=" Hosts ("/>
                             <Run Text="{Binding ClusterSummary.GanderCount, Mode=OneWay}"/>
-                            <Run Text=" Ganders / "/>
+                            <Run Text=" Push / "/>
                             <Run Text="{Binding ClusterSummary.GoslingCount, Mode=OneWay}"/>
-                            <Run Text=" Goslings)"/>
+                            <Run Text=" Pull)"/>
                         </TextBlock>
                     </StackPanel>
 
@@ -83,15 +83,15 @@
 
                     <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                         <TextBlock Text="P95 TWAMP:" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Text="↑ 1.8ms" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
-                        <TextBlock Text="↓ 2.4ms" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource IndigoBrush}"/>
+                        <TextBlock Text="{Binding ClusterSummary.TwampSummary}" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                        <TextBlock Text="" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource IndigoBrush}"/>
                     </StackPanel>
 
                     <TextBlock Text="|" Foreground="{DynamicResource BorderBrush}" VerticalAlignment="Center"/>
 
                     <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                         <TextBlock Text="Global Egress:" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Text="148.2 Gbps" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource HealthyBrush}"/>
+                        <TextBlock Text="{Binding ClusterSummary.GlobalEgressGbps, StringFormat={}{0:F3} Gbps}" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource HealthyBrush}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

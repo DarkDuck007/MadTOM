@@ -11,7 +11,7 @@ namespace MadTOM.Controls.CoreMatrix;
 public sealed class MicroCoreStripControl : Control
 {
     public static readonly StyledProperty<int> CoreCountProperty =
-        AvaloniaProperty.Register<MicroCoreStripControl, int>(nameof(CoreCount), 64);
+        AvaloniaProperty.Register<MicroCoreStripControl, int>(nameof(CoreCount), 0);
 
     public static readonly StyledProperty<float[]> CoreLoadsProperty =
         AvaloniaProperty.Register<MicroCoreStripControl, float[]>(nameof(CoreLoads), Array.Empty<float>());

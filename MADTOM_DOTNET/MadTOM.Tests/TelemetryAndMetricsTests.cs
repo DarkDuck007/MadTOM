@@ -49,21 +49,22 @@ public class TelemetryAndMetricsTests
     }
 
     [Fact]
-    public void HostMetricsTabViewModel_Initializes1200Points()
+    public void HostMetricsTabViewModel_StartsWithoutFabricatedHistory()
     {
         var vm = new HostMetricsTabViewModel();
 
-        Assert.Equal(1200, vm.ForwardSeries.Length);
-        Assert.Equal(1200, vm.ReverseSeries.Length);
-        Assert.Equal(1200, vm.AsymmetrySeries.Length);
-        Assert.Equal(1200, vm.TimeLabels.Length);
-        Assert.Equal("now", vm.TimeLabels[^1]);
+        Assert.Empty(vm.ForwardSeries);
+        Assert.Empty(vm.ReverseSeries);
+        Assert.Empty(vm.AsymmetrySeries);
+        Assert.Empty(vm.TimeLabels);
+        Assert.All(vm.Graphs, graph => Assert.Empty(graph.Values));
     }
 
     [Fact]
     public void HostMetricsTabViewModel_PushLiveSample_Maintains1200PointsAndRollsBuffer()
     {
         var vm = new HostMetricsTabViewModel();
+        for (int i = 0; i < 1200; i++) vm.PushLiveSample(i, i + 1);
         double oldFirst = vm.ForwardSeries[1];
 
         vm.PushLiveSample(12.34, 18.76);
@@ -73,7 +74,7 @@ public class TelemetryAndMetricsTests
         Assert.Equal(1200, vm.AsymmetrySeries.Length);
         Assert.Equal(12.34, vm.ForwardSeries[^1]);
         Assert.Equal(18.76, vm.ReverseSeries[^1]);
-        Assert.Equal(6.42, vm.AsymmetrySeries[^1]);
+        Assert.Equal(6.42, vm.AsymmetrySeries[^1], 2);
         Assert.Equal(oldFirst, vm.ForwardSeries[0]);
     }
 
@@ -94,7 +95,7 @@ public class TelemetryAndMetricsTests
         vm.ApplyCustomScope();
 
         Assert.False(vm.IsCustomScopeModalOpen);
-        Assert.Equal(1200, vm.ForwardSeries.Length);
+        Assert.Empty(vm.ForwardSeries);
     }
 
     [Fact]

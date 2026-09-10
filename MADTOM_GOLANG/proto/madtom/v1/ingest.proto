@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package madtom.v1;
+
+import "madtom/v1/metrics.proto";
+import "madtom/v1/config.proto";
+
+option go_package = "github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1";
+option csharp_namespace = "MADTOM.Plugins.Telemetry.Proto.V1";
+
+// IngestService coordinates data intake between Monitored Node Daemons and Collectors.
+service IngestService {
+  // Mode A: Push - Daemon maintains an outbound stream pushing batches and receiving segment ACKs.
+  rpc PushBatchStream(stream TelemetryBatch) returns (stream BatchAck);
+
+  // Mode B: Pull - Collector periodically scrapes the daemon for pending metrics.
+  rpc PollTelemetry(PollRequest) returns (TelemetryBatch);
+  // Collector connects to a listening daemon; daemon sends at its own cadence.
+  rpc ReceiveBatchStream(stream BatchAck) returns (stream TelemetryBatch);
+}
+
+// TelemetryBatch represents a slice of telemetry records, either live or drained from WAL spool.
+message TelemetryBatch {
+  string node_id = 1;
+  int64 sequence_id = 2;
+  string segment_id = 3;       // File identifier e.g. "segment-00001.wal"
+  int64 segment_offset = 4;    // End byte offset within the segment file
+  bool is_backlog = 5;         // True if flushed from offline storage
+  
+  repeated SystemMetrics samples = 6;
+  
+  // Optional compressed payload (e.g. zstd)
+  bool is_compressed = 7;
+  bytes compressed_payload = 8;
+}
+
+// BatchAck signals receipt and successful persistence of a segment batch.
+message BatchAck {
+  string node_id = 1;
+  string segment_id = 2;
+  int64 segment_offset = 3;
+  bool success = 4;
+  string error_message = 5;
+  NodeConfig config = 6;
+}
+
+// PollRequest queries a pull-mode daemon for buffered samples since last ACK.
+message PollRequest {
+  string node_id = 1;
+  string last_acked_segment_id = 2;
+  int64 last_acked_offset = 3;
+  uint32 max_samples = 4;
+  NodeConfig config = 5;
+}
+

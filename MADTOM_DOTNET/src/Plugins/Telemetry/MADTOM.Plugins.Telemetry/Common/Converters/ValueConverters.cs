@@ -29,9 +29,9 @@ public static class ValueConverters
         new FuncValueConverter<string, IBrush>(status =>
             status?.ToLowerInvariant() switch
             {
-                "healthy" => EmeraldBrush,
-                "warning" => AmberBrush,
-                "critical" => RoseBrush,
+                "healthy" or "online" => EmeraldBrush,
+                "warning" or "stale" => AmberBrush,
+                "critical" or "offline" => RoseBrush,
                 _ => SlateBrush
             });
 
@@ -39,8 +39,8 @@ public static class ValueConverters
         new FuncValueConverter<string, IBrush>(status =>
             status?.ToLowerInvariant() switch
             {
-                "warning" => CardBorderWarning,
-                "critical" => CardBorderCritical,
+                "warning" or "stale" => CardBorderWarning,
+                "critical" or "offline" => CardBorderCritical,
                 _ => CardBorderNormal
             });
 

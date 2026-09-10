@@ -27,6 +27,8 @@ public partial class FleetViewModel : ViewModelBase
     public ObservableCollection<FleetNodeCardViewModel> Cards { get; } = new();
 
     public event Action<string>? OpenHostDetailRequested;
+    public event Action? OpenCollectorSettingsRequested;
+    public event Action<FleetNodeModel>? ConfigureNodeRequested;
 
     public FleetViewModel(ITelemetryDataProvider telemetryProvider)
     {
@@ -36,6 +38,7 @@ public partial class FleetViewModel : ViewModelBase
         {
             var cardVm = new FleetNodeCardViewModel(node);
             cardVm.OpenDetailRequested += (hostId) => OpenHostDetailRequested?.Invoke(hostId);
+            cardVm.ConfigureNodeRequested += (n) => ConfigureNodeRequested?.Invoke(n);
             _allCards.Add(cardVm);
         }
 
@@ -46,9 +49,23 @@ public partial class FleetViewModel : ViewModelBase
             {
                 card.Node = updated;
             }
+            else
+            {
+                var newCard = new FleetNodeCardViewModel(updated);
+                newCard.OpenDetailRequested += (hostId) => OpenHostDetailRequested?.Invoke(hostId);
+                newCard.ConfigureNodeRequested += (n) => ConfigureNodeRequested?.Invoke(n);
+                _allCards.Add(newCard);
+                ApplyFilter();
+            }
         };
 
         ApplyFilter();
+    }
+
+    [RelayCommand]
+    public void OpenCollectorSettings()
+    {
+        OpenCollectorSettingsRequested?.Invoke();
     }
 
     partial void OnFilterRoleChanged(string value)

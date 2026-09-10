@@ -21,7 +21,8 @@ namespace MadTOM;
 public class TelemetryPluginModule : IPluginModule
 {
     private IPluginHostContext? _hostContext;
-    private MockTelemetryDataProvider? _telemetryProvider;
+    private ITelemetryDataProvider? _telemetryProvider;
+    private MultiCollectorManager? _collectorManager;
     private MainViewModel? _mainViewModel;
     private TelemetryRootView? _rootView;
 
@@ -88,7 +89,11 @@ public class TelemetryPluginModule : IPluginModule
         if (_rootView != null)
             return _rootView;
 
-        _telemetryProvider ??= new MockTelemetryDataProvider(startBackgroundTimer: true);
+        if (_telemetryProvider == null)
+        {
+            _collectorManager = new MultiCollectorManager();
+            _telemetryProvider = new CollectorTelemetryDataProvider(_collectorManager);
+        }
 
         // Wire notification dispatch to host context
         var notifService = new HostNotificationBridge(_hostContext);
@@ -112,11 +117,15 @@ public class TelemetryPluginModule : IPluginModule
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         _telemetryProvider?.Dispose();
         _telemetryProvider = null;
-        return Task.CompletedTask;
+        if (_collectorManager != null)
+        {
+            await _collectorManager.DisposeAsync();
+            _collectorManager = null;
+        }
     }
 
     public Task<bool> CanCloseAsync() => Task.FromResult(true);

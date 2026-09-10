@@ -17,7 +17,7 @@ public sealed class DetailedCoreMatrixControl : Control
         AvaloniaProperty.Register<DetailedCoreMatrixControl, bool>(nameof(IsAggregatedMode), false);
 
     public static readonly StyledProperty<int> ThreadCountProperty =
-        AvaloniaProperty.Register<DetailedCoreMatrixControl, int>(nameof(ThreadCount), 1024);
+        AvaloniaProperty.Register<DetailedCoreMatrixControl, int>(nameof(ThreadCount), 0);
 
     public static readonly StyledProperty<float[]> CoreLoadsProperty =
         AvaloniaProperty.Register<DetailedCoreMatrixControl, float[]>(nameof(CoreLoads), Array.Empty<float>());
@@ -241,7 +241,8 @@ public sealed class DetailedCoreMatrixControl : Control
 
     private void RenderSingleHostMatrix(DrawingContext context, double w, double h)
     {
-        int count = ThreadCount <= 0 ? 1024 : ThreadCount;
+        int count = ThreadCount;
+        if (count <= 0) return;
         _singleLayout = CoreLayoutSolver.ComputeVerticalFillSquareLayout(w, h, count);
         var L = _singleLayout;
 
@@ -262,7 +263,7 @@ public sealed class DetailedCoreMatrixControl : Control
             double x = startX + col * (s + gap);
             double y = startY + row * (s + gap);
 
-            double load = hasLoads ? loads![i] : 0.45;
+            double load = hasLoads ? loads![i] : 0.0;
             var brush = ColorInterpolator.InterpolateLoadBrush(load);
             var rect = new Rect(x, y, s, s);
 
@@ -282,7 +283,7 @@ public sealed class DetailedCoreMatrixControl : Control
 
         int totalCores = 0;
         foreach (var node in nodes) totalCores += node.Cores;
-        if (totalCores <= 0) totalCores = 1904;
+        if (totalCores <= 0) return;
 
         _aggCols = 56;
         int rows = (int)Math.Ceiling((double)totalCores / _aggCols);

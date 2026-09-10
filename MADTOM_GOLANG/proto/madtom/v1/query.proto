@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package madtom.v1;
+
+import "madtom/v1/metrics.proto";
+
+option go_package = "github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1";
+option csharp_namespace = "MADTOM.Plugins.Telemetry.Proto.V1";
+
+// QueryService exposes time-series querying and real-time streaming to the UI.
+service QueryService {
+  // Discovers all nodes registered with this collector.
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+
+  // Resolution-adaptive historical metric query using LTTB downsampling.
+  rpc QueryRange(RangeQueryRequest) returns (RangeQueryResponse);
+
+  // Real-time 1Hz streaming feed for actively viewed cards/nodes.
+  rpc SubscribeLive(LiveSubscriptionRequest) returns (stream LiveTelemetryEvent);
+}
+
+message ListNodesRequest {}
+
+message NodeInfo {
+  string node_id = 1;
+  string hostname = 2;
+  string os = 3;
+  string arch = 4;
+  string status = 5; // "ONLINE", "STALE", "OFFLINE"
+  int64 last_seen_unix_nano = 6;
+  string connection_mode = 7; // "PUSH", "PULL"
+}
+
+message ListNodesResponse {
+  string collector_name = 1;
+  repeated NodeInfo nodes = 2;
+}
+
+message RangeQueryRequest {
+  string node_id = 1;
+  string metric_name = 2; // e.g., "cpu.total", "memory.available", "nic.eth0.rx_bytes"
+  int64 start_time_unix_nano = 3;
+  int64 end_time_unix_nano = 4;
+  uint32 target_points = 5; // LOD downsample budget (e.g. 1200)
+}
+
+message TimeSeriesPoint {
+  int64 timestamp_unix_nano = 1;
+  double value = 2;
+  double min_value = 3;
+  double max_value = 4;
+}
+
+message RangeQueryResponse {
+  string node_id = 1;
+  string metric_name = 2;
+  repeated TimeSeriesPoint points = 3;
+}
+
+message LiveSubscriptionRequest {
+  string node_id = 1;
+  repeated string subscribed_categories = 2; // "cpu", "memory", "power", "network"
+}
+
+message LiveTelemetryEvent {
+  string node_id = 1;
+  string collector_name = 2;
+  SystemMetrics metrics = 3;
+}
+

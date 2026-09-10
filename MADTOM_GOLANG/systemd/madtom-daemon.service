@@ -1,0 +1,99 @@
+[Unit]
+Description=MADTOM Node Telemetry Daemon (madtom-daemon)
+Documentation=https://github.com/DarkDuck007/madtom
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# ------------------------------------------------------------------------------
+# COMMAND ARGUMENT REFERENCE FOR madtom-daemon
+# ------------------------------------------------------------------------------
+# ALL possible command arguments accepted by madtom-daemon:
+#
+#   -collector <host:port>
+#       Target collector TCP gRPC address for push mode.
+#       Default: 127.0.0.1:50051
+#
+#   -mode <push|pull|reverse-push>
+#       Ingestion transport mode:
+#         * push         : Daemon initiates outbound gRPC stream to collector (Default)
+#         * pull         : Daemon listens on -listen-port; collector scrapes metrics
+#         * reverse-push : Daemon listens on -listen-port; collector connects and daemon streams
+#       Default: push
+#
+#   -node-id <string>
+#       Unique identifier for this node reported on dashboard and in TSDB.
+#       Default: Host system's hostname (via os.Hostname())
+#
+#   -spool-dir <path>
+#       Directory for local bounded disk Write-Ahead Log (WAL) when collector is offline.
+#       Default: /tmp/madtom/wal (Recommended for systemd: /var/lib/madtomd/wal)
+#
+#   -max-spool-mb <int64>
+#       Maximum disk capacity in MB allocated for offline WAL spool segments.
+#       When reached, oldest un-acknowledged segments are evicted circular-style.
+#       Default: 1024 (1 GB)
+#
+#   -zstd
+#       Enable zstd compression on disk WAL segments and in-flight batches.
+#       Default: false
+#
+#   -listen-port <port>
+#       TCP port daemon binds to when running in 'pull' or 'reverse-push' mode.
+#       Default: 50052
+#
+#   -twamp-target <host:port>
+#       Target TWAMP Light UDP reflector endpoint for round-trip latency & jitter measurements.
+#       Default: "" (Disabled if omitted)
+#
+#   -twamp-clocks-synchronized
+#       Assert that local node clock and reflector clock are synchronized (via PTP/NTP),
+#       enabling true one-way forward and reverse latency measurements.
+#       Default: false
+# ------------------------------------------------------------------------------
+
+# Active minimal command required for running the daemon in standard push mode:
+ExecStart=/opt/madtomd \
+    -collector 127.0.0.1:50051 \
+    -spool-dir /var/lib/madtomd/wal
+
+# Example 1: Full push configuration with all arguments specified:
+# ExecStart=/opt/madtomd \
+#     -node-id worker-node-01 \
+#     -mode push \
+#     -collector 192.168.1.50:50051 \
+#     -spool-dir /var/lib/madtomd/wal \
+#     -max-spool-mb 2048 \
+#     -zstd \
+#     -twamp-target 192.168.1.1:862 \
+#     -twamp-clocks-synchronized
+
+# Example 2: Pull mode configuration (daemon listens for collector scrape):
+# ExecStart=/opt/madtomd \
+#     -node-id edge-node-02 \
+#     -mode pull \
+#     -listen-port 50052 \
+#     -spool-dir /var/lib/madtomd/wal \
+#     -max-spool-mb 1024
+
+# Example 3: Reverse-push mode (daemon listens, collector connects, daemon streams):
+# ExecStart=/opt/madtomd \
+#     -node-id dmz-node-03 \
+#     -mode reverse-push \
+#     -listen-port 50052 \
+#     -spool-dir /var/lib/madtomd/wal
+
+Restart=always
+RestartSec=3s
+LimitNOFILE=65536
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

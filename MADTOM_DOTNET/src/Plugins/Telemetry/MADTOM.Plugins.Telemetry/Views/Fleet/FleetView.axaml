@@ -96,6 +96,23 @@
                                     CommandParameter="vm"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Collectors Management Button -->
+                    <Button Command="{Binding OpenCollectorSettingsCommand}"
+                            Background="#0E7490"
+                            Foreground="White"
+                            FontFamily="{StaticResource MonoFontFamily}"
+                            FontWeight="SemiBold"
+                            FontSize="11"
+                            CornerRadius="8"
+                            Padding="10,6"
+                            Cursor="Hand"
+                            ToolTip.Tip="Configure Collector Endpoints &amp; Node Opt-in">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="⚙" FontSize="11" VerticalAlignment="Center"/>
+                            <TextBlock Text="Collectors" FontSize="11" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
 

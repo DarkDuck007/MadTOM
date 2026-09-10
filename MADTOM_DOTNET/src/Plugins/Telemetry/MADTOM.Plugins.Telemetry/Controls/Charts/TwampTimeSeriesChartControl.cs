@@ -30,6 +30,15 @@ public sealed class TwampTimeSeriesChartControl : Control
     public static readonly StyledProperty<double> PanOffsetProperty =
         AvaloniaProperty.Register<TwampTimeSeriesChartControl, double>(nameof(PanOffset), 0.0);
 
+    public static readonly StyledProperty<bool> PausePanningOnZoomProperty =
+        AvaloniaProperty.Register<TwampTimeSeriesChartControl, bool>(nameof(PausePanningOnZoom), true);
+
+    public bool PausePanningOnZoom
+    {
+        get => GetValue(PausePanningOnZoomProperty);
+        set => SetValue(PausePanningOnZoomProperty, value);
+    }
+
     private static readonly IPen GridPen = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(40, 148, 163, 184)), 1,
         new ImmutableDashStyle([2, 4], 0));
 
@@ -105,7 +114,8 @@ public sealed class TwampTimeSeriesChartControl : Control
             AsymmetrySeriesProperty,
             TimeLabelsProperty,
             ZoomLevelProperty,
-            PanOffsetProperty);
+            PanOffsetProperty,
+            PausePanningOnZoomProperty);
     }
 
     public TwampTimeSeriesChartControl()
@@ -244,6 +254,26 @@ public sealed class TwampTimeSeriesChartControl : Control
             context.DrawRectangle(TooltipBg, TooltipBorder, tipRect);
             context.DrawText(ft, new Point(tipX + 8, tipY + 6));
         }
+
+        // Draw Zoom Indicator & Magnifying Glass Reset Button
+        if (ZoomLevel > 1.05)
+        {
+            double btnW = 84;
+            double btnH = 22;
+            double btnX = w - rightPad - btnW;
+            double btnY = topPad + 4;
+            var resetRect = new RoundedRect(new Rect(btnX, btnY, btnW, btnH), 4);
+            context.DrawRectangle(new ImmutableSolidColorBrush(Color.FromArgb(220, 15, 23, 42)), TooltipBorder, resetRect);
+
+            var resetText = new FormattedText(
+                "🔍 Reset",
+                CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                MonoTypeface,
+                9.5,
+                new ImmutableSolidColorBrush(Color.FromRgb(6, 182, 212)));
+            context.DrawText(resetText, new Point(btnX + 16, btnY + 4));
+        }
     }
 
     private static void DrawAreaCurve(DrawingContext context, double[] data, double leftPad, double topPad,
@@ -346,6 +376,27 @@ public sealed class TwampTimeSeriesChartControl : Control
     {
         base.OnPointerPressed(e);
         var p = e.GetCurrentPoint(this);
+
+        // Magnifying Glass Reset Button click check
+        if (ZoomLevel > 1.05)
+        {
+            const double rightPad = 16.0;
+            const double topPad = 24.0;
+            double btnW = 84;
+            double btnH = 22;
+            double btnX = Bounds.Width - rightPad - btnW;
+            double btnY = topPad + 4;
+            var resetRect = new Rect(btnX, btnY, btnW, btnH);
+
+            if (resetRect.Contains(p.Position))
+            {
+                ZoomLevel = 1.0;
+                PanOffset = 0.0;
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+        }
 
         if (e.Pointer.Type == PointerType.Touch)
         {

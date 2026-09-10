@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <UsedAvaloniaProducts></UsedAvaloniaProducts>
+  </PropertyGroup>
+  <!-- Override the failing stats task with a no-op target -->
+  <Target Name="AvaloniaStatsTask" BeforeTargets="CoreCompile" />
+</Project>
+

@@ -9,6 +9,10 @@
              x:Class="MadTOM.Views.HostDetail.HostDetailView"
              x:DataType="vm:HostDetailViewModel">
 
+    <UserControl.Styles>
+        <Style Selector="Button.host-tab"><Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/><Setter Property="BorderThickness" Value="0"/></Style>
+        <Style Selector="Button.host-tab.active"><Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/><Setter Property="BorderThickness" Value="0,0,0,2"/></Style>
+    </UserControl.Styles>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="16" Margin="24">
 
@@ -59,6 +63,20 @@
                                            FontWeight="Bold"
                                            Foreground="{DynamicResource AccentTextBrush}"/>
                             </Border>
+
+                            <Button Command="{Binding OpenGraphSettingsCommand}"
+                                    Background="#081E32"
+                                    BorderBrush="#155E75"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    Cursor="Hand"
+                                    ToolTip.Tip="Customize Graphs &amp; Metrics"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="⚙"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource AccentTextBrush}"/>
+                            </Button>
                         </StackPanel>
 
                         <!-- Target Node Dropdown -->
@@ -118,9 +136,9 @@
                                 <TextBlock Text="DAEMON STATUS" FontFamily="{StaticResource MonoFontFamily}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                     <Ellipse Width="7" Height="7" Fill="{DynamicResource HealthyBrush}"/>
-                                    <TextBlock Text="madtomd Active" FontFamily="{StaticResource MonoFontFamily}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource HealthyBrush}"/>
+                                    <TextBlock Text="Telemetry daemon" FontFamily="{StaticResource MonoFontFamily}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource HealthyBrush}"/>
                                 </StackPanel>
-                                <TextBlock Text="CAP_NET_RAW Bound" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding RoleBadge}" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -138,47 +156,38 @@
                     <!-- Tab Header Bar -->
                     <Border Background="#080D18" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,0">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Button Content="{loc:Loc tabMetrics}"
+                            <Button Classes="host-tab" Classes.active="{Binding IsMetricsTab}" Content="{loc:Loc tabMetrics}"
                                     Command="{Binding SwitchTabCommand}"
                                     CommandParameter="metrics"
                                     FontFamily="{StaticResource MonoFontFamily}"
                                     FontSize="11"
                                     FontWeight="Bold"
                                     Padding="14,12"
-                                    Background="Transparent"
-                                    Foreground="{DynamicResource AccentTextBrush}"
-                                    BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="0,0,0,2"/>
+                                    Background="Transparent"/>
 
-                            <Button Content="{loc:Loc tabProcesses}"
+                            <Button Classes="host-tab" Classes.active="{Binding IsProcessesTab}" Content="{loc:Loc tabProcesses}"
                                     Command="{Binding SwitchTabCommand}"
                                     CommandParameter="processes"
                                     FontFamily="{StaticResource MonoFontFamily}"
                                     FontSize="11"
                                     Padding="14,12"
-                                    Background="Transparent"
-                                    Foreground="{DynamicResource TextSecondaryBrush}"
-                                    BorderThickness="0"/>
+                                    Background="Transparent"/>
 
-                            <Button Content="{loc:Loc tabLogs}"
+                            <Button Classes="host-tab" Classes.active="{Binding IsLogsTab}" Content="{loc:Loc tabLogs}"
                                     Command="{Binding SwitchTabCommand}"
                                     CommandParameter="logs"
                                     FontFamily="{StaticResource MonoFontFamily}"
                                     FontSize="11"
                                     Padding="14,12"
-                                    Background="Transparent"
-                                    Foreground="{DynamicResource TextSecondaryBrush}"
-                                    BorderThickness="0"/>
+                                    Background="Transparent"/>
 
-                            <Button Content="{loc:Loc tabFlight}"
+                            <Button Classes="host-tab" Classes.active="{Binding IsFlightTab}" Content="{loc:Loc tabFlight}"
                                     Command="{Binding SwitchTabCommand}"
                                     CommandParameter="flight"
                                     FontFamily="{StaticResource MonoFontFamily}"
                                     FontSize="11"
                                     Padding="14,12"
-                                    Background="Transparent"
-                                    Foreground="{DynamicResource TextSecondaryBrush}"
-                                    BorderThickness="0"/>
+                                    Background="Transparent"/>
                         </StackPanel>
                     </Border>
 

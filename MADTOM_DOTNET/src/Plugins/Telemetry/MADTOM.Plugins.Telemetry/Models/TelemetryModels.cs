@@ -18,11 +18,12 @@ public sealed class RegionTrafficModel
 
 public sealed class ClusterTelemetrySummary
 {
-    public int HostCount { get; set; } = 6;
-    public int GanderCount { get; set; } = 2;
-    public int GoslingCount { get; set; } = 4;
-    public double P95ForwardMs { get; set; } = 1.8;
-    public double P95ReverseMs { get; set; } = 2.4;
-    public double GlobalEgressGbps { get; set; } = 148.2;
+    public string TwampSummary { get; set; } = "Unavailable";
+    public int HostCount { get; set; }
+    public int GanderCount { get; set; }
+    public int GoslingCount { get; set; }
+    public double P95ForwardMs { get; set; }
+    public double P95ReverseMs { get; set; }
+    public double GlobalEgressGbps { get; set; }
 }
 

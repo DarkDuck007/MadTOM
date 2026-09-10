@@ -157,7 +157,7 @@
                                             BorderThickness="1"
                                             CornerRadius="4"
                                             Padding="6,1">
-                                        <TextBlock Text="6 Online"
+                                        <TextBlock Text="{Binding OnlineCount, StringFormat={}{0} Online}"
                                                    FontFamily="{StaticResource MonoFontFamily}"
                                                    FontSize="9"
                                                    Foreground="{DynamicResource AccentTextBrush}"/>
@@ -271,7 +271,7 @@
                         <Border Background="#04060B" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8,5">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="ZSTD Cache" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBlock Grid.Column="1" Text="6.4x (24MB)" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                <TextBlock Grid.Column="1" Text="Unavailable" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
                             </Grid>
                         </Border>
                     </StackPanel>
@@ -293,7 +293,7 @@
                             </StackPanel>
                         </Border>
                         <Border Width="32" Height="28" Background="#04060B" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
-                                ToolTip.Tip="ZSTD Cache: 6.4x (24MB)">
+                                ToolTip.Tip="ZSTD Cache: Unavailable">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="3">
                                 <TextBlock Text="💾" FontSize="10"/>
                                 <Ellipse Width="5" Height="5" Fill="{DynamicResource AccentBrush}"/>

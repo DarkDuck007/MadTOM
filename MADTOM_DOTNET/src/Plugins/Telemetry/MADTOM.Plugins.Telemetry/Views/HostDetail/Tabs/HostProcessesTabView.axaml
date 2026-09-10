@@ -44,6 +44,15 @@
                 </Button>
             </Grid>
 
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,-6,0,0">
+                <TextBlock Text="{Binding PageCount, StringFormat='Page {0}'}" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="100 processes per page" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                    <Button Content="‹ Previous" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding CanPreviousPage}" Padding="8,3"/>
+                    <Button Content="Next ›" Command="{Binding NextPageCommand}" IsEnabled="{Binding CanNextPage}" Padding="8,3"/>
+                </StackPanel>
+            </Grid>
+
             <!-- Process Table -->
             <Border Background="#090F1C"
                     BorderBrush="{DynamicResource BorderBrush}"
@@ -78,7 +87,7 @@
                                         <TextBlock Grid.Column="5" Text="{Binding Mem}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
 
                                         <!-- Actions -->
-                                        <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                                        <StackPanel IsEnabled="{Binding $parent[UserControl].((vm:HostProcessesTabViewModel)DataContext).CanSendSignals}" Grid.Column="6" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
                                             <Button Content="{loc:Loc processTerm}"
                                                     Command="{Binding ((vm:HostProcessesTabViewModel)DataContext).DispatchTermCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"

@@ -41,6 +41,11 @@
         <!-- Remote Signal Confirmation Modal Overlay -->
         <modals:ActionConfirmModal IsVisible="{Binding IsActionModalOpen}" />
 
+        <!-- Collector Endpoints & Node Settings Modal Overlay -->
+        <Panel IsVisible="{Binding IsCollectorSettingsOpen}">
+            <modals:CollectorSettingsModal DataContext="{Binding CollectorSettings}" />
+        </Panel>
+
         <!-- Floating Toast Notification Overlay -->
         <toast:ToastNotificationView IsVisible="{Binding IsToastVisible}"
                                      HorizontalAlignment="Right"

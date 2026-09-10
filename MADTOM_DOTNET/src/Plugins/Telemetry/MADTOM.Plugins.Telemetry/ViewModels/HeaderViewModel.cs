@@ -43,6 +43,7 @@ public partial class HeaderViewModel : ViewModelBase
         _telemetryProvider = telemetryProvider;
 
         ClusterSummary = _telemetryProvider.GetClusterSummary();
+ _telemetryProvider.NodeTelemetryUpdated += (_, _) => ClusterSummary = _telemetryProvider.GetClusterSummary();
         CurrentPersona = _lexiconService.CurrentPack;
 
         _selectedPersona = AvailablePersonas.FirstOrDefault(p => p.Id.Equals(CurrentPersona, StringComparison.OrdinalIgnoreCase))

@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <UsedAvaloniaProducts></UsedAvaloniaProducts>
+    <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
+    <EnableAvaloniaStatsTask>false</EnableAvaloniaStatsTask>
+  </PropertyGroup>
+</Project>
+
