@@ -1,0 +1,31 @@
+{
+  "themeName": "solarized-dark",
+  "displayName": "Solarized Dark",
+  "colors": {
+    "Background": "#002b36",
+    "HeaderBackground": "#073642",
+    "SidebarBackground": "#073642",
+    "CardBackground": "#073642",
+    "CardHoverBackground": "#0e4452",
+    "DarkBase": "#001e26",
+    "Border": "#586e75",
+    "BorderSubtle": "#0d4754",
+    "TextPrimary": "#93a1a1",
+    "TextSecondary": "#839496",
+    "TextMuted": "#586e75",
+    "Accent": "#2aa198",
+    "AccentSubtle": "#0c4547",
+    "AccentText": "#2ee0d3",
+    "Healthy": "#859900",
+    "HealthySubtle": "#253b00",
+    "Warning": "#b58900",
+    "WarningSubtle": "#423200",
+    "Critical": "#dc322f",
+    "CriticalSubtle": "#4a0f0e",
+    "Indigo": "#268bd2",
+    "IndigoSubtle": "#0c324e",
+    "Purple": "#6c71c4",
+    "PurpleSubtle": "#222554"
+  }
+}
+

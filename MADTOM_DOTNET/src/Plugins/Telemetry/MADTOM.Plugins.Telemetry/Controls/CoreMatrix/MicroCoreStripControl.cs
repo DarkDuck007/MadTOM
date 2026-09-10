@@ -28,7 +28,7 @@ public sealed class MicroCoreStripControl : Control
     public static readonly StyledProperty<bool> IsHoveredProperty =
         AvaloniaProperty.Register<MicroCoreStripControl, bool>(nameof(IsHovered), false);
 
-    private static readonly IPen HoverPen = new ImmutablePen(Brushes.White, 1.5);
+    private static IPen HoverPen => new ImmutablePen(new ImmutableSolidColorBrush(Theming.ThemeService.Instance.GetColor("TextPrimary", Colors.White)), 1.5);
     private static readonly IBrush TooltipBg = new ImmutableSolidColorBrush(Color.FromArgb(235, 10, 15, 29));
     private static readonly IPen TooltipBorder = new ImmutablePen(new ImmutableSolidColorBrush(Color.FromArgb(180, 6, 182, 212)), 1.0);
 

@@ -10,7 +10,7 @@
     <!-- Scrim Backdrop -->
     <Grid Background="#B3000000">
         <!-- Dialog Container -->
-        <Border Background="#0C1220"
+        <Border Background="{DynamicResource CardBgBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="16"
@@ -36,7 +36,7 @@
                 </StackPanel>
 
                 <!-- Parameter Details Box -->
-                <Border Background="#070A12"
+                <Border Background="{DynamicResource DarkBaseBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
@@ -61,7 +61,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                     <Button Content="Cancel"
                             Command="{Binding CancelActionModalCommand}"
-                            Background="#1E293B"
+                            Background="{DynamicResource DarkBaseBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             Foreground="{DynamicResource TextSecondaryBrush}"
@@ -72,7 +72,7 @@
 
                     <Button Content="Dispatch Signal"
                             Command="{Binding ConfirmActionModalCommand}"
-                            Background="#E11D48"
+                            Background="{DynamicResource CriticalBrush}"
                             Foreground="White"
                             FontFamily="{StaticResource MonoFontFamily}"
                             FontWeight="Bold"

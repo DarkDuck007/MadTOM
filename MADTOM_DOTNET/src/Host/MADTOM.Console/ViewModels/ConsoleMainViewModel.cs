@@ -59,6 +59,7 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     private readonly ConsoleHostContext _hostContext;
     private readonly PluginManager _pluginManager;
     private DispatcherTimer? _toastTimer;
+    private readonly AppSettings _appSettings;
 
     public ObservableCollection<PluginItemViewModel> Plugins { get; } = new();
     public ObservableCollection<ThemeOption> AvailableThemes { get; } = new();
@@ -95,6 +96,16 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     {
         _hostContext = hostContext;
         _pluginManager = pluginManager;
+
+        _appSettings = AppSettingsStore.Load();
+        _activeTheme = _appSettings.Theme;
+        _activeLexicon = _appSettings.Language;
+        _isSidebarCollapsed = _appSettings.IsConsoleSidebarCollapsed;
+        _sidebarWidth = _isSidebarCollapsed ? 64 : 220;
+
+        _hostContext.SetTheme(_activeTheme);
+        MadTOM.Theming.ThemeService.Instance.ApplyTheme(_activeTheme);
+        _hostContext.SetLexicon(_activeLexicon);
 
         _hostContext.ToastTriggered += OnHostToastTriggered;
 
@@ -145,6 +156,8 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
 
         _hostContext.SetTheme(themeKey);
         MadTOM.Theming.ThemeService.Instance.ApplyTheme(themeKey);
+        _appSettings.Theme = themeKey;
+        AppSettingsStore.Save(_appSettings);
         ShowToast($"Theme changed to {themeKey}", "🎨");
     }
 
@@ -170,6 +183,8 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     {
         IsSidebarCollapsed = !IsSidebarCollapsed;
         SidebarWidth = IsSidebarCollapsed ? 64 : 220;
+        _appSettings.IsConsoleSidebarCollapsed = IsSidebarCollapsed;
+        AppSettingsStore.Save(_appSettings);
     }
 
     [RelayCommand]
@@ -177,6 +192,8 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     {
         ActiveLexicon = lexiconKey;
         _hostContext.SetLexicon(lexiconKey);
+        _appSettings.Language = lexiconKey;
+        AppSettingsStore.Save(_appSettings);
         ShowToast($"Language switched to {lexiconKey.ToUpperInvariant()}", "🌐");
     }
 

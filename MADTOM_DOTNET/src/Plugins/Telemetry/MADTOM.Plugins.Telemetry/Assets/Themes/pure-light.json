@@ -1,0 +1,31 @@
+{
+  "themeName": "pure-light",
+  "displayName": "Pure Light",
+  "colors": {
+    "Background": "#f8fafc",
+    "HeaderBackground": "#ffffff",
+    "SidebarBackground": "#f1f5f9",
+    "CardBackground": "#ffffff",
+    "CardHoverBackground": "#f1f5f9",
+    "DarkBase": "#e2e8f0",
+    "Border": "#cbd5e1",
+    "BorderSubtle": "#e2e8f0",
+    "TextPrimary": "#0f172a",
+    "TextSecondary": "#475569",
+    "TextMuted": "#94a3b8",
+    "Accent": "#0284c7",
+    "AccentSubtle": "#e0f2fe",
+    "AccentText": "#0369a1",
+    "Healthy": "#16a34a",
+    "HealthySubtle": "#dcfce7",
+    "Warning": "#d97706",
+    "WarningSubtle": "#fef3c7",
+    "Critical": "#dc2626",
+    "CriticalSubtle": "#fee2e2",
+    "Indigo": "#4f46e5",
+    "IndigoSubtle": "#e0e7ff",
+    "Purple": "#9333ea",
+    "PurpleSubtle": "#f3e8ff"
+  }
+}
+

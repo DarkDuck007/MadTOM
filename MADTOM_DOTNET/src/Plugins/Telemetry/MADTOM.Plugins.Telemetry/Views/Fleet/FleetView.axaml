@@ -19,8 +19,11 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
+        <Style Selector="Button.filter-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBgBrush}" />
+        </Style>
         <Style Selector="Button.filter-btn.active">
-            <Setter Property="Background" Value="#0891B2" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
@@ -34,8 +37,8 @@
                 
                 <!-- Left Title Section -->
                 <StackPanel Grid.Column="0" Grid.Row="0" Spacing="4">
-                    <Border Background="#0C1E30"
-                            BorderBrush="#0891B2"
+                    <Border Background="{DynamicResource AccentSubtleBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
                             BorderThickness="1"
                             CornerRadius="4"
                             Padding="6,2"
@@ -65,13 +68,14 @@
                              FontFamily="{StaticResource MonoFontFamily}"
                              FontSize="11"
                              Width="220"
-                             Background="#04060B"
+                             Background="{DynamicResource CardBgBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
                              BorderBrush="{DynamicResource BorderBrush}"
                              CornerRadius="8"
                              Padding="10,6"/>
 
                     <!-- Filter Buttons -->
-                    <Border Background="#070D17"
+                    <Border Background="{DynamicResource DarkBaseBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
@@ -99,7 +103,7 @@
 
                     <!-- Collectors Management Button -->
                     <Button Command="{Binding OpenCollectorSettingsCommand}"
-                            Background="#0E7490"
+                            Background="{DynamicResource AccentBrush}"
                             Foreground="White"
                             FontFamily="{StaticResource MonoFontFamily}"
                             FontWeight="SemiBold"

@@ -24,9 +24,9 @@
             </Setter>
         </Style>
         <Style Selector="Border.host-card:pointerover">
-            <Setter Property="Background" Value="#111B2F" />
-            <Setter Property="BorderBrush" Value="#0E7490" />
-            <Setter Property="BoxShadow" Value="0 8 22 #3506B6D4" />
+            <Setter Property="Background" Value="{DynamicResource CardHoverBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BoxShadow" Value="0 8 22 #2506B6D4" />
         </Style>
     </UserControl.Styles>
 
@@ -64,7 +64,7 @@
 
                 <!-- Top-Right: Collector Name & Node Configure Button -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Border Background="#0F172A"
+                    <Border Background="{DynamicResource DarkBaseBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="4"
@@ -77,7 +77,7 @@
                                    Foreground="{DynamicResource AccentTextBrush}"/>
                     </Border>
                     <Button Command="{Binding ConfigureNodeCommand}"
-                            Background="#1E293B"
+                            Background="{DynamicResource DarkBaseBrush}"
                             BorderThickness="0"
                             CornerRadius="4"
                             Padding="4,2"
@@ -89,7 +89,7 @@
             </Grid>
 
             <!-- Directional TWAMP Indicator Bar -->
-            <Border Background="#070A12"
+            <Border Background="{DynamicResource DarkBaseBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
@@ -117,7 +117,7 @@
                                Foreground="{DynamicResource HealthyBrush}"/>
                 </Grid>
 
-                <Border Background="#04060B"
+                <Border Background="{DynamicResource DarkBaseBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
@@ -133,7 +133,7 @@
             <Grid ColumnDefinitions="*,*" Margin="0,2,0,0">
                 <!-- TWAMP Transit Sparkline -->
                 <Border Grid.Column="0" IsVisible="{Binding Node.ViewNetworkCounters}"
-                        Background="#04060B"
+                        Background="{DynamicResource DarkBaseBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
@@ -153,7 +153,7 @@
 
                 <!-- Resources Sparkline -->
                 <Border Grid.Column="1"
-                        Background="#04060B"
+                        Background="{DynamicResource DarkBaseBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="6"

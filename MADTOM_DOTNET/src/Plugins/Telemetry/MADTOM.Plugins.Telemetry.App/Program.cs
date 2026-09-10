@@ -13,6 +13,14 @@ internal sealed class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
+            .With(new X11PlatformOptions
+            {
+                OverlayPopups = true
+            })
+            .With(new Win32PlatformOptions
+            {
+                OverlayPopups = true
+            })
             .LogToTrace();
 }
 

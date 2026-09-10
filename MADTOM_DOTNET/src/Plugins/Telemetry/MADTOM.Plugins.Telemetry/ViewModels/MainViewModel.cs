@@ -102,12 +102,19 @@ public partial class MainViewModel : ViewModelBase
         HostDetailView.BackToFleetRequested += () => NavigateToView("fleet");
 
         // Wire sidebar collapse sync
+        var initialSettings = MADTOM.PluginContracts.AppSettingsStore.Load();
+        Sidebar.IsCollapsed = initialSettings.IsTelemetrySidebarCollapsed;
+        Header.IsSidebarCollapsed = Sidebar.IsCollapsed;
+
         Header.ToggleSidebarCollapseRequested += () => Sidebar.ToggleCollapse();
         Sidebar.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(Sidebar.IsCollapsed))
             {
                 Header.IsSidebarCollapsed = Sidebar.IsCollapsed;
+                var currentSettings = MADTOM.PluginContracts.AppSettingsStore.Load();
+                currentSettings.IsTelemetrySidebarCollapsed = Sidebar.IsCollapsed;
+                MADTOM.PluginContracts.AppSettingsStore.Save(currentSettings);
             }
         };
 

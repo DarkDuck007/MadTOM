@@ -1,0 +1,31 @@
+{
+  "themeName": "anti-bleed-grey",
+  "displayName": "IPS Neutralizer",
+  "colors": {
+    "Background": "#23272e",
+    "HeaderBackground": "#2a2f38",
+    "SidebarBackground": "#262a32",
+    "CardBackground": "#2c313a",
+    "CardHoverBackground": "#333842",
+    "DarkBase": "#1d2026",
+    "Border": "#434c5e",
+    "BorderSubtle": "#353b45",
+    "TextPrimary": "#f0f2f5",
+    "TextSecondary": "#c0c5ce",
+    "TextMuted": "#8b949e",
+    "Accent": "#00d4ff",
+    "AccentSubtle": "#1b3b4f",
+    "AccentText": "#38e1ff",
+    "Healthy": "#00e676",
+    "HealthySubtle": "#0f3d26",
+    "Warning": "#ffd600",
+    "WarningSubtle": "#473b00",
+    "Critical": "#ff1744",
+    "CriticalSubtle": "#4a0b17",
+    "Indigo": "#7c83fd",
+    "IndigoSubtle": "#252857",
+    "Purple": "#b388ff",
+    "PurpleSubtle": "#352254"
+  }
+}
+

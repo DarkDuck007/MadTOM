@@ -7,7 +7,7 @@
              x:Class="MadTOM.Views.Toast.ToastNotificationView"
              x:DataType="vm:MainViewModel">
 
-    <Border Background="#0F172A"
+    <Border Background="{DynamicResource CardBgBrush}"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1"
             CornerRadius="10"

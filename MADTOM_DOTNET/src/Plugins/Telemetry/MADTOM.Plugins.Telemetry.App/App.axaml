@@ -18,6 +18,9 @@
 
     <Application.Styles>
         <FluentTheme />
+        <Style Selector="Popup">
+            <Setter Property="ShouldUseOverlayLayer" Value="True" />
+        </Style>
     </Application.Styles>
 </Application>
 

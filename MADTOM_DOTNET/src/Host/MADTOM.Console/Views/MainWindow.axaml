@@ -39,7 +39,7 @@
                     BorderThickness="0,0,0,1"
                     Height="54"
                     Padding="16,0">
-                <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+                <Grid ColumnDefinitions="Auto,Auto,Auto,*">
                     
                     <!-- Console Logo & Sidebar Toggle Button -->
                     <Button Grid.Column="0"
@@ -50,7 +50,7 @@
                             Cursor="Hand"
                             VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Border Background="#0E7490"
+                            <Border Background="{DynamicResource AccentBrush}"
                                     CornerRadius="6"
                                     Width="32" Height="32">
                                 <TextBlock Text="⊞"
@@ -70,7 +70,7 @@
                                            FontSize="10"
                                            FontWeight="SemiBold"
                                            LetterSpacing="2"
-                                           Foreground="#38BDF8" />
+                                           Foreground="{DynamicResource AccentTextBrush}" />
                             </StackPanel>
                         </StackPanel>
                     </Button>
@@ -84,7 +84,6 @@
                             Padding="7,5"
                             Margin="8,0,0,0"
                             Cursor="Hand"
-                            ToolTip.Tip="Settings (Themes &amp; Lexicons)"
                             VerticalAlignment="Center">
                         <TextBlock Text="⚙"
                                    FontSize="15"
@@ -92,7 +91,8 @@
                                    VerticalAlignment="Center"
                                    HorizontalAlignment="Center" />
                         <Button.Flyout>
-                            <Flyout Placement="BottomEdgeAlignedLeft">
+                            <Flyout Placement="BottomEdgeAlignedLeft"
+                                    OverlayDismissEventPassThrough="False">
                                 <Border Background="{DynamicResource CardBgBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
@@ -252,54 +252,14 @@
                             <TextBlock Text="{Binding SelectedPlugin.DisplayName}"
                                        FontSize="11"
                                        FontWeight="SemiBold"
-                                       Foreground="#38BDF8" />
+                                       Foreground="{DynamicResource AccentTextBrush}" />
                             <TextBlock Text="• RUNNING"
                                        FontSize="9"
                                        FontWeight="Bold"
-                                       Foreground="#22C55E"
+                                       Foreground="{DynamicResource HealthyBrush}"
                                        VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
-
-                    <!-- Right Controls: Global Language Switcher -->
-                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="LEXICON:"
-                                   FontSize="10"
-                                   FontWeight="Bold"
-                                   LetterSpacing="1"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   VerticalAlignment="Center" />
-                        
-                        <Button Content="Goose"
-                                Command="{Binding SwitchLexiconCommand}"
-                                CommandParameter="goose"
-                                FontSize="10"
-                                FontWeight="SemiBold"
-                                Padding="8,4"
-                                Background="{DynamicResource DarkBaseBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                CornerRadius="4" />
-                        
-                        <Button Content="Feline"
-                                Command="{Binding SwitchLexiconCommand}"
-                                CommandParameter="feline"
-                                FontSize="10"
-                                FontWeight="SemiBold"
-                                Padding="8,4"
-                                Background="{DynamicResource DarkBaseBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                CornerRadius="4" />
-                        
-                        <Button Content="Standard"
-                                Command="{Binding SwitchLexiconCommand}"
-                                CommandParameter="standard"
-                                FontSize="10"
-                                FontWeight="SemiBold"
-                                Padding="8,4"
-                                Background="{DynamicResource DarkBaseBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                CornerRadius="4" />
-                    </StackPanel>
                 </Grid>
             </Border>
 

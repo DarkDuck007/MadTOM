@@ -16,23 +16,27 @@
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Background" Value="#1E293B" />
+            <Setter Property="Background" Value="{DynamicResource DarkBaseBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
+        <Style Selector="Button.scope-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBgBrush}" />
+        </Style>
         <Style Selector="Button.scope-btn.active">
-            <Setter Property="Background" Value="#0891B2" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
     </UserControl.Styles>
 
     <Grid>
-        <StackPanel Spacing="16">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16">
 
         <!-- Scope & Time Toolbar -->
-        <Border Background="#070A12"
+        <Border Background="{DynamicResource DarkBaseBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="10"
@@ -76,7 +80,7 @@
         <ItemsControl ItemsSource="{Binding Graphs}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:MetricGraphViewModel">
-                    <Border IsVisible="{Binding IsVisible}" Background="#070A12"
+                    <Border IsVisible="{Binding IsVisible}" Background="{DynamicResource CardBgBrush}"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="10" Padding="16" Margin="0,0,0,12"
                             BoxShadow="0 4 16 #20000000">
@@ -89,8 +93,8 @@
                                                FontSize="13"
                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <Border IsVisible="{Binding IsMerged}"
-                                            Background="#1E1B4B"
-                                            BorderBrush="#4338CA"
+                                            Background="{DynamicResource IndigoSubtleBrush}"
+                                            BorderBrush="{DynamicResource IndigoBrush}"
                                             BorderThickness="1"
                                             CornerRadius="4"
                                             Padding="6,1"
@@ -99,7 +103,7 @@
                                                    FontFamily="{StaticResource MonoFontFamily}"
                                                    FontSize="9"
                                                    FontWeight="Bold"
-                                                   Foreground="#A5B4FC"/>
+                                                   Foreground="{DynamicResource IndigoBrush}"/>
                                     </Border>
                                 </StackPanel>
                                 <TextBlock Grid.Column="1"
@@ -115,7 +119,7 @@
                                             IsVisible="{Binding IsMerged}"
                                             Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).SplitGraphCommand}"
                                             CommandParameter="{Binding}"
-                                            Background="#1E293B"
+                                            Background="{DynamicResource DarkBaseBrush}"
                                             Foreground="{DynamicResource TextSecondaryBrush}"
                                             FontSize="10"
                                             Padding="8,3"
@@ -146,7 +150,7 @@
         </ItemsControl>
 
         <!-- Full Viewport Width Processor Matrix -->
-        <Border IsVisible="{Binding ViewCoreMatrix}" Background="#070A12"
+        <Border IsVisible="{Binding ViewCoreMatrix}" Background="{DynamicResource CardBgBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="12"
@@ -174,7 +178,7 @@
                                VerticalAlignment="Center"/>
                 </Grid>
 
-                <Border Background="#04060B"
+                <Border Background="{DynamicResource DarkBaseBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
@@ -190,13 +194,14 @@
         </Border>
 
         </StackPanel>
+        </ScrollViewer>
 
         <!-- Custom Observation Window Modal Overlay -->
         <Border Background="#B3000000"
                 IsVisible="{Binding IsCustomScopeModalOpen}"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch">
-            <Border Background="#0D1117"
+            <Border Background="{DynamicResource CardBgBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="12"
@@ -267,7 +272,7 @@
                         <Button Grid.Column="0"
                                 Content="Cancel"
                                 Command="{Binding CancelCustomScopeCommand}"
-                                Background="#1E293B"
+                                Background="{DynamicResource DarkBaseBrush}"
                                 Foreground="{DynamicResource TextPrimaryBrush}"
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center"
@@ -278,7 +283,7 @@
                         <Button Grid.Column="1"
                                 Content="Apply Window"
                                 Command="{Binding ApplyCustomScopeCommand}"
-                                Background="#0891B2"
+                                Background="{DynamicResource AccentBrush}"
                                 Foreground="White"
                                 FontWeight="Bold"
                                 HorizontalAlignment="Stretch"
@@ -297,7 +302,7 @@
                 IsVisible="{Binding IsCustomizationModalOpen}"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch">
-            <Border Background="#0D1117"
+            <Border Background="{DynamicResource CardBgBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="12"
@@ -330,7 +335,7 @@
                     </Grid>
 
                     <!-- Add Graph & Presets Bar -->
-                    <Border Grid.Row="1" Background="#070A12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                    <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
                         <StackPanel Spacing="10">
                             <!-- Add Metric Row -->
                             <Grid ColumnDefinitions="*,Auto">
@@ -343,12 +348,13 @@
                                     <ComboBox ItemsSource="{Binding AvailableMetrics}"
                                               SelectedItem="{Binding SelectedMetric}"
                                               Width="240"
-                                              Background="#1E293B"
+                                              Background="{DynamicResource CardBgBrush}"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"
                                               BorderBrush="{DynamicResource BorderBrush}"
                                               FontSize="11"/>
                                     <Button Content="+ Add Graph"
                                             Command="{Binding AddGraphCommand}"
-                                            Background="#0891B2"
+                                            Background="{DynamicResource AccentBrush}"
                                             Foreground="White"
                                             FontWeight="Bold"
                                             FontSize="11"
@@ -367,7 +373,7 @@
                                            VerticalAlignment="Center"/>
                                 <Button Content="Merge CPU (Total/User/Sys/IO)"
                                         Command="{Binding QuickMergeCpuCommand}"
-                                        Background="#1E293B"
+                                        Background="{DynamicResource CardBgBrush}"
                                         Foreground="{DynamicResource AccentTextBrush}"
                                         FontSize="10"
                                         Padding="8,4"
@@ -375,16 +381,16 @@
                                         Cursor="Hand"/>
                                 <Button Content="Merge Memory (Used/Avail)"
                                         Command="{Binding QuickMergeMemoryCommand}"
-                                        Background="#1E293B"
-                                        Foreground="#34D399"
+                                        Background="{DynamicResource CardBgBrush}"
+                                        Foreground="{DynamicResource HealthyBrush}"
                                         FontSize="10"
                                         Padding="8,4"
                                         CornerRadius="4"
                                         Cursor="Hand"/>
                                 <Button Content="Merge TWAMP (RTT/Up/Down)"
                                         Command="{Binding QuickMergeTwampCommand}"
-                                        Background="#1E293B"
-                                        Foreground="#A855F7"
+                                        Background="{DynamicResource CardBgBrush}"
+                                        Foreground="{DynamicResource PurpleBrush}"
                                         FontSize="10"
                                         Padding="8,4"
                                         CornerRadius="4"
@@ -398,7 +404,7 @@
                         <ItemsControl ItemsSource="{Binding Graphs}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:MetricGraphViewModel">
-                                    <Border Background="#070A12"
+                                    <Border Background="{DynamicResource DarkBaseBrush}"
                                             BorderBrush="{DynamicResource BorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="8"
@@ -414,22 +420,22 @@
                                                                FontSize="12"
                                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
                                                     <Border IsVisible="{Binding IsMerged}"
-                                                            Background="#1E1B4B"
-                                                            BorderBrush="#4338CA"
+                                                            Background="{DynamicResource IndigoSubtleBrush}"
+                                                            BorderBrush="{DynamicResource IndigoBrush}"
                                                             BorderThickness="1"
                                                             CornerRadius="4"
                                                             Padding="4,1">
                                                         <TextBlock Text="Merged"
                                                                    FontFamily="{StaticResource MonoFontFamily}"
                                                                    FontSize="9"
-                                                                   Foreground="#A5B4FC"/>
+                                                                   Foreground="{DynamicResource IndigoBrush}"/>
                                                     </Border>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
                                                     <Button Content="Merge with Next"
                                                             Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).MergeWithNextCommand}"
                                                             CommandParameter="{Binding}"
-                                                            Background="#1E293B"
+                                                            Background="{DynamicResource CardBgBrush}"
                                                             Foreground="{DynamicResource AccentTextBrush}"
                                                             FontSize="10"
                                                             Padding="8,3"
@@ -439,7 +445,7 @@
                                                             IsVisible="{Binding IsMerged}"
                                                             Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).SplitGraphCommand}"
                                                             CommandParameter="{Binding}"
-                                                            Background="#1E293B"
+                                                            Background="{DynamicResource CardBgBrush}"
                                                             Foreground="{DynamicResource TextSecondaryBrush}"
                                                             FontSize="10"
                                                             Padding="8,3"
@@ -448,8 +454,8 @@
                                                     <Button Content="Remove"
                                                             Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).RemoveGraphCommand}"
                                                             CommandParameter="{Binding}"
-                                                            Background="#331E1E"
-                                                            Foreground="#EF4444"
+                                                            Background="{DynamicResource CriticalSubtleBrush}"
+                                                            Foreground="{DynamicResource CriticalBrush}"
                                                             FontSize="10"
                                                             Padding="8,3"
                                                             CornerRadius="4"
@@ -461,7 +467,7 @@
                                             <ItemsControl ItemsSource="{Binding Series}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="models:ChartSeriesModel">
-                                                        <Border Background="#04060B" CornerRadius="6" Padding="8,6" Margin="0,0,0,4">
+                                                        <Border Background="{DynamicResource CardBgBrush}" CornerRadius="6" Padding="8,6" Margin="0,0,0,4">
                                                             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                                                 <!-- Color Preview Dot -->
                                                                 <Ellipse Width="10" Height="10" Fill="{Binding SolidBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -514,7 +520,7 @@
                         <Button Grid.Column="0"
                                 Content="Reset Defaults"
                                 Command="{Binding ResetToDefaultGraphsCommand}"
-                                Background="#1E293B"
+                                Background="{DynamicResource DarkBaseBrush}"
                                 Foreground="{DynamicResource TextMutedBrush}"
                                 FontSize="11"
                                 Padding="12,6"
@@ -523,7 +529,7 @@
                         <Button Grid.Column="2"
                                 Content="Done"
                                 Command="{Binding CloseCustomizationModalCommand}"
-                                Background="#0891B2"
+                                Background="{DynamicResource AccentBrush}"
                                 Foreground="White"
                                 FontWeight="Bold"
                                 FontSize="11"

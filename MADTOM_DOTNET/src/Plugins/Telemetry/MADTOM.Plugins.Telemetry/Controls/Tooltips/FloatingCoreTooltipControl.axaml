@@ -5,8 +5,8 @@
              mc:Ignorable="d" d:DesignWidth="180" d:DesignHeight="60"
              x:Class="MadTOM.Controls.Tooltips.FloatingCoreTooltipControl">
 
-    <Border Background="#F20A0F1D"
-            BorderBrush="#9906B6D4"
+    <Border Background="{DynamicResource CardBgBrush}"
+            BorderBrush="{DynamicResource AccentBrush}"
             BorderThickness="1"
             CornerRadius="8"
             Padding="8,5"
@@ -14,22 +14,22 @@
         <StackPanel Spacing="3" Orientation="Horizontal">
             <TextBlock x:Name="HostTextBlock"
                        Text="gander-epyc-01"
-                       Foreground="#22D3EE"
+                       Foreground="{DynamicResource AccentTextBrush}"
                        FontWeight="Bold"
                        FontFamily="{StaticResource MonoFontFamily}"
                        FontSize="11"
                        VerticalAlignment="Center"/>
-            <Border Background="#1E293B" CornerRadius="4" Padding="4,1" Margin="3,0">
+            <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="4" Padding="4,1" Margin="3,0">
                 <TextBlock x:Name="ThreadTextBlock"
                            Text="Thread #0"
-                           Foreground="#94A3B8"
+                           Foreground="{DynamicResource TextMutedBrush}"
                            FontFamily="{StaticResource MonoFontFamily}"
                            FontSize="10"
                            VerticalAlignment="Center"/>
             </Border>
             <TextBlock x:Name="LoadTextBlock"
                        Text="42.1%"
-                       Foreground="#10B981"
+                       Foreground="{DynamicResource HealthyBrush}"
                        FontWeight="Bold"
                        FontFamily="{StaticResource MonoFontFamily}"
                        FontSize="11"

@@ -1,0 +1,31 @@
+{
+  "themeName": "minimal-mono",
+  "displayName": "Minimal Mono",
+  "colors": {
+    "Background": "#121214",
+    "HeaderBackground": "#18181b",
+    "SidebarBackground": "#18181b",
+    "CardBackground": "#1f1f23",
+    "CardHoverBackground": "#27272a",
+    "DarkBase": "#09090b",
+    "Border": "#27272a",
+    "BorderSubtle": "#1e1e22",
+    "TextPrimary": "#fafafa",
+    "TextSecondary": "#a1a1aa",
+    "TextMuted": "#71717a",
+    "Accent": "#e4e4e7",
+    "AccentSubtle": "#27272a",
+    "AccentText": "#ffffff",
+    "Healthy": "#22c55e",
+    "HealthySubtle": "#14532d",
+    "Warning": "#eab308",
+    "WarningSubtle": "#713f12",
+    "Critical": "#ef4444",
+    "CriticalSubtle": "#7f1d1d",
+    "Indigo": "#818cf8",
+    "IndigoSubtle": "#312e81",
+    "Purple": "#c084fc",
+    "PurpleSubtle": "#581c87"
+  }
+}
+

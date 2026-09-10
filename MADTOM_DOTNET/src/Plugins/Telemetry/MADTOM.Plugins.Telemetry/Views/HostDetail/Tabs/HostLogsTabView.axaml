@@ -8,7 +8,7 @@
              x:Class="MadTOM.Views.HostDetail.Tabs.HostLogsTabView"
              x:DataType="vm:HostLogsTabViewModel">
 
-    <Border Background="#070A12"
+    <Border Background="{DynamicResource CardBgBrush}"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1"
             CornerRadius="12"
@@ -31,7 +31,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                     <Button Content="Clear Logs"
                             Command="{Binding ClearCommand}"
-                            Background="#1E293B"
+                            Background="{DynamicResource DarkBaseBrush}"
                             Foreground="{DynamicResource TextSecondaryBrush}"
                             FontFamily="{StaticResource MonoFontFamily}"
                             FontSize="11"
@@ -40,7 +40,7 @@
 
                     <Button Content="{Binding PauseButtonText}"
                             Command="{Binding TogglePauseCommand}"
-                            Background="#D97706"
+                            Background="{DynamicResource WarningBrush}"
                             Foreground="White"
                             FontFamily="{StaticResource MonoFontFamily}"
                             FontWeight="Bold"
@@ -51,7 +51,7 @@
             </Grid>
 
             <!-- Console Log Window -->
-            <Border Background="#04060B"
+            <Border Background="{DynamicResource DarkBaseBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
@@ -65,7 +65,7 @@
                                     <TextBlock Text="{Binding FormattedTime, StringFormat={}[{0}]}"
                                                FontFamily="{StaticResource MonoFontFamily}"
                                                FontSize="11"
-                                               Foreground="#64748B"/>
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                     <TextBlock Text="{Binding Message}"
                                                FontFamily="{StaticResource MonoFontFamily}"
                                                FontSize="11"
