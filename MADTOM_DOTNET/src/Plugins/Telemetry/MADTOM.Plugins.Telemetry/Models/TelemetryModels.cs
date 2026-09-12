@@ -24,6 +24,7 @@ public sealed class ClusterTelemetrySummary
     public int GoslingCount { get; set; }
     public double P95ForwardMs { get; set; }
     public double P95ReverseMs { get; set; }
+    public double GlobalIngressGbps { get; set; }
     public double GlobalEgressGbps { get; set; }
 }
 

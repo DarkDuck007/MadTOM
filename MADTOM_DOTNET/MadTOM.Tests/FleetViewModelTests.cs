@@ -64,4 +64,20 @@ public class FleetViewModelTests
 
         Assert.Equal(firstCard.Node.Id, requestedHost);
     }
+
+    [Fact]
+    public void FleetViewModel_ApplyFilter_PreservesCardInstancesOnUpdate()
+    {
+        var vm = new FleetViewModel(_dataProvider);
+        Assert.NotEmpty(vm.Cards);
+        var initialCards = vm.Cards.ToList();
+        var firstCard = initialCards[0];
+
+        // Trigger filter reapplication
+        vm.ApplyFilter();
+
+        // Cards list should retain the exact same card instances
+        Assert.Equal(initialCards.Count, vm.Cards.Count);
+        Assert.Same(firstCard, vm.Cards[0]);
+    }
 }

@@ -136,6 +136,17 @@ func appendSampleRecords(records []storage.MetricRecord, nodeID string, s *madto
 		}
 	}
 
+	if s.DiskIo != nil {
+		add("disk.io.read_bytes", float64(s.DiskIo.ReadBytes))
+		add("disk.io.write_bytes", float64(s.DiskIo.WriteBytes))
+		add("disk.io.read_ops", float64(s.DiskIo.ReadOps))
+		add("disk.io.write_ops", float64(s.DiskIo.WriteOps))
+		for _, dev := range s.DiskIo.Devices {
+			add(fmt.Sprintf("disk.io.%s.read_bytes", dev.Name), float64(dev.ReadBytes))
+			add(fmt.Sprintf("disk.io.%s.write_bytes", dev.Name), float64(dev.WriteBytes))
+		}
+	}
+
 	return records
 }
 

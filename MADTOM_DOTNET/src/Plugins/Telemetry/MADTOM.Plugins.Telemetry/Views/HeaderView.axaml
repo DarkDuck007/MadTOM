@@ -89,10 +89,44 @@
 
                     <TextBlock Text="|" Foreground="{DynamicResource BorderBrush}" VerticalAlignment="Center"/>
 
-                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                        <TextBlock Text="Global Egress:" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Text="{Binding ClusterSummary.GlobalEgressGbps, StringFormat={}{0:F3} Gbps}" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource HealthyBrush}"/>
-                    </StackPanel>
+                    <!-- Opt-In Dynamic Global Metrics Chips -->
+                    <ItemsControl ItemsSource="{Binding PinnedMetrics}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="6"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:GlobalMetricItemViewModel">
+                                <Button Command="{Binding $parent[UserControl].((vm:HeaderViewModel)DataContext).OpenGlobalMetricsCommand}"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="2,0"
+                                        Cursor="Hand"
+                                        ToolTip.Tip="Click to configure Global Metrics in Node Settings">
+                                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Icon}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding ShortName, StringFormat={}{0}:}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="{Binding FormattedValue}" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="3,1" Margin="2,0,0,0">
+                                            <TextBlock Text="{Binding ModifierTag}" FontSize="8" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button Command="{Binding OpenGlobalMetricsCommand}"
+                            Background="{DynamicResource CardBgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="5,2"
+                            Cursor="Hand"
+                            ToolTip.Tip="Configure Global Metrics &amp; Top Bar Pinning">
+                        <TextBlock Text="⚙" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </Button>
                 </StackPanel>
             </Border>
 

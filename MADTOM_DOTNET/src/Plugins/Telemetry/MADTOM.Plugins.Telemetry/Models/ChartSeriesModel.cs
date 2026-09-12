@@ -45,6 +45,12 @@ public partial class ChartSeriesModel : ObservableObject
     [ObservableProperty]
     private double _latestValue;
 
+    [ObservableProperty]
+    private bool _isRateOfChange;
+
+    public double? PreviousRawSampleValue { get; set; }
+    public long PreviousRawSampleTimestampNano { get; set; }
+
     public ChartSeriesModel() { }
 
     public ChartSeriesModel(string metric, string label, string colorHex)

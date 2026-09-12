@@ -52,6 +52,9 @@ public sealed partial class FleetNodeModel : ObservableObject
     private string _role = "baremetal"; // baremetal or vm
 
     [ObservableProperty]
+    private string _groupName = string.Empty;
+
+    [ObservableProperty]
     private string _ip = string.Empty;
 
     [ObservableProperty]

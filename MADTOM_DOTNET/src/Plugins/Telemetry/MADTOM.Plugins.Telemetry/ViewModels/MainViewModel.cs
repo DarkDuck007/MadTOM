@@ -70,7 +70,10 @@ public partial class MainViewModel : ViewModelBase
         _lexiconService = lexiconService;
         _notificationService = notificationService;
 
-        Header = new HeaderViewModel(_lexiconService, _telemetryProvider);
+        var nodeGroupStore = new NodeGroupStore();
+        var globalMetricsStore = new GlobalMetricsStore();
+
+        Header = new HeaderViewModel(_lexiconService, _telemetryProvider, globalMetricsStore);
         Sidebar = new SidebarViewModel(_telemetryProvider);
 
         var metricsTab = new HostMetricsTabViewModel(_telemetryProvider, new GraphLayoutStore(GraphLayoutStore.DefaultPath));
@@ -79,11 +82,11 @@ public partial class MainViewModel : ViewModelBase
         var flightTab = new HostFlightTabViewModel(_telemetryProvider);
 
         HostDetailView = new HostDetailViewModel(_telemetryProvider, _lexiconService, metricsTab, processesTab, logsTab, flightTab);
-        FleetView = new FleetViewModel(_telemetryProvider);
+        FleetView = new FleetViewModel(_telemetryProvider, nodeGroupStore);
         GlobalRadarView = new GlobalRadarViewModel(_telemetryProvider);
 
         var manager = (_telemetryProvider as CollectorTelemetryDataProvider)?.CollectorManager ?? new MultiCollectorManager();
-        CollectorSettings = new CollectorSettingsViewModel(manager, _telemetryProvider);
+        CollectorSettings = new CollectorSettingsViewModel(manager, _telemetryProvider, nodeGroupStore, globalMetricsStore);
         CollectorSettings.CloseRequested += () => IsCollectorSettingsOpen = false;
 
         _currentView = FleetView;
@@ -93,10 +96,17 @@ public partial class MainViewModel : ViewModelBase
         Sidebar.HostSelected += OpenHostDetail;
         FleetView.OpenHostDetailRequested += OpenHostDetail;
         FleetView.OpenCollectorSettingsRequested += OpenCollectorSettings;
+        Header.OpenGlobalMetricsRequested += () =>
+        {
+            CollectorSettings.RefreshNodes();
+            CollectorSettings.SelectedTabIndex = 3;
+            IsCollectorSettingsOpen = true;
+        };
         FleetView.ConfigureNodeRequested += (node) =>
         {
             CollectorSettings.RefreshNodes();
             CollectorSettings.SelectedNode = node;
+            CollectorSettings.SelectedTabIndex = 1;
             IsCollectorSettingsOpen = true;
         };
         HostDetailView.BackToFleetRequested += () => NavigateToView("fleet");

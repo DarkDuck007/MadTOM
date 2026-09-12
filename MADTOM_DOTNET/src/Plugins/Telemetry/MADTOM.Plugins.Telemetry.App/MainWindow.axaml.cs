@@ -47,6 +47,10 @@ public partial class MainWindow : Window
         // IThemeHost
         public string CurrentTheme => "default-dark";
         public event EventHandler<string>? CurrentThemeChanged;
+        public System.Collections.Generic.IReadOnlyList<MadTOM.Theming.ThemePaletteModel> AvailablePalettes =>
+            MadTOM.Theming.ThemeService.Instance.AvailablePalettes;
+        public MadTOM.Theming.ThemePaletteModel? GetPalette(string themeName) =>
+            MadTOM.Theming.ThemeService.Instance.GetPalette(themeName);
 
         // IPluginNotificationService
         public void ShowToast(string message, string icon = "ℹ️", int durationMs = 3000)

@@ -1,0 +1,1 @@
+MADTOM_DOTNET/publish.sh

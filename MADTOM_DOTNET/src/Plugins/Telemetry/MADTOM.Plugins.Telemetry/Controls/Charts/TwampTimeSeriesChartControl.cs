@@ -529,6 +529,12 @@ public sealed class TwampTimeSeriesChartControl : Control
             return;
         }
 
+        // Only zoom if Ctrl is held, otherwise allow page scroll
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            return;
+        }
+
         // Vertical wheel delta -> Cursor-Anchored Zoom
         double deltaY = e.Delta.Y;
         if (Math.Abs(deltaY) > 0.001)

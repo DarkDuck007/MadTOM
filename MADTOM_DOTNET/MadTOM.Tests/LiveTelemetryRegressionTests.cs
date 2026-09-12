@@ -5,6 +5,7 @@ using MadTOM.Localization;
 using Xunit;
 namespace MadTOM.Tests;
 
+[Collection("GlobalSingletons")]
 public sealed class LiveTelemetryRegressionTests
 {
     [Fact]

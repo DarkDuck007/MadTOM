@@ -46,6 +46,11 @@
             <modals:CollectorSettingsModal DataContext="{Binding CollectorSettings}" />
         </Panel>
 
+        <!-- Graph Customization Modal Overlay (covers entire Telemetry plugin viewport!) -->
+        <Panel IsVisible="{Binding HostDetailView.MetricsTab.IsCustomizationModalOpen}">
+            <modals:CustomizeGraphsModal DataContext="{Binding HostDetailView.MetricsTab}" />
+        </Panel>
+
         <!-- Floating Toast Notification Overlay -->
         <toast:ToastNotificationView IsVisible="{Binding IsToastVisible}"
                                      HorizontalAlignment="Right"

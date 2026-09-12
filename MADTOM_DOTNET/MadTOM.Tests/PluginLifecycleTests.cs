@@ -48,6 +48,11 @@ public class PluginLifecycleTests
 
         public string CurrentTheme { get; private set; } = "default-dark";
         public event EventHandler<string>? CurrentThemeChanged;
+        public readonly Dictionary<string, MadTOM.Theming.ThemePaletteModel> CustomPalettes = new();
+        public IReadOnlyList<MadTOM.Theming.ThemePaletteModel> AvailablePalettes =>
+            CustomPalettes.Values.ToList();
+        public MadTOM.Theming.ThemePaletteModel? GetPalette(string themeName) =>
+            CustomPalettes.TryGetValue(themeName, out var p) ? p : null;
 
         public void SetTheme(string theme)
         {

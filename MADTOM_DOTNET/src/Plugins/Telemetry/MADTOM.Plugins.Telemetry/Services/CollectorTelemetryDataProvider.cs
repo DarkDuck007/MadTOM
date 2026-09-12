@@ -230,6 +230,18 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                     node.LatestMetricValues[$"nic.{nic.Name}.tx_bytes"] = nic.TxBytes;
                 }
             }
+            if (s.DiskIo != null)
+            {
+                node.LatestMetricValues["disk.io.read_bytes"] = s.DiskIo.ReadBytes;
+                node.LatestMetricValues["disk.io.write_bytes"] = s.DiskIo.WriteBytes;
+                node.LatestMetricValues["disk.io.read_ops"] = s.DiskIo.ReadOps;
+                node.LatestMetricValues["disk.io.write_ops"] = s.DiskIo.WriteOps;
+                foreach (var dev in s.DiskIo.Devices)
+                {
+                    node.LatestMetricValues[$"disk.io.{dev.Name}.read_bytes"] = dev.ReadBytes;
+                    node.LatestMetricValues[$"disk.io.{dev.Name}.write_bytes"] = dev.WriteBytes;
+                }
+            }
 
             NodeTelemetryUpdated?.Invoke(this, node);
         });
@@ -259,6 +271,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
             GoslingCount = nodes.Count(n => n.Role == "pull"),
             P95ForwardMs = 0,
             P95ReverseMs = 0,
+            GlobalIngressGbps = nodes.Sum(n => n.RxBytesPerSecond) * 8 / 1e9,
             GlobalEgressGbps = nodes.Sum(n => n.TxBytesPerSecond) * 8 / 1e9
         };
     }

@@ -36,6 +36,7 @@ type SystemMetrics struct {
 	Arch               string                 `protobuf:"bytes,10,opt,name=arch,proto3" json:"arch,omitempty"`
 	ProcessesAvailable bool                   `protobuf:"varint,11,opt,name=processes_available,json=processesAvailable,proto3" json:"processes_available,omitempty"`
 	Twamp              *TwampMetrics          `protobuf:"bytes,12,opt,name=twamp,proto3" json:"twamp,omitempty"`
+	DiskIo             *DiskIoMetrics         `protobuf:"bytes,13,opt,name=disk_io,json=diskIo,proto3" json:"disk_io,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -150,6 +151,13 @@ func (x *SystemMetrics) GetProcessesAvailable() bool {
 func (x *SystemMetrics) GetTwamp() *TwampMetrics {
 	if x != nil {
 		return x.Twamp
+	}
+	return nil
+}
+
+func (x *SystemMetrics) GetDiskIo() *DiskIoMetrics {
+	if x != nil {
+		return x.DiskIo
 	}
 	return nil
 }
@@ -891,11 +899,164 @@ func (x *TwampMetrics) GetOneWayAvailable() bool {
 	return false
 }
 
+// DiskIoMetrics details cumulative I/O read and write bytes and operations.
+type DiskIoMetrics struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ReadBytes     uint64                 `protobuf:"varint,1,opt,name=read_bytes,json=readBytes,proto3" json:"read_bytes,omitempty"`
+	WriteBytes    uint64                 `protobuf:"varint,2,opt,name=write_bytes,json=writeBytes,proto3" json:"write_bytes,omitempty"`
+	ReadOps       uint64                 `protobuf:"varint,3,opt,name=read_ops,json=readOps,proto3" json:"read_ops,omitempty"`
+	WriteOps      uint64                 `protobuf:"varint,4,opt,name=write_ops,json=writeOps,proto3" json:"write_ops,omitempty"`
+	Devices       []*DiskIoDevice        `protobuf:"bytes,5,rep,name=devices,proto3" json:"devices,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiskIoMetrics) Reset() {
+	*x = DiskIoMetrics{}
+	mi := &file_madtom_v1_metrics_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiskIoMetrics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiskIoMetrics) ProtoMessage() {}
+
+func (x *DiskIoMetrics) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_metrics_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiskIoMetrics.ProtoReflect.Descriptor instead.
+func (*DiskIoMetrics) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DiskIoMetrics) GetReadBytes() uint64 {
+	if x != nil {
+		return x.ReadBytes
+	}
+	return 0
+}
+
+func (x *DiskIoMetrics) GetWriteBytes() uint64 {
+	if x != nil {
+		return x.WriteBytes
+	}
+	return 0
+}
+
+func (x *DiskIoMetrics) GetReadOps() uint64 {
+	if x != nil {
+		return x.ReadOps
+	}
+	return 0
+}
+
+func (x *DiskIoMetrics) GetWriteOps() uint64 {
+	if x != nil {
+		return x.WriteOps
+	}
+	return 0
+}
+
+func (x *DiskIoMetrics) GetDevices() []*DiskIoDevice {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
+type DiskIoDevice struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ReadBytes     uint64                 `protobuf:"varint,2,opt,name=read_bytes,json=readBytes,proto3" json:"read_bytes,omitempty"`
+	WriteBytes    uint64                 `protobuf:"varint,3,opt,name=write_bytes,json=writeBytes,proto3" json:"write_bytes,omitempty"`
+	ReadOps       uint64                 `protobuf:"varint,4,opt,name=read_ops,json=readOps,proto3" json:"read_ops,omitempty"`
+	WriteOps      uint64                 `protobuf:"varint,5,opt,name=write_ops,json=writeOps,proto3" json:"write_ops,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiskIoDevice) Reset() {
+	*x = DiskIoDevice{}
+	mi := &file_madtom_v1_metrics_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiskIoDevice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiskIoDevice) ProtoMessage() {}
+
+func (x *DiskIoDevice) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_metrics_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiskIoDevice.ProtoReflect.Descriptor instead.
+func (*DiskIoDevice) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DiskIoDevice) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DiskIoDevice) GetReadBytes() uint64 {
+	if x != nil {
+		return x.ReadBytes
+	}
+	return 0
+}
+
+func (x *DiskIoDevice) GetWriteBytes() uint64 {
+	if x != nil {
+		return x.WriteBytes
+	}
+	return 0
+}
+
+func (x *DiskIoDevice) GetReadOps() uint64 {
+	if x != nil {
+		return x.ReadOps
+	}
+	return 0
+}
+
+func (x *DiskIoDevice) GetWriteOps() uint64 {
+	if x != nil {
+		return x.WriteOps
+	}
+	return 0
+}
+
 var File_madtom_v1_metrics_proto protoreflect.FileDescriptor
 
 const file_madtom_v1_metrics_proto_rawDesc = "" +
 	"\n" +
-	"\x17madtom/v1/metrics.proto\x12\tmadtom.v1\"\xf0\x03\n" +
+	"\x17madtom/v1/metrics.proto\x12\tmadtom.v1\"\xa3\x04\n" +
 	"\rSystemMetrics\x12.\n" +
 	"\x13timestamp_unix_nano\x18\x01 \x01(\x03R\x11timestampUnixNano\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12'\n" +
@@ -909,7 +1070,8 @@ const file_madtom_v1_metrics_proto_rawDesc = "" +
 	"\x04arch\x18\n" +
 	" \x01(\tR\x04arch\x12/\n" +
 	"\x13processes_available\x18\v \x01(\bR\x12processesAvailable\x12-\n" +
-	"\x05twamp\x18\f \x01(\v2\x17.madtom.v1.TwampMetricsR\x05twamp\"\xdc\x02\n" +
+	"\x05twamp\x18\f \x01(\v2\x17.madtom.v1.TwampMetricsR\x05twamp\x121\n" +
+	"\adisk_io\x18\r \x01(\v2\x18.madtom.v1.DiskIoMetricsR\x06diskIo\"\xdc\x02\n" +
 	"\n" +
 	"CpuMetrics\x12\x1b\n" +
 	"\ttotal_pct\x18\x01 \x01(\x01R\btotalPct\x12 \n" +
@@ -999,7 +1161,23 @@ const file_madtom_v1_metrics_proto_rawDesc = "" +
 	"forward_ms\x18\x05 \x01(\x01R\tforwardMs\x12\x1d\n" +
 	"\n" +
 	"reverse_ms\x18\x06 \x01(\x01R\treverseMs\x12*\n" +
-	"\x11one_way_available\x18\a \x01(\bR\x0foneWayAvailableBYZ3github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1\xaa\x02!MADTOM.Plugins.Telemetry.Proto.V1b\x06proto3"
+	"\x11one_way_available\x18\a \x01(\bR\x0foneWayAvailable\"\xba\x01\n" +
+	"\rDiskIoMetrics\x12\x1d\n" +
+	"\n" +
+	"read_bytes\x18\x01 \x01(\x04R\treadBytes\x12\x1f\n" +
+	"\vwrite_bytes\x18\x02 \x01(\x04R\n" +
+	"writeBytes\x12\x19\n" +
+	"\bread_ops\x18\x03 \x01(\x04R\areadOps\x12\x1b\n" +
+	"\twrite_ops\x18\x04 \x01(\x04R\bwriteOps\x121\n" +
+	"\adevices\x18\x05 \x03(\v2\x17.madtom.v1.DiskIoDeviceR\adevices\"\x9a\x01\n" +
+	"\fDiskIoDevice\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"read_bytes\x18\x02 \x01(\x04R\treadBytes\x12\x1f\n" +
+	"\vwrite_bytes\x18\x03 \x01(\x04R\n" +
+	"writeBytes\x12\x19\n" +
+	"\bread_ops\x18\x04 \x01(\x04R\areadOps\x12\x1b\n" +
+	"\twrite_ops\x18\x05 \x01(\x04R\bwriteOpsBYZ3github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1\xaa\x02!MADTOM.Plugins.Telemetry.Proto.V1b\x06proto3"
 
 var (
 	file_madtom_v1_metrics_proto_rawDescOnce sync.Once
@@ -1013,7 +1191,7 @@ func file_madtom_v1_metrics_proto_rawDescGZIP() []byte {
 	return file_madtom_v1_metrics_proto_rawDescData
 }
 
-var file_madtom_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_madtom_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_madtom_v1_metrics_proto_goTypes = []any{
 	(*SystemMetrics)(nil),  // 0: madtom.v1.SystemMetrics
 	(*CpuMetrics)(nil),     // 1: madtom.v1.CpuMetrics
@@ -1023,6 +1201,8 @@ var file_madtom_v1_metrics_proto_goTypes = []any{
 	(*NicMetric)(nil),      // 5: madtom.v1.NicMetric
 	(*ProcessMetric)(nil),  // 6: madtom.v1.ProcessMetric
 	(*TwampMetrics)(nil),   // 7: madtom.v1.TwampMetrics
+	(*DiskIoMetrics)(nil),  // 8: madtom.v1.DiskIoMetrics
+	(*DiskIoDevice)(nil),   // 9: madtom.v1.DiskIoDevice
 }
 var file_madtom_v1_metrics_proto_depIdxs = []int32{
 	1, // 0: madtom.v1.SystemMetrics.cpu:type_name -> madtom.v1.CpuMetrics
@@ -1031,12 +1211,14 @@ var file_madtom_v1_metrics_proto_depIdxs = []int32{
 	4, // 3: madtom.v1.SystemMetrics.network:type_name -> madtom.v1.NetworkMetrics
 	6, // 4: madtom.v1.SystemMetrics.processes:type_name -> madtom.v1.ProcessMetric
 	7, // 5: madtom.v1.SystemMetrics.twamp:type_name -> madtom.v1.TwampMetrics
-	5, // 6: madtom.v1.NetworkMetrics.interfaces:type_name -> madtom.v1.NicMetric
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	8, // 6: madtom.v1.SystemMetrics.disk_io:type_name -> madtom.v1.DiskIoMetrics
+	5, // 7: madtom.v1.NetworkMetrics.interfaces:type_name -> madtom.v1.NicMetric
+	9, // 8: madtom.v1.DiskIoMetrics.devices:type_name -> madtom.v1.DiskIoDevice
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_metrics_proto_init() }
@@ -1050,7 +1232,7 @@ func file_madtom_v1_metrics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_madtom_v1_metrics_proto_rawDesc), len(file_madtom_v1_metrics_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

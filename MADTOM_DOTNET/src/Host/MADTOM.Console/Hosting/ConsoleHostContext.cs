@@ -60,15 +60,21 @@ public sealed class ConsoleHostContext : IPluginHostContext, ILexiconHost, IThem
     }
 
     // --- IThemeHost Implementation ---
-    public string CurrentTheme { get; private set; } = "default-dark";
+    public string CurrentTheme => Theming.ConsoleThemeManager.Instance.CurrentTheme;
     public event EventHandler<string>? CurrentThemeChanged;
+
+    public IReadOnlyList<MadTOM.Theming.ThemePaletteModel> AvailablePalettes =>
+        Theming.ConsoleThemeManager.Instance.AvailablePalettes;
+
+    public MadTOM.Theming.ThemePaletteModel? GetPalette(string themeName) =>
+        Theming.ConsoleThemeManager.Instance.GetPalette(themeName);
 
     public void SetTheme(string themeKey)
     {
-        if (string.IsNullOrWhiteSpace(themeKey) || CurrentTheme.Equals(themeKey, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(themeKey))
             return;
 
-        CurrentTheme = themeKey;
+        Theming.ConsoleThemeManager.Instance.ApplyTheme(themeKey);
         CurrentThemeChanged?.Invoke(this, themeKey);
     }
 

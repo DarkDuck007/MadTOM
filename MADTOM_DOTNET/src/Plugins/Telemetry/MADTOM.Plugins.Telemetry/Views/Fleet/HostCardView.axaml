@@ -62,8 +62,20 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Top-Right: Collector Name & Node Configure Button -->
+                <!-- Top-Right: Custom Node Group & Collector Badges -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Border Background="{DynamicResource AccentSubtleBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Node.GroupName}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="9"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
                     <Border Background="{DynamicResource DarkBaseBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
@@ -73,18 +85,8 @@
                         <TextBlock Text="{Binding Node.CollectorName}"
                                    FontFamily="{StaticResource MonoFontFamily}"
                                    FontSize="9"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Border>
-                    <Button Command="{Binding ConfigureNodeCommand}"
-                            Background="{DynamicResource DarkBaseBrush}"
-                            BorderThickness="0"
-                            CornerRadius="4"
-                            Padding="4,2"
-                            Cursor="Hand"
-                            ToolTip.Tip="Configure Node Collection &amp; Viewing Settings">
-                        <TextBlock Text="⚙" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    </Button>
                 </StackPanel>
             </Grid>
 

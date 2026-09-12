@@ -1,0 +1,30 @@
+{
+  "themeName": "simple-purple-dark",
+  "displayName": "Simple Purple Dark",
+  "colors": {
+    "Background": "#000229",
+    "HeaderBackground": "#000229",
+    "SidebarBackground": "#6E3477",
+    "CardBackground": "#6E3477",
+    "CardHoverBackground": "#6A4CD4",
+    "DarkBase": "#000229",
+    "Border": "#6A4CD4",
+    "BorderSubtle": "#6E3477",
+    "TextPrimary": "#E2EBF3",
+    "TextSecondary": "#A4A6E3",
+    "TextMuted": "#A4A6E3",
+    "Accent": "#A4A6E3",
+    "AccentSubtle": "#6A4CD4",
+    "AccentText": "#000229",
+    "Healthy": "#A4A6E3",
+    "HealthySubtle": "#6A4CD4",
+    "Warning": "#E2EBF3",
+    "WarningSubtle": "#6E3477",
+    "Critical": "#6E3477",
+    "CriticalSubtle": "#000229",
+    "Indigo": "#6A4CD4",
+    "IndigoSubtle": "#000229",
+    "Purple": "#6E3477",
+    "PurpleSubtle": "#000229"
+  }
+}

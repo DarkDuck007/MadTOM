@@ -167,6 +167,7 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
         GoslingCount = _nodes.Count(n => n.Role == "vm"),
         P95ForwardMs = 1.8,
         P95ReverseMs = 2.4,
+        GlobalIngressGbps = 124.5,
         GlobalEgressGbps = 148.2
     };
 

@@ -104,7 +104,6 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         _sidebarWidth = _isSidebarCollapsed ? 64 : 220;
 
         _hostContext.SetTheme(_activeTheme);
-        MadTOM.Theming.ThemeService.Instance.ApplyTheme(_activeTheme);
         _hostContext.SetLexicon(_activeLexicon);
 
         _hostContext.ToastTriggered += OnHostToastTriggered;
@@ -123,25 +122,30 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         }
 
         InitializeThemes();
+        Theming.ConsoleThemeManager.Instance.ThemesCollectionChanged += (_, _) =>
+        {
+            Dispatcher.UIThread.Post(RefreshAvailableThemes);
+        };
     }
 
-    private void InitializeThemes()
-    {
-        (string key, string name, string cat, string bg, string acc)[] themes =
-        [
-            ("default-dark", "Default Dark", "Dark", "#070a12", "#06b6d4"),
-            ("pure-light", "Pure Light", "Light", "#f8fafc", "#0284c7"),
-            ("paper-white", "Paper White", "Light", "#fbf9f5", "#b45309"),
-            ("minimal-mono", "Minimal Mono", "Minimal", "#121212", "#e0e0e0"),
-            ("anti-bleed-grey", "IPS Neutralizer", "IPS / Anti-Bleed", "#23272e", "#00d4ff"),
-            ("tft-amber-terminal", "TFT Amber CRT", "TFT / High-Angle", "#1b1c18", "#ffb000"),
-            ("high-contrast", "High Contrast", "High Contrast", "#000000", "#00f0ff"),
-            ("solarized-dark", "Solarized Dark", "Dark", "#002b36", "#2aa198"),
-        ];
+    private void InitializeThemes() => RefreshAvailableThemes();
 
-        foreach (var (key, name, cat, bg, acc) in themes)
+    private void RefreshAvailableThemes()
+    {
+        AvailableThemes.Clear();
+        foreach (var p in _hostContext.Themes.AvailablePalettes)
         {
-            AvailableThemes.Add(new ThemeOption(key, name, cat, bg, acc, SwitchTheme, key.Equals(ActiveTheme, StringComparison.OrdinalIgnoreCase)));
+            string bg = p.Colors.TryGetValue("Background", out var b) ? b : "#070a12";
+            string acc = p.Colors.TryGetValue("Accent", out var a) ? a : "#06b6d4";
+            string cat = p.GetEffectiveCategory();
+            AvailableThemes.Add(new ThemeOption(
+                p.ThemeName,
+                p.DisplayName,
+                cat,
+                bg,
+                acc,
+                SwitchTheme,
+                p.ThemeName.Equals(ActiveTheme, StringComparison.OrdinalIgnoreCase)));
         }
     }
 
@@ -155,7 +159,6 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         }
 
         _hostContext.SetTheme(themeKey);
-        MadTOM.Theming.ThemeService.Instance.ApplyTheme(themeKey);
         _appSettings.Theme = themeKey;
         AppSettingsStore.Save(_appSettings);
         ShowToast($"Theme changed to {themeKey}", "🎨");

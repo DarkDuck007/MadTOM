@@ -1,0 +1,62 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Monospace font family resource -->
+    <FontFamily x:Key="MonoFontFamily">Cascadia Code, Consolas, DejaVu Sans Mono, Menlo, monospace</FontFamily>
+
+    <!-- Theme Color Palette Definitions -->
+    <Color x:Key="ColorAppBg">#070A12</Color>
+    <Color x:Key="ColorHeaderBg">#0B111E</Color>
+    <Color x:Key="ColorSidebarBg">#0C1220</Color>
+    <Color x:Key="ColorCardBg">#0C1220</Color>
+    <Color x:Key="ColorCardHoverBg">#0F172A</Color>
+    <Color x:Key="ColorDarkBase">#04060B</Color>
+    <Color x:Key="ColorBorder">#1E293B</Color>
+    <Color x:Key="ColorBorderSubtle">#0F172A</Color>
+
+    <Color x:Key="ColorTextPrimary">#F8FAFC</Color>
+    <Color x:Key="ColorTextSecondary">#94A3B8</Color>
+    <Color x:Key="ColorTextMuted">#64748B</Color>
+
+    <Color x:Key="ColorAccent">#06B6D4</Color>
+    <Color x:Key="ColorAccentSubtle">#083344</Color>
+    <Color x:Key="ColorAccentText">#22D3EE</Color>
+    <Color x:Key="ColorHealthy">#10B981</Color>
+    <Color x:Key="ColorHealthySubtle">#064E3B</Color>
+    <Color x:Key="ColorWarning">#F59E0B</Color>
+    <Color x:Key="ColorWarningSubtle">#451A03</Color>
+    <Color x:Key="ColorCritical">#F43F5E</Color>
+    <Color x:Key="ColorCriticalSubtle">#4C0519</Color>
+    <Color x:Key="ColorIndigo">#6366F1</Color>
+    <Color x:Key="ColorIndigoSubtle">#1E1B4B</Color>
+    <Color x:Key="ColorPurple">#A855F7</Color>
+    <Color x:Key="ColorPurpleSubtle">#3B0764</Color>
+
+    <!-- Dynamic Theme Brushes -->
+    <SolidColorBrush x:Key="AppBgBrush" Color="{StaticResource ColorAppBg}" />
+    <SolidColorBrush x:Key="HeaderBgBrush" Color="{StaticResource ColorHeaderBg}" />
+    <SolidColorBrush x:Key="SidebarBgBrush" Color="{StaticResource ColorSidebarBg}" />
+    <SolidColorBrush x:Key="CardBgBrush" Color="{StaticResource ColorCardBg}" />
+    <SolidColorBrush x:Key="CardHoverBgBrush" Color="{StaticResource ColorCardHoverBg}" />
+    <SolidColorBrush x:Key="DarkBaseBrush" Color="{StaticResource ColorDarkBase}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource ColorBorder}" />
+    <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource ColorBorderSubtle}" />
+
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource ColorTextPrimary}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource ColorTextSecondary}" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource ColorTextMuted}" />
+
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource ColorAccent}" />
+    <SolidColorBrush x:Key="AccentSubtleBrush" Color="{StaticResource ColorAccentSubtle}" />
+    <SolidColorBrush x:Key="AccentTextBrush" Color="{StaticResource ColorAccentText}" />
+    <SolidColorBrush x:Key="HealthyBrush" Color="{StaticResource ColorHealthy}" />
+    <SolidColorBrush x:Key="HealthySubtleBrush" Color="{StaticResource ColorHealthySubtle}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource ColorWarning}" />
+    <SolidColorBrush x:Key="WarningSubtleBrush" Color="{StaticResource ColorWarningSubtle}" />
+    <SolidColorBrush x:Key="CriticalBrush" Color="{StaticResource ColorCritical}" />
+    <SolidColorBrush x:Key="CriticalSubtleBrush" Color="{StaticResource ColorCriticalSubtle}" />
+    <SolidColorBrush x:Key="IndigoBrush" Color="{StaticResource ColorIndigo}" />
+    <SolidColorBrush x:Key="IndigoSubtleBrush" Color="{StaticResource ColorIndigoSubtle}" />
+    <SolidColorBrush x:Key="PurpleBrush" Color="{StaticResource ColorPurple}" />
+    <SolidColorBrush x:Key="PurpleSubtleBrush" Color="{StaticResource ColorPurpleSubtle}" />
+</ResourceDictionary>
+

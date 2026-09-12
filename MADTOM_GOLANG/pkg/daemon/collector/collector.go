@@ -1,12 +1,13 @@
 package collector
 
 import (
-	"github.com/DarkDuck007/madtom/pkg/daemon/twamp"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DarkDuck007/madtom/pkg/daemon/twamp"
 
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 )
@@ -19,6 +20,7 @@ type Engine struct {
 	memCollector     *MemoryCollector
 	pwrCollector     *PowerCollector
 	netCollector     *NetworkCollector
+	diskCollector    *DiskCollector
 	processCollector *ProcessCollector
 	cpuModel         string
 }
@@ -34,6 +36,7 @@ func NewEngine(nodeID string) *Engine {
 		memCollector:     NewMemoryCollector(),
 		pwrCollector:     NewPowerCollector(),
 		netCollector:     NewNetworkCollector(),
+		diskCollector:    NewDiskCollector(),
 		processCollector: NewProcessCollector(),
 		cpuModel:         readCPUModel(),
 	}
@@ -72,6 +75,9 @@ func (e *Engine) Collect(cfg *madtomv1.NodeConfig) *madtomv1.SystemMetrics {
 	if cfg.CollectNetworkInterfaces {
 		metrics.Network = e.netCollector.Collect()
 	}
+
+	// 5. Disk I/O
+	metrics.DiskIo = e.diskCollector.Collect()
 
 	metrics.Twamp = twamp.Probe(cfg.TwampTarget, cfg.TwampClocksSynchronized, uint32(time.Now().UnixNano()))
 	metrics.Processes, metrics.ProcessesAvailable = e.processCollector.Collect()

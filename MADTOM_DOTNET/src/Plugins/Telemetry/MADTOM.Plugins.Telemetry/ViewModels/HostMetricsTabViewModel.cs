@@ -26,6 +26,7 @@ public partial class MetricGraphViewModel : ViewModelBase
 
     public string Metric => Series.FirstOrDefault()?.Metric ?? Title;
     public bool IsMerged => Series.Count > 1;
+    public bool IsRateOfChange => Series.FirstOrDefault()?.IsRateOfChange ?? false;
 
     public MetricGraphViewModel(string metric, string? colorHex = null)
     {
@@ -36,6 +37,7 @@ public partial class MetricGraphViewModel : ViewModelBase
         {
             OnPropertyChanged(nameof(IsMerged));
             OnPropertyChanged(nameof(Metric));
+            OnPropertyChanged(nameof(IsRateOfChange));
         };
     }
 
@@ -47,6 +49,7 @@ public partial class MetricGraphViewModel : ViewModelBase
         {
             OnPropertyChanged(nameof(IsMerged));
             OnPropertyChanged(nameof(Metric));
+            OnPropertyChanged(nameof(IsRateOfChange));
         };
     }
 }
@@ -55,6 +58,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
 {
     private readonly ITelemetryDataProvider? _provider;
     private readonly GraphLayoutStore? _layoutStore;
+    private readonly GraphPresetStore _presetStore;
     private CancellationTokenSource? _queryCts;
     private DateTime _lastRefresh;
     private volatile bool _isQueryRunning;
@@ -64,6 +68,11 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     [ObservableProperty] private string _selectedScope = "5m";
     [ObservableProperty] private bool _isCustomScopeModalOpen;
     [ObservableProperty] private bool _isCustomizationModalOpen;
+    [ObservableProperty] private bool _isSavePresetModalOpen;
+    [ObservableProperty] private string _newPresetName = "";
+    [ObservableProperty] private string _newPresetDescription = "";
+    [ObservableProperty] private string _presetErrorMessage = "";
+    [ObservableProperty] private GraphPreset? _selectedPreset;
     [ObservableProperty] private DateTimeOffset? _customStartDate = DateTimeOffset.Now.AddHours(-1);
     [ObservableProperty] private TimeSpan? _customStartTime = DateTime.Now.AddHours(-1).TimeOfDay;
     [ObservableProperty] private DateTimeOffset? _customEndDate = DateTimeOffset.Now;
@@ -80,63 +89,151 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     [ObservableProperty] private IReadOnlyList<FleetNodeModel> _clusterNodes = Array.Empty<FleetNodeModel>();
     [ObservableProperty] private string _targetHostId = "";
     [ObservableProperty] private string _selectedMetric = "cpu.total";
+    [ObservableProperty] private bool _isAddMetricRateOfChange;
 
-    public ObservableCollection<string> AvailableMetrics { get; } = new()
+    private static readonly string[] BaseMetrics = new[]
     {
         "cpu.total", "cpu.user", "cpu.system", "cpu.iowait",
         "memory.used", "memory.available", "memory.total", "memory.swap_free", "memory.zram_ratio",
         "power.battery_pct", "power.rate_watts",
-        "twamp.rtt", "twamp.forward", "twamp.reverse"
+        "twamp.rtt", "twamp.forward", "twamp.reverse",
+        "disk.io.read_bytes", "disk.io.write_bytes", "disk.io.read_ops", "disk.io.write_ops"
     };
 
+    public ObservableCollection<string> AvailableMetrics { get; } = new();
+    public ObservableCollection<MetricGraphGroupViewModel> Groups { get; } = new();
     public ObservableCollection<MetricGraphViewModel> Graphs { get; } = new();
+    public ObservableCollection<GraphPreset> AvailablePresets { get; } = new();
 
     public bool IsScope1m => SelectedScope == "1m";
     public bool IsScope5m => SelectedScope == "5m";
     public bool IsScope30m => SelectedScope == "30m";
     public bool IsScope2h => SelectedScope == "2h";
+    public bool IsScope6h => SelectedScope == "6h";
+    public bool IsScope12h => SelectedScope == "12h";
     public bool IsScope24h => SelectedScope == "24h";
     public bool IsScopeCustom => SelectedScope == "custom";
 
+    public bool CanDeleteSelectedPreset => SelectedPreset != null && !SelectedPreset.IsBuiltIn;
+
     partial void OnSelectedScopeChanged(string value)
     {
-        foreach (string p in new[] { nameof(IsScope1m), nameof(IsScope5m), nameof(IsScope30m), nameof(IsScope2h), nameof(IsScope24h), nameof(IsScopeCustom) })
+        foreach (string p in new[] { nameof(IsScope1m), nameof(IsScope5m), nameof(IsScope30m), nameof(IsScope2h), nameof(IsScope6h), nameof(IsScope12h), nameof(IsScope24h), nameof(IsScopeCustom) })
             OnPropertyChanged(p);
     }
 
-    public HostMetricsTabViewModel(ITelemetryDataProvider? provider = null, GraphLayoutStore? layoutStore = null)
+    partial void OnSelectedPresetChanged(GraphPreset? value)
+    {
+        OnPropertyChanged(nameof(CanDeleteSelectedPreset));
+    }
+
+    public HostMetricsTabViewModel(
+        ITelemetryDataProvider? provider = null,
+        GraphLayoutStore? layoutStore = null,
+        GraphPresetStore? presetStore = null)
     {
         _provider = provider;
         _layoutStore = layoutStore;
+        _presetStore = presetStore ?? new GraphPresetStore();
+        PopulateAvailableMetrics(null, Array.Empty<FleetNodeModel>());
+        LoadPresets();
+        LoadGraphsForNode(TargetHostId);
+    }
 
-        var loadedConfigs = layoutStore?.LoadConfigs();
-        if (loadedConfigs != null && loadedConfigs.Count > 0)
+    public void LoadPresets()
+    {
+        AvailablePresets.Clear();
+        foreach (var p in _presetStore.LoadAllPresets())
         {
-            foreach (var cfg in loadedConfigs)
+            AvailablePresets.Add(p);
+        }
+        SelectedPreset = AvailablePresets.FirstOrDefault();
+    }
+
+    private void SyncGraphsFromGroups()
+    {
+        Graphs.Clear();
+        foreach (var grp in Groups)
+        {
+            foreach (var g in grp.Graphs)
             {
-                var seriesList = new List<ChartSeriesModel>();
-                foreach (var sc in cfg.Series)
+                Graphs.Add(g);
+            }
+        }
+    }
+
+    public void LoadGraphsForNode(string hostId)
+    {
+        Groups.Clear();
+        Graphs.Clear();
+        string key = string.IsNullOrEmpty(hostId) ? "aggregated" : hostId;
+        var loadedGroups = _layoutStore?.LoadGroupConfigs(key);
+        if (loadedGroups != null && loadedGroups.Count > 0)
+        {
+            foreach (var groupCfg in loadedGroups)
+            {
+                var groupVm = new MetricGraphGroupViewModel(groupCfg.Title);
+                foreach (var cfg in groupCfg.Graphs)
                 {
-                    if (!AvailableMetrics.Contains(sc.Metric)) AvailableMetrics.Add(sc.Metric);
-                    var s = new ChartSeriesModel(sc.Metric, sc.Label, sc.ColorHex);
-                    s.ConfigurationChanged += SaveLayout;
-                    seriesList.Add(s);
+                    var seriesList = new List<ChartSeriesModel>();
+                    foreach (var sc in cfg.Series)
+                    {
+                        if (!AvailableMetrics.Contains(sc.Metric)) AvailableMetrics.Add(sc.Metric);
+                        var s = new ChartSeriesModel(sc.Metric, sc.Label, sc.ColorHex)
+                        {
+                            IsRateOfChange = sc.IsRateOfChange
+                        };
+                        s.ConfigurationChanged += SaveLayout;
+                        seriesList.Add(s);
+                    }
+                    if (seriesList.Count > 0)
+                    {
+                        groupVm.Graphs.Add(new MetricGraphViewModel(cfg.Title, seriesList));
+                    }
                 }
-                if (seriesList.Count > 0)
+                if (groupVm.Graphs.Count > 0)
                 {
-                    Graphs.Add(new MetricGraphViewModel(cfg.Title, seriesList));
+                    Groups.Add(groupVm);
                 }
             }
         }
-        else
+
+        if (Groups.Count == 0)
         {
             var s1 = new ChartSeriesModel("cpu.total", "cpu.total", "#06B6D4");
             s1.ConfigurationChanged += SaveLayout;
-            Graphs.Add(new MetricGraphViewModel("cpu.total", new[] { s1 }));
+            var g1 = new MetricGraphViewModel("cpu.total", new[] { s1 });
+            Groups.Add(new MetricGraphGroupViewModel(g1));
 
             var s2 = new ChartSeriesModel("memory.used", "memory.used", "#10B981");
             s2.ConfigurationChanged += SaveLayout;
-            Graphs.Add(new MetricGraphViewModel("memory.used", new[] { s2 }));
+            var g2 = new MetricGraphViewModel("memory.used", new[] { s2 });
+            Groups.Add(new MetricGraphGroupViewModel(g2));
+        }
+
+        SyncGraphsFromGroups();
+    }
+
+    private void PopulateAvailableMetrics(FleetNodeModel? node, IReadOnlyList<FleetNodeModel> allNodes)
+    {
+        AvailableMetrics.Clear();
+        foreach (var m in BaseMetrics) AvailableMetrics.Add(m);
+
+        var ifaces = (IsAggregatedMode ? allNodes.SelectMany(n => n.Interfaces) : (node?.Interfaces ?? Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.NicMetric>()))
+            .Select(i => i.Name)
+            .Distinct();
+
+        foreach (var name in ifaces)
+        {
+            foreach (string suffix in new[] { "rx_bytes", "tx_bytes" })
+            {
+                AvailableMetrics.Add($"nic.{name}.{suffix}");
+            }
+        }
+
+        if (!AvailableMetrics.Contains(SelectedMetric))
+        {
+            SelectedMetric = "cpu.total";
         }
     }
 
@@ -146,13 +243,28 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     [RelayCommand]
     public void CloseCustomizationModal() => IsCustomizationModalOpen = false;
 
+    public MetricGraphGroupViewModel? FindGroupForGraph(MetricGraphViewModel graph)
+    {
+        return Groups.FirstOrDefault(g => g.Graphs.Contains(graph));
+    }
+
     [RelayCommand]
     public void AddGraph()
     {
-        if (string.IsNullOrWhiteSpace(SelectedMetric) || Graphs.Any(g => g.Series.Count == 1 && g.Series[0].Metric == SelectedMetric)) return;
-        var series = new ChartSeriesModel(SelectedMetric, SelectedMetric, GraphLayoutStore.GetDefaultColor(SelectedMetric));
+        if (string.IsNullOrWhiteSpace(SelectedMetric)) return;
+        bool isRate = IsAddMetricRateOfChange;
+        string label = isRate ? $"{SelectedMetric} (rate/s)" : SelectedMetric;
+        string title = label;
+        if (Graphs.Any(g => g.Series.Count == 1 && g.Series[0].Metric == SelectedMetric && g.Series[0].IsRateOfChange == isRate)) return;
+
+        var series = new ChartSeriesModel(SelectedMetric, label, GraphLayoutStore.GetDefaultColor(SelectedMetric))
+        {
+            IsRateOfChange = isRate
+        };
         series.ConfigurationChanged += SaveLayout;
-        Graphs.Add(new MetricGraphViewModel(SelectedMetric, new[] { series }));
+        var newGraph = new MetricGraphViewModel(title, new[] { series });
+        Groups.Add(new MetricGraphGroupViewModel(newGraph));
+        SyncGraphsFromGroups();
         SaveLayout();
         _ = RefreshHistoryAsync();
     }
@@ -160,7 +272,16 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     [RelayCommand]
     public void RemoveGraph(MetricGraphViewModel graph)
     {
-        Graphs.Remove(graph);
+        var group = FindGroupForGraph(graph);
+        if (group != null)
+        {
+            group.Graphs.Remove(graph);
+            if (group.Graphs.Count == 0)
+            {
+                Groups.Remove(group);
+            }
+        }
+        SyncGraphsFromGroups();
         SaveLayout();
     }
 
@@ -192,7 +313,17 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             }
         }
         target.Title = $"{target.Series[0].Label} + {target.Series.Count - 1} more";
-        Graphs.Remove(source);
+        
+        var sourceGroup = FindGroupForGraph(source);
+        if (sourceGroup != null)
+        {
+            sourceGroup.Graphs.Remove(source);
+            if (sourceGroup.Graphs.Count == 0)
+            {
+                Groups.Remove(sourceGroup);
+            }
+        }
+        SyncGraphsFromGroups();
         SaveLayout();
         _ = RefreshHistoryAsync();
     }
@@ -201,6 +332,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public void SplitGraph(MetricGraphViewModel graph)
     {
         if (graph.Series.Count <= 1) return;
+        var group = FindGroupForGraph(graph);
         var toSplit = graph.Series.Skip(1).ToList();
         while (graph.Series.Count > 1)
         {
@@ -212,8 +344,17 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         {
             s.ConfigurationChanged += SaveLayout;
             var newGraph = new MetricGraphViewModel(s.Label, new[] { s });
-            Graphs.Add(newGraph);
+            if (group != null)
+            {
+                int insertIdx = group.Graphs.IndexOf(graph) + 1;
+                group.Graphs.Insert(insertIdx, newGraph);
+            }
+            else
+            {
+                Groups.Add(new MetricGraphGroupViewModel(newGraph));
+            }
         }
+        SyncGraphsFromGroups();
         SaveLayout();
         _ = RefreshHistoryAsync();
     }
@@ -226,22 +367,168 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         parentGraph.Series.Remove(series);
         if (parentGraph.Series.Count == 0)
         {
-            Graphs.Remove(parentGraph);
+            RemoveGraph(parentGraph);
         }
         else
         {
             parentGraph.Title = parentGraph.Series.Count == 1 ? parentGraph.Series[0].Label : $"{parentGraph.Series[0].Label} + {parentGraph.Series.Count - 1} more";
+            SaveLayout();
+            _ = RefreshHistoryAsync();
         }
+    }
+
+    [RelayCommand]
+    public void MoveGraphLeft(MetricGraphViewModel graph)
+    {
+        var group = FindGroupForGraph(graph);
+        if (group == null) return;
+        int idx = group.Graphs.IndexOf(graph);
+        if (idx > 0)
+        {
+            group.Graphs.Move(idx, idx - 1);
+            SyncGraphsFromGroups();
+            SaveLayout();
+        }
+    }
+
+    [RelayCommand]
+    public void MoveGraphRight(MetricGraphViewModel graph)
+    {
+        var group = FindGroupForGraph(graph);
+        if (group == null) return;
+        int idx = group.Graphs.IndexOf(graph);
+        if (idx >= 0 && idx < group.Graphs.Count - 1)
+        {
+            group.Graphs.Move(idx, idx + 1);
+            SyncGraphsFromGroups();
+            SaveLayout();
+        }
+    }
+
+    [RelayCommand]
+    public void MoveGraphUp(MetricGraphViewModel graph)
+    {
+        var group = FindGroupForGraph(graph);
+        if (group == null) return;
+        int grpIdx = Groups.IndexOf(group);
+        if (grpIdx > 0)
+        {
+            if (group.Graphs.Count == 1)
+            {
+                Groups.Move(grpIdx, grpIdx - 1);
+            }
+            else
+            {
+                group.Graphs.Remove(graph);
+                Groups[grpIdx - 1].Graphs.Add(graph);
+            }
+            SyncGraphsFromGroups();
+            SaveLayout();
+        }
+        else if (group.Graphs.Count > 1)
+        {
+            group.Graphs.Remove(graph);
+            Groups.Insert(0, new MetricGraphGroupViewModel(graph));
+            SyncGraphsFromGroups();
+            SaveLayout();
+        }
+    }
+
+    [RelayCommand]
+    public void MoveGraphDown(MetricGraphViewModel graph)
+    {
+        var group = FindGroupForGraph(graph);
+        if (group == null) return;
+        int grpIdx = Groups.IndexOf(group);
+        if (grpIdx >= 0 && grpIdx < Groups.Count - 1)
+        {
+            if (group.Graphs.Count == 1)
+            {
+                Groups.Move(grpIdx, grpIdx + 1);
+            }
+            else
+            {
+                group.Graphs.Remove(graph);
+                Groups[grpIdx + 1].Graphs.Insert(0, graph);
+            }
+            SyncGraphsFromGroups();
+            SaveLayout();
+        }
+        else if (group.Graphs.Count > 1)
+        {
+            group.Graphs.Remove(graph);
+            Groups.Add(new MetricGraphGroupViewModel(graph));
+            SyncGraphsFromGroups();
+            SaveLayout();
+        }
+    }
+
+    [RelayCommand]
+    public void SeparateGraphToNewRow(MetricGraphViewModel graph)
+    {
+        var group = FindGroupForGraph(graph);
+        if (group == null || group.Graphs.Count <= 1) return;
+        int grpIdx = Groups.IndexOf(group);
+        group.Graphs.Remove(graph);
+        Groups.Insert(grpIdx + 1, new MetricGraphGroupViewModel(graph));
+        SyncGraphsFromGroups();
         SaveLayout();
-        _ = RefreshHistoryAsync();
+    }
+
+    [RelayCommand]
+    public void CombineWithNextRow(MetricGraphViewModel graph)
+    {
+        var group = FindGroupForGraph(graph);
+        if (group == null) return;
+        CombineGroupWithNext(group);
+    }
+
+    [RelayCommand]
+    public void CombineGroupWithNext(MetricGraphGroupViewModel group)
+    {
+        int grpIdx = Groups.IndexOf(group);
+        if (grpIdx < 0 || grpIdx >= Groups.Count - 1) return;
+        var nextGroup = Groups[grpIdx + 1];
+        var toMove = nextGroup.Graphs.ToList();
+        foreach (var g in toMove)
+        {
+            nextGroup.Graphs.Remove(g);
+            group.Graphs.Add(g);
+        }
+        Groups.Remove(nextGroup);
+        SyncGraphsFromGroups();
+        SaveLayout();
+    }
+
+    [RelayCommand]
+    public void MoveGroupUp(MetricGraphGroupViewModel group)
+    {
+        int idx = Groups.IndexOf(group);
+        if (idx > 0)
+        {
+            Groups.Move(idx, idx - 1);
+            SyncGraphsFromGroups();
+            SaveLayout();
+        }
+    }
+
+    [RelayCommand]
+    public void MoveGroupDown(MetricGraphGroupViewModel group)
+    {
+        int idx = Groups.IndexOf(group);
+        if (idx >= 0 && idx < Groups.Count - 1)
+        {
+            Groups.Move(idx, idx + 1);
+            SyncGraphsFromGroups();
+            SaveLayout();
+        }
     }
 
     [RelayCommand]
     public void QuickMergeCpu()
     {
         var cpuMetrics = new HashSet<string>(new[] { "cpu.total", "cpu.user", "cpu.system", "cpu.iowait" });
-        var toRemove = Graphs.Where(g => g.Series.All(s => cpuMetrics.Contains(s.Metric))).ToList();
-        foreach (var g in toRemove) Graphs.Remove(g);
+        RemoveGraphsMatching(g => g.Series.All(s => cpuMetrics.Contains(s.Metric)));
 
         var series = new[]
         {
@@ -252,7 +539,8 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         };
         foreach (var s in series) s.ConfigurationChanged += SaveLayout;
         var merged = new MetricGraphViewModel("CPU Breakdown", series);
-        Graphs.Insert(0, merged);
+        Groups.Insert(0, new MetricGraphGroupViewModel(merged));
+        SyncGraphsFromGroups();
         SaveLayout();
         _ = RefreshHistoryAsync();
     }
@@ -261,8 +549,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public void QuickMergeMemory()
     {
         var memMetrics = new HashSet<string>(new[] { "memory.used", "memory.available" });
-        var toRemove = Graphs.Where(g => g.Series.All(s => memMetrics.Contains(s.Metric))).ToList();
-        foreach (var g in toRemove) Graphs.Remove(g);
+        RemoveGraphsMatching(g => g.Series.All(s => memMetrics.Contains(s.Metric)));
 
         var series = new[]
         {
@@ -271,7 +558,8 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         };
         foreach (var s in series) s.ConfigurationChanged += SaveLayout;
         var merged = new MetricGraphViewModel("Memory Breakdown", series);
-        Graphs.Add(merged);
+        Groups.Add(new MetricGraphGroupViewModel(merged));
+        SyncGraphsFromGroups();
         SaveLayout();
         _ = RefreshHistoryAsync();
     }
@@ -280,8 +568,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public void QuickMergeTwamp()
     {
         var twampMetrics = new HashSet<string>(new[] { "twamp.rtt", "twamp.forward", "twamp.reverse" });
-        var toRemove = Graphs.Where(g => g.Series.All(s => twampMetrics.Contains(s.Metric))).ToList();
-        foreach (var g in toRemove) Graphs.Remove(g);
+        RemoveGraphsMatching(g => g.Series.All(s => twampMetrics.Contains(s.Metric)));
 
         var series = new[]
         {
@@ -291,42 +578,145 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         };
         foreach (var s in series) s.ConfigurationChanged += SaveLayout;
         var merged = new MetricGraphViewModel("TWAMP Latency Breakdown", series);
-        Graphs.Add(merged);
+        Groups.Add(new MetricGraphGroupViewModel(merged));
+        SyncGraphsFromGroups();
         SaveLayout();
         _ = RefreshHistoryAsync();
+    }
+
+    private void RemoveGraphsMatching(Func<MetricGraphViewModel, bool> predicate)
+    {
+        foreach (var grp in Groups.ToList())
+        {
+            var matches = grp.Graphs.Where(predicate).ToList();
+            foreach (var m in matches) grp.Graphs.Remove(m);
+            if (grp.Graphs.Count == 0) Groups.Remove(grp);
+        }
     }
 
     [RelayCommand]
     public void ResetToDefaultGraphs()
     {
-        Graphs.Clear();
+        Groups.Clear();
         var s1 = new ChartSeriesModel("cpu.total", "cpu.total", "#06B6D4");
         s1.ConfigurationChanged += SaveLayout;
-        Graphs.Add(new MetricGraphViewModel("cpu.total", new[] { s1 }));
+        var g1 = new MetricGraphViewModel("cpu.total", new[] { s1 });
+        Groups.Add(new MetricGraphGroupViewModel(g1));
 
         var s2 = new ChartSeriesModel("memory.used", "memory.used", "#10B981");
         s2.ConfigurationChanged += SaveLayout;
-        Graphs.Add(new MetricGraphViewModel("memory.used", new[] { s2 }));
+        var g2 = new MetricGraphViewModel("memory.used", new[] { s2 });
+        Groups.Add(new MetricGraphGroupViewModel(g2));
 
+        SyncGraphsFromGroups();
         SaveLayout();
         _ = RefreshHistoryAsync();
     }
 
-    private void SaveLayout()
+    [RelayCommand]
+    public void ApplyPreset(GraphPreset? preset = null)
     {
-        try
+        preset ??= SelectedPreset;
+        if (preset == null || preset.Groups == null || preset.Groups.Count == 0) return;
+
+        Groups.Clear();
+        foreach (var groupCfg in preset.Groups)
         {
-            var configs = Graphs.Select(g => new GraphItemConfig
+            var groupVm = new MetricGraphGroupViewModel(groupCfg.Title);
+            foreach (var cfg in groupCfg.Graphs)
+            {
+                var seriesList = new List<ChartSeriesModel>();
+                foreach (var sc in cfg.Series)
+                {
+                    if (!AvailableMetrics.Contains(sc.Metric)) AvailableMetrics.Add(sc.Metric);
+                    var s = new ChartSeriesModel(sc.Metric, sc.Label, sc.ColorHex)
+                    {
+                        IsRateOfChange = sc.IsRateOfChange
+                    };
+                    s.ConfigurationChanged += SaveLayout;
+                    seriesList.Add(s);
+                }
+                if (seriesList.Count > 0)
+                {
+                    groupVm.Graphs.Add(new MetricGraphViewModel(cfg.Title, seriesList));
+                }
+            }
+            if (groupVm.Graphs.Count > 0)
+            {
+                Groups.Add(groupVm);
+            }
+        }
+        SyncGraphsFromGroups();
+        SaveLayout();
+        _ = RefreshHistoryAsync();
+    }
+
+    [RelayCommand]
+    public void OpenSavePresetModal()
+    {
+        NewPresetName = "";
+        NewPresetDescription = "";
+        PresetErrorMessage = "";
+        IsSavePresetModalOpen = true;
+    }
+
+    [RelayCommand]
+    public void CloseSavePresetModal()
+    {
+        IsSavePresetModalOpen = false;
+    }
+
+    [RelayCommand]
+    public void ConfirmSavePreset()
+    {
+        if (string.IsNullOrWhiteSpace(NewPresetName))
+        {
+            PresetErrorMessage = "Preset name cannot be empty.";
+            return;
+        }
+
+        var groupConfigs = ToGroupConfigs();
+        _presetStore.SaveUserPreset(NewPresetName, groupConfigs, NewPresetDescription);
+        IsSavePresetModalOpen = false;
+        LoadPresets();
+        SelectedPreset = AvailablePresets.FirstOrDefault(p => p.Name.Equals(NewPresetName.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [RelayCommand]
+    public void DeletePreset(GraphPreset? preset)
+    {
+        preset ??= SelectedPreset;
+        if (preset == null || preset.IsBuiltIn) return;
+        _presetStore.DeleteUserPreset(preset.Id);
+        LoadPresets();
+    }
+
+    public List<GraphGroupConfig> ToGroupConfigs()
+    {
+        return Groups.Select(grp => new GraphGroupConfig
+        {
+            Title = grp.Title,
+            Graphs = grp.Graphs.Select(g => new GraphItemConfig
             {
                 Title = g.Title,
                 Series = g.Series.Select(s => new GraphSeriesConfig
                 {
                     Metric = s.Metric,
                     Label = s.Label,
-                    ColorHex = s.ColorHex
+                    ColorHex = s.ColorHex,
+                    IsRateOfChange = s.IsRateOfChange
                 }).ToList()
-            }).ToList();
-            _layoutStore?.SaveConfigs(configs);
+            }).ToList()
+        }).ToList();
+    }
+
+    private void SaveLayout()
+    {
+        try
+        {
+            string key = string.IsNullOrEmpty(TargetHostId) ? "aggregated" : TargetHostId;
+            var groupConfigs = ToGroupConfigs();
+            _layoutStore?.SaveGroupConfigs(key, groupConfigs);
         }
         catch (Exception ex)
         {
@@ -363,7 +753,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             var latestSample = DateTimeOffset.FromUnixTimeMilliseconds(_latestSeenTimestampNano / 1_000_000).UtcDateTime;
             if (latestSample > end) end = latestSample;
         }
-        start = end.AddMinutes(SelectedScope switch { "1m" => -1, "30m" => -30, "2h" => -120, "24h" => -1440, _ => -5 });
+        start = end.AddMinutes(SelectedScope switch { "1m" => -1, "30m" => -30, "2h" => -120, "6h" => -360, "12h" => -720, "24h" => -1440, _ => -5 });
         if (!IsScopeCustom) return true;
         if (CustomStartDate == null || CustomEndDate == null || CustomStartTime == null || CustomEndTime == null) return false;
         start = DateTime.SpecifyKind(CustomStartDate.Value.Date + CustomStartTime.Value, DateTimeKind.Local).ToUniversalTime();
@@ -374,7 +764,31 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public void UpdateForNode(string hostId, FleetNodeModel? node, IReadOnlyList<FleetNodeModel> allNodes)
     {
         bool changed = TargetHostId != hostId;
-        TargetHostId = hostId; ClusterNodes = allNodes; IsAggregatedMode = hostId == "aggregated";
+        if (changed)
+        {
+            if (!string.IsNullOrEmpty(TargetHostId))
+            {
+                SaveLayout();
+            }
+
+            TargetHostId = hostId;
+            ClusterNodes = allNodes;
+            IsAggregatedMode = hostId == "aggregated";
+
+            PopulateAvailableMetrics(node, allNodes);
+            LoadGraphsForNode(hostId);
+
+            _hasLoadedHistory = false;
+            _latestSeenTimestampNano = 0;
+
+            if (_provider != null)
+                _ = RefreshHistoryAsync();
+            else
+                _hasLoadedHistory = true;
+        }
+
+        ClusterNodes = allNodes;
+        IsAggregatedMode = hostId == "aggregated";
         ThreadCount = IsAggregatedMode ? allNodes.Sum(n => n.Cores) : node?.Cores ?? 0;
         ViewCoreMatrix = node?.ViewCpuMatrix ?? true;
         foreach (var graph in Graphs) graph.IsVisible = node == null ||
@@ -382,30 +796,15 @@ public partial class HostMetricsTabViewModel : ViewModelBase
              graph.Series.Any(s => s.Metric.StartsWith("nic.")) ? node.ViewNetworkCounters :
              graph.Series.Any(s => s.Metric.Contains("swap") || s.Metric.Contains("zram")) ? node.ViewSwapZram : true);
         CoreLoads = IsAggregatedMode ? allNodes.SelectMany(n => n.CoreLoads).ToArray() : node?.CoreLoads ?? Array.Empty<float>();
-        foreach (var nic in (node == null ? allNodes : new[] { node }).SelectMany(n => n.Interfaces))
+
+        var currentIfaces = (IsAggregatedMode ? allNodes.SelectMany(n => n.Interfaces) : (node?.Interfaces ?? Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.NicMetric>()));
+        foreach (var nic in currentIfaces)
+        {
             foreach (string suffix in new[] { "rx_bytes", "tx_bytes" })
             {
                 string metric = $"nic.{nic.Name}.{suffix}";
                 if (!AvailableMetrics.Contains(metric)) AvailableMetrics.Add(metric);
             }
-        if (changed)
-        {
-            _hasLoadedHistory = false;
-            _latestSeenTimestampNano = 0;
-            foreach (var graph in Graphs)
-            {
-                graph.Values = Array.Empty<double>();
-                graph.Labels = Array.Empty<string>();
-                foreach (var s in graph.Series)
-                {
-                    s.Values = Array.Empty<double>();
-                    s.Timestamps = Array.Empty<long>();
-                }
-            }
-            if (_provider != null)
-                _ = RefreshHistoryAsync();
-            else
-                _hasLoadedHistory = true;
         }
 
         if (node != null)
@@ -433,6 +832,8 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             "5m"  => 300L * 1_000_000_000L,
             "30m" => 1800L * 1_000_000_000L,
             "2h"  => 7200L * 1_000_000_000L,
+            "6h"  => 21600L * 1_000_000_000L,
+            "12h" => 43200L * 1_000_000_000L,
             "24h" => 86400L * 1_000_000_000L,
             _     => 300L * 1_000_000_000L
         };
@@ -471,6 +872,30 @@ public partial class HostMetricsTabViewModel : ViewModelBase
 
                 if (sampleVal.HasValue)
                 {
+                    double currentRaw = sampleVal.Value;
+                    double plotVal = currentRaw;
+
+                    if (series.IsRateOfChange)
+                    {
+                        if (series.PreviousRawSampleValue.HasValue && series.PreviousRawSampleTimestampNano > 0)
+                        {
+                            double dt = (timestampNano - series.PreviousRawSampleTimestampNano) / 1e9;
+                            if (dt <= 0.001) dt = 1.0;
+                            double delta = currentRaw - series.PreviousRawSampleValue.Value;
+                            if (delta < 0 && series.Metric.Contains("bytes")) delta = 0;
+                            plotVal = delta / dt;
+                        }
+                        else
+                        {
+                            series.PreviousRawSampleValue = currentRaw;
+                            series.PreviousRawSampleTimestampNano = timestampNano;
+                            maxPoints = Math.Max(maxPoints, series.Values.Length);
+                            continue;
+                        }
+                        series.PreviousRawSampleValue = currentRaw;
+                        series.PreviousRawSampleTimestampNano = timestampNano;
+                    }
+
                     var currentTs = series.Timestamps;
                     var currentVals = series.Values;
 
@@ -494,11 +919,11 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     }
 
                     newTs[^1] = timestampNano;
-                    newVals[^1] = sampleVal.Value;
+                    newVals[^1] = plotVal;
 
                     series.Timestamps = newTs;
                     series.Values = newVals;
-                    series.LatestValue = sampleVal.Value;
+                    series.LatestValue = plotVal;
                     maxPoints = Math.Max(maxPoints, newCount);
                 }
                 else
@@ -555,8 +980,38 @@ public partial class HostMetricsTabViewModel : ViewModelBase
 
                     series.Timestamps = points.Select(g => g.Key * 1_000_000_000L).ToArray();
                     series.Values = points.Select(g => series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio") ? g.Average(p => p.Value) : g.Sum(p => p.Value)).ToArray();
+
+                    if (series.IsRateOfChange)
+                    {
+                        var rawTs = series.Timestamps;
+                        var rawVals = series.Values;
+                        if (rawTs.Length >= 2)
+                        {
+                            var rateTs = new long[rawTs.Length - 1];
+                            var rateVals = new double[rawVals.Length - 1];
+                            for (int i = 1; i < rawTs.Length; i++)
+                            {
+                                double dt = (rawTs[i] - rawTs[i - 1]) / 1e9;
+                                if (dt <= 0.001) dt = 1.0;
+                                double delta = rawVals[i] - rawVals[i - 1];
+                                if (delta < 0 && series.Metric.Contains("bytes")) delta = 0;
+                                rateTs[i - 1] = rawTs[i];
+                                rateVals[i - 1] = delta / dt;
+                            }
+                            series.Timestamps = rateTs;
+                            series.Values = rateVals;
+                            series.PreviousRawSampleValue = rawVals[^1];
+                            series.PreviousRawSampleTimestampNano = rawTs[^1];
+                        }
+                        else
+                        {
+                            series.Timestamps = Array.Empty<long>();
+                            series.Values = Array.Empty<double>();
+                        }
+                    }
+
                     series.LatestValue = series.Values.LastOrDefault();
-                    maxPoints = Math.Max(maxPoints, points.Length);
+                    maxPoints = Math.Max(maxPoints, series.Values.Length);
                 }
 
                 var primary = graph.Series.FirstOrDefault();

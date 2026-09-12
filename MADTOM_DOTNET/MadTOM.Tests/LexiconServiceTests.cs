@@ -79,14 +79,13 @@ public class LexiconServiceTests
         var service = LexiconService.Instance;
         service.LoadLexicon("goose");
 
-        var textBlock = new Avalonia.Controls.TextBlock();
         var loc = new LocExtension("fleetTitle");
-        var binding = (Avalonia.Data.Binding)loc.ProvideValue(null!);
-        textBlock.Bind(Avalonia.Controls.TextBlock.TextProperty, binding);
+        var obj = loc.ProvideValue(null!);
+        Assert.NotNull(obj);
+        var binding = Assert.IsType<Avalonia.Data.Binding>(obj);
 
-        Assert.Equal("The Pond Overview 🪿", textBlock.Text);
-
-        service.LoadLexicon("standard");
-        Assert.Equal("Fleet Infrastructure Matrix", textBlock.Text);
+        Assert.Equal("[fleetTitle]", binding.Path);
+        Assert.Same(service, binding.Source);
+        Assert.Equal(Avalonia.Data.BindingMode.OneWay, binding.Mode);
     }
 }

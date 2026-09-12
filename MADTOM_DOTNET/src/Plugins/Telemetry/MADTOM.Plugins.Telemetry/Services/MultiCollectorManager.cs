@@ -128,6 +128,13 @@ public sealed class MultiCollectorManager : IAsyncDisposable
         }
     }
 
+    public void UpdateCollector(string oldAddress, string newName, string newAddress)
+    {
+        if (string.IsNullOrWhiteSpace(oldAddress)) return;
+        RemoveCollector(oldAddress);
+        AddCollector(newName, newAddress);
+    }
+
     public async Task<IReadOnlyList<FleetNodeModel>> FetchAllNodesAsync(CancellationToken ct = default)
     {
         var groups = await Task.WhenAll(_clients.Values.Select(client => client.ListNodesAsync(ct)));

@@ -19,7 +19,7 @@ message SystemMetrics {
   string arch = 10;
   bool processes_available = 11;
   TwampMetrics twamp = 12;
-
+  DiskIoMetrics disk_io = 13;
 }
 
 // CpuMetrics details processor performance and core states.
@@ -108,3 +108,21 @@ message TwampMetrics {
   double reverse_ms = 6;
   bool one_way_available = 7;
 }
+
+// DiskIoMetrics details cumulative I/O read and write bytes and operations.
+message DiskIoMetrics {
+  uint64 read_bytes = 1;
+  uint64 write_bytes = 2;
+  uint64 read_ops = 3;
+  uint64 write_ops = 4;
+  repeated DiskIoDevice devices = 5;
+}
+
+message DiskIoDevice {
+  string name = 1;
+  uint64 read_bytes = 2;
+  uint64 write_bytes = 3;
+  uint64 read_ops = 4;
+  uint64 write_ops = 5;
+}
+

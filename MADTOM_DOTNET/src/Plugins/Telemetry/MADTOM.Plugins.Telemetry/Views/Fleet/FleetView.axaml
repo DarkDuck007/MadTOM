@@ -74,48 +74,39 @@
                              CornerRadius="8"
                              Padding="10,6"/>
 
-                    <!-- Filter Buttons -->
+                    <!-- Custom Node Group Filter Pills -->
                     <Border Background="{DynamicResource DarkBaseBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="2">
-                        <StackPanel Orientation="Horizontal" Spacing="2">
-                            <Button Content="All"
-                                    Classes="filter-btn"
-                                    Classes.active="{Binding IsAllSelected}"
-                                    Command="{Binding SetFilterCommand}"
-                                    CommandParameter="all"/>
-
-                            <Button Content="{loc:Loc filterBaremetal}"
-                                    Classes="filter-btn"
-                                    Classes.active="{Binding IsBaremetalSelected}"
-                                    Command="{Binding SetFilterCommand}"
-                                    CommandParameter="baremetal"/>
-
-                            <Button Content="{loc:Loc filterVm}"
-                                    Classes="filter-btn"
-                                    Classes.active="{Binding IsVmSelected}"
-                                    Command="{Binding SetFilterCommand}"
-                                    CommandParameter="vm"/>
-                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding AvailableGroups}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Button Content="{Binding}"
+                                            Classes="filter-btn"
+                                            Command="{Binding $parent[UserControl].((vm:FleetViewModel)DataContext).SetFilterGroupCommand}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </Border>
 
-                    <!-- Collectors Management Button -->
+                    <!-- Collectors & Node Settings Button (Gear Icon) -->
                     <Button Command="{Binding OpenCollectorSettingsCommand}"
-                            Background="{DynamicResource AccentBrush}"
-                            Foreground="White"
-                            FontFamily="{StaticResource MonoFontFamily}"
-                            FontWeight="SemiBold"
-                            FontSize="11"
+                            Background="{DynamicResource CardBgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
                             CornerRadius="8"
-                            Padding="10,6"
+                            Padding="8,6"
                             Cursor="Hand"
-                            ToolTip.Tip="Configure Collector Endpoints &amp; Node Opt-in">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="⚙" FontSize="11" VerticalAlignment="Center"/>
-                            <TextBlock Text="Collectors" FontSize="11" VerticalAlignment="Center"/>
-                        </StackPanel>
+                            ToolTip.Tip="Collector Endpoints &amp; Node Settings">
+                        <TextBlock Text="⚙" FontSize="14" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </Grid>

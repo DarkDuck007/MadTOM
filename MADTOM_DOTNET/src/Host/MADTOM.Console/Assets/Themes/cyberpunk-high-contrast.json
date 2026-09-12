@@ -1,0 +1,30 @@
+{
+  "themeName": "cyberpunk-high-contrast",
+  "displayName": "Cyberpunk High Contrast",
+  "colors": {
+    "Background": "#000229",
+    "HeaderBackground": "#050838",
+    "SidebarBackground": "#02041F",
+    "CardBackground": "#0A0E4A",
+    "CardHoverBackground": "#131969",
+    "DarkBase": "#000229",
+    "Border": "#6A4CD4",
+    "BorderSubtle": "#6E3477",
+    "TextPrimary": "#E2EBF3",
+    "TextSecondary": "#00F5A0",
+    "TextMuted": "#A4A6E3",
+    "Accent": "#00F5A0",
+    "AccentSubtle": "#003824",
+    "AccentText": "#000229",
+    "Healthy": "#00F5A0",
+    "HealthySubtle": "#023E2A",
+    "Warning": "#FFB703",
+    "WarningSubtle": "#3D2B00",
+    "Critical": "#FF0054",
+    "CriticalSubtle": "#420014",
+    "Indigo": "#6A4CD4",
+    "IndigoSubtle": "#1B1240",
+    "Purple": "#6E3477",
+    "PurpleSubtle": "#2B0F33"
+  }
+}

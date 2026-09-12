@@ -270,7 +270,8 @@ public sealed class MetricHistoryChartControl : Control
                 xFrac = totalCount <= 1 ? 1.0 : (double)idx / (totalCount - 1);
             }
             double x = leftPad + (xFrac * plotW * zoom) - pan;
-            double y = topPad + plotH * (1.0 - (val - minY) / rangeY);
+            double safeVal = double.IsNaN(val) || double.IsInfinity(val) ? minY : val;
+            double y = topPad + plotH * (1.0 - (safeVal - minY) / rangeY);
             return new Point(x, y);
         }
 
@@ -433,14 +434,32 @@ public sealed class MetricHistoryChartControl : Control
         foreach (var series in activeSeries)
         {
             int idx = FindClosestIndex(series, pt.X, leftPad, plotW, zoom, pan, wStart, timeSpanNano, useTimeMapping);
+            bool isRate = series.IsRateOfChange || series.Label.Contains("/s") || series.Label.Contains("rate");
+
             if (idx >= 0 && idx < series.Values.Length)
             {
-                if (string.IsNullOrEmpty(timeHeader) && series.Timestamps.Length > idx && series.Timestamps[idx] > 0)
+                if (useTimeMapping && series.Timestamps.Length > idx && series.Timestamps[idx] > 0)
                 {
-                    timeHeader = DateTimeOffset.FromUnixTimeMilliseconds(series.Timestamps[idx] / 1_000_000L)
-                        .ToLocalTime().ToString("MM-dd HH:mm:ss");
+                    double xFrac = Math.Clamp((pt.X - leftPad + pan) / (plotW * zoom), 0.0, 1.0);
+                    long targetTime = wStart + (long)(xFrac * timeSpanNano);
+                    long maxGapNano = Math.Max(180_000_000_000L, (long)(timeSpanNano / zoom * 0.25));
+                    if (Math.Abs(series.Timestamps[idx] - targetTime) > maxGapNano)
+                    {
+                        lines.Add((series.Label, "N/A", series.SolidBrush));
+                        continue;
+                    }
+
+                    if (string.IsNullOrEmpty(timeHeader))
+                    {
+                        timeHeader = DateTimeOffset.FromUnixTimeMilliseconds(series.Timestamps[idx] / 1_000_000L)
+                            .ToLocalTime().ToString("MM-dd HH:mm:ss");
+                    }
                 }
-                lines.Add((series.Label, FormatMetricValue(series.Metric, series.Values[idx]), series.SolidBrush));
+                lines.Add((series.Label, FormatMetricValue(series.Metric, series.Values[idx], isRate), series.SolidBrush));
+            }
+            else
+            {
+                lines.Add((series.Label, "N/A", series.SolidBrush));
             }
         }
 
@@ -510,22 +529,27 @@ public sealed class MetricHistoryChartControl : Control
         return $"{v:F1}";
     }
 
-    private static string FormatMetricValue(string metric, double v)
+    public static string FormatMetricValue(string metric, double v, bool isRate = false)
     {
+        if (double.IsNaN(v) || double.IsInfinity(v)) return "N/A";
+
+        string suffix = isRate ? "/s" : "";
         if (metric.StartsWith("cpu.") || metric.EndsWith("_pct") || metric.Contains("pct"))
-            return $"{v:F1}%";
+            return isRate ? $"{v:+0.0;-0.0;0.0}%/s" : $"{v:F1}%";
         if (metric.StartsWith("twamp."))
-            return $"{v:F2} ms";
+            return $"{v:F2} ms{suffix}";
         if (metric.EndsWith("_ratio"))
-            return $"{v:F2}x";
+            return $"{v:F2}x{suffix}";
         if (metric.Contains("bytes"))
         {
-            if (v >= 1_073_741_824) return $"{v / 1_073_741_824:F2} GB";
-            if (v >= 1_048_576) return $"{v / 1_048_576:F1} MB";
-            if (v >= 1024) return $"{v / 1024:F0} KB";
-            return $"{v:F0} B";
+            double abs = Math.Abs(v);
+            string prefix = isRate && v < 0 ? "-" : (isRate && v > 0 ? "+" : "");
+            if (abs >= 1_073_741_824) return $"{prefix}{abs / 1_073_741_824:F2} GB{suffix}";
+            if (abs >= 1_048_576) return $"{prefix}{abs / 1_048_576:F1} MB{suffix}";
+            if (abs >= 1024) return $"{prefix}{abs / 1024:F0} KB{suffix}";
+            return $"{prefix}{abs:F0} B{suffix}";
         }
-        return $"{v:F2}";
+        return isRate ? $"{v:F2}/s" : $"{v:F2}";
     }
 
     private void RebuildGeometryCache(List<ChartSeriesModel> activeSeries, Func<long, double, int, int, Point> mapPoint, double baselineY, double plotW)
@@ -853,6 +877,13 @@ public sealed class MetricHistoryChartControl : Control
             _geometryCacheValid = false;
             InvalidateVisual();
             e.Handled = true;
+            return;
+        }
+
+        // Mouse wheel zoom only when Ctrl is pressed!
+        // Without Ctrl, allow the wheel event to bubble to parent ScrollViewer for vertical page scroll.
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
             return;
         }
 

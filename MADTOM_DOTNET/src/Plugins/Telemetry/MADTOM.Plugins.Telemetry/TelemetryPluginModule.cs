@@ -48,7 +48,8 @@ public class TelemetryPluginModule : IPluginModule
         hostContext.Themes.CurrentThemeChanged += OnGlobalThemeChanged;
         if (!string.IsNullOrWhiteSpace(hostContext.Themes.CurrentTheme))
         {
-            MadTOM.Theming.ThemeService.Instance.ApplyTheme(hostContext.Themes.CurrentTheme);
+            var fallback = hostContext.Themes.GetPalette(hostContext.Themes.CurrentTheme);
+            MadTOM.Theming.ThemeService.Instance.ApplyTheme(hostContext.Themes.CurrentTheme, fallback);
         }
 
         return Task.CompletedTask;
@@ -93,7 +94,8 @@ public class TelemetryPluginModule : IPluginModule
 
     private void OnGlobalThemeChanged(object? sender, string newTheme)
     {
-        MadTOM.Theming.ThemeService.Instance.ApplyTheme(newTheme);
+        var fallback = _hostContext?.Themes?.GetPalette(newTheme);
+        MadTOM.Theming.ThemeService.Instance.ApplyTheme(newTheme, fallback);
     }
 
     public Control CreateView()

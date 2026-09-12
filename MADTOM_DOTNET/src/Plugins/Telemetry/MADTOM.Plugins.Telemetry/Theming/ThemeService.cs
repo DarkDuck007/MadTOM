@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -13,202 +15,359 @@ using Avalonia.Styling;
 
 namespace MadTOM.Theming;
 
-public sealed class ThemeService : IThemeService
+public sealed class ThemeService : IThemeService, IDisposable
 {
     private static readonly Lazy<ThemeService> _lazyInstance = new(() => new ThemeService());
     public static ThemeService Instance => _lazyInstance.Value;
 
-    private readonly Dictionary<string, ThemePaletteModel> _registeredPalettes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ThemePaletteModel> _fallbackPalettes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ThemePaletteModel> _pluginAssetOverrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ThemePaletteModel> _pluginDirOverrides = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly Dictionary<string, Color> _activeColors = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IBrush> _activeBrushes = new(StringComparer.OrdinalIgnoreCase);
 
+    private FileSystemWatcher? _watcher;
+    private int _reloadPending;
+
     public string CurrentTheme { get; private set; } = "default-dark";
-    public IReadOnlyList<string> AvailableThemes => new List<string>(_registeredPalettes.Keys);
+
+    public IReadOnlyList<string> AvailableThemes
+    {
+        get
+        {
+            var keys = new HashSet<string>(_fallbackPalettes.Keys, StringComparer.OrdinalIgnoreCase);
+            foreach (var k in _pluginAssetOverrides.Keys) keys.Add(k);
+            foreach (var k in _pluginDirOverrides.Keys) keys.Add(k);
+            return keys.ToList();
+        }
+    }
+
+    public IReadOnlyList<ThemePaletteModel> AvailablePalettes =>
+        AvailableThemes.Select(t => GetPalette(t)!).Where(p => p != null).ToList();
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event EventHandler<string>? ThemeChanged;
+    public event EventHandler? ThemesCollectionChanged;
+
+    public static string PluginThemesDirectory =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MADTOM", "themes", "telemetry");
+
+    public static string AlternatePluginThemesDirectory =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MADTOM", "plugins", "telemetry", "themes");
+
+    public static string UserThemesDirectory =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MADTOM", "themes");
 
     public ThemeService()
     {
-        LoadBuiltinPalettes();
+        LoadAllFallbacks();
+        LoadPluginAssetOverrides();
+        LoadPluginDirectoryOverrides();
+        InitializeWatcher();
         ApplyTheme("default-dark");
     }
 
-    private void LoadBuiltinPalettes()
+    public ThemePaletteModel? GetPalette(string themeName)
     {
-        string[] themes = [
-            "default-dark",
-            "high-contrast",
-            "pure-light",
-            "paper-white",
-            "minimal-mono",
-            "anti-bleed-grey",
-            "tft-amber-terminal",
-            "solarized-dark"
-        ];
+        var fallback = GetFallbackPalette(themeName)
+            ?? _pluginDirOverrides.GetValueOrDefault(themeName)
+            ?? _pluginAssetOverrides.GetValueOrDefault(themeName);
 
-        foreach (var t in themes)
+        if (fallback == null)
         {
-            LoadEmbeddedPalette(t, $"avares://MADTOM.Plugins.Telemetry/Assets/Themes/{t}.json");
+            return null;
         }
+
+        var effective = fallback.Clone();
+        effective.ThemeName = themeName;
+
+        if (_pluginAssetOverrides.TryGetValue(themeName, out var assetOverride))
+        {
+            effective.Merge(assetOverride);
+        }
+
+        if (_pluginDirOverrides.TryGetValue(themeName, out var dirOverride))
+        {
+            effective.Merge(dirOverride);
+        }
+
+        return effective;
     }
 
-    private void LoadEmbeddedPalette(string name, string uriString)
+    public ThemePaletteModel? GetFallbackPalette(string themeName)
     {
+        if (_fallbackPalettes.TryGetValue(themeName, out var p))
+            return p;
+
+        EnsureBaselineFallbacks();
+        return _fallbackPalettes.TryGetValue(themeName, out p) ? p : null;
+    }
+
+    public void RegisterFallbackPalette(ThemePaletteModel palette)
+    {
+        if (palette == null || string.IsNullOrWhiteSpace(palette.ThemeName)) return;
+        _fallbackPalettes[palette.ThemeName] = palette;
+    }
+
+    public void ReloadThemes()
+    {
+        LoadAllFallbacks();
+        LoadPluginAssetOverrides();
+        LoadPluginDirectoryOverrides();
+
+        ApplyTheme(CurrentTheme);
+
+        OnPropertyChanged(nameof(AvailableThemes));
+        OnPropertyChanged(nameof(AvailablePalettes));
+        ThemesCollectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ScanThemesDirectory(string directory, bool isUserDir = true)
+    {
+        ScanDirectoryForPalettes(directory, _pluginDirOverrides, isUserDir);
+        OnPropertyChanged(nameof(AvailableThemes));
+        OnPropertyChanged(nameof(AvailablePalettes));
+        ThemesCollectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void LoadAllFallbacks()
+    {
+        LoadEmbeddedFallbacks();
+        EnsureBaselineFallbacks();
+    }
+
+    private void LoadEmbeddedFallbacks()
+    {
+        bool foundAny = false;
         try
         {
-            var uri = new Uri(uriString);
-            if (!AssetLoader.Exists(uri))
+            var baseUris = new[]
             {
-                uri = new Uri($"avares://MadTOM/Assets/Themes/{name}.json");
-            }
+                new Uri("avares://MADTOM.Console/Assets/Themes/"),
+                new Uri("avares://MADTOM.Plugins.Telemetry/Assets/Themes/"),
+                new Uri("avares://MadTOM/Assets/Themes/")
+            };
 
-            if (AssetLoader.Exists(uri))
+            foreach (var baseUri in baseUris)
             {
-                using var stream = AssetLoader.Open(uri);
-                using var reader = new StreamReader(stream);
-                var json = reader.ReadToEnd();
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var palette = JsonSerializer.Deserialize<ThemePaletteModel>(json, options);
-                if (palette != null)
+                var assets = AssetLoader.GetAssets(baseUri, null);
+                if (assets != null)
                 {
-                    _registeredPalettes[name] = palette;
-                    return;
+                    foreach (var assetUri in assets)
+                    {
+                        string ext = Path.GetExtension(assetUri.AbsolutePath).ToLowerInvariant();
+                        if (ext is ".json" or ".yaml" or ".yml")
+                        {
+                            try
+                            {
+                                using var stream = AssetLoader.Open(assetUri);
+                                using var reader = new StreamReader(stream);
+                                string content = reader.ReadToEnd();
+                                string fallbackName = Path.GetFileNameWithoutExtension(assetUri.AbsolutePath);
+                                var palette = ThemeParser.Parse(content, fallbackName);
+                                if (palette != null && !string.IsNullOrEmpty(palette.ThemeName))
+                                {
+                                    _fallbackPalettes[palette.ThemeName] = palette;
+                                    foundAny = true;
+                                }
+                            }
+                            catch { }
+                        }
+                    }
                 }
             }
         }
-        catch
-        {
-            // Fallback handled below
-        }
+        catch { }
 
-        if (!_registeredPalettes.ContainsKey(name))
+        // Fallback for headless environments or tests
+        if (!foundAny || _fallbackPalettes.Count < 5)
         {
-            _registeredPalettes[name] = CreateDefaultFallbackPalette(name);
+            ScanDirectoryForPalettes(Path.Combine(AppContext.BaseDirectory, "Assets", "Themes"), _fallbackPalettes);
+
+            string cur = AppContext.BaseDirectory;
+            for (int i = 0; i < 5; i++)
+            {
+                var parent = Directory.GetParent(cur);
+                if (parent == null) break;
+                cur = parent.FullName;
+
+                string consoleThemes = Path.Combine(cur, "src", "Host", "MADTOM.Console", "Assets", "Themes");
+                if (Directory.Exists(consoleThemes))
+                {
+                    ScanDirectoryForPalettes(consoleThemes, _fallbackPalettes);
+                }
+
+                string telemetryThemes = Path.Combine(cur, "src", "Plugins", "Telemetry", "MADTOM.Plugins.Telemetry", "Assets", "Themes");
+                if (Directory.Exists(telemetryThemes))
+                {
+                    ScanDirectoryForPalettes(telemetryThemes, _fallbackPalettes);
+                }
+
+                if (_fallbackPalettes.Count >= 5) break;
+            }
         }
     }
 
-    private static ThemePaletteModel CreateDefaultFallbackPalette(string name)
+    private void LoadPluginAssetOverrides()
     {
-        var model = new ThemePaletteModel
+        try
         {
-            ThemeName = name,
-            DisplayName = name switch
+            var uri = new Uri("avares://MADTOM.Plugins.Telemetry/Assets/Themes/");
+            var assets = AssetLoader.GetAssets(uri, null);
+            if (assets != null)
             {
-                "pure-light" => "Pure Light",
-                "paper-white" => "Warm Paper",
-                "minimal-mono" => "Minimal Mono",
-                "anti-bleed-grey" => "IPS Neutralizer",
-                "tft-amber-terminal" => "TFT Amber High-Vis",
-                "solarized-dark" => "Solarized Dark",
-                "high-contrast" => "High Contrast Dark",
-                _ => "Default Dark"
+                foreach (var assetUri in assets)
+                {
+                    string ext = Path.GetExtension(assetUri.AbsolutePath).ToLowerInvariant();
+                    if (ext is ".json" or ".yaml" or ".yml")
+                    {
+                        try
+                        {
+                            using var stream = AssetLoader.Open(assetUri);
+                            using var reader = new StreamReader(stream);
+                            string content = reader.ReadToEnd();
+                            string fileName = Path.GetFileNameWithoutExtension(assetUri.AbsolutePath);
+                            var overrideModel = ThemeParser.Parse(content, fileName);
+                            if (overrideModel != null)
+                            {
+                                if (!string.IsNullOrEmpty(overrideModel.ThemeName))
+                                {
+                                    _pluginAssetOverrides[overrideModel.ThemeName] = overrideModel;
+                                }
+                                _pluginAssetOverrides[fileName] = overrideModel;
+                            }
+                        }
+                        catch { }
+                    }
+                }
             }
-        };
+        }
+        catch { }
 
-        // Calibrated fallback dictionaries
-        switch (name.ToLowerInvariant())
+        // Local dev environment scan for plugin asset overrides
+        string cur = AppContext.BaseDirectory;
+        for (int i = 0; i < 5; i++)
         {
-            case "pure-light":
-                model.Colors = new Dictionary<string, string>
-                {
-                    ["Background"] = "#f8fafc", ["HeaderBackground"] = "#ffffff", ["SidebarBackground"] = "#f1f5f9",
-                    ["CardBackground"] = "#ffffff", ["CardHoverBackground"] = "#f1f5f9", ["DarkBase"] = "#e2e8f0",
-                    ["Border"] = "#cbd5e1", ["BorderSubtle"] = "#e2e8f0", ["TextPrimary"] = "#0f172a",
-                    ["TextSecondary"] = "#475569", ["TextMuted"] = "#94a3b8", ["Accent"] = "#0284c7",
-                    ["AccentSubtle"] = "#e0f2fe", ["AccentText"] = "#0369a1", ["Healthy"] = "#16a34a",
-                    ["HealthySubtle"] = "#dcfce7", ["Warning"] = "#d97706", ["WarningSubtle"] = "#fef3c7",
-                    ["Critical"] = "#dc2626", ["CriticalSubtle"] = "#fee2e2", ["Indigo"] = "#4f46e5",
-                    ["IndigoSubtle"] = "#e0e7ff", ["Purple"] = "#9333ea", ["PurpleSubtle"] = "#f3e8ff"
-                };
-                break;
+            var parent = Directory.GetParent(cur);
+            if (parent == null) break;
+            cur = parent.FullName;
 
-            case "paper-white":
-                model.Colors = new Dictionary<string, string>
-                {
-                    ["Background"] = "#fbf9f5", ["HeaderBackground"] = "#f4efe6", ["SidebarBackground"] = "#efe9de",
-                    ["CardBackground"] = "#ffffff", ["CardHoverBackground"] = "#f7f3eb", ["DarkBase"] = "#e8dfd1",
-                    ["Border"] = "#dcd3c4", ["BorderSubtle"] = "#eae2d5", ["TextPrimary"] = "#2d2820",
-                    ["TextSecondary"] = "#615646", ["TextMuted"] = "#8c7f6e", ["Accent"] = "#b45309",
-                    ["AccentSubtle"] = "#fef3c7", ["AccentText"] = "#92400e", ["Healthy"] = "#15803d",
-                    ["HealthySubtle"] = "#dcfce7", ["Warning"] = "#b45309", ["WarningSubtle"] = "#fef3c7",
-                    ["Critical"] = "#b91c1c", ["CriticalSubtle"] = "#fee2e2", ["Indigo"] = "#4338ca",
-                    ["IndigoSubtle"] = "#e0e7ff", ["Purple"] = "#7e22ce", ["PurpleSubtle"] = "#f3e8ff"
-                };
+            string devDir = Path.Combine(cur, "src", "Plugins", "Telemetry", "MADTOM.Plugins.Telemetry", "Assets", "Themes");
+            if (Directory.Exists(devDir))
+            {
+                ScanDirectoryForPalettes(devDir, _pluginAssetOverrides);
                 break;
+            }
+        }
+    }
 
-            case "minimal-mono":
-                model.Colors = new Dictionary<string, string>
+    private void LoadPluginDirectoryOverrides()
+    {
+        try
+        {
+            string dir = PluginThemesDirectory;
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            ScanDirectoryForPalettes(dir, _pluginDirOverrides, isUserDir: true);
+
+            string altDir = AlternatePluginThemesDirectory;
+            if (Directory.Exists(altDir))
+            {
+                ScanDirectoryForPalettes(altDir, _pluginDirOverrides, isUserDir: true);
+            }
+        }
+        catch { }
+    }
+
+    private void ScanDirectoryForPalettes(string directory, Dictionary<string, ThemePaletteModel> targetDict, bool isUserDir = false)
+    {
+        if (!Directory.Exists(directory)) return;
+
+        try
+        {
+            var files = Directory.GetFiles(directory, "*.*", SearchOption.TopDirectoryOnly)
+                .Where(f => f.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".yml", StringComparison.OrdinalIgnoreCase));
+
+            foreach (var file in files)
+            {
+                try
                 {
-                    ["Background"] = "#121214", ["HeaderBackground"] = "#18181b", ["SidebarBackground"] = "#18181b",
-                    ["CardBackground"] = "#1f1f23", ["CardHoverBackground"] = "#27272a", ["DarkBase"] = "#09090b",
-                    ["Border"] = "#27272a", ["BorderSubtle"] = "#1e1e22", ["TextPrimary"] = "#fafafa",
-                    ["TextSecondary"] = "#a1a1aa", ["TextMuted"] = "#71717a", ["Accent"] = "#e4e4e7",
-                    ["AccentSubtle"] = "#27272a", ["AccentText"] = "#ffffff", ["Healthy"] = "#22c55e",
-                    ["HealthySubtle"] = "#14532d", ["Warning"] = "#eab308", ["WarningSubtle"] = "#713f12",
-                    ["Critical"] = "#ef4444", ["CriticalSubtle"] = "#7f1d1d", ["Indigo"] = "#818cf8",
-                    ["IndigoSubtle"] = "#312e81", ["Purple"] = "#c084fc", ["PurpleSubtle"] = "#581c87"
-                };
-                break;
+                    string content = File.ReadAllText(file);
+                    string fallbackName = Path.GetFileNameWithoutExtension(file);
+                    if (fallbackName.EndsWith(".theme", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fallbackName = fallbackName[..^6];
+                    }
 
-            case "anti-bleed-grey":
-                model.Colors = new Dictionary<string, string>
-                {
-                    ["Background"] = "#23272e", ["HeaderBackground"] = "#2a2f38", ["SidebarBackground"] = "#262a32",
-                    ["CardBackground"] = "#2c313a", ["CardHoverBackground"] = "#333842", ["DarkBase"] = "#1d2026",
-                    ["Border"] = "#434c5e", ["BorderSubtle"] = "#353b45", ["TextPrimary"] = "#f0f2f5",
-                    ["TextSecondary"] = "#c0c5ce", ["TextMuted"] = "#8b949e", ["Accent"] = "#00d4ff",
-                    ["AccentSubtle"] = "#1b3b4f", ["AccentText"] = "#38e1ff", ["Healthy"] = "#00e676",
-                    ["HealthySubtle"] = "#0f3d26", ["Warning"] = "#ffd600", ["WarningSubtle"] = "#473b00",
-                    ["Critical"] = "#ff1744", ["CriticalSubtle"] = "#4a0b17", ["Indigo"] = "#7c83fd",
-                    ["IndigoSubtle"] = "#252857", ["Purple"] = "#b388ff", ["PurpleSubtle"] = "#352254"
-                };
-                break;
+                    var palette = ThemeParser.Parse(content, fallbackName);
+                    if (palette != null && !string.IsNullOrEmpty(palette.ThemeName))
+                    {
+                        if (isUserDir && string.IsNullOrWhiteSpace(palette.Category))
+                        {
+                            palette.Category = "Custom";
+                        }
+                        targetDict[palette.ThemeName] = palette;
+                        targetDict[fallbackName] = palette;
+                    }
+                }
+                catch { }
+            }
+        }
+        catch { }
+    }
 
-            case "tft-amber-terminal":
-                model.Colors = new Dictionary<string, string>
-                {
-                    ["Background"] = "#1b1c18", ["HeaderBackground"] = "#22241e", ["SidebarBackground"] = "#20211b",
-                    ["CardBackground"] = "#252720", ["CardHoverBackground"] = "#2e3028", ["DarkBase"] = "#141511",
-                    ["Border"] = "#4e523e", ["BorderSubtle"] = "#383b2d", ["TextPrimary"] = "#ffb000",
-                    ["TextSecondary"] = "#d49200", ["TextMuted"] = "#8f6500", ["Accent"] = "#ffb000",
-                    ["AccentSubtle"] = "#3b2c05", ["AccentText"] = "#ffc83b", ["Healthy"] = "#55ff55",
-                    ["HealthySubtle"] = "#143b14", ["Warning"] = "#ffaa00", ["WarningSubtle"] = "#3b2800",
-                    ["Critical"] = "#ff3333", ["CriticalSubtle"] = "#421010", ["Indigo"] = "#c678dd",
-                    ["IndigoSubtle"] = "#3b1e45", ["Purple"] = "#da70d6", ["PurpleSubtle"] = "#3e1940"
-                };
-                break;
+    private void InitializeWatcher()
+    {
+        try
+        {
+            string dir = PluginThemesDirectory;
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
-            case "solarized-dark":
-                model.Colors = new Dictionary<string, string>
-                {
-                    ["Background"] = "#002b36", ["HeaderBackground"] = "#073642", ["SidebarBackground"] = "#073642",
-                    ["CardBackground"] = "#073642", ["CardHoverBackground"] = "#0e4452", ["DarkBase"] = "#001e26",
-                    ["Border"] = "#586e75", ["BorderSubtle"] = "#0d4754", ["TextPrimary"] = "#93a1a1",
-                    ["TextSecondary"] = "#839496", ["TextMuted"] = "#586e75", ["Accent"] = "#2aa198",
-                    ["AccentSubtle"] = "#0c4547", ["AccentText"] = "#2ee0d3", ["Healthy"] = "#859900",
-                    ["HealthySubtle"] = "#253b00", ["Warning"] = "#b58900", ["WarningSubtle"] = "#423200",
-                    ["Critical"] = "#dc322f", ["CriticalSubtle"] = "#4a0f0e", ["Indigo"] = "#268bd2",
-                    ["IndigoSubtle"] = "#0c324e", ["Purple"] = "#6c71c4", ["PurpleSubtle"] = "#222554"
-                };
-                break;
+            _watcher = new FileSystemWatcher(dir)
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
+                Filter = "*.*",
+                EnableRaisingEvents = true
+            };
 
-            case "high-contrast":
-                model.Colors = new Dictionary<string, string>
-                {
-                    ["Background"] = "#000000", ["HeaderBackground"] = "#050505", ["SidebarBackground"] = "#050505",
-                    ["CardBackground"] = "#0a0a0a", ["CardHoverBackground"] = "#171717", ["DarkBase"] = "#000000",
-                    ["Border"] = "#383838", ["BorderSubtle"] = "#262626", ["TextPrimary"] = "#ffffff",
-                    ["TextSecondary"] = "#d4d4d4", ["TextMuted"] = "#a3a3a3", ["Accent"] = "#00f0ff",
-                    ["AccentSubtle"] = "#003840", ["AccentText"] = "#00f0ff", ["Healthy"] = "#00ff66",
-                    ["HealthySubtle"] = "#003314", ["Warning"] = "#ffbb00", ["WarningSubtle"] = "#332500",
-                    ["Critical"] = "#ff2255", ["CriticalSubtle"] = "#400010", ["Indigo"] = "#7075ff",
-                    ["IndigoSubtle"] = "#141533", ["Purple"] = "#d444ff", ["PurpleSubtle"] = "#300040"
-                };
-                break;
+            FileSystemEventHandler onChange = (_, _) => ScheduleReload();
+            RenamedEventHandler onRename = (_, _) => ScheduleReload();
 
-            default:
-                model.Colors = new Dictionary<string, string>
+            _watcher.Created += onChange;
+            _watcher.Changed += onChange;
+            _watcher.Deleted += onChange;
+            _watcher.Renamed += onRename;
+        }
+        catch { }
+    }
+
+    private void ScheduleReload()
+    {
+        if (Interlocked.Exchange(ref _reloadPending, 1) == 0)
+        {
+            Task.Delay(250).ContinueWith(_ =>
+            {
+                Interlocked.Exchange(ref _reloadPending, 0);
+                ReloadThemes();
+            });
+        }
+    }
+
+    private void EnsureBaselineFallbacks()
+    {
+        if (!_fallbackPalettes.ContainsKey("default-dark"))
+        {
+            _fallbackPalettes["default-dark"] = new ThemePaletteModel
+            {
+                ThemeName = "default-dark",
+                DisplayName = "Default Dark",
+                Category = "Dark",
+                Colors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["Background"] = "#070a12", ["HeaderBackground"] = "#0b111e", ["SidebarBackground"] = "#0c1220",
                     ["CardBackground"] = "#0c1220", ["CardHoverBackground"] = "#0f172a", ["DarkBase"] = "#04060b",
@@ -218,11 +377,30 @@ public sealed class ThemeService : IThemeService
                     ["HealthySubtle"] = "#064e3b", ["Warning"] = "#f59e0b", ["WarningSubtle"] = "#451a03",
                     ["Critical"] = "#f43f5e", ["CriticalSubtle"] = "#4c0519", ["Indigo"] = "#6366f1",
                     ["IndigoSubtle"] = "#1e1b4b", ["Purple"] = "#a855f7", ["PurpleSubtle"] = "#3b0764"
-                };
-                break;
+                }
+            };
         }
 
-        return model;
+        if (!_fallbackPalettes.ContainsKey("pure-light"))
+        {
+            _fallbackPalettes["pure-light"] = new ThemePaletteModel
+            {
+                ThemeName = "pure-light",
+                DisplayName = "Pure Light",
+                Category = "Light",
+                Colors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Background"] = "#f8fafc", ["HeaderBackground"] = "#ffffff", ["SidebarBackground"] = "#f1f5f9",
+                    ["CardBackground"] = "#ffffff", ["CardHoverBackground"] = "#f1f5f9", ["DarkBase"] = "#e2e8f0",
+                    ["Border"] = "#cbd5e1", ["BorderSubtle"] = "#e2e8f0", ["TextPrimary"] = "#0f172a",
+                    ["TextSecondary"] = "#475569", ["TextMuted"] = "#94a3b8", ["Accent"] = "#0284c7",
+                    ["AccentSubtle"] = "#e0f2fe", ["AccentText"] = "#0369a1", ["Healthy"] = "#16a34a",
+                    ["HealthySubtle"] = "#dcfce7", ["Warning"] = "#d97706", ["WarningSubtle"] = "#fef3c7",
+                    ["Critical"] = "#dc2626", ["CriticalSubtle"] = "#fee2e2", ["Indigo"] = "#4f46e5",
+                    ["IndigoSubtle"] = "#e0e7ff", ["Purple"] = "#9333ea", ["PurpleSubtle"] = "#f3e8ff"
+                }
+            };
+        }
     }
 
     public Color GetColor(string key, Color fallback = default)
@@ -249,18 +427,48 @@ public sealed class ThemeService : IThemeService
 
     public void ApplyTheme(string themeName)
     {
-        if (!_registeredPalettes.TryGetValue(themeName, out var palette))
+        ApplyTheme(themeName, null);
+    }
+
+    public void ApplyTheme(string themeName, ThemePaletteModel? hostFallback)
+    {
+        if (hostFallback != null && !string.IsNullOrWhiteSpace(hostFallback.ThemeName))
         {
-            if (!_registeredPalettes.TryGetValue("default-dark", out palette))
-            {
-                palette = CreateDefaultFallbackPalette("default-dark");
-            }
+            _fallbackPalettes[hostFallback.ThemeName] = hostFallback;
+        }
+
+        var basePalette = hostFallback 
+            ?? GetFallbackPalette(themeName)
+            ?? _pluginDirOverrides.GetValueOrDefault(themeName)
+            ?? _pluginAssetOverrides.GetValueOrDefault(themeName);
+
+        if (basePalette == null)
+        {
+            EnsureBaselineFallbacks();
+            basePalette = _fallbackPalettes.GetValueOrDefault("default-dark") ?? _fallbackPalettes.Values.FirstOrDefault();
+        }
+
+        if (basePalette == null) return;
+
+        var effective = basePalette.Clone();
+        effective.ThemeName = themeName;
+
+        // 1. Check for plugin asset override
+        if (_pluginAssetOverrides.TryGetValue(themeName, out var assetOverride))
+        {
+            effective.Merge(assetOverride);
+        }
+
+        // 2. Check for plugin directory override (takes highest precedence)
+        if (_pluginDirOverrides.TryGetValue(themeName, out var dirOverride))
+        {
+            effective.Merge(dirOverride);
         }
 
         _activeColors.Clear();
         _activeBrushes.Clear();
 
-        foreach (var (key, hex) in palette.Colors)
+        foreach (var (key, hex) in effective.Colors)
         {
             if (Color.TryParse(hex, out var parsedColor))
             {
@@ -269,35 +477,36 @@ public sealed class ThemeService : IThemeService
             }
         }
 
-        CurrentTheme = themeName;
+        CurrentTheme = effective.ThemeName;
 
-        // Apply dynamically to Application resources if available
         UpdateApplicationResources();
 
         OnPropertyChanged(nameof(CurrentTheme));
-        ThemeChanged?.Invoke(this, themeName);
+        ThemeChanged?.Invoke(this, effective.ThemeName);
     }
 
-    public void ImportTheme(string themeName, string jsonOrFilePath)
+    public void ImportTheme(string themeName, string jsonOrYamlOrFilePath)
     {
-        string json = jsonOrFilePath;
-        if (File.Exists(jsonOrFilePath))
+        string content = jsonOrYamlOrFilePath;
+        if (File.Exists(jsonOrYamlOrFilePath))
         {
-            json = File.ReadAllText(jsonOrFilePath);
+            content = File.ReadAllText(jsonOrYamlOrFilePath);
         }
 
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        var palette = JsonSerializer.Deserialize<ThemePaletteModel>(json, options);
+        var palette = ThemeParser.Parse(content, themeName);
         if (palette == null)
         {
-            throw new InvalidOperationException("Failed to parse theme JSON.");
+            throw new InvalidOperationException("Failed to parse theme JSON or YAML.");
         }
 
         palette.ThemeName = string.IsNullOrWhiteSpace(palette.ThemeName) ? themeName : palette.ThemeName;
-        _registeredPalettes[themeName] = palette;
+        _pluginDirOverrides[palette.ThemeName] = palette;
+        _pluginDirOverrides[themeName] = palette;
 
-        ApplyTheme(themeName);
+        ApplyTheme(palette.ThemeName);
         OnPropertyChanged(nameof(AvailableThemes));
+        OnPropertyChanged(nameof(AvailablePalettes));
+        ThemesCollectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void UpdateApplicationResources()
@@ -314,14 +523,12 @@ public sealed class ThemeService : IThemeService
             resources[$"{key}Brush"] = brush;
         }
 
-        // Common UI alias mappings
         MapResourceAlias(resources, "Background", "AppBg");
         MapResourceAlias(resources, "HeaderBackground", "HeaderBg");
         MapResourceAlias(resources, "SidebarBackground", "SidebarBg");
         MapResourceAlias(resources, "CardBackground", "CardBg");
         MapResourceAlias(resources, "CardHoverBackground", "CardHoverBg");
 
-        // Determine background luminance and adapt theme variant accordingly
         if (_activeColors.TryGetValue("Background", out var bg))
         {
             double luminance = (0.299 * bg.R + 0.587 * bg.G + 0.114 * bg.B) / 255.0;
@@ -333,16 +540,22 @@ public sealed class ThemeService : IThemeService
     {
         if (_activeColors.TryGetValue(sourceKey, out var color))
         {
-            var brush = new ImmutableSolidColorBrush(color);
             resources[$"Color{targetKey}"] = color;
+        }
+        if (_activeBrushes.TryGetValue(sourceKey, out var brush))
+        {
             resources[$"{targetKey}Brush"] = brush;
-            resources[$"AppColor.{targetKey}"] = color;
-            resources[$"AppBrush.{targetKey}"] = brush;
         }
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public void Dispose()
+    {
+        _watcher?.Dispose();
+        _watcher = null;
     }
 }

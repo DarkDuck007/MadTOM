@@ -1,0 +1,30 @@
+{
+  "themeName": "simple-purple-light",
+  "displayName": "Simple Purple Light",
+  "colors": {
+    "Background": "#E2EBF3",
+    "HeaderBackground": "#FFFFFF",
+    "SidebarBackground": "#A4A6E3",
+    "CardBackground": "#FFFFFF",
+    "CardHoverBackground": "#E2EBF3",
+    "DarkBase": "#000229",
+    "Border": "#A4A6E3",
+    "BorderSubtle": "#E2EBF3",
+    "TextPrimary": "#000229",
+    "TextSecondary": "#6E3477",
+    "TextMuted": "#6A4CD4",
+    "Accent": "#6A4CD4",
+    "AccentSubtle": "#A4A6E3",
+    "AccentText": "#FFFFFF",
+    "Healthy": "#6A4CD4",
+    "HealthySubtle": "#E2EBF3",
+    "Warning": "#6E3477",
+    "WarningSubtle": "#A4A6E3",
+    "Critical": "#6E3477",
+    "CriticalSubtle": "#E2EBF3",
+    "Indigo": "#6A4CD4",
+    "IndigoSubtle": "#A4A6E3",
+    "Purple": "#6E3477",
+    "PurpleSubtle": "#A4A6E3"
+  }
+}
