@@ -90,3 +90,4 @@ public class AppSettingsStoreTests : IDisposable
         Assert.True(loaded.IsConsoleSidebarCollapsed);
     }
 }
+

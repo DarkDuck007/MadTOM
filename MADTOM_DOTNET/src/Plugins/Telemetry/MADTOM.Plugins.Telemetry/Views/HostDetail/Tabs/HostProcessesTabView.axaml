@@ -112,7 +112,7 @@
                                         <!-- Actions -->
                                         <StackPanel IsEnabled="{Binding $parent[UserControl].((vm:HostProcessesTabViewModel)DataContext).CanSendSignals}" Grid.Column="6" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
                                             <Button Content="{loc:Loc processTerm}"
-                                                    Command="{Binding ((vm:HostProcessesTabViewModel)DataContext).DispatchTermCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    Command="{Binding $parent[UserControl].((vm:HostProcessesTabViewModel)DataContext).DispatchTermCommand}"
                                                     CommandParameter="{Binding}"
                                                     Background="{DynamicResource WarningSubtleBrush}"
                                                     BorderBrush="{DynamicResource WarningBrush}"
@@ -124,7 +124,7 @@
                                                     Padding="6,2"
                                                     CornerRadius="4"/>
                                             <Button Content="{loc:Loc processKill}"
-                                                    Command="{Binding ((vm:HostProcessesTabViewModel)DataContext).DispatchKillCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    Command="{Binding $parent[UserControl].((vm:HostProcessesTabViewModel)DataContext).DispatchKillCommand}"
                                                     CommandParameter="{Binding}"
                                                     Background="{DynamicResource CriticalSubtleBrush}"
                                                     BorderBrush="{DynamicResource CriticalBrush}"

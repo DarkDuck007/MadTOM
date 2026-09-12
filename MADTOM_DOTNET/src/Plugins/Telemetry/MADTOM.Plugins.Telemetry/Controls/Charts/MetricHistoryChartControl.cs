@@ -55,6 +55,23 @@ public sealed class MetricHistoryChartControl : Control
     private Point _dragStartPoint;
     private double _dragStartPan;
 
+    private readonly Dictionary<long, Point> _activeTouchPoints = new();
+    private double _multiTouchStartDistance;
+    private double _multiTouchStartZoom = 1.0;
+    private double _multiTouchStartPan;
+    private Point _multiTouchStartCenter;
+    private Point? _touchStartPoint;
+    private bool _touchCaptured;
+
+    private bool _geometryCacheValid;
+    private double _cachedWidth;
+    private double _cachedHeight;
+    private double _cachedZoom;
+    private double _cachedPan;
+    private long _cachedWindowStart;
+    private long _cachedWindowEnd;
+    private readonly List<(IBrush FillBrush, IPen LinePen, StreamGeometry FillGeom, StreamGeometry LineGeom)> _cachedSeriesGeometries = new();
+
     private static readonly IPen GridPen = new ImmutablePen(
         new ImmutableSolidColorBrush(Color.FromArgb(35, 148, 163, 184)), 1,
         new ImmutableDashStyle([2, 4], 0));
@@ -97,6 +114,17 @@ public sealed class MetricHistoryChartControl : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (change.Property == ValuesProperty ||
+            change.Property == TimestampsProperty ||
+            change.Property == WindowStartProperty ||
+            change.Property == WindowEndProperty ||
+            change.Property == ZoomLevelProperty ||
+            change.Property == PanOffsetProperty ||
+            change.Property == SeriesListProperty)
+        {
+            _geometryCacheValid = false;
+        }
+
         if (change.Property == SeriesListProperty)
         {
             if (change.OldValue is System.Collections.Specialized.INotifyCollectionChanged oldColl)
@@ -121,6 +149,7 @@ public sealed class MetricHistoryChartControl : Control
 
     private void OnSeriesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
+        _geometryCacheValid = false;
         if (e.OldItems != null)
         {
             foreach (var item in e.OldItems.OfType<ChartSeriesModel>())
@@ -136,6 +165,7 @@ public sealed class MetricHistoryChartControl : Control
 
     private void OnSeriesItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        _geometryCacheValid = false;
         InvalidateVisual();
     }
 
@@ -244,52 +274,42 @@ public sealed class MetricHistoryChartControl : Control
             return new Point(x, y);
         }
 
+        bool cacheMatches = _geometryCacheValid
+            && Math.Abs(_cachedWidth - w) < 0.5
+            && Math.Abs(_cachedHeight - h) < 0.5
+            && Math.Abs(_cachedZoom - zoom) < 0.001
+            && Math.Abs(_cachedPan - pan) < 0.001
+            && _cachedWindowStart == wStart
+            && _cachedWindowEnd == wEnd;
+
+        if (!cacheMatches)
+        {
+            RebuildGeometryCache(activeSeries, MapPoint, topPad + plotH, plotW);
+            _cachedWidth = w;
+            _cachedHeight = h;
+            _cachedZoom = zoom;
+            _cachedPan = pan;
+            _cachedWindowStart = wStart;
+            _cachedWindowEnd = wEnd;
+            _geometryCacheValid = true;
+        }
+
         // 6. Draw each series: Shaded Area under curve + Line Stroke
         using (context.PushClip(new Rect(leftPad, topPad, plotW, plotH)))
         {
+            foreach (var (fillBrush, linePen, fillGeom, lineGeom) in _cachedSeriesGeometries)
+            {
+                context.DrawGeometry(fillBrush, null, fillGeom);
+                context.DrawGeometry(null, linePen, lineGeom);
+            }
+
             foreach (var series in activeSeries)
             {
-                var vals = series.Values;
-                var ts = series.Timestamps;
-                int count = vals.Length;
-                if (count < 2)
+                if (series.Values.Length == 1)
                 {
-                    if (count == 1)
-                    {
-                        var pt = MapPoint(ts.Length > 0 ? ts[0] : 0, vals[0], 0, 1);
-                        context.FillRectangle(series.SolidBrush, new Rect(pt.X - 3, pt.Y - 3, 6, 6), 3);
-                    }
-                    continue;
+                    var pt = MapPoint(series.Timestamps.Length > 0 ? series.Timestamps[0] : 0, series.Values[0], 0, 1);
+                    context.FillRectangle(series.SolidBrush, new Rect(pt.X - 3, pt.Y - 3, 6, 6), 3);
                 }
-
-                var fillGeom = new StreamGeometry();
-                var lineGeom = new StreamGeometry();
-
-                using (var fctx = fillGeom.Open())
-                using (var lctx = lineGeom.Open())
-                {
-                    Point first = MapPoint(ts.Length > 0 ? ts[0] : 0, vals[0], 0, count);
-
-                    // Fill geometry polygon starts at bottom baseline, traces line, closes at bottom
-                    fctx.BeginFigure(new Point(first.X, topPad + plotH), true);
-                    fctx.LineTo(first);
-                    lctx.BeginFigure(first, false);
-
-                    for (int i = 1; i < count; i++)
-                    {
-                        Point pt = MapPoint(ts.Length > i ? ts[i] : 0, vals[i], i, count);
-                        fctx.LineTo(pt);
-                        lctx.LineTo(pt);
-                    }
-
-                    Point last = MapPoint(ts.Length >= count ? ts[count - 1] : 0, vals[count - 1], count - 1, count);
-                    fctx.LineTo(new Point(last.X, topPad + plotH));
-                }
-
-                // Fill area gradient below curve
-                context.DrawGeometry(series.FillBrush, null, fillGeom);
-                // Stroke primary line curve
-                context.DrawGeometry(null, series.LinePen, lineGeom);
             }
 
             // 7. Hover crosshair & point indicators
@@ -508,6 +528,137 @@ public sealed class MetricHistoryChartControl : Control
         return $"{v:F2}";
     }
 
+    private void RebuildGeometryCache(List<ChartSeriesModel> activeSeries, Func<long, double, int, int, Point> mapPoint, double baselineY, double plotW)
+    {
+        _cachedSeriesGeometries.Clear();
+
+        foreach (var series in activeSeries)
+        {
+            var vals = series.Values;
+            int count = vals.Length;
+            if (count < 2) continue;
+
+            var points = BuildDecimatedPoints(series, mapPoint, plotW);
+            if (points.Count < 2) continue;
+
+            var fillGeom = new StreamGeometry();
+            var lineGeom = new StreamGeometry();
+
+            using (var fctx = fillGeom.Open())
+            using (var lctx = lineGeom.Open())
+            {
+                Point first = points[0];
+                fctx.BeginFigure(new Point(first.X, baselineY), true);
+                fctx.LineTo(first);
+                lctx.BeginFigure(first, false);
+
+                for (int i = 1; i < points.Count; i++)
+                {
+                    fctx.LineTo(points[i]);
+                    lctx.LineTo(points[i]);
+                }
+
+                Point last = points[^1];
+                fctx.LineTo(new Point(last.X, baselineY));
+            }
+
+            _cachedSeriesGeometries.Add((series.FillBrush, series.LinePen, fillGeom, lineGeom));
+        }
+    }
+
+    private static List<Point> BuildDecimatedPoints(ChartSeriesModel series, Func<long, double, int, int, Point> mapPoint, double plotW)
+    {
+        var vals = series.Values;
+        var ts = series.Timestamps;
+        int count = vals.Length;
+        if (count <= 300)
+        {
+            var list = new List<Point>(count);
+            for (int i = 0; i < count; i++)
+            {
+                long t = ts.Length > i ? ts[i] : 0;
+                list.Add(mapPoint(t, vals[i], i, count));
+            }
+            return list;
+        }
+
+        var decimated = new List<Point>(Math.Min(count, (int)plotW * 2 + 16));
+        int lastCol = int.MinValue;
+        Point firstInCol = default;
+        Point lastInCol = default;
+        Point minPt = default;
+        Point maxPt = default;
+        int ptsInCol = 0;
+
+        void FlushColumn()
+        {
+            if (ptsInCol == 1)
+            {
+                decimated.Add(firstInCol);
+            }
+            else if (ptsInCol == 2)
+            {
+                decimated.Add(firstInCol);
+                decimated.Add(lastInCol);
+            }
+            else if (ptsInCol > 2)
+            {
+                decimated.Add(firstInCol);
+                if (minPt != firstInCol && minPt != lastInCol && maxPt != firstInCol && maxPt != lastInCol)
+                {
+                    if (minPt.X <= maxPt.X)
+                    {
+                        decimated.Add(minPt);
+                        decimated.Add(maxPt);
+                    }
+                    else
+                    {
+                        decimated.Add(maxPt);
+                        decimated.Add(minPt);
+                    }
+                }
+                else if (minPt != firstInCol && minPt != lastInCol)
+                {
+                    decimated.Add(minPt);
+                }
+                else if (maxPt != firstInCol && maxPt != lastInCol)
+                {
+                    decimated.Add(maxPt);
+                }
+                decimated.Add(lastInCol);
+            }
+            ptsInCol = 0;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            long t = ts.Length > i ? ts[i] : 0;
+            Point pt = mapPoint(t, vals[i], i, count);
+            int col = (int)Math.Round(pt.X);
+
+            if (col != lastCol)
+            {
+                if (ptsInCol > 0) FlushColumn();
+                lastCol = col;
+                firstInCol = pt;
+                lastInCol = pt;
+                minPt = pt;
+                maxPt = pt;
+                ptsInCol = 1;
+            }
+            else
+            {
+                lastInCol = pt;
+                if (pt.Y < minPt.Y) minPt = pt;
+                if (pt.Y > maxPt.Y) maxPt = pt;
+                ptsInCol++;
+            }
+        }
+        if (ptsInCol > 0) FlushColumn();
+
+        return decimated;
+    }
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
@@ -518,17 +669,44 @@ public sealed class MetricHistoryChartControl : Control
         {
             ZoomLevel = 1.0;
             PanOffset = 0.0;
+            _geometryCacheValid = false;
             e.Handled = true;
             InvalidateVisual();
             return;
         }
 
-        if (q.Properties.IsLeftButtonPressed)
+        if (e.Pointer.Type == PointerType.Touch)
+        {
+            _activeTouchPoints[e.Pointer.Id] = q.Position;
+            if (_activeTouchPoints.Count == 2)
+            {
+                _isDragging = false;
+                var pts = _activeTouchPoints.Values.ToArray();
+                _multiTouchStartDistance = Math.Max(10.0, Math.Abs(pts[0].X - pts[1].X));
+                _multiTouchStartZoom = ZoomLevel;
+                _multiTouchStartPan = PanOffset;
+                _multiTouchStartCenter = new Point((pts[0].X + pts[1].X) / 2.0, (pts[0].Y + pts[1].Y) / 2.0);
+
+                e.PreventGestureRecognition();
+                e.Pointer.Capture(this);
+                _touchCaptured = true;
+                e.Handled = true;
+            }
+            else if (_activeTouchPoints.Count == 1)
+            {
+                _touchStartPoint = q.Position;
+                _dragStartPan = PanOffset;
+                _isDragging = false;
+                _touchCaptured = false;
+            }
+        }
+        else if (q.Properties.IsLeftButtonPressed)
         {
             _isDragging = true;
             _dragStartPoint = q.Position;
             _dragStartPan = PanOffset;
             e.Pointer.Capture(this);
+            Cursor = new Cursor(StandardCursorType.Hand);
             e.Handled = true;
         }
     }
@@ -538,12 +716,89 @@ public sealed class MetricHistoryChartControl : Control
         base.OnPointerMoved(e);
         _hoverPoint = e.GetPosition(this);
 
-        if (_isDragging)
+        const double leftPad = 52.0;
+        const double rightPad = 16.0;
+        double plotW = Math.Max(10.0, Bounds.Width - leftPad - rightPad);
+        double maxPan = Math.Max(0.0, (ZoomLevel - 1.0) * plotW);
+
+        if (e.Pointer.Type == PointerType.Touch && _activeTouchPoints.ContainsKey(e.Pointer.Id))
         {
-            double plotW = Math.Max(10, Bounds.Width - 68);
+            _activeTouchPoints[e.Pointer.Id] = e.GetPosition(this);
+
+            if (_activeTouchPoints.Count >= 2)
+            {
+                e.PreventGestureRecognition();
+                var pts = _activeTouchPoints.Values.Take(2).ToArray();
+                double currentDistance = Math.Max(10.0, Math.Abs(pts[0].X - pts[1].X));
+                double scale = currentDistance / _multiTouchStartDistance;
+
+                double newZoom = Math.Clamp(_multiTouchStartZoom * scale, 1.0, 8.0);
+                double relX = Math.Clamp(_multiTouchStartCenter.X - leftPad, 0.0, plotW);
+                double dataFrac = (relX + _multiTouchStartPan) / (plotW * _multiTouchStartZoom);
+                double newMaxPan = Math.Max(0.0, (newZoom - 1.0) * plotW);
+                double newPan = (dataFrac * plotW * newZoom) - relX;
+
+                PanOffset = Math.Clamp(newPan, 0.0, newMaxPan);
+                ZoomLevel = newZoom;
+                _geometryCacheValid = false;
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+            else if (_activeTouchPoints.Count == 1 && _touchStartPoint.HasValue)
+            {
+                Point cur = e.GetPosition(this);
+                double dx = cur.X - _touchStartPoint.Value.X;
+                double dy = cur.Y - _touchStartPoint.Value.Y;
+
+                if (!_isDragging && !_touchCaptured)
+                {
+                    if (Math.Abs(dx) > 8 && Math.Abs(dx) > Math.Abs(dy) * 1.2)
+                    {
+                        // User intended horizontal pan on the graph: lock gesture and capture pointer
+                        e.PreventGestureRecognition();
+                        e.Pointer.Capture(this);
+                        _isDragging = true;
+                        _touchCaptured = true;
+                        _dragStartPoint = cur;
+                    }
+                    else if (Math.Abs(dy) > 8 && Math.Abs(dy) > Math.Abs(dx))
+                    {
+                        // User intended vertical scroll: let parent ScrollViewer handle it
+                        return;
+                    }
+                }
+
+                if (_isDragging)
+                {
+                    e.PreventGestureRecognition();
+                    double deltaX = cur.X - _dragStartPoint.X;
+                    PanOffset = Math.Clamp(_dragStartPan - deltaX, 0.0, maxPan);
+                    _geometryCacheValid = false;
+                    InvalidateVisual();
+                    e.Handled = true;
+                    return;
+                }
+            }
+        }
+
+        if (_isDragging && _hoverPoint.HasValue && e.Pointer.Type != PointerType.Touch)
+        {
             double deltaX = _hoverPoint.Value.X - _dragStartPoint.X;
-            PanOffset = Math.Clamp(_dragStartPan - deltaX, 0.0, (ZoomLevel - 1.0) * plotW);
+            PanOffset = Math.Clamp(_dragStartPan - deltaX, 0.0, maxPan);
+            _geometryCacheValid = false;
             Cursor = new Cursor(StandardCursorType.Hand);
+        }
+        else if (e.Pointer.Type != PointerType.Touch)
+        {
+            if (ZoomLevel > 1.05 && _hoverPoint.HasValue && _hoverPoint.Value.X >= leftPad && _hoverPoint.Value.X <= Bounds.Width - rightPad)
+            {
+                Cursor = new Cursor(StandardCursorType.SizeWestEast);
+            }
+            else
+            {
+                Cursor = Cursor.Default;
+            }
         }
 
         InvalidateVisual();
@@ -552,24 +807,64 @@ public sealed class MetricHistoryChartControl : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        if (e.Pointer.Type == PointerType.Touch)
+        {
+            _activeTouchPoints.Remove(e.Pointer.Id);
+            if (_activeTouchPoints.Count == 0)
+            {
+                _isDragging = false;
+                _touchCaptured = false;
+                _touchStartPoint = null;
+                e.Pointer.Capture(null);
+            }
+        }
+        else if (_isDragging)
+        {
+            _isDragging = false;
+            e.Pointer.Capture(null);
+            Cursor = ZoomLevel > 1.05 ? new Cursor(StandardCursorType.SizeWestEast) : Cursor.Default;
+        }
+        InvalidateVisual();
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        base.OnPointerCaptureLost(e);
         _isDragging = false;
-        e.Pointer.Capture(null);
-        Cursor = new Cursor(StandardCursorType.Arrow);
+        _touchCaptured = false;
+        _touchStartPoint = null;
+        _activeTouchPoints.Clear();
+        Cursor = Cursor.Default;
         InvalidateVisual();
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        double plotW = Math.Max(10, Bounds.Width - 68);
-        double mouseX = Math.Clamp((_hoverPoint ?? e.GetPosition(this)).X - 52, 0.0, plotW);
+        const double leftPad = 52.0;
+        const double rightPad = 16.0;
+        double plotW = Math.Max(10.0, Bounds.Width - leftPad - rightPad);
+        double maxPan = Math.Max(0.0, (ZoomLevel - 1.0) * plotW);
 
+        // Trackpad horizontal scroll
+        if (Math.Abs(e.Delta.X) > 0.001 && maxPan > 0)
+        {
+            PanOffset = Math.Clamp(PanOffset - (e.Delta.X * 24.0), 0.0, maxPan);
+            _geometryCacheValid = false;
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        // Mouse wheel zoom
+        double mouseX = Math.Clamp((_hoverPoint ?? e.GetPosition(this)).X - leftPad, 0.0, plotW);
         double oldZoom = ZoomLevel;
         double newZoom = Math.Clamp(oldZoom + e.Delta.Y * 0.35, 1.0, 8.0);
 
         double frac = (mouseX + PanOffset) / (plotW * oldZoom);
         ZoomLevel = newZoom;
         PanOffset = Math.Clamp(frac * plotW * newZoom - mouseX, 0.0, (newZoom - 1.0) * plotW);
+        _geometryCacheValid = false;
 
         e.Handled = true;
         InvalidateVisual();
@@ -579,6 +874,10 @@ public sealed class MetricHistoryChartControl : Control
     {
         base.OnPointerExited(e);
         _hoverPoint = null;
+        if (!_isDragging)
+        {
+            Cursor = Cursor.Default;
+        }
         InvalidateVisual();
     }
 }

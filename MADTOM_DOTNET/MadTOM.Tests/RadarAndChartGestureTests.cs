@@ -7,6 +7,7 @@ using Xunit;
 
 namespace MadTOM.Tests;
 
+[Collection("GlobalSingletons")]
 public class RadarAndChartGestureTests
 {
     [Fact]
@@ -130,5 +131,18 @@ public class RadarAndChartGestureTests
             Assert.False(origin.IsHovered);
             Assert.False(origin.IsMuted);
         }
+    }
+
+    [Fact]
+    public void MetricHistoryChartControl_InitializesWithDefaults()
+    {
+        var control = new MetricHistoryChartControl();
+
+        Assert.Equal(1.0, control.ZoomLevel);
+        Assert.Equal(0.0, control.PanOffset);
+        Assert.Empty(control.Values);
+        Assert.Empty(control.Timestamps);
+        Assert.Empty(control.Labels);
+        Assert.True(control.ClipToBounds);
     }
 }

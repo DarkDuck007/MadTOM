@@ -148,4 +148,72 @@ public class TelemetryAndMetricsTests
         double tipX = Math.Clamp(targetX - tipW / 2.0, minTipX, maxTipX);
         Assert.True(tipX >= minTipX);
     }
+
+    [Fact]
+    public void FleetNodeModel_GetMetricValue_ResolvesLiveMetricsAndFallbacks()
+    {
+        var node = new FleetNodeModel
+        {
+            Id = "node-1",
+            CpuAvgPct = 42.5,
+            MemoryTotalBytes = 16_000_000_000,
+            RamUsedPct = 50.0,
+            HasBattery = true,
+            BatteryPct = 85.0
+        };
+        node.Twamp.Available = true;
+        node.Twamp.RttMs = 3.5;
+
+        // Fallback checks
+        Assert.Equal(42.5, node.GetMetricValue("cpu.total"));
+        Assert.Equal(8_000_000_000.0, node.GetMetricValue("memory.used"));
+        Assert.Equal(16_000_000_000.0, node.GetMetricValue("memory.total"));
+        Assert.Equal(3.5, node.GetMetricValue("twamp.rtt"));
+        Assert.Equal(85.0, node.GetMetricValue("power.battery_pct"));
+        Assert.Null(node.GetMetricValue("unknown.metric"));
+
+        // Explicit LatestMetricValues overrides
+        node.LatestMetricValues["cpu.total"] = 99.1;
+        node.LatestMetricValues["cpu.user"] = 65.4;
+        Assert.Equal(99.1, node.GetMetricValue("cpu.total"));
+        Assert.Equal(65.4, node.GetMetricValue("cpu.user"));
+    }
+
+    [Fact]
+    public void HostMetricsTabViewModel_UpdateForNode_AppendsLiveSamplesToGraphs()
+    {
+        var vm = new HostMetricsTabViewModel();
+        vm.SetScope("1m");
+
+        var node = new FleetNodeModel
+        {
+            Id = "test-host",
+            CpuAvgPct = 25.0,
+            TimestampUnixNano = 1_700_000_000_000_000_000L
+        };
+        node.LatestMetricValues["cpu.total"] = 25.0;
+
+        // Initial setup for host
+        vm.UpdateForNode("test-host", node, new[] { node });
+
+        // Push subsequent 1Hz live samples
+        long t1 = 1_700_000_001_000_000_000L;
+        node.TimestampUnixNano = t1;
+        node.LatestMetricValues["cpu.total"] = 30.0;
+        vm.UpdateForNode("test-host", node, new[] { node });
+
+        long t2 = 1_700_000_002_000_000_000L;
+        node.TimestampUnixNano = t2;
+        node.LatestMetricValues["cpu.total"] = 35.0;
+        vm.UpdateForNode("test-host", node, new[] { node });
+
+        var cpuGraph = vm.Graphs.FirstOrDefault(g => g.Series.Any(s => s.Metric == "cpu.total"));
+        Assert.NotNull(cpuGraph);
+        var series = cpuGraph.Series.First(s => s.Metric == "cpu.total");
+
+        Assert.Contains(35.0, series.Values);
+        Assert.Equal(35.0, series.LatestValue);
+        Assert.Equal(t2, cpuGraph.WindowEnd);
+        Assert.Equal(t2 - (60L * 1_000_000_000L), cpuGraph.WindowStart);
+    }
 }

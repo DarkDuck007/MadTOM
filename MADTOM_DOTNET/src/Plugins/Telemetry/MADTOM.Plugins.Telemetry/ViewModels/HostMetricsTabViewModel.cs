@@ -57,6 +57,9 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     private readonly GraphLayoutStore? _layoutStore;
     private CancellationTokenSource? _queryCts;
     private DateTime _lastRefresh;
+    private volatile bool _isQueryRunning;
+    private bool _hasLoadedHistory;
+    private long _latestSeenTimestampNano;
 
     [ObservableProperty] private string _selectedScope = "5m";
     [ObservableProperty] private bool _isCustomScopeModalOpen;
@@ -336,6 +339,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     {
         SelectedScope = scope;
         if (scope == "custom") { IsCustomScopeModalOpen = true; return; }
+        _hasLoadedHistory = false;
         _ = RefreshHistoryAsync();
     }
 
@@ -343,7 +347,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public void ApplyCustomScope()
     {
         if (!TryRange(out _, out _)) { ScopeError = "Choose a start time before the end time."; return; }
-        ScopeError = ""; IsCustomScopeModalOpen = false; _ = RefreshHistoryAsync();
+        ScopeError = ""; IsCustomScopeModalOpen = false; _hasLoadedHistory = false; _ = RefreshHistoryAsync();
     }
 
     [RelayCommand] public void CancelCustomScope() { IsCustomScopeModalOpen = false; SetScope("5m"); }
@@ -351,6 +355,14 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     private bool TryRange(out DateTime start, out DateTime end)
     {
         end = DateTime.UtcNow;
+        // Anchor window end to the latest known sample timestamp for clock-skew resilience.
+        // If the daemon's clock is ahead of the UI machine, the stored data points would fall
+        // outside [start, UtcNow] — extending to the latest seen timestamp covers them.
+        if (_latestSeenTimestampNano > 0)
+        {
+            var latestSample = DateTimeOffset.FromUnixTimeMilliseconds(_latestSeenTimestampNano / 1_000_000).UtcDateTime;
+            if (latestSample > end) end = latestSample;
+        }
         start = end.AddMinutes(SelectedScope switch { "1m" => -1, "30m" => -30, "2h" => -120, "24h" => -1440, _ => -5 });
         if (!IsScopeCustom) return true;
         if (CustomStartDate == null || CustomEndDate == null || CustomStartTime == null || CustomEndTime == null) return false;
@@ -378,6 +390,8 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             }
         if (changed)
         {
+            _hasLoadedHistory = false;
+            _latestSeenTimestampNano = 0;
             foreach (var graph in Graphs)
             {
                 graph.Values = Array.Empty<double>();
@@ -388,15 +402,126 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     s.Timestamps = Array.Empty<long>();
                 }
             }
+            if (_provider != null)
+                _ = RefreshHistoryAsync();
+            else
+                _hasLoadedHistory = true;
         }
-        TimeSpan minRefresh = SelectedScope switch
+
+        if (node != null)
+            _latestSeenTimestampNano = Math.Max(_latestSeenTimestampNano, node.TimestampUnixNano);
+
+        if (!_hasLoadedHistory && _provider != null && !_isQueryRunning)
         {
-            "1m" => TimeSpan.FromSeconds(0.9),
-            "5m" => TimeSpan.FromSeconds(2.0),
-            _ => TimeSpan.FromSeconds(5.0)
-        };
-        if (changed || (!IsScopeCustom && DateTime.UtcNow - _lastRefresh >= minRefresh))
             _ = RefreshHistoryAsync();
+        }
+
+        long tsNano = node?.TimestampUnixNano ?? 0;
+        if (tsNano > 0)
+        {
+            PushLiveSampleToGraphs(tsNano, node, allNodes);
+        }
+    }
+
+    private void PushLiveSampleToGraphs(long timestampNano, FleetNodeModel? node, IReadOnlyList<FleetNodeModel> allNodes)
+    {
+        if (timestampNano <= 0 || IsScopeCustom) return;
+
+        long windowSpanNano = SelectedScope switch
+        {
+            "1m"  => 60L * 1_000_000_000L,
+            "5m"  => 300L * 1_000_000_000L,
+            "30m" => 1800L * 1_000_000_000L,
+            "2h"  => 7200L * 1_000_000_000L,
+            "24h" => 86400L * 1_000_000_000L,
+            _     => 300L * 1_000_000_000L
+        };
+
+        long windowEndNano = timestampNano;
+        long windowStartNano = windowEndNano - windowSpanNano;
+
+        foreach (var graph in Graphs)
+        {
+            if (!graph.IsVisible) continue;
+
+            graph.WindowStart = windowStartNano;
+            graph.WindowEnd = windowEndNano;
+
+            int maxPoints = 0;
+            foreach (var series in graph.Series)
+            {
+                double? sampleVal = null;
+                if (IsAggregatedMode)
+                {
+                    var vals = allNodes.Select(n => n.GetMetricValue(series.Metric))
+                                       .Where(v => v.HasValue)
+                                       .Select(v => v!.Value)
+                                       .ToList();
+                    if (vals.Count > 0)
+                    {
+                        sampleVal = series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio")
+                            ? vals.Average()
+                            : vals.Sum();
+                    }
+                }
+                else if (node != null)
+                {
+                    sampleVal = node.GetMetricValue(series.Metric);
+                }
+
+                if (sampleVal.HasValue)
+                {
+                    var currentTs = series.Timestamps;
+                    var currentVals = series.Values;
+
+                    long tsSec = timestampNano / 1_000_000_000L;
+                    int startIdx = 0;
+                    long pruneThreshold = windowStartNano - 5_000_000_000L; // keep small grace margin to avoid gaps at edge
+                    while (startIdx < currentTs.Length && currentTs[startIdx] < pruneThreshold)
+                        startIdx++;
+
+                    bool replaceLast = currentTs.Length > 0 && (currentTs[^1] / 1_000_000_000L) == tsSec;
+
+                    int newCount = (currentTs.Length - startIdx) + (replaceLast ? 0 : 1);
+                    var newTs = new long[newCount];
+                    var newVals = new double[newCount];
+
+                    int copyLen = currentTs.Length - startIdx - (replaceLast ? 1 : 0);
+                    if (copyLen > 0)
+                    {
+                        Array.Copy(currentTs, startIdx, newTs, 0, copyLen);
+                        Array.Copy(currentVals, startIdx, newVals, 0, copyLen);
+                    }
+
+                    newTs[^1] = timestampNano;
+                    newVals[^1] = sampleVal.Value;
+
+                    series.Timestamps = newTs;
+                    series.Values = newVals;
+                    series.LatestValue = sampleVal.Value;
+                    maxPoints = Math.Max(maxPoints, newCount);
+                }
+                else
+                {
+                    maxPoints = Math.Max(maxPoints, series.Values.Length);
+                }
+            }
+
+            var primary = graph.Series.FirstOrDefault();
+            if (primary != null)
+            {
+                graph.Timestamps = primary.Timestamps;
+                graph.Values = primary.Values;
+                graph.Labels = primary.Timestamps.Select(t => DateTimeOffset.FromUnixTimeSeconds(t / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss")).ToArray();
+            }
+
+            if (maxPoints > 0)
+            {
+                var startDt = DateTimeOffset.FromUnixTimeMilliseconds(windowStartNano / 1_000_000L).ToLocalTime();
+                var endDt = DateTimeOffset.FromUnixTimeMilliseconds(windowEndNano / 1_000_000L).ToLocalTime();
+                graph.Status = $"{maxPoints} points · {startDt:HH:mm:ss} – {endDt:HH:mm:ss}";
+            }
+        }
     }
 
     public async Task RefreshHistoryAsync()
@@ -405,6 +530,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         var cts = _queryCts = new CancellationTokenSource();
         _lastRefresh = DateTime.UtcNow;
         if (_provider == null || !TryRange(out var start, out var end)) return;
+        _isQueryRunning = true;
         var ids = IsAggregatedMode ? ClusterNodes.Select(n => n.Id).ToArray() : new[] { TargetHostId };
         try
         {
@@ -465,9 +591,17 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     }
                 }
             }));
+            if (!cts.IsCancellationRequested)
+            {
+                _hasLoadedHistory = true;
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { if (!cts.IsCancellationRequested) foreach (var graph in Graphs) graph.Status = $"Query failed: {ex.Message}"; }
+        finally
+        {
+            _isQueryRunning = false;
+        }
     }
 
     public void PushLiveSample(double fwd, double rev)

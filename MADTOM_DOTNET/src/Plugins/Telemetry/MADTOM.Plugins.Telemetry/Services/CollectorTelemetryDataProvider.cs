@@ -191,6 +191,46 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                 node.SparkNetDown = node.SparkNetDown.Append(node.RxBytesPerSecond / 1024).TakeLast(60).ToArray();
             }
 
+            // Populate all raw/computed metric keys for live graph streaming
+            if (s.Cpu != null)
+            {
+                node.LatestMetricValues["cpu.total"] = s.Cpu.TotalPct;
+                node.LatestMetricValues["cpu.user"] = s.Cpu.UserPct;
+                node.LatestMetricValues["cpu.system"] = s.Cpu.SystemPct;
+                node.LatestMetricValues["cpu.iowait"] = s.Cpu.IowaitPct;
+            }
+            if (s.Memory != null)
+            {
+                node.LatestMetricValues["memory.total"] = s.Memory.MemTotalBytes;
+                node.LatestMetricValues["memory.available"] = s.Memory.MemAvailableBytes;
+                node.LatestMetricValues["memory.used"] = (double)(s.Memory.MemTotalBytes - Math.Min(s.Memory.MemTotalBytes, s.Memory.MemAvailableBytes));
+                node.LatestMetricValues["memory.swap_total"] = s.Memory.SwapTotalBytes;
+                node.LatestMetricValues["memory.swap_free"] = s.Memory.SwapFreeBytes;
+                node.LatestMetricValues["memory.zram_ratio"] = s.Memory.ZramRatio;
+            }
+            if (s.Power != null)
+            {
+                node.LatestMetricValues["power.battery_pct"] = s.Power.BatteryPct;
+                node.LatestMetricValues["power.rate_watts"] = s.Power.RateWatts;
+            }
+            if (s.Twamp != null && s.Twamp.Available)
+            {
+                node.LatestMetricValues["twamp.rtt"] = s.Twamp.RttMs;
+                if (s.Twamp.OneWayAvailable)
+                {
+                    node.LatestMetricValues["twamp.forward"] = s.Twamp.ForwardMs;
+                    node.LatestMetricValues["twamp.reverse"] = s.Twamp.ReverseMs;
+                }
+            }
+            if (s.Network != null)
+            {
+                foreach (var nic in s.Network.Interfaces)
+                {
+                    node.LatestMetricValues[$"nic.{nic.Name}.rx_bytes"] = nic.RxBytes;
+                    node.LatestMetricValues[$"nic.{nic.Name}.tx_bytes"] = nic.TxBytes;
+                }
+            }
+
             NodeTelemetryUpdated?.Invoke(this, node);
         });
     }

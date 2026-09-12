@@ -116,5 +116,26 @@ public sealed partial class FleetNodeModel : ObservableObject
 
     [ObservableProperty]
     private double _swapUsedPct;
+
+    public System.Collections.Concurrent.ConcurrentDictionary<string, double> LatestMetricValues { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public double? GetMetricValue(string metricName)
+    {
+        if (LatestMetricValues.TryGetValue(metricName, out var val))
+            return val;
+
+        return metricName.ToLowerInvariant() switch
+        {
+            "cpu.total" => CpuAvgPct,
+            "memory.used" => (double)(MemoryTotalBytes * (RamUsedPct / 100.0)),
+            "memory.total" => (double)MemoryTotalBytes,
+            "memory.available" => (double)(MemoryTotalBytes * (1.0 - (RamUsedPct / 100.0))),
+            "twamp.rtt" => Twamp.Available ? Twamp.RttMs : null,
+            "twamp.forward" => Twamp.OneWayAvailable ? Twamp.ForwardMs : null,
+            "twamp.reverse" => Twamp.OneWayAvailable ? Twamp.ReverseMs : null,
+            "power.battery_pct" => HasBattery ? BatteryPct : null,
+            _ => null
+        };
+    }
 }
 
