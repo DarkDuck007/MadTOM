@@ -60,7 +60,7 @@ public partial class CollectorSettingsViewModel : ViewModelBase
     public ObservableCollection<GlobalMetricItemViewModel> GlobalMetrics { get; } = new();
     public ObservableCollection<GlobalMetricItemViewModel> PinnedMetricsPreview { get; } = new();
 
-    public IReadOnlyList<MetricDefinition> AvailableMetricOptions => GlobalMetricsStore.AvailableCatalog;
+    public ObservableCollection<MetricDefinition> AvailableMetricOptions { get; } = new(GlobalMetricsStore.AvailableCatalog);
 
     [ObservableProperty]
     private MetricDefinition _selectedMetricOption = GlobalMetricsStore.AvailableCatalog[0];
@@ -114,6 +114,9 @@ public partial class CollectorSettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     private NodeSettingsViewModel? _selectedNodeSettings;
+
+    [ObservableProperty]
+    private bool _isUnsavedPromptOpen;
 
     public event Action? CloseRequested;
 
@@ -223,7 +226,7 @@ public partial class CollectorSettingsViewModel : ViewModelBase
         for (int i = 0; i < pinnedConfigs.Count; i++)
         {
             var cfg = pinnedConfigs[i];
-            var def = GlobalMetricsStore.AvailableCatalog.FirstOrDefault(d => d.Key.Equals(cfg.Key, StringComparison.OrdinalIgnoreCase));
+            var def = GlobalMetricsStore.GetMetricDefinition(cfg.Key);
             if (def == null) continue;
 
             var existing = PinnedMetricsPreview.FirstOrDefault(m => m.Key.Equals(cfg.Key, StringComparison.OrdinalIgnoreCase) && m.ModifierLabel.Equals(cfg.Modifier, StringComparison.OrdinalIgnoreCase));
@@ -264,16 +267,54 @@ public partial class CollectorSettingsViewModel : ViewModelBase
             }
         }
 
-        if (SelectedNode == null && DetectedNodes.Count > 0)
-        {
-            SelectedNode = DetectedNodes[0];
-        }
-
         if (nodesAddedOrRemoved || NodeGroupItems.Count != DetectedNodes.Count)
         {
             RefreshNodeGroups();
         }
+        PopulateAvailableMetricOptions();
         RefreshGlobalMetrics();
+    }
+
+    private void PopulateAvailableMetricOptions()
+    {
+        foreach (var def in GlobalMetricsStore.AvailableCatalog)
+        {
+            if (!AvailableMetricOptions.Any(o => o.Key.Equals(def.Key, StringComparison.OrdinalIgnoreCase)))
+            {
+                AvailableMetricOptions.Add(def);
+            }
+        }
+
+        var disks = DetectedNodes.SelectMany(n => n.Disks).Select(d => d.Name).Where(d => !string.IsNullOrWhiteSpace(d)).Distinct();
+        foreach (var dev in disks)
+        {
+            string[] keys = { $"disk.io.{dev}.read_bytes", $"disk.io.{dev}.write_bytes", $"disk.io.{dev}.read_ops", $"disk.io.{dev}.write_ops" };
+            foreach (var k in keys)
+            {
+                if (!AvailableMetricOptions.Any(o => o.Key.Equals(k, StringComparison.OrdinalIgnoreCase)))
+                {
+                    AvailableMetricOptions.Add(GlobalMetricsStore.GetMetricDefinition(k));
+                }
+            }
+        }
+
+        var nics = DetectedNodes.SelectMany(n => n.Interfaces).Select(i => i.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct();
+        foreach (var iface in nics)
+        {
+            string[] keys = { $"nic.{iface}.rx_bytes", $"nic.{iface}.tx_bytes" };
+            foreach (var k in keys)
+            {
+                if (!AvailableMetricOptions.Any(o => o.Key.Equals(k, StringComparison.OrdinalIgnoreCase)))
+                {
+                    AvailableMetricOptions.Add(GlobalMetricsStore.GetMetricDefinition(k));
+                }
+            }
+        }
+
+        if (SelectedMetricOption == null && AvailableMetricOptions.Count > 0)
+        {
+            SelectedMetricOption = AvailableMetricOptions[0];
+        }
     }
 
     public void RefreshNodeGroups()
@@ -317,7 +358,7 @@ public partial class CollectorSettingsViewModel : ViewModelBase
             var item = GlobalMetrics.FirstOrDefault(m => m.Key == key);
             if (item == null)
             {
-                var def = GlobalMetricsStore.AvailableCatalog.FirstOrDefault(d => d.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+                var def = GlobalMetricsStore.GetMetricDefinition(key);
                 item = new GlobalMetricItemViewModel(key, name, icon, unit, def?.ShortName);
                 GlobalMetrics.Add(item);
             }
@@ -349,11 +390,11 @@ public partial class CollectorSettingsViewModel : ViewModelBase
         double ramAvgBytes = count > 0 ? ramSumBytes / count : 0;
         UpdateMetric("memory.bytes", "Memory (RAM) Used", "💾", "B", ramSumBytes, ramAvgBytes);
 
-        double diskReadSum = nodes.Sum(n => n.GetMetricValue("disk.io.read_bytes") ?? 0.0);
+        double diskReadSum = nodes.Sum(n => n.DiskReadBytesPerSecond > 0 ? n.DiskReadBytesPerSecond : (n.GetMetricValue("disk.io.read_bytes") ?? 0.0));
         double diskReadAvg = count > 0 ? diskReadSum / count : 0;
         UpdateMetric("disk.bytes.read", "Disk Read Throughput", "📖", "B/s", diskReadSum, diskReadAvg);
 
-        double diskWriteSum = nodes.Sum(n => n.GetMetricValue("disk.io.write_bytes") ?? 0.0);
+        double diskWriteSum = nodes.Sum(n => n.DiskWriteBytesPerSecond > 0 ? n.DiskWriteBytesPerSecond : (n.GetMetricValue("disk.io.write_bytes") ?? 0.0));
         double diskWriteAvg = count > 0 ? diskWriteSum / count : 0;
         UpdateMetric("disk.bytes.write", "Disk Write Throughput", "✍", "B/s", diskWriteSum, diskWriteAvg);
 
@@ -365,6 +406,18 @@ public partial class CollectorSettingsViewModel : ViewModelBase
         double twampAvg = twampNodes.Count > 0 ? twampNodes.Average(n => n.Twamp.RttMs) : 0;
         double twampMax = twampNodes.Count > 0 ? twampNodes.Max(n => n.Twamp.RttMs) : 0;
         UpdateMetric("twamp.rtt", "TWAMP Round-Trip Latency", "⏱", "ms", twampMax, twampAvg);
+
+        // Also update any dynamic pinned metrics in PinnedMetricsPreview
+        foreach (var pinned in PinnedMetricsPreview)
+        {
+            if (GlobalMetrics.Any(m => m.Key.Equals(pinned.Key, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            var def = GlobalMetricsStore.GetMetricDefinition(pinned.Key);
+            double dynSum = nodes.Sum(n => n.GetMetricValue(pinned.Key) ?? 0.0);
+            double dynAvg = count > 0 ? dynSum / count : 0;
+            UpdateMetric(pinned.Key, def.Name, def.Icon, def.Unit, dynSum, dynAvg);
+        }
     }
 
     partial void OnSelectedNodeChanged(FleetNodeModel? value)
@@ -464,8 +517,48 @@ public partial class CollectorSettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public void ClearSelectedNode()
+    {
+        SelectedNode = null;
+    }
+
+    [RelayCommand]
     public void Close()
     {
+        if (SelectedNodeSettings != null && SelectedNodeSettings.HasUnappliedChanges)
+        {
+            IsUnsavedPromptOpen = true;
+            return;
+        }
+
         CloseRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    public async Task ApplyAndCloseAsync()
+    {
+        if (SelectedNodeSettings != null)
+        {
+            await SelectedNodeSettings.SaveConfigAsync();
+        }
+        IsUnsavedPromptOpen = false;
+        CloseRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    public void DiscardAndClose()
+    {
+        if (SelectedNodeSettings != null)
+        {
+            SelectedNodeSettings.RevertChanges();
+        }
+        IsUnsavedPromptOpen = false;
+        CloseRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    public void CancelClosePrompt()
+    {
+        IsUnsavedPromptOpen = false;
     }
 }

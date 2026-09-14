@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.1" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
@@ -28,8 +29,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="../../../../../MADTOM_GOLANG/proto/madtom/v1/*.proto"
-              ProtoRoot="../../../../../MADTOM_GOLANG/proto"
-              GrpcServices="Client" />
+    <Protobuf Include="../../../../../MADTOM_GOLANG/proto/madtom/v1/*.proto" ProtoRoot="../../../../../MADTOM_GOLANG/proto" GrpcServices="Client" />
   </ItemGroup>
 </Project>

@@ -73,8 +73,50 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSidebarCollapsed;
 
+    private double _uncollapsedSidebarWidth = 220;
+
+    public double SidebarWidth
+    {
+        get => IsSidebarCollapsed ? 64 : _uncollapsedSidebarWidth;
+        set
+        {
+            if (!IsSidebarCollapsed)
+            {
+                _uncollapsedSidebarWidth = Math.Clamp(value, 140, 600);
+                OnPropertyChanged(nameof(SidebarWidth));
+            }
+        }
+    }
+
     [ObservableProperty]
-    private double _sidebarWidth = 220;
+    private int _uiScalePercent = 100;
+
+    public double UiScale => Math.Clamp(UiScalePercent, 10, 1000) / 100.0;
+
+    partial void OnUiScalePercentChanged(int value)
+    {
+        OnPropertyChanged(nameof(UiScale));
+        if (_appSettings != null)
+        {
+            _appSettings.UiScalePercent = value;
+            AppSettingsStore.Save(_appSettings);
+        }
+    }
+
+    [RelayCommand]
+    public void SetUiScale(object? param)
+    {
+        if (param != null && int.TryParse(param.ToString(), out int p))
+        {
+            UiScalePercent = Math.Clamp(p, 10, 1000);
+        }
+    }
+
+    [RelayCommand]
+    public void ResetUiScale()
+    {
+        UiScalePercent = 100;
+    }
 
     [ObservableProperty]
     private string _activeLexicon = "goose";
@@ -101,7 +143,8 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         _activeTheme = _appSettings.Theme;
         _activeLexicon = _appSettings.Language;
         _isSidebarCollapsed = _appSettings.IsConsoleSidebarCollapsed;
-        _sidebarWidth = _isSidebarCollapsed ? 64 : 220;
+        _uncollapsedSidebarWidth = 220;
+        _uiScalePercent = _appSettings.UiScalePercent > 0 ? Math.Clamp(_appSettings.UiScalePercent, 10, 1000) : 100;
 
         _hostContext.SetTheme(_activeTheme);
         _hostContext.SetLexicon(_activeLexicon);
@@ -185,7 +228,7 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     public void ToggleSidebar()
     {
         IsSidebarCollapsed = !IsSidebarCollapsed;
-        SidebarWidth = IsSidebarCollapsed ? 64 : 220;
+        OnPropertyChanged(nameof(SidebarWidth));
         _appSettings.IsConsoleSidebarCollapsed = IsSidebarCollapsed;
         AppSettingsStore.Save(_appSettings);
     }

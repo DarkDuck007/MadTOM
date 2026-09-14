@@ -72,7 +72,7 @@ public sealed partial class GlobalMetricItemViewModel : ObservableObject
         bool isRate = modifier is "Rate of Change" or "Rate";
         string rateSuffix = isRate ? "/s" : "";
 
-        if (Key.StartsWith("network"))
+        if (Key.StartsWith("network") || Key.StartsWith("nic."))
         {
             // Unit is bits/sec or bytes/sec
             double abs = Math.Abs(v);
@@ -82,7 +82,7 @@ public sealed partial class GlobalMetricItemViewModel : ObservableObject
             else if (abs >= 1e3) FormattedValue = $"{prefix}{abs / 1e3:F1} Kbps{rateSuffix}";
             else FormattedValue = $"{prefix}{abs:F0} bps{rateSuffix}";
         }
-        else if (Key.StartsWith("disk.bytes"))
+        else if (Key.StartsWith("disk.bytes") || (Key.StartsWith("disk.io.") && (Key.EndsWith(".read_bytes") || Key.EndsWith(".write_bytes"))))
         {
             double abs = Math.Abs(v);
             string prefix = isRate && v > 0 ? "+" : (isRate && v < 0 ? "-" : "");
@@ -91,7 +91,7 @@ public sealed partial class GlobalMetricItemViewModel : ObservableObject
             else if (abs >= 1024) FormattedValue = $"{prefix}{abs / 1024:F0} KB{rateSuffix}";
             else FormattedValue = $"{prefix}{abs:F0} B{rateSuffix}";
         }
-        else if (Key.StartsWith("disk.ops"))
+        else if (Key.StartsWith("disk.ops") || (Key.StartsWith("disk.io.") && (Key.EndsWith(".read_ops") || Key.EndsWith(".write_ops"))))
         {
             string prefix = isRate && v > 0 ? "+" : (isRate && v < 0 ? "-" : "");
             FormattedValue = $"{prefix}{Math.Abs(v):F0} IOPS{rateSuffix}";

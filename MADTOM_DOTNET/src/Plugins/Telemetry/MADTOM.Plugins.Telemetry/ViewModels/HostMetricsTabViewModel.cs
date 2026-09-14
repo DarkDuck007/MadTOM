@@ -91,6 +91,12 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     [ObservableProperty] private string _selectedMetric = "cpu.total";
     [ObservableProperty] private bool _isAddMetricRateOfChange;
 
+    [ObservableProperty] private bool _isCustomProcessModalOpen;
+    [ObservableProperty] private string _customProcessSearchFilter = string.Empty;
+    public ObservableCollection<ProcessInfoModel> SelectableProcesses { get; } = new();
+    public ObservableCollection<ProcessInfoModel> FilteredSelectableProcesses { get; } = new();
+    [ObservableProperty] private ProcessInfoModel? _selectedCustomProcess;
+
     private static readonly string[] BaseMetrics = new[]
     {
         "cpu.total", "cpu.user", "cpu.system", "cpu.iowait",
@@ -178,7 +184,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     var seriesList = new List<ChartSeriesModel>();
                     foreach (var sc in cfg.Series)
                     {
-                        if (!AvailableMetrics.Contains(sc.Metric)) AvailableMetrics.Add(sc.Metric);
+                        if (!AvailableMetrics.Contains(sc.Metric) && !sc.Metric.StartsWith("proc.cpu.")) AvailableMetrics.Add(sc.Metric);
                         var s = new ChartSeriesModel(sc.Metric, sc.Label, sc.ColorHex)
                         {
                             IsRateOfChange = sc.IsRateOfChange
@@ -214,7 +220,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         SyncGraphsFromGroups();
     }
 
-    private void PopulateAvailableMetrics(FleetNodeModel? node, IReadOnlyList<FleetNodeModel> allNodes)
+    public void PopulateAvailableMetrics(FleetNodeModel? node, IReadOnlyList<FleetNodeModel> allNodes)
     {
         AvailableMetrics.Clear();
         foreach (var m in BaseMetrics) AvailableMetrics.Add(m);
@@ -230,6 +236,21 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 AvailableMetrics.Add($"nic.{name}.{suffix}");
             }
         }
+
+        var disks = (IsAggregatedMode ? allNodes.SelectMany(n => n.Disks) : (node?.Disks ?? Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice>()))
+            .Select(d => d.Name)
+            .Distinct();
+
+        foreach (var name in disks)
+        {
+            foreach (string suffix in new[] { "read_bytes", "write_bytes", "read_ops", "write_ops" })
+            {
+                AvailableMetrics.Add($"disk.io.{name}.{suffix}");
+            }
+        }
+
+        AvailableMetrics.Add("process.breakdown");
+        AvailableMetrics.Add("custom.process");
 
         if (!AvailableMetrics.Contains(SelectedMetric))
         {
@@ -252,6 +273,16 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public void AddGraph()
     {
         if (string.IsNullOrWhiteSpace(SelectedMetric)) return;
+        if (SelectedMetric == "process.breakdown")
+        {
+            QuickMergeProcessCpu();
+            return;
+        }
+        if (SelectedMetric == "custom.process")
+        {
+            OpenCustomProcessSelector();
+            return;
+        }
         bool isRate = IsAddMetricRateOfChange;
         string label = isRate ? $"{SelectedMetric} (rate/s)" : SelectedMetric;
         string title = label;
@@ -584,6 +615,60 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         _ = RefreshHistoryAsync();
     }
 
+    [RelayCommand]
+    public void QuickMergeDiskIo()
+    {
+        var diskMetrics = new HashSet<string>(new[] { "disk.io.read_bytes", "disk.io.write_bytes" });
+        RemoveGraphsMatching(g => g.Series.All(s => diskMetrics.Contains(s.Metric)));
+
+        var series = new[]
+        {
+            new ChartSeriesModel("disk.io.read_bytes", "Read Throughput", "#06B6D4") { IsRateOfChange = true },
+            new ChartSeriesModel("disk.io.write_bytes", "Write Throughput", "#F59E0B") { IsRateOfChange = true }
+        };
+        foreach (var s in series) s.ConfigurationChanged += SaveLayout;
+        var merged = new MetricGraphViewModel("Disk I/O Throughput", series);
+        Groups.Add(new MetricGraphGroupViewModel(merged));
+        SyncGraphsFromGroups();
+        SaveLayout();
+        _ = RefreshHistoryAsync();
+    }
+
+    [RelayCommand]
+    public void QuickMergeProcessCpu()
+    {
+        var targetNode = _provider?.GetNode(TargetHostId) ?? ClusterNodes.FirstOrDefault(n => n.Id == TargetHostId);
+        var activeNodes = IsAggregatedMode ? (IEnumerable<FleetNodeModel>)ClusterNodes : (targetNode != null ? new[] { targetNode } : ClusterNodes);
+        var procNames = activeNodes.SelectMany(n => n.Processes)
+                                   .OrderByDescending(p => p.Cpu)
+                                   .Select(p => FleetNodeModel.SanitizeMetricName(p.Name))
+                                   .Distinct()
+                                   .Take(8)
+                                   .ToList();
+
+        var seriesList = new List<ChartSeriesModel>
+        {
+            new ChartSeriesModel("cpu.total", "Total CPU", "#06B6D4")
+        };
+
+        string[] palette = new[] { "#F59E0B", "#10B981", "#8B5CF6", "#EC4899", "#3B82F6", "#14B8A6", "#E11D48", "#84CC16", "#6366F1", "#F97316" };
+        int colorIdx = 0;
+        foreach (var name in procNames)
+        {
+            string metric = $"proc.cpu.{name}";
+            seriesList.Add(new ChartSeriesModel(metric, name, palette[colorIdx % palette.Length]));
+            colorIdx++;
+        }
+        seriesList.Add(new ChartSeriesModel("proc.cpu.other", "Other", "#64748B"));
+
+        foreach (var s in seriesList) s.ConfigurationChanged += SaveLayout;
+        var merged = new MetricGraphViewModel("Process Breakdown", seriesList);
+        Groups.Insert(0, new MetricGraphGroupViewModel(merged));
+        SyncGraphsFromGroups();
+        SaveLayout();
+        _ = RefreshHistoryAsync();
+    }
+
     private void RemoveGraphsMatching(Func<MetricGraphViewModel, bool> predicate)
     {
         foreach (var grp in Groups.ToList())
@@ -628,7 +713,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 var seriesList = new List<ChartSeriesModel>();
                 foreach (var sc in cfg.Series)
                 {
-                    if (!AvailableMetrics.Contains(sc.Metric)) AvailableMetrics.Add(sc.Metric);
+                    if (!AvailableMetrics.Contains(sc.Metric) && !sc.Metric.StartsWith("proc.cpu.")) AvailableMetrics.Add(sc.Metric);
                     var s = new ChartSeriesModel(sc.Metric, sc.Label, sc.ColorHex)
                     {
                         IsRateOfChange = sc.IsRateOfChange
@@ -689,6 +774,100 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         if (preset == null || preset.IsBuiltIn) return;
         _presetStore.DeleteUserPreset(preset.Id);
         LoadPresets();
+    }
+
+    partial void OnCustomProcessSearchFilterChanged(string value)
+    {
+        FilterSelectableProcesses();
+    }
+
+    public void OpenCustomProcessSelector()
+    {
+        SelectableProcesses.Clear();
+        CustomProcessSearchFilter = string.Empty;
+
+        var targetNode = _provider?.GetNode(TargetHostId) ?? ClusterNodes.FirstOrDefault(n => n.Id == TargetHostId);
+        var activeNodes = IsAggregatedMode ? (IEnumerable<FleetNodeModel>)ClusterNodes : (targetNode != null ? new[] { targetNode } : ClusterNodes);
+
+        var procs = activeNodes.SelectMany(n => n.Processes)
+                               .GroupBy(p => FleetNodeModel.SanitizeMetricName(p.Name))
+                               .Select(g => new ProcessInfoModel
+                               {
+                                   Name = g.First().Name,
+                                   Pid = g.First().Pid,
+                                   User = g.First().User,
+                                   Cpu = g.Sum(p => p.Cpu),
+                                   Mem = g.First().Mem,
+                                   Threads = g.Sum(p => p.Threads)
+                               })
+                               .OrderByDescending(p => p.Cpu)
+                               .Take(1000)
+                               .ToList();
+
+        foreach (var p in procs)
+        {
+            SelectableProcesses.Add(p);
+        }
+
+        FilterSelectableProcesses();
+        SelectedCustomProcess = FilteredSelectableProcesses.FirstOrDefault();
+        IsCustomProcessModalOpen = true;
+    }
+
+    private void FilterSelectableProcesses()
+    {
+        FilteredSelectableProcesses.Clear();
+        string q = CustomProcessSearchFilter.Trim().ToLowerInvariant();
+        var matches = SelectableProcesses.Where(p =>
+            string.IsNullOrEmpty(q) ||
+            p.Name.ToLowerInvariant().Contains(q) ||
+            p.Pid.ToString().Contains(q) ||
+            p.User.ToLowerInvariant().Contains(q));
+
+        foreach (var m in matches)
+        {
+            FilteredSelectableProcesses.Add(m);
+        }
+
+        if (SelectedCustomProcess == null || !FilteredSelectableProcesses.Contains(SelectedCustomProcess))
+        {
+            SelectedCustomProcess = FilteredSelectableProcesses.FirstOrDefault();
+        }
+    }
+
+    [RelayCommand]
+    public void ConfirmAddCustomProcess()
+    {
+        if (SelectedCustomProcess == null) return;
+        string cleanName = FleetNodeModel.SanitizeMetricName(SelectedCustomProcess.Name);
+        string metric = $"proc.cpu.{cleanName}";
+        string title = $"Process: {SelectedCustomProcess.Name}";
+
+        bool isRate = IsAddMetricRateOfChange;
+        if (Graphs.Any(g => g.Series.Count == 1 && g.Series[0].Metric == metric && g.Series[0].IsRateOfChange == isRate))
+        {
+            IsCustomProcessModalOpen = false;
+            return;
+        }
+
+        var series = new ChartSeriesModel(metric, metric, GraphLayoutStore.GetDefaultColor(metric))
+        {
+            IsRateOfChange = isRate
+        };
+        series.ConfigurationChanged += SaveLayout;
+        var newGraph = new MetricGraphViewModel(title, new[] { series });
+        Groups.Add(new MetricGraphGroupViewModel(newGraph));
+        SyncGraphsFromGroups();
+        SaveLayout();
+        _ = RefreshHistoryAsync();
+
+        IsCustomProcessModalOpen = false;
+    }
+
+    [RelayCommand]
+    public void CancelCustomProcess()
+    {
+        IsCustomProcessModalOpen = false;
     }
 
     public List<GraphGroupConfig> ToGroupConfigs()

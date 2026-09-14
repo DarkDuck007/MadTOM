@@ -80,7 +80,12 @@ func (e *Engine) Collect(cfg *madtomv1.NodeConfig) *madtomv1.SystemMetrics {
 	metrics.DiskIo = e.diskCollector.Collect()
 
 	metrics.Twamp = twamp.Probe(cfg.TwampTarget, cfg.TwampClocksSynchronized, uint32(time.Now().UnixNano()))
-	metrics.Processes, metrics.ProcessesAvailable = e.processCollector.Collect()
+	if cfg.ProcessMode != madtomv1.ProcessTelemetryMode_PROCESS_MODE_DISABLED {
+		metrics.Processes, metrics.ProcessesAvailable = e.processCollector.Collect()
+	} else {
+		metrics.Processes = nil
+		metrics.ProcessesAvailable = false
+	}
 	return metrics
 }
 
@@ -100,6 +105,8 @@ func DefaultConfig(nodeID string) *madtomv1.NodeConfig {
 		SlowPollIntervalMs:        30000,
 		EnableZstdCompression:     false,
 		MaxSpoolBytes:             1024 * 1024 * 1024, // 1 GB
+		ProcessMode:               madtomv1.ProcessTelemetryMode_PROCESS_MODE_LIVE_ONLY,
+		TopNProcesses:             5,
 	}
 }
 

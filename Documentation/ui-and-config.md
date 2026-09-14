@@ -7,6 +7,10 @@ This guide covers the MADTOM Desktop Operator UI, its features, telemetry visual
 ## Table of Contents
 
 1. [Desktop UI Overview](#desktop-ui-overview)
+   - [UI Scaling & Display Multiplier](#ui-scaling--display-multiplier)
+   - [Interactive Resizable Sidebars](#interactive-resizable-sidebars)
+   - [Symmetrically Resizable Centered Modals](#symmetrically-resizable-centered-modals)
+   - [Modal Escape Key Navigation](#modal-escape-key-navigation)
 2. [Configuration & Persistent Storage](#configuration--persistent-storage)
    - [Location & Resolving Paths](#location--resolving-paths)
    - [`graphs.json` — Custom Graph Groups & Layouts](#graphsjson--custom-graph-groups--layouts)
@@ -17,21 +21,29 @@ This guide covers the MADTOM Desktop Operator UI, its features, telemetry visual
    - [`settings.json` — Persistent User Preferences](#settingsjson--persistent-user-preferences)
    - [`themes/` — Custom Runtime Themes (YAML / JSON)](#themes--custom-runtime-themes-yaml--json)
 3. [Telemetry Graph Scopes & Resolution](#telemetry-graph-scopes--resolution)
+   - [Pinned Slim Scope Bar](#pinned-slim-scope-bar)
    - [Relative Scopes (1m, 5m, 30m, 2h, 6h, 12h, 24h)](#relative-scopes-1m-5m-30m-2h-6h-12h-24h)
    - [Custom Scope (Date & Time Picker)](#custom-scope-date--time-picker)
    - [Resolution-Adaptive Downsampling (LTTB)](#resolution-adaptive-downsampling-lttb)
    - [Graph Navigation: Zoom, Pan & Page Scrolling](#graph-navigation-zoom-pan--page-scrolling)
+   - [Memory Normalization in Tooltips](#memory-normalization-in-tooltips)
    - [Graph Groups, Side-by-Side Rows & Reordering](#graph-groups-side-by-side-rows--reordering)
+   - [Custom Color Wheel & Series ColorPicker](#custom-color-wheel--series-colorpicker)
    - [Missing Data & Downtime Handling](#missing-data--downtime-handling)
-   - [Disk I/O Read/Write Metrics](#disk-io-readwrite-metrics)
+   - [Multi-Device Disk I/O Metrics & Diagnostics](#multi-device-disk-io-metrics--diagnostics)
 4. [Collector & Fleet Management](#collector--fleet-management)
    - [Opt-In Global Metrics & Top Bar Pinning](#opt-in-global-metrics--top-bar-pinning)
    - [Dynamic Node Grouping & Fleet Filtering](#dynamic-node-grouping--fleet-filtering)
+   - [Node Opt-In Settings & Safe Apply Workflow](#node-opt-in-settings--safe-apply-workflow)
    - [Adding a Collector](#adding-a-collector)
    - [Editing a Collector](#editing-a-collector)
    - [Removing a Collector](#removing-a-collector)
    - [Multi-Hub Aggregation](#multi-hub-aggregation)
-5. [Process Monitoring & Signals](#process-monitoring--signals)
+5. [Process Monitoring, Storage Modes & Graphing](#process-monitoring-storage-modes--graphing)
+   - [Three-Tier Collection Policy](#three-tier-collection-policy)
+   - [Top-N Process Count Configuration](#top-n-process-count-configuration)
+   - [Historical TSDB Metric Storage & Breakdown Charting](#historical-tsdb-metric-storage--breakdown-charting)
+   - [Processes Manager: Sub-Tabs & True Top N Overview](#processes-manager-sub-tabs--true-top-n-overview)
 6. [Theming & Display Contrast Profiles](#theming--display-contrast-profiles)
    - [Accessing Theme & Lexicon Settings](#accessing-theme--lexicon-settings)
    - [Built-in Palettes](#built-in-palettes)
@@ -49,10 +61,42 @@ MADTOM provides a rich, responsive cross-platform desktop interface written in *
 - **Key Tabs & Views**:
   - **Fleet Dashboard**: Grid and list view of all monitored nodes across all connected collectors with 1Hz live sparklines and health badges.
   - **Host Detail**:
+    - **Top-Bar Navigation & Slim Control Bar**: The global top bar hosts the back button (`← Nodes`) and active node title with a floating CPU specification tooltip on mouse hover. Inside the node deep dive, a compact slim bar displays the telemetry type badge, graph settings gear (`⚙`), CPU model, and a 20% narrower target node selector, removing redundant hardware boxes to maximize vertical space for charts.
     - **Metrics Tab**: Real-time canvas graphs with zoom, pan, hover tooltips, and customizable multi-metric series.
     - **Processes Tab**: Live process tree, thread counts, and memory/CPU sorting.
     - **TWAMP Flight Tab**: Asymmetry radar and round-trip flight times.
     - **Logs Tab**: Node-level activity logs.
+
+### UI Scaling & Display Multiplier
+
+MADTOM Console features an app-wide layout scaling engine powered by Avalonia's `LayoutTransformControl` and `ScaleTransform`:
+- **Dynamic Multiplier**: Scales all interface elements, navigation rails, typography, flyouts, and canvas charts from **10% (0.1×) up to 1000% (10.0×)** with pixel-accurate layout recalculation.
+- **Console Settings Flyout**: Accessible via the gear icon (**⚙**) on the top-left header bar.
+  - **Live Scale Readout**: Displays current percentage (e.g. `100% (1.0x)`).
+  - **Smooth Slider**: Continuous adjustment from 10% to 1000% with tick markers.
+  - **Quick Preset Chips**: Fast one-click jumps to `50%`, `75%`, `100%`, `150%`, and `200%`.
+  - **Reset Button**: One-click restoration back to default 100% scale.
+- **Persistence**: Saved to `UiScalePercent` in `~/.local/share/MADTOM/settings.json` and restored on startup.
+
+### Interactive Resizable Sidebars
+
+Both the top-level Console navigation rail and the Telemetry plugin node sidebar can be interactively resized:
+- **Draggable Splitters**: Transparent 4px splitters sit between the navigation rails and main viewports. Dragging horizontally resizes the sidebar in real time.
+- **Width Bounds**: Uncollapsed width is clamped between 140px and 600px to maintain readability.
+- **Collapsible Toggle**: Clicking the sidebar toggle button cleanly collapses the rail down to 64px icon-only mode while preserving the custom uncollapsed width for when it is reopened.
+
+### Symmetrically Resizable Centered Modals
+
+Dialog overlays—including **Customize Graphs & Telemetry** and **Collector Endpoints & Node Settings**—feature mouse-drag resizing with symmetrical expansion:
+- **8 Edge & Corner Hit Zones**: Operators can click and drag any of the 4 borders (`Left`, `Right`, `Top`, `Bottom`) or 4 corners (`TopLeft`, `TopRight`, `BottomLeft`, `BottomRight`).
+- **Symmetric Centering**: Dragging any edge or corner symmetrically expands or contracts the dialog around its center anchor, keeping the modal centered on screen.
+- **Minimum Enforced Bounds**: Modals cannot be resized below functional thresholds (minimum 520px width and 400px height).
+
+### Modal Escape Key Navigation
+
+All modal dialogs support keyboard dismissal:
+- Pressing the **`Esc`** key when `CustomizeGraphsModal`, `CollectorSettingsModal`, `CustomScopeModal`, or `ActionConfirmModal` is visible triggers the modal's close/back action.
+- Uses tunneling input events (`RoutingStrategies.Tunnel`), ensuring `Esc` is captured even if a child input or button within the modal currently holds keyboard focus.
 
 ---
 
@@ -217,6 +261,7 @@ Stores the operator's customized opt-in selection of fleet-wide aggregated metri
 ```
 
 - **Supported Metrics**: `network.ingress`, `network.egress`, `cpu.total`, `memory.used`, `disk.io.read_bytes`, `disk.io.write_bytes`, `disk.io.ops`, `twamp.rtt`.
+- **Dynamic Per-Device & Per-Interface Metrics**: MADTOM automatically discovers all detected block devices (`sda`, `sda1`, `sdb`, `nvme0n1`, etc.) and network interfaces (`eth0`, `wg0`, etc.) across connected hosts. Operators can select specific devices (e.g. `disk.io.sda.read_bytes`, `disk.io.sda.write_bytes`, `disk.io.sda.read_ops`, `disk.io.sda.write_ops`, `nic.eth0.rx_bytes`, `nic.eth0.tx_bytes`) to pin to the top-right bar.
 - **Supported Aggregation Modifiers**:
   - `Sum`: Aggregates the sum of values across all monitored nodes.
   - `Avg`: Computes the arithmetic mean across all active nodes.
@@ -259,7 +304,8 @@ Stores runtime operator interface preferences across sessions.
   "Theme": "default-dark",
   "Language": "goose",
   "IsConsoleSidebarCollapsed": false,
-  "IsTelemetrySidebarCollapsed": false
+  "IsTelemetrySidebarCollapsed": false,
+  "UiScalePercent": 100
 }
 ```
 
@@ -267,6 +313,7 @@ Stores runtime operator interface preferences across sessions.
 - **`Language`**: Active lexicon terminology dialect (`goose`, `feline`, or `standard`).
 - **`IsConsoleSidebarCollapsed`**: Navigation rail collapse state for the `MADTOM.Console` host.
 - **`IsTelemetrySidebarCollapsed`**: Navigation rail collapse state for the Telemetry plugin module.
+- **`UiScalePercent`**: Application-wide UI display scaling percentage (10 to 1000, default 100).
 - All state changes are written atomically (`settings.json.tmp` -> `settings.json`) upon user interaction and restored seamlessly on startup.
 
 ---
@@ -283,6 +330,13 @@ Stores user-created custom themes discovered and loaded dynamically at runtime.
 ---
 
 ## Telemetry Graph Scopes & Resolution
+
+### Pinned Slim Scope Bar
+
+The time scope toolbar is pinned directly at the top of the **Metrics Tab** viewport (immediately beneath the host tab bar):
+- **Fixed Anchor**: Positioned in `Row 0` outside the dashboard `ScrollViewer`, ensuring time-window controls remain accessible at all times while scrolling through dozens of graphs.
+- **Slim Modern Aesthetic**: Designed with edge-to-edge square borders (`CornerRadius="0"`), a subtle bottom border (`BorderThickness="0,0,0,1"`), and compact vertical padding (`Padding="8,4"`).
+- **Streamlined Controls**: Redundant "Historical telemetry" text labels, status dots, and duplicate customize buttons have been removed from the scope toolbar. Customization is cleanly anchored to the primary host header.
 
 ### Relative Scopes (1m, 5m, 30m, 2h, 6h, 12h, 24h)
 Relative scopes query a moving window anchored to current time:
@@ -313,6 +367,17 @@ Chart controls are optimized for intuitive pointer interaction without interferi
 - **`Ctrl` + Scroll Wheel**: Engages pointer-anchored zooming on the chart hovered by the cursor (from $1.0\times$ up to $8.0\times$ magnification).
 - **Horizontal Pan**: Click and drag horizontally across a zoomed chart to pan backward and forward across the time axis.
 
+### Memory Normalization in Tooltips
+
+When hovering over memory graphs or multi-metric series containing memory statistics (`memory.used`, `memory.total`, `memory.available`, `memory.swap`, etc.):
+- Raw byte values are dynamically formatted into human-readable memory units:
+  - **$\ge 1\,\text{TB}$**: Formatted in `TB` (e.g. `1.24 TB`).
+  - **$\ge 1\,\text{GB}$**: Formatted in `GB` (e.g. `16.00 GB`).
+  - **$\ge 1\,\text{MB}$**: Formatted in `MB` (e.g. `626.6 MB`).
+  - **$\ge 1\,\text{KB}$**: Formatted in `KB` (e.g. `512 KB`).
+  - **$< 1\,\text{KB}$**: Formatted in `B` (e.g. `512 B`).
+- Handles rate-of-change derivatives signed formatting (e.g. `+12.4 MB/s` or `-5.2 MB/s`).
+
 ### Graph Groups, Side-by-Side Rows & Reordering
 
 Rather than constraining dashboards to single-column stacks or fixed dual-column splits, MADTOM models layout rows as **Graph Groups**:
@@ -324,7 +389,18 @@ Rather than constraining dashboards to single-column stacks or fixed dual-column
   - **`Combine Row ↓`**: Merges the row below into the current row to display all their graphs side-by-side.
   - **`Split`**: Splits a multi-metric aggregated series into individual side-by-side charts within the same row.
 - **Accidental Deletion Prevention**: To prevent accidentally dropping graphs during live monitoring, graph deletion buttons have been intentionally removed from live card headers. Graphs can only be safely removed from within the configuration modal.
-- **Global Customization Modal**: Accessible via **⚙ Customize Graphs & Telemetry** on the top toolbar. When opened, the modal dims the entire Telemetry plugin viewport (`TelemetryRootView`), including navigation sidebars and headers. Within the modal, operators can configure graph groups, apply or save presets, adjust series colors, and configure rate of change derivatives.
+- **Global Customization Modal**: Accessible via **⚙ Customize Graphs & Telemetry** on the top toolbar. When opened, the modal dims the entire Telemetry plugin viewport (`TelemetryRootView`), including navigation sidebars and headers. Within the modal, operators can configure graph groups, apply or save presets, adjust series colors, configure rate of change derivatives, and use one-click **Quick Merges**:
+  - `Merge Disk I/O (R/W)`: Creates a unified read/write throughput chart (`disk.io.read_bytes` and `disk.io.write_bytes` with rate derivatives).
+  - `Merge Network (In/Out)`: Creates a combined ingress/egress bandwidth chart (`network.ingress` and `network.egress`).
+  - `CPU Breakdown`: Creates a 4-series CPU usage graph (`cpu.total`, `cpu.user`, `cpu.system`, `cpu.iowait`).
+  - `Memory Breakdown`: Creates a RAM utilization graph (`memory.used`, `memory.total`, `memory.available`).
+
+### Custom Color Wheel & Series ColorPicker
+
+In the **Customize Graphs & Telemetry** modal, each series displays:
+- **Preset Palette Swatches**: 8 quick-pick color buttons (Cyan, Emerald, Blue, Purple, Pink, Amber, Orange, Red).
+- **Conic Multi-Color Wheel Button**: A circular rainbow sweep button with a multi-stop conic gradient brush. Clicking it opens Avalonia's interactive `ColorPicker` flyout, allowing operators to pick any RGB, HSV, or Hex color code.
+- **Real-Time Color Updates**: Color adjustments immediately update series line pens, area gradient fills, and preview swatches across the active canvas charts and persist to `graphs.json`.
 
 ### Missing Data & Downtime Handling
 
@@ -333,17 +409,39 @@ When nodes go offline or newly added metrics (such as disk I/O) do not exist in 
 - Gaps in telemetry (downtime $> 3$ minutes or $25\%$ of window width) are explicitly indicated with `N/A` rather than fabricating false zero values.
 - Geometry coordinate mapping safely clamps invalid or empty points to the baseline without throwing exceptions or corrupting visual layout.
 
-### Disk I/O Read/Write Metrics
+### Multi-Device Disk I/O Metrics & Diagnostics
 
 MADTOM includes end-to-end disk I/O monitoring across the Go daemon scraper, protobuf stream, TSDB storage engine, and UI:
 - Scraped directly from `/proc/diskstats` on Linux endpoints with sector calculation (1 sector = 512 bytes).
-- Automatically filters out individual partitions to prevent double-counting totals.
+- Automatically filters out pseudo block devices (`loop*`, `ram*`) while capturing all physical drives and partitions (`sda`, `sda1`, `sdb`, `nvme0n1`, `nvme0n1p1`, etc.).
+- Calculates physical whole-disk totals (`disk.io.read_bytes`, `disk.io.write_bytes`) to prevent double-counting sub-partitions, while exposing granular per-device series for targeted tracking.
 - **Supported Metric Keys**:
-  - `disk.io.read_bytes`: Total read throughput (bytes or bytes/sec).
-  - `disk.io.write_bytes`: Total write throughput (bytes or bytes/sec).
-  - `disk.io.read_ops`: Total read operations count.
-  - `disk.io.write_ops`: Total write operations count.
-  - Per-device metrics: `disk.io.<device>.read_bytes`, `disk.io.<device>.write_bytes`, `disk.io.<device>.read_ops`, `disk.io.<device>.write_ops` (e.g. `disk.io.sda.read_bytes`).
+  - `disk.io.read_bytes`: Total physical read throughput (bytes or bytes/sec).
+  - `disk.io.write_bytes`: Total physical write throughput (bytes or bytes/sec).
+  - `disk.io.read_ops`: Total physical read operations count.
+  - `disk.io.write_ops`: Total physical write operations count.
+  - Per-device metrics: `disk.io.<device>.read_bytes`, `disk.io.<device>.write_bytes`, `disk.io.<device>.read_ops`, `disk.io.<device>.write_ops` (e.g. `disk.io.sda.read_bytes`, `disk.io.sda1.read_bytes`, `disk.io.sdb.write_ops`).
+  - Available dynamically in **Add Metric** dropdowns and in **Global Metrics** settings for top-bar pinning.
+
+#### Troubleshooting Disk I/O on Cloud & ARM64 Instances
+
+If a remote server (e.g. Oracle Cloud Infrastructure ARM64) displays no disk I/O values:
+1. **Verify `/proc/diskstats`**:
+   ```bash
+   cat /proc/diskstats
+   ```
+   Check if whole-disk identifiers appear (e.g. `sda`, `sdb` for paravirtualized disks, `nvme0n1` for NVMe devices). MADTOM matches `^sd[a-z]+$` and `^nvme[0-9]+n[0-9]+$`. If disks are virtualized via device-mapper (`dm-0`), verify whether physical block devices are present.
+2. **Inspect Block Hierarchy**:
+   ```bash
+   lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,MOUNTPOINTS
+   ```
+3. **Verify Daemon Binary & Service**:
+   ```bash
+   file /opt/madtomd
+   systemctl status madtomd.service
+   journalctl -u madtomd.service -n 50 --no-pager
+   ```
+   Ensure the running binary has been updated to the latest build supporting disk I/O telemetry and restarted via `deploy.sh`.
 
 ---
 
@@ -375,6 +473,19 @@ Nodes are organized by custom group tags persisted in `node-groups.json`.
 - **Strict Decoupling from 1Hz Telemetry Ticks**: Telemetry streaming providers stream purely hardware and OS metrics and have zero interaction with node groups. Group changes are driven exclusively by explicit user interactions via `NodeGroupStore.GroupChanged` events. This ensures that live 1Hz telemetry updates never overwrite user edits, resurrect removed groups (such as "Compute"), or cause input loss.
 - **In-Place UI Reconciliation**: Both the fleet card grid and the node groups editor use in-place ViewModel reconciliation. On every 1Hz live telemetry tick, existing card and input containers are preserved. This completely eliminates hover flicker, card deselection, keyboard tab-loss, and typing interruptions.
 
+### Node Opt-In Settings & Safe Apply Workflow
+
+The **Node Opt-in Configuration** tab provides granular control over telemetry collection and client-side rendering switches:
+
+- **Pinned Node Selector**: The `Select Node:` selector is pinned to the top of the tab container outside the scroll viewer, ensuring it remains permanently visible and never scrolls out of view regardless of pane height.
+- **Default Selection & Clear Option**: The dropdown defaults to **None**, showing a helpful placeholder card until an operator deliberately selects a target host. A **[✕ Clear]** button allows returning to the unselected state at any time.
+- **Single Source of Truth**: Selecting a host queries the collector and remote daemon via `GetNodeConfigAsync` to fetch its actual active configuration, preventing stale UI switch states.
+- **Unapplied Changes Badge**: Any modification to switches, inputs, or sliders immediately flags the state as dirty and displays an amber **`● Unapplied Changes`** badge next to the **[Apply to Node]** button.
+- **Confirmation & Revert on Close**: If the modal is closed (via `✕`, backdrop click, or the `Esc` key) while unapplied changes exist, MADTOM presents a confirmation dialog preventing accidental loss of configuration:
+  - **Apply & Close**: Pushes the modified settings to the daemon, captures the new baseline, and dismisses the dialog.
+  - **Discard Changes**: Reverts all UI switches and inputs back to the daemon's active baseline and dismisses the dialog.
+  - **Cancel**: Aborts closing and keeps the configuration tab open with all edits intact.
+
 ### Adding a Collector
 Enter a display name and `host:port` address (e.g. `10.0.0.15:50051`), then click **+ Add Collector**. The UI immediately establishes a gRPC connection, triggers discovery, and saves the endpoint to `collectors.json`.
 
@@ -389,13 +500,69 @@ When multiple collectors are configured, their nodes are discovered concurrently
 
 ---
 
-## Process Monitoring & Signals
+## Process Monitoring, Storage Modes & Graphing
 
-The **Processes** tab inspects real-time process statistics scraped by the daemon:
-- **Columns**: PID, Process Name, CPU %, RSS Memory, Thread Count, User.
-- **UI Virtualization**: Uses a strictly bounded viewport with virtualized row containers (`VirtualizingStackPanel`). Only rows visible within the viewport are materialized into memory, ensuring smooth 60 FPS scrolling and zero unconstrained scrollviewer expansion even when rendering 100+ processes per page.
-- **Sorting & Filtering**: Real-time regex/substring filtering across PID, process name, and user.
-- **Process Signals**: Signal delivery buttons (`SIGTERM`, `SIGKILL`) are safety-gated and disabled for collector-backed remote nodes.
+MADTOM implements an adaptive 3-tier collection and storage architecture for process-level telemetry to balance operational visibility against CPU and network overhead.
+
+### Three-Tier Collection Policy
+
+Process telemetry policies are configured per-node in the **Collector Endpoints & Node Settings** modal (`Node Opt-in Configuration` tab under Tier 1 Opt-in):
+
+| Mode | Daemon `/proc` Probing | gRPC Streaming | Pebble TSDB Storage | Description |
+|---|---|---|---|---|
+| **`Disabled (Off)`** | ❌ Stopped | ❌ Zero bytes | ❌ None | Completely halts process scanning on the host daemon. Conserves CPU cycles and network bandwidth. The UI Processes tab displays an informative disabled banner. |
+| **`Live Only (Probed)`** | ✅ 1Hz Snapshot | ✅ Ephemeral | ❌ None (0 bytes) | Probes system processes once per second for interactive inspection in the Processes tab. Data is kept in memory and discarded upon arrival, generating zero disk writes in TSDB. **(Default)** |
+| **`Probed & Stored (TSDB)`** | ✅ 1Hz Snapshot | ✅ Streamed | ✅ Top $N$ + Other | Scrapes 1Hz process snapshots, calculates Top $N$ CPU consumers, and commits them as historical time-series metrics into Pebble TSDB for scoped charting. |
+
+### Top-N Process Count Configuration
+
+When **`Probed & Stored`** is selected, operators can configure the exact number of top processes saved to TSDB using an interactive slider:
+- **Range**: **1 to 10 processes** (default: `5`).
+- **Granularity**: Snap-to-integer slider with real-time numeric readout (`Top 5 processes`).
+- **Dynamic Aggregation**: Processes are grouped and aggregated by sanitized executable name (e.g. `postgres`, `mysqld`, `dotnet`) rather than volatile OS PIDs to avoid unbounded TSDB key cardinality.
+- **Remainder Metric (`proc.cpu.other`)**: Any CPU consumption from processes outside the configured Top $N$ is automatically aggregated into `proc.cpu.other = total_cpu - sum(top_N)`, guaranteeing that the sum of process breakdown metrics always accounts for 100% of host CPU usage.
+
+### Historical TSDB Metric Storage & Breakdown Charting
+
+When process storage is enabled, the collector ingestion pipeline creates structured time-series metrics:
+- **Metric Keys**:
+  - `proc.cpu.<executable>`: Total CPU % consumed by all instances of the process.
+  - `proc.cpu.other`: Total CPU % consumed by all remaining background processes.
+- **Process Breakdown Chart (`process.breakdown`)**:
+  - To prevent unbounded list growth as top processes change over time, individual `proc.cpu.<name>` metrics are not added one-by-one to the metrics dropdown.
+  - Instead, **Customize Graphs & Telemetry** provides a single aggregate metric: **`process.breakdown` ("Process Breakdown")**.
+  - Selecting `process.breakdown` and clicking **[+ Add Graph]**, or clicking the **`Merge Process Breakdown (Top + Total)`** quick action button, automatically constructs a unified multi-series chart containing `cpu.total`, the host's active top recorded processes with distinct colors, and `proc.cpu.other`.
+  - Supports all historical time scopes (`1m`, `5m`, `30m`, `2h`, `6h`, `12h`, `24h`, and custom date/time range) with LTTB downsampling.
+- **Custom Process Metric (`custom.process`)**:
+  - For targeting specific individual processes without cluttering the base dropdown, **`custom.process` ("Custom Process...")** is available in the metric selector.
+  - Clicking **[+ Add Graph]** opens a searchable dialog displaying up to the top 1,000 active processes across the node/cluster, with instant filtering by PID, process name, or user.
+  - Confirming adds a dedicated `proc.cpu.<sanitized_name>` graph to the dashboard.
+- **Button Auto-Wrapping**:
+  - Preset rows, metric actions, quick merge buttons, and graph card action buttons in the Customize Graphs modal utilize auto-wrapping containers (`WrapPanel`) so controls cleanly wrap without overflowing on narrow or scaled viewports.
+
+### Processes Manager: Sub-Tabs & True Top N Overview
+
+The **Processes** tab features a streamlined navigation bar with two specialized views:
+
+1. **List** (Live Process Snapshot):
+   - **Responsive Flex Toolbar**: Uses a responsive `WrapPanel` where sub-tab toggles (`List` / `Overview`), compact search filter (`130px`, halved width), `↻ Refresh` button, and `Target: [hostId]` badge sit cleanly on one row on desktop and wrap only when viewport width is constrained.
+   - **Compact Layout**: Clean padding and tight row spacing without redundant nested container borders.
+   - **Live Process Table**: Streamed process snapshots with PID, command name, user, thread count, CPU %, and memory usage.
+   - **UI Virtualization**: Uses a strictly bounded viewport with virtualized row containers (`VirtualizingStackPanel`). Only rows visible within the viewport are materialized into memory, ensuring smooth 60 FPS scrolling and zero unconstrained scrollviewer expansion even when rendering 100+ processes per page.
+   - **Sorting & Filtering**: Real-time regex/substring filtering across PID, process name, and user.
+   - **Disabled State Banner**: When process collection is set to `Disabled`, the table displays an overlay explaining that probing is turned off to save resources, with directions to re-enable in Node Opt-in settings.
+   - **Process Signals**: Signal delivery buttons (`SIGTERM`, `SIGKILL`) are safety-gated and disabled for collector-backed remote nodes.
+
+2. **Overview (TRUE Top N Dynamic Chart & Scopes)**:
+   - **Standard Scopes Toolbar**: Features the full telemetry scope selector (`1m`, `5m` [default], `30m`, `2h`, `6h`, `12h`, `24h`, `Custom`) directly above the chart alongside the configurable Top $N$ slider.
+   - **Continuous Sliding Window**: Window bounds continuously slide leftward as time progresses (`WindowStart = WindowEnd - ScopeSpan`) without being artificially pinned to sample zero.
+   - **Immediate Line Rendering**: Initial snapshot is seeded at $T - 1\text{s}$ so geometry cache generates lines and filled areas immediately without requiring a waiting period.
+   - **Historical TSDB Querying**: Automatically queries stored `proc.cpu.*` metrics across the selected time scope on scope changes or node selection.
+   - **Dynamic Rank Tracking**: Displays an aggregated historical chart rendered with `MetricHistoryChartControl` tracking the true top $N$ processes over the selected scope window.
+   - **Configurable Top N**: Uses an interactive slider (ranging from 1 to 10 ranks) with live updates.
+   - **Identity Preservation Across Process Churn**: Rather than pinning lines to static process names (which drop to 0% when a process terminates), each series tracks **#1, #2, ... #N**. As top processes exit and new processes emerge, the rank curve remains continuous with a consistent palette color.
+   - **Per-Point Timestamp Hover Tooltips**: Hovering over any timestamp on the chart displays the true process name, rank, and CPU percentage recorded at that exact point in time via per-point label annotations.
+   - **Active Leaders Footer**: A wrap panel below the chart highlights the current leader process name, rank badge, and CPU% for each active rank.
 
 ---
 

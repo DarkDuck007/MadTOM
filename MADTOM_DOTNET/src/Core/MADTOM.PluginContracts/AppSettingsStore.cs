@@ -13,6 +13,7 @@ public sealed class AppSettings
     public string Language { get; set; } = "goose";
     public bool IsConsoleSidebarCollapsed { get; set; } = false;
     public bool IsTelemetrySidebarCollapsed { get; set; } = false;
+    public int UiScalePercent { get; set; } = 100;
 }
 
 /// <summary>

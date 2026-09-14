@@ -303,21 +303,34 @@ if [ "$DO_BUILD" -eq 1 ] || [ ! -f "$LOCAL_BIN" ]; then
     # Determine which binary to build based on LOCAL_BIN name
     BIN_NAME="$(basename "$LOCAL_BIN")"
     CMD_DIR=""
+    GO_SRC_DIR=""
     if [ -d "$SCRIPT_DIR/cmd/$BIN_NAME" ]; then
+        GO_SRC_DIR="$SCRIPT_DIR"
+        CMD_DIR="./cmd/$BIN_NAME"
+    elif [ -d "$SCRIPT_DIR/MADTOM_GOLANG/cmd/$BIN_NAME" ]; then
+        GO_SRC_DIR="$SCRIPT_DIR/MADTOM_GOLANG"
         CMD_DIR="./cmd/$BIN_NAME"
     elif [ -d "$SCRIPT_DIR/cmd/madtom-daemon" ]; then
+        GO_SRC_DIR="$SCRIPT_DIR"
+        CMD_DIR="./cmd/madtom-daemon"
+    elif [ -d "$SCRIPT_DIR/MADTOM_GOLANG/cmd/madtom-daemon" ]; then
+        GO_SRC_DIR="$SCRIPT_DIR/MADTOM_GOLANG"
         CMD_DIR="./cmd/madtom-daemon"
     elif [ -d "$SCRIPT_DIR/cmd/madtom-collector" ]; then
+        GO_SRC_DIR="$SCRIPT_DIR"
+        CMD_DIR="./cmd/madtom-collector"
+    elif [ -d "$SCRIPT_DIR/MADTOM_GOLANG/cmd/madtom-collector" ]; then
+        GO_SRC_DIR="$SCRIPT_DIR/MADTOM_GOLANG"
         CMD_DIR="./cmd/madtom-collector"
     fi
 
-    if [ -n "$CMD_DIR" ]; then
+    if [ -n "$CMD_DIR" ] && [ -n "$GO_SRC_DIR" ]; then
         mkdir -p "$(dirname "$LOCAL_BIN")"
         GOARM_ARG=()
         if [ "$TARGET_ARCH" = "arm" ]; then
             GOARM_ARG=("GOARM=7")
         fi
-        (cd "$SCRIPT_DIR" && env CGO_ENABLED=0 GOOS=linux GOARCH="$TARGET_ARCH" "${GOARM_ARG[@]}" go build -ldflags="-s -w" -o "$LOCAL_BIN" "$CMD_DIR")
+        (cd "$GO_SRC_DIR" && env CGO_ENABLED=0 GOOS=linux GOARCH="$TARGET_ARCH" "${GOARM_ARG[@]}" go build -buildvcs=false -ldflags="-s -w" -o "$LOCAL_BIN" "$CMD_DIR")
         
         # Also store arch-specific binary in bin/linux_${TARGET_ARCH}/
         mkdir -p "$SCRIPT_DIR/bin/linux_${TARGET_ARCH}"

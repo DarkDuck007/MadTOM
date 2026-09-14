@@ -28,11 +28,19 @@
             <views:HeaderView Grid.Row="0" DataContext="{Binding Header}" />
 
             <!-- Main Shell: Left Sidebar + Viewport Stage -->
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,4,*">
                 <views:SidebarView Grid.Column="0" DataContext="{Binding Sidebar}" />
 
+                <!-- Draggable Sidebar Splitter -->
+                <GridSplitter Grid.Column="1"
+                              Width="4"
+                              ResizeDirection="Columns"
+                              Background="Transparent"
+                              DragDelta="OnSidebarSplitterDragDelta"
+                              Cursor="SizeWestEast" />
+
                 <!-- Active Viewport Stage -->
-                <ContentControl Grid.Column="1"
+                <ContentControl Grid.Column="2"
                                 Content="{Binding CurrentView}"
                                 Background="{DynamicResource AppBgBrush}"/>
             </Grid>

@@ -438,6 +438,10 @@ public sealed class MetricHistoryChartControl : Control
 
             if (idx >= 0 && idx < series.Values.Length)
             {
+                string seriesLabel = (series.PointLabels != null && idx < series.PointLabels.Length && !string.IsNullOrEmpty(series.PointLabels[idx]))
+                    ? series.PointLabels[idx]
+                    : series.Label;
+
                 if (useTimeMapping && series.Timestamps.Length > idx && series.Timestamps[idx] > 0)
                 {
                     double xFrac = Math.Clamp((pt.X - leftPad + pan) / (plotW * zoom), 0.0, 1.0);
@@ -445,7 +449,7 @@ public sealed class MetricHistoryChartControl : Control
                     long maxGapNano = Math.Max(180_000_000_000L, (long)(timeSpanNano / zoom * 0.25));
                     if (Math.Abs(series.Timestamps[idx] - targetTime) > maxGapNano)
                     {
-                        lines.Add((series.Label, "N/A", series.SolidBrush));
+                        lines.Add((seriesLabel, "N/A", series.SolidBrush));
                         continue;
                     }
 
@@ -455,7 +459,7 @@ public sealed class MetricHistoryChartControl : Control
                             .ToLocalTime().ToString("MM-dd HH:mm:ss");
                     }
                 }
-                lines.Add((series.Label, FormatMetricValue(series.Metric, series.Values[idx], isRate), series.SolidBrush));
+                lines.Add((seriesLabel, FormatMetricValue(series.Metric, series.Values[idx], isRate), series.SolidBrush));
             }
             else
             {
@@ -534,16 +538,17 @@ public sealed class MetricHistoryChartControl : Control
         if (double.IsNaN(v) || double.IsInfinity(v)) return "N/A";
 
         string suffix = isRate ? "/s" : "";
-        if (metric.StartsWith("cpu.") || metric.EndsWith("_pct") || metric.Contains("pct"))
+        if (metric.StartsWith("cpu.") || metric.Contains("cpu.") || metric.Contains(".cpu") || metric.EndsWith("_pct") || metric.Contains("pct"))
             return isRate ? $"{v:+0.0;-0.0;0.0}%/s" : $"{v:F1}%";
         if (metric.StartsWith("twamp."))
             return $"{v:F2} ms{suffix}";
         if (metric.EndsWith("_ratio"))
             return $"{v:F2}x{suffix}";
-        if (metric.Contains("bytes"))
+        if (metric.Contains("bytes") || metric.StartsWith("memory.") || metric.Contains("mem"))
         {
             double abs = Math.Abs(v);
             string prefix = isRate && v < 0 ? "-" : (isRate && v > 0 ? "+" : "");
+            if (abs >= 1_099_511_627_776) return $"{prefix}{abs / 1_099_511_627_776:F2} TB{suffix}";
             if (abs >= 1_073_741_824) return $"{prefix}{abs / 1_073_741_824:F2} GB{suffix}";
             if (abs >= 1_048_576) return $"{prefix}{abs / 1_048_576:F1} MB{suffix}";
             if (abs >= 1024) return $"{prefix}{abs / 1024:F0} KB{suffix}";

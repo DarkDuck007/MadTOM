@@ -72,7 +72,7 @@ public class PluginLifecycleTests
         var module = new TelemetryPluginModule();
 
         Assert.Equal("telemetry", module.Id);
-        Assert.Equal("Telemetry & Operations", module.DisplayName);
+        Assert.Equal("Telemetry", module.DisplayName);
         Assert.Equal("📊", module.IconGlyph);
         Assert.Equal("Operations", module.Category);
         Assert.True(module.OrderWeight > 0);

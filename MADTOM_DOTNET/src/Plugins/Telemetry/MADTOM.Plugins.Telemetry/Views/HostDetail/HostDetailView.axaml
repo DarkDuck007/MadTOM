@@ -25,188 +25,137 @@
             <Setter Property="BorderThickness" Value="0,0,0,2"/>
         </Style>
     </UserControl.Styles>
-    <Grid RowDefinitions="Auto,*" Margin="24">
-        <!-- Breadcrumbs & Host Identity Bar -->
+    <Grid RowDefinitions="Auto,*" Margin="16,10">
+        <!-- Slim Host Identity & Control Bar -->
         <Border Grid.Row="0"
                 Background="{DynamicResource CardBgBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
-                CornerRadius="14"
-                Padding="16"
-                Margin="0,0,0,16">
-                <StackPanel Spacing="14">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        
-                        <!-- Breadcrumbs -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Button Command="{Binding BackToFleetCommand}"
-                                    Background="{DynamicResource DarkBaseBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="10,5">
-                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <TextBlock Text="←" Foreground="{DynamicResource AccentTextBrush}"/>
-                                    <TextBlock Text="{loc:Loc backToFleet}"
-                                               FontFamily="{StaticResource MonoFontFamily}"
-                                               FontSize="11"
-                                               Foreground="{DynamicResource AccentTextBrush}"/>
-                                </StackPanel>
-                            </Button>
-
-                            <TextBlock Text="/" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
-
-                            <TextBlock Text="{Binding HostTitle}"
-                                       FontFamily="{StaticResource MonoFontFamily}"
-                                       FontWeight="Bold"
-                                       FontSize="14"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                       VerticalAlignment="Center"/>
-
-                            <Border Background="{DynamicResource AccentSubtleBrush}"
-                                    BorderBrush="{DynamicResource AccentBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="6,2"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="{Binding RoleBadge}"
-                                           FontFamily="{StaticResource MonoFontFamily}"
-                                           FontSize="10"
-                                           FontWeight="Bold"
-                                           Foreground="{DynamicResource AccentTextBrush}"/>
-                            </Border>
-
-                            <Button Command="{Binding OpenGraphSettingsCommand}"
-                                    Background="{DynamicResource DarkBaseBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="6,2"
-                                    Cursor="Hand"
-                                    ToolTip.Tip="Customize Graphs &amp; Metrics"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="⚙"
-                                           FontSize="12"
-                                           Foreground="{DynamicResource AccentTextBrush}"/>
-                            </Button>
-                        </StackPanel>
-
-                        <!-- Target Node Dropdown -->
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <TextBlock Text="Switch Target Node:"
-                                       FontFamily="{StaticResource MonoFontFamily}"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       VerticalAlignment="Center"/>
-
-                            <ComboBox ItemsSource="{Binding HostOptions}"
-                                      SelectedItem="{Binding SelectedHostOption, Mode=TwoWay}"
-                                      FontFamily="{StaticResource MonoFontFamily}"
-                                      FontSize="11"
-                                      Width="280"
-                                      Background="{DynamicResource CardBgBrush}"
-                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                      BorderBrush="{DynamicResource BorderBrush}"
-                                      CornerRadius="6"/>
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- Hardware & Telemetry Chips (4 cards) -->
-                    <Grid ColumnDefinitions="*,*,*,*">
-                        <!-- Chip 1 -->
-                        <Border Grid.Column="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,6,0">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="{loc:Loc statHardware}" FontFamily="{StaticResource MonoFontFamily}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Text="{Binding CpuSpec}" FontFamily="{StaticResource MonoFontFamily}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="{Binding ThreadsSpec}" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource AccentTextBrush}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Chip 2 -->
-                        <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="3,0,3,0">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="MEMORY ALLOCATION" FontFamily="{StaticResource MonoFontFamily}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <TextBlock Text="{Binding RamSpec}" FontFamily="{StaticResource MonoFontFamily}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="{Binding RamUsedSpec}" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource HealthyBrush}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Chip 3 -->
-                        <Border Grid.Column="2" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="3,0,3,0">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="{loc:Loc statTwampLatency}" FontFamily="{StaticResource MonoFontFamily}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="{Binding TwampUpText}" FontFamily="{StaticResource MonoFontFamily}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
-                                    <TextBlock Text="{Binding TwampDownText}" FontFamily="{StaticResource MonoFontFamily}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource IndigoBrush}"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding TwampAsymText}" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource WarningBrush}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Chip 4 -->
-                        <Border Grid.Column="3" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="6,0,0,0">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="DAEMON STATUS" FontFamily="{StaticResource MonoFontFamily}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <Ellipse Width="7" Height="7" Fill="{DynamicResource HealthyBrush}"/>
-                                    <TextBlock Text="Telemetry daemon" FontFamily="{StaticResource MonoFontFamily}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource HealthyBrush}"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding RoleBadge}" FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- Deep Dive Tabs Container -->
-            <Border Grid.Row="1"
-                    Background="{DynamicResource CardBgBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="14"
-                    ClipToBounds="True">
-                <Grid RowDefinitions="Auto,*">
-                    
-                    <!-- Tab Header Bar -->
-                    <Border Grid.Row="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,0">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Button Classes="host-tab" Classes.active="{Binding IsMetricsTab}" Content="{loc:Loc tabMetrics}"
-                                    Command="{Binding SwitchTabCommand}"
-                                    CommandParameter="metrics"
-                                    FontFamily="{StaticResource MonoFontFamily}"
-                                    FontSize="11"
-                                    FontWeight="Bold"
-                                    Padding="14,12"
-                                    Background="Transparent"/>
-
-                            <Button Classes="host-tab" Classes.active="{Binding IsProcessesTab}" Content="{loc:Loc tabProcesses}"
-                                    Command="{Binding SwitchTabCommand}"
-                                    CommandParameter="processes"
-                                    FontFamily="{StaticResource MonoFontFamily}"
-                                    FontSize="11"
-                                    Padding="14,12"
-                                    Background="Transparent"/>
-
-                            <Button Classes="host-tab" Classes.active="{Binding IsLogsTab}" Content="{loc:Loc tabLogs}"
-                                    Command="{Binding SwitchTabCommand}"
-                                    CommandParameter="logs"
-                                    FontFamily="{StaticResource MonoFontFamily}"
-                                    FontSize="11"
-                                    Padding="14,12"
-                                    Background="Transparent"/>
-
-                            <Button Classes="host-tab" Classes.active="{Binding IsFlightTab}" Content="{loc:Loc tabFlight}"
-                                    Command="{Binding SwitchTabCommand}"
-                                    CommandParameter="flight"
-                                    FontFamily="{StaticResource MonoFontFamily}"
-                                    FontSize="11"
-                                    Padding="14,12"
-                                    Background="Transparent"/>
-                        </StackPanel>
+                CornerRadius="10"
+                Padding="14,6"
+                Margin="0,0,0,10">
+            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                
+                <!-- Left: Telemetry Type / Status Badge & Gear Icon -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Background="{DynamicResource AccentSubtleBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="{Binding RoleBadge}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
                     </Border>
 
-                    <!-- Tab Views -->
-                    <Border Grid.Row="1" Padding="16">
+                    <Button Command="{Binding OpenGraphSettingsCommand}"
+                            Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            Cursor="Hand"
+                            ToolTip.Tip="Customize Graphs &amp; Metrics"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="⚙"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Center: CPU Model Specification (fits when space allows, with ellipsis and tooltip) -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            Margin="16,0"
+                            VerticalAlignment="Center"
+                            ToolTip.Tip="{Binding FullCpuTooltip}">
+                    <TextBlock Text="{Binding CpuSpec}"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ThreadsSpec, StringFormat=({0})}"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontSize="10"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Right: Switch Target Node Dropdown (width reduced by 20% from 280 to 220) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="Switch Target Node:"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               VerticalAlignment="Center"/>
+
+                    <ComboBox ItemsSource="{Binding HostOptions}"
+                              SelectedItem="{Binding SelectedHostOption, Mode=TwoWay}"
+                              FontFamily="{StaticResource MonoFontFamily}"
+                              FontSize="11"
+                              Width="220"
+                              Background="{DynamicResource CardBgBrush}"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
+                              BorderBrush="{DynamicResource BorderBrush}"
+                              CornerRadius="6"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Deep Dive Tabs Container -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="14"
+                ClipToBounds="True">
+            <Grid RowDefinitions="Auto,*">
+                
+                <!-- Tab Header Bar -->
+                <Border Grid.Row="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,0">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button Classes="host-tab" Classes.active="{Binding IsMetricsTab}" Content="{loc:Loc tabMetrics}"
+                                Command="{Binding SwitchTabCommand}"
+                                CommandParameter="metrics"
+                                FontFamily="{StaticResource MonoFontFamily}"
+                                FontSize="11"
+                                FontWeight="Bold"
+                                Padding="14,8"
+                                Background="Transparent"/>
+
+                        <Button Classes="host-tab" Classes.active="{Binding IsProcessesTab}" Content="{loc:Loc tabProcesses}"
+                                Command="{Binding SwitchTabCommand}"
+                                CommandParameter="processes"
+                                FontFamily="{StaticResource MonoFontFamily}"
+                                FontSize="11"
+                                Padding="14,8"
+                                Background="Transparent"/>
+
+                        <Button Classes="host-tab" Classes.active="{Binding IsLogsTab}" Content="{loc:Loc tabLogs}"
+                                Command="{Binding SwitchTabCommand}"
+                                CommandParameter="logs"
+                                FontFamily="{StaticResource MonoFontFamily}"
+                                FontSize="11"
+                                Padding="14,8"
+                                Background="Transparent"/>
+
+                        <Button Classes="host-tab" Classes.active="{Binding IsFlightTab}" Content="{loc:Loc tabFlight}"
+                                Command="{Binding SwitchTabCommand}"
+                                CommandParameter="flight"
+                                FontFamily="{StaticResource MonoFontFamily}"
+                                FontSize="11"
+                                Padding="14,8"
+                                Background="Transparent"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tab Views -->
+                <Border Grid.Row="1" Padding="14,10">
                         <Panel>
                             <!-- Tab 1: Metrics -->
                             <tabs:HostMetricsTabView DataContext="{Binding MetricsTab}"

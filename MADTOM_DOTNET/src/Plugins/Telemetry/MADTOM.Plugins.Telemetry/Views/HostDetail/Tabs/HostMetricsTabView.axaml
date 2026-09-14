@@ -31,70 +31,47 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid>
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="16">
-
-        <!-- Scope & Time Toolbar -->
-        <Border Background="{DynamicResource DarkBaseBrush}"
+    <Grid RowDefinitions="Auto,*">
+        <!-- Pinned Slim Scope & Time Toolbar -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource DarkBaseBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="10,8">
-            <Grid ColumnDefinitions="*,Auto">
-                <!-- Scopes -->
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <TextBlock Text="Scope:"
-                               FontFamily="{StaticResource MonoFontFamily}"
-                               FontWeight="Bold"
-                               FontSize="11"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               VerticalAlignment="Center"/>
+                BorderThickness="0,0,0,1"
+                CornerRadius="0"
+                Padding="8,4">
+            <!-- Scopes -->
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <TextBlock Text="Scope:"
+                           FontFamily="{StaticResource MonoFontFamily}"
+                           FontWeight="Bold"
+                           FontSize="11"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,4,0"/>
 
-                    <Button Content="1m" Command="{Binding SetScopeCommand}" CommandParameter="1m"
-                            Classes="scope-btn" Classes.active="{Binding IsScope1m}"/>
-                    <Button Content="5m" Command="{Binding SetScopeCommand}" CommandParameter="5m"
-                            Classes="scope-btn" Classes.active="{Binding IsScope5m}"/>
-                    <Button Content="30m" Command="{Binding SetScopeCommand}" CommandParameter="30m"
-                            Classes="scope-btn" Classes.active="{Binding IsScope30m}"/>
-                    <Button Content="2h" Command="{Binding SetScopeCommand}" CommandParameter="2h"
-                            Classes="scope-btn" Classes.active="{Binding IsScope2h}"/>
-                    <Button Content="6h" Command="{Binding SetScopeCommand}" CommandParameter="6h"
-                            Classes="scope-btn" Classes.active="{Binding IsScope6h}"/>
-                    <Button Content="12h" Command="{Binding SetScopeCommand}" CommandParameter="12h"
-                            Classes="scope-btn" Classes.active="{Binding IsScope12h}"/>
-                    <Button Content="24h" Command="{Binding SetScopeCommand}" CommandParameter="24h"
-                            Classes="scope-btn" Classes.active="{Binding IsScope24h}"/>
-                    <Button Content="Custom" Command="{Binding SetScopeCommand}" CommandParameter="custom"
-                            Classes="scope-btn" Classes.active="{Binding IsScopeCustom}"/>
-                </StackPanel>
-
-                <!-- Actions & Status -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <Ellipse Width="7" Height="7" Fill="{DynamicResource AccentTextBrush}"/>
-                        <TextBlock Text="Historical telemetry"
-                                   FontFamily="{StaticResource MonoFontFamily}"
-                                   FontSize="11"
-                                   Foreground="{DynamicResource TextMutedBrush}"/>
-                    </StackPanel>
-
-                    <Button Content="⚙ Customize Graphs &amp; Telemetry"
-                            Command="{Binding OpenCustomizationModalCommand}"
-                            Background="{DynamicResource CardBgBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            Foreground="{DynamicResource TextPrimaryBrush}"
-                            FontSize="11"
-                            Padding="10,5"
-                            CornerRadius="6"
-                            Cursor="Hand"
-                            ToolTip.Tip="Configure layout, side-by-side rows, metrics, and presets"/>
-                </StackPanel>
-            </Grid>
+                <Button Content="1m" Command="{Binding SetScopeCommand}" CommandParameter="1m"
+                        Classes="scope-btn" Classes.active="{Binding IsScope1m}"/>
+                <Button Content="5m" Command="{Binding SetScopeCommand}" CommandParameter="5m"
+                        Classes="scope-btn" Classes.active="{Binding IsScope5m}"/>
+                <Button Content="30m" Command="{Binding SetScopeCommand}" CommandParameter="30m"
+                        Classes="scope-btn" Classes.active="{Binding IsScope30m}"/>
+                <Button Content="2h" Command="{Binding SetScopeCommand}" CommandParameter="2h"
+                        Classes="scope-btn" Classes.active="{Binding IsScope2h}"/>
+                <Button Content="6h" Command="{Binding SetScopeCommand}" CommandParameter="6h"
+                        Classes="scope-btn" Classes.active="{Binding IsScope6h}"/>
+                <Button Content="12h" Command="{Binding SetScopeCommand}" CommandParameter="12h"
+                        Classes="scope-btn" Classes.active="{Binding IsScope12h}"/>
+                <Button Content="24h" Command="{Binding SetScopeCommand}" CommandParameter="24h"
+                        Classes="scope-btn" Classes.active="{Binding IsScope24h}"/>
+                <Button Content="Custom" Command="{Binding SetScopeCommand}" CommandParameter="custom"
+                        Classes="scope-btn" Classes.active="{Binding IsScopeCustom}"/>
+            </StackPanel>
         </Border>
 
-        <TextBlock Text="{Binding ScopeError}" Foreground="{DynamicResource WarningBrush}"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16" Margin="0,8,0,0">
+
+        <TextBlock Text="{Binding ScopeError}" Foreground="{DynamicResource WarningBrush}" Margin="8,0"/>
 
         <!-- Graph Groups (Rows of Side-by-Side Graphs) -->
         <ItemsControl ItemsSource="{Binding Groups}">
@@ -331,7 +308,8 @@
         </ScrollViewer>
 
         <!-- Custom Observation Window Modal Overlay -->
-        <Border Background="#B3000000"
+        <Border Grid.Row="0" Grid.RowSpan="2"
+                Background="#B3000000"
                 IsVisible="{Binding IsCustomScopeModalOpen}"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch">

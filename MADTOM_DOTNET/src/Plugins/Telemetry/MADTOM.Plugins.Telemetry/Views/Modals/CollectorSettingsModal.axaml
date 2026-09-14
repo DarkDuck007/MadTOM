@@ -46,17 +46,20 @@
     <!-- Modal Scrim Backdrop -->
     <Grid Background="#B3000000">
         <!-- Dialog Container -->
-        <Border Background="{DynamicResource CardBgBrush}"
+        <Border x:Name="DialogContainer"
+                Background="{DynamicResource CardBgBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="16"
-                Padding="24"
                 Width="720"
-                MaxHeight="580"
+                Height="620"
+                MinWidth="520"
+                MinHeight="400"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 BoxShadow="0 14 36 #C0000000">
-            <Grid RowDefinitions="Auto,*,Auto">
+            <Panel>
+                <Grid Margin="24" RowDefinitions="Auto,*,Auto">
                 
                 <!-- Modal Header -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
@@ -199,107 +202,228 @@
 
                     <!-- TAB 2: Node Opt-In Settings -->
                     <TabItem Header="Node Opt-in Configuration" FontSize="12">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Spacing="12" Margin="0,12,0,0">
-                                <!-- Target Node Selector -->
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Text="Select Node:"
-                                               FontFamily="{StaticResource MonoFontFamily}"
-                                               FontSize="11"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,12,0"/>
-                                    <ComboBox Grid.Column="1"
-                                              ItemsSource="{Binding DetectedNodes}"
-                                              SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
-                                              HorizontalAlignment="Stretch">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <TextBlock Text="{Binding Id}" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}"/>
-                                                    <TextBlock Text="•" Foreground="{DynamicResource TextMutedBrush}"/>
-                                                    <TextBlock Text="{Binding CollectorName}" Foreground="{DynamicResource AccentTextBrush}" FontSize="10"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </Grid>
+                        <Grid RowDefinitions="Auto,*" Margin="0,12,0,0">
+                            <!-- Target Node Selector (Pinned outside ScrollViewer) -->
+                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,12">
+                                <TextBlock Text="Select Node:"
+                                           FontFamily="{StaticResource MonoFontFamily}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,12,0"/>
+                                <ComboBox Grid.Column="1"
+                                          ItemsSource="{Binding DetectedNodes}"
+                                          SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                                          PlaceholderText="None (select a node to configure...)"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Id}" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}"/>
+                                                <TextBlock Text="•" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="{Binding CollectorName}" Foreground="{DynamicResource AccentTextBrush}" FontSize="10"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Grid.Column="2"
+                                        Command="{Binding ClearSelectedNodeCommand}"
+                                        IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                        Background="{DynamicResource DarkBaseBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="8,5"
+                                        Margin="8,0,0,0"
+                                        Cursor="Hand"
+                                        ToolTip.Tip="Deselect node (return to None)">
+                                    <TextBlock Text="✕ Clear" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Button>
+                            </Grid>
 
-                                <!-- Node Settings Panel -->
-                                <Panel IsVisible="{Binding SelectedNodeSettings, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                    <Border DataContext="{Binding SelectedNodeSettings}"
+                            <!-- Scrollable Content -->
+                            <ScrollViewer Grid.Row="1" x:Name="NodeSettingsScrollViewer" VerticalScrollBarVisibility="Auto">
+                                <Panel>
+                                    <!-- No Node Selected Placeholder Card -->
+                                    <Border IsVisible="{Binding SelectedNodeSettings, Converter={x:Static ObjectConverters.IsNull}}"
                                             Background="{DynamicResource DarkBaseBrush}"
                                             BorderBrush="{DynamicResource BorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="8"
-                                            Padding="14">
-                                        <StackPanel Spacing="12">
-                                            
-                                            <!-- Tier 1: Collection Opt-in -->
-                                            <TextBlock Text="TIER 1: COLLECTION OPT-IN (DAEMON &amp; STORE)"
+                                            Padding="32"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Center"
+                                            Margin="0,20,0,0">
+                                        <StackPanel HorizontalAlignment="Center" Spacing="10">
+                                            <TextBlock Text="🖥️" FontSize="36" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="No Node Selected"
                                                        FontFamily="{StaticResource MonoFontFamily}"
-                                                       FontSize="10"
+                                                       FontSize="13"
                                                        FontWeight="Bold"
-                                                       Foreground="{DynamicResource AccentTextBrush}"/>
-                                            <TextBlock Text="Unchecking stops the daemon from querying /proc and committing data."
-                                                       FontSize="10"
-                                                       Foreground="{DynamicResource TextMutedBrush}"/>
-
-                                            <WrapPanel Orientation="Horizontal">
-                                                <CheckBox Content="CPU Overall" IsChecked="{Binding CollectCpuOverall, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="CPU Per-Core Matrix" IsChecked="{Binding CollectCpuPerCore, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="Memory Basic" IsChecked="{Binding CollectMemoryBasic, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="Swap &amp; ZRAM" IsChecked="{Binding CollectMemorySwapZram, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="Power &amp; Battery" IsChecked="{Binding CollectPowerBattery, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="Network NICs" IsChecked="{Binding CollectNetworkInterfaces, Mode=TwoWay}" Margin="0,0,16,6"/>
-<CheckBox IsEnabled="False" Content="Network Sockets (not available)" IsChecked="{Binding CollectNetworkConnections, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                            </WrapPanel>
-                                            <TextBlock Text="TWAMP Light reflector (host:UDP port)"/>
-                                            <TextBox Text="{Binding TwampTarget}" PlaceholderText="Empty disables probing"/>
-                                            <CheckBox Content="Endpoint clocks are synchronized" IsChecked="{Binding TwampClocksSynchronized}"/>
-
-
-                                            <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
-
-                                            <!-- Tier 2: Viewing Opt-in -->
-                                            <TextBlock Text="TIER 2: VIEWING OPT-IN (CLIENT UI DISPLAY)"
-                                                       FontFamily="{StaticResource MonoFontFamily}"
-                                                       FontSize="10"
-                                                       FontWeight="Bold"
-                                                       Foreground="{DynamicResource AccentBrush}"/>
-                                            <TextBlock Text="Toggle whether the UI renders live cards without stopping background TSDB collection."
-                                                       FontSize="10"
-                                                       Foreground="{DynamicResource TextMutedBrush}"/>
-
-                                            <WrapPanel Orientation="Horizontal">
-                                                <CheckBox Content="Enable Live Card View" IsChecked="{Binding IsViewingEnabled, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="Stream Core Matrix" IsChecked="{Binding ViewCpuMatrix, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="Stream Swap &amp; ZRAM" IsChecked="{Binding ViewSwapZram, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="Stream Power &amp; Battery" IsChecked="{Binding ViewPowerBattery, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                                <CheckBox Content="Stream NIC Counters" IsChecked="{Binding ViewNetworkCounters, Mode=TwoWay}" Margin="0,0,16,6"/>
-                                            </WrapPanel>
-
-                                            <!-- Save Button -->
-                                            <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
-                                                <TextBlock Text="{Binding StatusMessage}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource HealthyBrush}"
-                                                           VerticalAlignment="Center"/>
-                                                <Button Grid.Column="1"
-                                                        Command="{Binding SaveConfigCommand}"
-                                                        Background="{DynamicResource AccentBrush}"
-                                                        Foreground="White"
-                                                        CornerRadius="6"
-                                                        Padding="14,6"
-                                                        Cursor="Hand">
-                                                    <TextBlock Text="Apply to Node" FontWeight="Bold" FontSize="11"/>
-                                                </Button>
-                                            </Grid>
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Select a node from the dropdown above to view and modify its opt-in configuration."
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       HorizontalAlignment="Center"
+                                                       TextWrapping="Wrap"
+                                                       MaxWidth="380"
+                                                       TextAlignment="Center"/>
                                         </StackPanel>
                                     </Border>
+
+                                    <!-- Node Settings Panel -->
+                                    <Panel IsVisible="{Binding SelectedNodeSettings, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <Border DataContext="{Binding SelectedNodeSettings}"
+                                                Background="{DynamicResource DarkBaseBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="14">
+                                            <StackPanel Spacing="12">
+                                                
+                                                <!-- Tier 1: Collection Opt-in -->
+                                                <TextBlock Text="TIER 1: COLLECTION OPT-IN (DAEMON &amp; STORE)"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource AccentTextBrush}"/>
+                                                <TextBlock Text="Unchecking stops the daemon from querying /proc and committing data."
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+
+                                                <WrapPanel Orientation="Horizontal">
+                                                    <CheckBox Content="CPU Overall" IsChecked="{Binding CollectCpuOverall, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="CPU Per-Core Matrix" IsChecked="{Binding CollectCpuPerCore, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="Memory Basic" IsChecked="{Binding CollectMemoryBasic, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="Swap &amp; ZRAM" IsChecked="{Binding CollectMemorySwapZram, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="Power &amp; Battery" IsChecked="{Binding CollectPowerBattery, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="Network NICs" IsChecked="{Binding CollectNetworkInterfaces, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox IsEnabled="False" Content="Network Sockets (not available)" IsChecked="{Binding CollectNetworkConnections, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="TWAMP Light reflector (host:UDP port)"/>
+                                                <TextBox Text="{Binding TwampTarget}" PlaceholderText="Empty disables probing"/>
+                                                <CheckBox Content="Endpoint clocks are synchronized" IsChecked="{Binding TwampClocksSynchronized}"/>
+
+                                                <!-- Process Telemetry Section -->
+                                                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                                                <TextBlock Text="PROCESS TELEMETRY"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource AccentTextBrush}"/>
+                                                <TextBlock Text="Configure process probing and TSDB historical storage policy."
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+
+                                                <StackPanel Spacing="8">
+                                                    <StackPanel Orientation="Horizontal" Spacing="16">
+                                                        <RadioButton Content="Disabled (Off)"
+                                                                     GroupName="ProcessModeGroup"
+                                                                     IsChecked="{Binding IsProcessDisabled, Mode=TwoWay}"
+                                                                     ToolTip.Tip="Completely stops querying /proc, zero streaming and zero storage"/>
+                                                        <RadioButton Content="Live Only (Probed)"
+                                                                     GroupName="ProcessModeGroup"
+                                                                     IsChecked="{Binding IsProcessLiveOnly, Mode=TwoWay}"
+                                                                     ToolTip.Tip="Probes 1Hz snapshot for live Processes tab; ephemeral, no TSDB storage"/>
+                                                        <RadioButton Content="Probed &amp; Stored (TSDB)"
+                                                                     GroupName="ProcessModeGroup"
+                                                                     IsChecked="{Binding IsProcessStored, Mode=TwoWay}"
+                                                                     ToolTip.Tip="Probes 1Hz snapshot AND records top processes into TSDB for graphing"/>
+                                                    </StackPanel>
+
+                                                    <!-- Top N processes slider -->
+                                                    <Border Background="{DynamicResource CardBgBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="6"
+                                                            Padding="12,8"
+                                                            Margin="0,4,0,0">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <TextBlock Text="Top Process Count:"
+                                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                                       FontSize="11"
+                                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                       VerticalAlignment="Center"
+                                                                       Margin="0,0,12,0"/>
+                                                            <Slider Grid.Column="1"
+                                                                    Minimum="1"
+                                                                    Maximum="10"
+                                                                    TickFrequency="1"
+                                                                    IsSnapToTickEnabled="True"
+                                                                    Value="{Binding TopNProcesses, Mode=TwoWay}"
+                                                                    VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2"
+                                                                       Text="{Binding TopNProcesses, StringFormat='Top {0} processes'}"
+                                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                                       FontSize="11"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="{DynamicResource AccentTextBrush}"
+                                                                       VerticalAlignment="Center"
+                                                                       Margin="12,0,0,0"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </StackPanel>
+
+                                                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                                                <!-- Tier 2: Viewing Opt-in -->
+                                                <TextBlock Text="TIER 2: VIEWING OPT-IN (CLIENT UI DISPLAY)"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource AccentBrush}"/>
+                                                <TextBlock Text="Toggle whether the UI renders live cards without stopping background TSDB collection."
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+
+                                                <WrapPanel Orientation="Horizontal">
+                                                    <CheckBox Content="Enable Live Card View" IsChecked="{Binding IsViewingEnabled, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="Stream Core Matrix" IsChecked="{Binding ViewCpuMatrix, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="Stream Swap &amp; ZRAM" IsChecked="{Binding ViewSwapZram, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="Stream Power &amp; Battery" IsChecked="{Binding ViewPowerBattery, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                    <CheckBox Content="Stream NIC Counters" IsChecked="{Binding ViewNetworkCounters, Mode=TwoWay}" Margin="0,0,16,6"/>
+                                                </WrapPanel>
+
+                                                <!-- Save / Apply Button Row -->
+                                                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+                                                    <TextBlock Text="{Binding StatusMessage}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource HealthyBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                    
+                                                    <Border Grid.Column="1"
+                                                            IsVisible="{Binding HasUnappliedChanges}"
+                                                            Background="{DynamicResource WarningSubtleBrush}"
+                                                            BorderBrush="{DynamicResource WarningBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            Padding="8,4"
+                                                            Margin="0,0,10,0"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="● Unapplied Changes"
+                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                   FontSize="10"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource WarningBrush}"/>
+                                                    </Border>
+
+                                                    <Button Grid.Column="2"
+                                                            Command="{Binding SaveConfigCommand}"
+                                                            Background="{DynamicResource AccentBrush}"
+                                                            Foreground="White"
+                                                            CornerRadius="6"
+                                                            Padding="14,6"
+                                                            Cursor="Hand">
+                                                        <TextBlock Text="Apply to Node" FontWeight="Bold" FontSize="11"/>
+                                                    </Button>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Panel>
                                 </Panel>
-                            </StackPanel>
-                        </ScrollViewer>
+                            </ScrollViewer>
+                        </Grid>
                     </TabItem>
 
                     <!-- TAB 3: Node Groups -->
@@ -675,9 +799,93 @@
                         </Button>
                     </StackPanel>
                 </Grid>
-
             </Grid>
-        </Border>
+
+            <!-- Unapplied Changes Confirmation Modal Overlay -->
+            <Grid IsVisible="{Binding IsUnsavedPromptOpen}"
+                  Background="#CC000000"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch">
+                <Border Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Width="440"
+                        Padding="20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        BoxShadow="0 8 24 #80000000">
+                    <StackPanel Spacing="14">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Border Background="{DynamicResource WarningSubtleBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="6" Padding="6,4">
+                                <TextBlock Text="⚠️" FontSize="14"/>
+                            </Border>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Unapplied Changes"
+                                           FontFamily="{StaticResource MonoFontFamily}"
+                                           FontWeight="Bold"
+                                           FontSize="14"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="You have modified settings that have not been applied to the node."
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock Text="Would you like to apply these changes to the daemon before closing, or discard them and revert to the daemon's current settings?"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   TextWrapping="Wrap"/>
+
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,6,0,0">
+                            <Button Grid.Column="0"
+                                    Command="{Binding DiscardAndCloseCommand}"
+                                    Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="10,6"
+                                    Cursor="Hand">
+                                <TextBlock Text="Discard Changes" FontSize="11" Foreground="{DynamicResource CriticalBrush}"/>
+                            </Button>
+
+                            <Button Grid.Column="2"
+                                    Command="{Binding CancelClosePromptCommand}"
+                                    Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="10,6"
+                                    Margin="0,0,8,0"
+                                    Cursor="Hand">
+                                <TextBlock Text="Cancel" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </Button>
+
+                            <Button Grid.Column="3"
+                                    Command="{Binding ApplyAndCloseCommand}"
+                                    Background="{DynamicResource AccentBrush}"
+                                    CornerRadius="6"
+                                    Padding="12,6"
+                                    Cursor="Hand">
+                                <TextBlock Text="Apply &amp; Close" FontWeight="Bold" FontSize="11" Foreground="White"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Symmetric Resize Border Handles -->
+            <Border x:Name="ResizeLeft" HorizontalAlignment="Left" VerticalAlignment="Stretch" Width="8" Margin="0,12" Cursor="SizeWestEast" Background="Transparent"/>
+            <Border x:Name="ResizeRight" HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="8" Margin="0,12" Cursor="SizeWestEast" Background="Transparent"/>
+            <Border x:Name="ResizeTop" HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="8" Margin="12,0" Cursor="SizeNorthSouth" Background="Transparent"/>
+            <Border x:Name="ResizeBottom" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="8" Margin="12,0" Cursor="SizeNorthSouth" Background="Transparent"/>
+
+            <Border x:Name="ResizeTopLeft" HorizontalAlignment="Left" VerticalAlignment="Top" Width="14" Height="14" Cursor="TopLeftCorner" Background="Transparent"/>
+            <Border x:Name="ResizeTopRight" HorizontalAlignment="Right" VerticalAlignment="Top" Width="14" Height="14" Cursor="TopRightCorner" Background="Transparent"/>
+            <Border x:Name="ResizeBottomLeft" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="14" Height="14" Cursor="BottomLeftCorner" Background="Transparent"/>
+            <Border x:Name="ResizeBottomRight" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="14" Height="14" Cursor="BottomRightCorner" Background="Transparent"/>
+        </Panel>
+    </Border>
     </Grid>
 
 </UserControl>

@@ -3,6 +3,8 @@ package collector
 import (
 	"testing"
 	"time"
+
+	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 )
 
 func TestCollectorEngineLinux(t *testing.T) {
@@ -56,5 +58,46 @@ func TestCollectorEngineLinux(t *testing.T) {
 	disabledMetrics := engine.Collect(cfg)
 	if disabledMetrics.Cpu != nil {
 		t.Fatal("expected nil CpuMetrics when disabled in config")
+	}
+}
+
+func TestProcessTelemetryModes(t *testing.T) {
+	engine := NewEngine("test-node-proc")
+	cfg := DefaultConfig("test-node-proc")
+
+	// Default mode should be LIVE_ONLY
+	if cfg.ProcessMode != madtomv1.ProcessTelemetryMode_PROCESS_MODE_LIVE_ONLY {
+		t.Fatalf("expected default mode LIVE_ONLY, got %v", cfg.ProcessMode)
+	}
+	if cfg.TopNProcesses != 5 {
+		t.Fatalf("expected default top-N 5, got %d", cfg.TopNProcesses)
+	}
+
+	liveMetrics := engine.Collect(cfg)
+	if !liveMetrics.ProcessesAvailable {
+		t.Fatal("expected processes available in LIVE_ONLY mode")
+	}
+	if len(liveMetrics.Processes) == 0 {
+		t.Fatal("expected non-empty processes in LIVE_ONLY mode")
+	}
+
+	// Mode DISABLED
+	cfg.ProcessMode = madtomv1.ProcessTelemetryMode_PROCESS_MODE_DISABLED
+	disabledMetrics := engine.Collect(cfg)
+	if disabledMetrics.ProcessesAvailable {
+		t.Fatal("expected processes unavailable in DISABLED mode")
+	}
+	if len(disabledMetrics.Processes) != 0 {
+		t.Fatalf("expected 0 processes in DISABLED mode, got %d", len(disabledMetrics.Processes))
+	}
+
+	// Mode PROBED_AND_STORED
+	cfg.ProcessMode = madtomv1.ProcessTelemetryMode_PROCESS_MODE_PROBED_AND_STORED
+	storedMetrics := engine.Collect(cfg)
+	if !storedMetrics.ProcessesAvailable {
+		t.Fatal("expected processes available in PROBED_AND_STORED mode")
+	}
+	if len(storedMetrics.Processes) == 0 {
+		t.Fatal("expected non-empty processes in PROBED_AND_STORED mode")
 	}
 }

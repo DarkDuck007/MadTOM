@@ -49,6 +49,11 @@ public partial class HostDetailViewModel : ViewModelBase
     [ObservableProperty]
     private string _threadsSpec = "";
 
+    public string FullCpuTooltip => string.IsNullOrWhiteSpace(CpuSpec) ? "" : (string.IsNullOrWhiteSpace(ThreadsSpec) ? CpuSpec : $"{CpuSpec} • {ThreadsSpec}");
+
+    partial void OnCpuSpecChanged(string value) => OnPropertyChanged(nameof(FullCpuTooltip));
+    partial void OnThreadsSpecChanged(string value) => OnPropertyChanged(nameof(FullCpuTooltip));
+
     [ObservableProperty]
     private string _ramSpec = "";
 

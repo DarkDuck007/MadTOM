@@ -91,7 +91,20 @@ public partial class SidebarViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isCollapsed;
 
-    public double SidebarWidth => IsCollapsed ? 68.0 : 240.0;
+    private double _uncollapsedWidth = 240.0;
+
+    public double SidebarWidth
+    {
+        get => IsCollapsed ? 68.0 : _uncollapsedWidth;
+        set
+        {
+            if (!IsCollapsed)
+            {
+                _uncollapsedWidth = Math.Clamp(value, 140.0, 600.0);
+                OnPropertyChanged(nameof(SidebarWidth));
+            }
+        }
+    }
 
     public bool IsFleetActive => ActiveView.Equals("fleet", StringComparison.OrdinalIgnoreCase);
     public bool IsRadarActive => ActiveView.Equals("radar", StringComparison.OrdinalIgnoreCase);

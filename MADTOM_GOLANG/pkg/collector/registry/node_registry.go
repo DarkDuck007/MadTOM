@@ -1,9 +1,10 @@
 package registry
 
 import (
-	"google.golang.org/protobuf/proto"
 	"sync"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 )
@@ -143,6 +144,8 @@ func defaultConfig(nodeID string) *madtomv1.NodeConfig {
 		SlowPollIntervalMs:        30000,
 		EnableZstdCompression:     false,
 		MaxSpoolBytes:             1024 * 1024 * 1024,
+		ProcessMode:               madtomv1.ProcessTelemetryMode_PROCESS_MODE_LIVE_ONLY,
+		TopNProcesses:             5,
 	}
 }
 

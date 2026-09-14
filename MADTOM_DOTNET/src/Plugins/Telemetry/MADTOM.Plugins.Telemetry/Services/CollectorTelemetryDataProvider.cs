@@ -230,8 +230,25 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                     node.LatestMetricValues[$"nic.{nic.Name}.tx_bytes"] = nic.TxBytes;
                 }
             }
+            node.Disks = Array.Empty<DiskIoDevice>();
+            node.DiskReadBytesPerSecond = 0;
+            node.DiskWriteBytesPerSecond = 0;
             if (s.DiskIo != null)
             {
+                if (s.DiskIo.Devices.Count > 0)
+                {
+                    node.Disks = s.DiskIo.Devices.ToArray();
+                }
+
+                if (hadSample && seconds > 0)
+                {
+                    ulong prevRead = 0, prevWrite = 0;
+                    if (node.LatestMetricValues.TryGetValue("disk.io.read_bytes", out var prb)) prevRead = (ulong)prb;
+                    if (node.LatestMetricValues.TryGetValue("disk.io.write_bytes", out var pwb)) prevWrite = (ulong)pwb;
+                    if (s.DiskIo.ReadBytes >= prevRead) node.DiskReadBytesPerSecond = (s.DiskIo.ReadBytes - prevRead) / seconds;
+                    if (s.DiskIo.WriteBytes >= prevWrite) node.DiskWriteBytesPerSecond = (s.DiskIo.WriteBytes - prevWrite) / seconds;
+                }
+
                 node.LatestMetricValues["disk.io.read_bytes"] = s.DiskIo.ReadBytes;
                 node.LatestMetricValues["disk.io.write_bytes"] = s.DiskIo.WriteBytes;
                 node.LatestMetricValues["disk.io.read_ops"] = s.DiskIo.ReadOps;
@@ -240,7 +257,26 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                 {
                     node.LatestMetricValues[$"disk.io.{dev.Name}.read_bytes"] = dev.ReadBytes;
                     node.LatestMetricValues[$"disk.io.{dev.Name}.write_bytes"] = dev.WriteBytes;
+                    node.LatestMetricValues[$"disk.io.{dev.Name}.read_ops"] = dev.ReadOps;
+                    node.LatestMetricValues[$"disk.io.{dev.Name}.write_ops"] = dev.WriteOps;
                 }
+            }
+
+            if (s.Processes != null && s.Processes.Count > 0)
+            {
+                var grouped = s.Processes
+                    .GroupBy(p => FleetNodeModel.SanitizeMetricName(p.Name))
+                    .Select(g => new { Name = g.Key, Cpu = g.Sum(x => x.CpuPct) })
+                    .OrderByDescending(x => x.Cpu)
+                    .ToList();
+
+                double topSum = 0;
+                foreach (var proc in grouped)
+                {
+                    node.LatestMetricValues[$"proc.cpu.{proc.Name}"] = proc.Cpu;
+                    topSum += proc.Cpu;
+                }
+                node.LatestMetricValues["proc.cpu.other"] = Math.Max(0.0, s.Cpu != null ? s.Cpu.TotalPct - topSum : 0.0);
             }
 
             NodeTelemetryUpdated?.Invoke(this, node);

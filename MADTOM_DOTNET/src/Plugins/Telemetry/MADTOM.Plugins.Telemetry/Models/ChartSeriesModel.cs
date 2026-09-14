@@ -40,6 +40,9 @@ public partial class ChartSeriesModel : ObservableObject
     private long[] _timestamps = Array.Empty<long>();
 
     [ObservableProperty]
+    private string[]? _pointLabels;
+
+    [ObservableProperty]
     private bool _isVisible = true;
 
     [ObservableProperty]
@@ -67,6 +70,17 @@ public partial class ChartSeriesModel : ObservableObject
             if (Color.TryParse(ColorHex, out var parsed))
                 return parsed;
             return Color.FromRgb(6, 182, 212);
+        }
+    }
+
+    public Color Color
+    {
+        get => ResolvedColor;
+        set
+        {
+            ColorHex = $"#{value.R:X2}{value.G:X2}{value.B:X2}";
+            OnPropertyChanged(nameof(Color));
+            ConfigurationChanged?.Invoke();
         }
     }
 

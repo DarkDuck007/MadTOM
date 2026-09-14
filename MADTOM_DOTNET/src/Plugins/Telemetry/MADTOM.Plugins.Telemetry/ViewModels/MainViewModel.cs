@@ -110,6 +110,15 @@ public partial class MainViewModel : ViewModelBase
             IsCollectorSettingsOpen = true;
         };
         HostDetailView.BackToFleetRequested += () => NavigateToView("fleet");
+        Header.NavigateBackRequested += () => NavigateToView("fleet");
+        HostDetailView.PropertyChanged += (s, e) =>
+        {
+            if (CurrentView == HostDetailView && (e.PropertyName == nameof(HostDetailViewModel.HostTitle) || e.PropertyName == nameof(HostDetailViewModel.FullCpuTooltip)))
+            {
+                Header.CurrentPageTitle = HostDetailView.HostTitle;
+                Header.CurrentPageSubtitle = HostDetailView.FullCpuTooltip;
+            }
+        };
 
         // Wire sidebar collapse sync
         var initialSettings = MADTOM.PluginContracts.AppSettingsStore.Load();
@@ -175,6 +184,7 @@ public partial class MainViewModel : ViewModelBase
             _ => FleetView
         };
         Sidebar.ActiveView = viewKey.ToLowerInvariant();
+        UpdateHeaderNavigation();
     }
 
     public void OpenHostDetail(string hostId)
@@ -182,6 +192,23 @@ public partial class MainViewModel : ViewModelBase
         HostDetailView.SelectHost(hostId);
         CurrentView = HostDetailView;
         Sidebar.ActiveView = "detail";
+        UpdateHeaderNavigation();
+    }
+
+    private void UpdateHeaderNavigation()
+    {
+        if (CurrentView == HostDetailView)
+        {
+            Header.IsDetailPage = true;
+            Header.CurrentPageTitle = HostDetailView.HostTitle;
+            Header.CurrentPageSubtitle = HostDetailView.FullCpuTooltip;
+        }
+        else
+        {
+            Header.IsDetailPage = false;
+            Header.CurrentPageTitle = "";
+            Header.CurrentPageSubtitle = "";
+        }
     }
 
     [RelayCommand]

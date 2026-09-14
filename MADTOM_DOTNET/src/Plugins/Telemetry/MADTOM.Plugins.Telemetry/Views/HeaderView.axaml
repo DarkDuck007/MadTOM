@@ -3,19 +3,20 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MadTOM.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="56"
+             xmlns:loc="using:MadTOM.Localization"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="48"
              x:Class="MadTOM.Views.HeaderView"
              x:DataType="vm:HeaderViewModel">
 
     <Border Background="{DynamicResource HeaderBgBrush}"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="0,0,0,1"
-            Height="56"
-            Padding="16,0">
+            Height="48"
+            Padding="14,0">
         <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
             
-            <!-- Left: Brand & Collapse Toggle Button -->
-            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <!-- Left: Brand, Navigation & Collapse Toggle Button -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <Button Command="{Binding ToggleSidebarCollapseCommand}"
                         Background="Transparent"
                         BorderThickness="0"
@@ -39,24 +40,75 @@
                     </Border>
                 </Button>
 
-                <TextBlock Text="Telemetry &amp; Operations Matrix"
-                           IsVisible="{Binding !IsSidebarCollapsed}"
-                           FontWeight="Bold"
-                           FontSize="12"
-                           Foreground="{DynamicResource TextPrimaryBrush}"
-                           VerticalAlignment="Center"/>
+                <!-- Default title when on Fleet Matrix / root views -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding !IsDetailPage}">
+                    <TextBlock Text="Telemetry &amp; Operations Matrix"
+                               IsVisible="{Binding !IsSidebarCollapsed}"
+                               FontWeight="Bold"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center"/>
 
-                <Border Background="{DynamicResource AccentSubtleBrush}"
-                        BorderBrush="{DynamicResource AccentBrush}"
-                        BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="6,2"
-                        VerticalAlignment="Center">
-                    <TextBlock Text="v0.5.2"
-                                FontFamily="{StaticResource MonoFontFamily}"
-                                FontSize="10"
-                                Foreground="{DynamicResource AccentTextBrush}"/>
-                </Border>
+                    <Border Background="{DynamicResource AccentSubtleBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="v0.5.2"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- Navigation Breadcrumbs when on Detail Page -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding IsDetailPage}">
+                    <Border Background="{DynamicResource AccentSubtleBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="v0.5.2"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
+
+                    <TextBlock Text="/" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+
+                    <Button Command="{Binding NavigateBackCommand}"
+                            Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="8,4"
+                            Cursor="Hand"
+                            ToolTip.Tip="Nodes">
+                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                            <TextBlock Text="←" Foreground="{DynamicResource AccentTextBrush}"/>
+                            <TextBlock Text="{loc:Loc backToFleet}"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource AccentTextBrush}"/>
+                        </StackPanel>
+                    </Button>
+
+                    <TextBlock Text="/" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Node Title with floating CPU info popup on hover -->
+                    <Border Background="Transparent"
+                            ToolTip.Tip="{Binding CurrentPageSubtitle}"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CurrentPageTitle}"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
             </StackPanel>
 
             <!-- Right: Global Real-Time Cluster Telemetry Summary -->

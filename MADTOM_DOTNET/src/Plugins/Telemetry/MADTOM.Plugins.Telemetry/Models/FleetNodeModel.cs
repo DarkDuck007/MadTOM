@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace MadTOM.Models;
@@ -41,8 +42,11 @@ public sealed partial class FleetNodeModel : ObservableObject
     public ulong MemoryTotalBytes { get; set; }
     public double TxBytesPerSecond { get; set; }
     public double RxBytesPerSecond { get; set; }
+    public double DiskReadBytesPerSecond { get; set; }
+    public double DiskWriteBytesPerSecond { get; set; }
     public System.Collections.Generic.IReadOnlyList<ProcessInfoModel> Processes { get; set; } = Array.Empty<ProcessInfoModel>();
     public System.Collections.Generic.IReadOnlyList<MADTOM.Plugins.Telemetry.Proto.V1.NicMetric> Interfaces { get; set; } = Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.NicMetric>();
+    public System.Collections.Generic.IReadOnlyList<MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice> Disks { get; set; } = Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice>();
     public bool ProcessesAvailable { get; set; }
 
     [ObservableProperty]
@@ -120,12 +124,36 @@ public sealed partial class FleetNodeModel : ObservableObject
     [ObservableProperty]
     private double _swapUsedPct;
 
+    public static string SanitizeMetricName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "unknown";
+        string cleaned = System.Text.RegularExpressions.Regex.Replace(name.Trim(), @"[^a-zA-Z0-9_.-]", "_").ToLowerInvariant();
+        cleaned = cleaned.Trim('.', '_', '-');
+        return string.IsNullOrEmpty(cleaned) ? "unknown" : cleaned;
+    }
+
     public System.Collections.Concurrent.ConcurrentDictionary<string, double> LatestMetricValues { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public double? GetMetricValue(string metricName)
     {
         if (LatestMetricValues.TryGetValue(metricName, out var val))
             return val;
+
+        if (metricName.StartsWith("proc.cpu.", StringComparison.OrdinalIgnoreCase))
+        {
+            string procName = metricName.Substring("proc.cpu.".Length).ToLowerInvariant();
+            if (procName == "other")
+            {
+                double sum = Processes
+                    .GroupBy(p => SanitizeMetricName(p.Name).ToLowerInvariant())
+                    .Select(g => g.Sum(p => p.Cpu))
+                    .Sum();
+                return Math.Max(0.0, CpuAvgPct - sum);
+            }
+            return Processes
+                .Where(p => SanitizeMetricName(p.Name).Equals(procName, StringComparison.OrdinalIgnoreCase))
+                .Sum(p => p.Cpu);
+        }
 
         return metricName.ToLowerInvariant() switch
         {

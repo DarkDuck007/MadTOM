@@ -21,6 +21,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ProcessTelemetryMode int32
+
+const (
+	ProcessTelemetryMode_PROCESS_MODE_DISABLED          ProcessTelemetryMode = 0 // Neither: No /proc scanning, no streaming, no storage
+	ProcessTelemetryMode_PROCESS_MODE_LIVE_ONLY         ProcessTelemetryMode = 1 // Probed: Live 1Hz stream for UI, not stored in TSDB
+	ProcessTelemetryMode_PROCESS_MODE_PROBED_AND_STORED ProcessTelemetryMode = 2 // Probed & Stored: Live stream + Top-N written to TSDB
+)
+
+// Enum value maps for ProcessTelemetryMode.
+var (
+	ProcessTelemetryMode_name = map[int32]string{
+		0: "PROCESS_MODE_DISABLED",
+		1: "PROCESS_MODE_LIVE_ONLY",
+		2: "PROCESS_MODE_PROBED_AND_STORED",
+	}
+	ProcessTelemetryMode_value = map[string]int32{
+		"PROCESS_MODE_DISABLED":          0,
+		"PROCESS_MODE_LIVE_ONLY":         1,
+		"PROCESS_MODE_PROBED_AND_STORED": 2,
+	}
+)
+
+func (x ProcessTelemetryMode) Enum() *ProcessTelemetryMode {
+	p := new(ProcessTelemetryMode)
+	*p = x
+	return p
+}
+
+func (x ProcessTelemetryMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ProcessTelemetryMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_madtom_v1_config_proto_enumTypes[0].Descriptor()
+}
+
+func (ProcessTelemetryMode) Type() protoreflect.EnumType {
+	return &file_madtom_v1_config_proto_enumTypes[0]
+}
+
+func (x ProcessTelemetryMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ProcessTelemetryMode.Descriptor instead.
+func (ProcessTelemetryMode) EnumDescriptor() ([]byte, []int) {
+	return file_madtom_v1_config_proto_rawDescGZIP(), []int{0}
+}
+
 type GetNodeConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -138,8 +187,11 @@ type NodeConfig struct {
 	TwampTarget             string `protobuf:"bytes,14,opt,name=twamp_target,json=twampTarget,proto3" json:"twamp_target,omitempty"`                                        // TWAMP Light UDP reflector host:port; empty disables probes
 	TwampClocksSynchronized bool   `protobuf:"varint,15,opt,name=twamp_clocks_synchronized,json=twampClocksSynchronized,proto3" json:"twamp_clocks_synchronized,omitempty"` // Operator assertion; reflector must also set its S bit
 	MaxSpoolBytes           uint64 `protobuf:"varint,13,opt,name=max_spool_bytes,json=maxSpoolBytes,proto3" json:"max_spool_bytes,omitempty"`                               // Default 1,073,741,824 (1 GB)
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Process Telemetry Mode & Top-N Count
+	ProcessMode   ProcessTelemetryMode `protobuf:"varint,16,opt,name=process_mode,json=processMode,proto3,enum=madtom.v1.ProcessTelemetryMode" json:"process_mode,omitempty"`
+	TopNProcesses uint32               `protobuf:"varint,17,opt,name=top_n_processes,json=topNProcesses,proto3" json:"top_n_processes,omitempty"` // Top N processes (1 to 10, default 5)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NodeConfig) Reset() {
@@ -277,6 +329,20 @@ func (x *NodeConfig) GetMaxSpoolBytes() uint64 {
 	return 0
 }
 
+func (x *NodeConfig) GetProcessMode() ProcessTelemetryMode {
+	if x != nil {
+		return x.ProcessMode
+	}
+	return ProcessTelemetryMode_PROCESS_MODE_DISABLED
+}
+
+func (x *NodeConfig) GetTopNProcesses() uint32 {
+	if x != nil {
+		return x.TopNProcesses
+	}
+	return 0
+}
+
 type ConfigAck struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -338,7 +404,7 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"a\n" +
 	"\x17UpdateNodeConfigRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12-\n" +
-	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xff\x05\n" +
+	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xeb\x06\n" +
 	"\n" +
 	"NodeConfig\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12.\n" +
@@ -356,10 +422,16 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\x17enable_zstd_compression\x18\f \x01(\bR\x15enableZstdCompression\x12!\n" +
 	"\ftwamp_target\x18\x0e \x01(\tR\vtwampTarget\x12:\n" +
 	"\x19twamp_clocks_synchronized\x18\x0f \x01(\bR\x17twampClocksSynchronized\x12&\n" +
-	"\x0fmax_spool_bytes\x18\r \x01(\x04R\rmaxSpoolBytes\"?\n" +
+	"\x0fmax_spool_bytes\x18\r \x01(\x04R\rmaxSpoolBytes\x12B\n" +
+	"\fprocess_mode\x18\x10 \x01(\x0e2\x1f.madtom.v1.ProcessTelemetryModeR\vprocessMode\x12&\n" +
+	"\x0ftop_n_processes\x18\x11 \x01(\rR\rtopNProcesses\"?\n" +
 	"\tConfigAck\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xa6\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*q\n" +
+	"\x14ProcessTelemetryMode\x12\x19\n" +
+	"\x15PROCESS_MODE_DISABLED\x10\x00\x12\x1a\n" +
+	"\x16PROCESS_MODE_LIVE_ONLY\x10\x01\x12\"\n" +
+	"\x1ePROCESS_MODE_PROBED_AND_STORED\x10\x022\xa6\x01\n" +
 	"\rConfigService\x12G\n" +
 	"\rGetNodeConfig\x12\x1f.madtom.v1.GetNodeConfigRequest\x1a\x15.madtom.v1.NodeConfig\x12L\n" +
 	"\x10UpdateNodeConfig\x12\".madtom.v1.UpdateNodeConfigRequest\x1a\x14.madtom.v1.ConfigAckBYZ3github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1\xaa\x02!MADTOM.Plugins.Telemetry.Proto.V1b\x06proto3"
@@ -376,24 +448,27 @@ func file_madtom_v1_config_proto_rawDescGZIP() []byte {
 	return file_madtom_v1_config_proto_rawDescData
 }
 
+var file_madtom_v1_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_madtom_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_madtom_v1_config_proto_goTypes = []any{
-	(*GetNodeConfigRequest)(nil),    // 0: madtom.v1.GetNodeConfigRequest
-	(*UpdateNodeConfigRequest)(nil), // 1: madtom.v1.UpdateNodeConfigRequest
-	(*NodeConfig)(nil),              // 2: madtom.v1.NodeConfig
-	(*ConfigAck)(nil),               // 3: madtom.v1.ConfigAck
+	(ProcessTelemetryMode)(0),       // 0: madtom.v1.ProcessTelemetryMode
+	(*GetNodeConfigRequest)(nil),    // 1: madtom.v1.GetNodeConfigRequest
+	(*UpdateNodeConfigRequest)(nil), // 2: madtom.v1.UpdateNodeConfigRequest
+	(*NodeConfig)(nil),              // 3: madtom.v1.NodeConfig
+	(*ConfigAck)(nil),               // 4: madtom.v1.ConfigAck
 }
 var file_madtom_v1_config_proto_depIdxs = []int32{
-	2, // 0: madtom.v1.UpdateNodeConfigRequest.config:type_name -> madtom.v1.NodeConfig
-	0, // 1: madtom.v1.ConfigService.GetNodeConfig:input_type -> madtom.v1.GetNodeConfigRequest
-	1, // 2: madtom.v1.ConfigService.UpdateNodeConfig:input_type -> madtom.v1.UpdateNodeConfigRequest
-	2, // 3: madtom.v1.ConfigService.GetNodeConfig:output_type -> madtom.v1.NodeConfig
-	3, // 4: madtom.v1.ConfigService.UpdateNodeConfig:output_type -> madtom.v1.ConfigAck
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 0: madtom.v1.UpdateNodeConfigRequest.config:type_name -> madtom.v1.NodeConfig
+	0, // 1: madtom.v1.NodeConfig.process_mode:type_name -> madtom.v1.ProcessTelemetryMode
+	1, // 2: madtom.v1.ConfigService.GetNodeConfig:input_type -> madtom.v1.GetNodeConfigRequest
+	2, // 3: madtom.v1.ConfigService.UpdateNodeConfig:input_type -> madtom.v1.UpdateNodeConfigRequest
+	3, // 4: madtom.v1.ConfigService.GetNodeConfig:output_type -> madtom.v1.NodeConfig
+	4, // 5: madtom.v1.ConfigService.UpdateNodeConfig:output_type -> madtom.v1.ConfigAck
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_config_proto_init() }
@@ -406,13 +481,14 @@ func file_madtom_v1_config_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_madtom_v1_config_proto_rawDesc), len(file_madtom_v1_config_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_madtom_v1_config_proto_goTypes,
 		DependencyIndexes: file_madtom_v1_config_proto_depIdxs,
+		EnumInfos:         file_madtom_v1_config_proto_enumTypes,
 		MessageInfos:      file_madtom_v1_config_proto_msgTypes,
 	}.Build()
 	File_madtom_v1_config_proto = out.File

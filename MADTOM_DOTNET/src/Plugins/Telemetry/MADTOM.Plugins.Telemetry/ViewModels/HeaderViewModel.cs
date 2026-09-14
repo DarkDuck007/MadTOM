@@ -30,6 +30,23 @@ public partial class HeaderViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isSidebarCollapsed;
 
+    [ObservableProperty]
+    private bool _isDetailPage;
+
+    [ObservableProperty]
+    private string _currentPageTitle = "";
+
+    [ObservableProperty]
+    private string _currentPageSubtitle = "";
+
+    public event Action? NavigateBackRequested;
+
+    [RelayCommand]
+    public void NavigateBack()
+    {
+        NavigateBackRequested?.Invoke();
+    }
+
     public IReadOnlyList<PersonaOption> AvailablePersonas { get; } = new List<PersonaOption>
     {
         new("goose", "🪿 Goose Farm"),
@@ -86,7 +103,7 @@ public partial class HeaderViewModel : ViewModelBase
         for (int i = 0; i < pinnedConfigs.Count; i++)
         {
             var cfg = pinnedConfigs[i];
-            var def = GlobalMetricsStore.AvailableCatalog.FirstOrDefault(d => d.Key.Equals(cfg.Key, StringComparison.OrdinalIgnoreCase));
+            var def = GlobalMetricsStore.GetMetricDefinition(cfg.Key);
             if (def == null) continue;
 
             var existing = PinnedMetrics.FirstOrDefault(m => m.Key.Equals(cfg.Key, StringComparison.OrdinalIgnoreCase) && m.ModifierLabel.Equals(cfg.Modifier, StringComparison.OrdinalIgnoreCase));

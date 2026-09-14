@@ -34,6 +34,47 @@ public sealed class GlobalMetricsStore
         new("twamp.rtt", "TWAMP Round-Trip Latency", "TWAMP", "⏱", "ms")
     };
 
+    public static MetricDefinition GetMetricDefinition(string key)
+    {
+        var existing = AvailableCatalog.FirstOrDefault(d => d.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        if (existing != null) return existing;
+
+        if (key.StartsWith("disk.io.", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = key.Split('.');
+            if (parts.Length >= 4)
+            {
+                string dev = parts[2];
+                string type = parts[3];
+                return type switch
+                {
+                    "read_bytes" => new MetricDefinition(key, $"Disk Read ({dev})", $"{dev} R", "📖", "B/s"),
+                    "write_bytes" => new MetricDefinition(key, $"Disk Write ({dev})", $"{dev} W", "✍", "B/s"),
+                    "read_ops" => new MetricDefinition(key, $"Disk Read IOPS ({dev})", $"{dev} R-IOPS", "⚡", "IOPS"),
+                    "write_ops" => new MetricDefinition(key, $"Disk Write IOPS ({dev})", $"{dev} W-IOPS", "⚡", "IOPS"),
+                    _ => new MetricDefinition(key, $"Disk {dev} {type}", dev, "💽", "")
+                };
+            }
+        }
+        else if (key.StartsWith("nic.", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = key.Split('.');
+            if (parts.Length >= 3)
+            {
+                string iface = parts[1];
+                string type = parts[2];
+                return type switch
+                {
+                    "rx_bytes" => new MetricDefinition(key, $"Network Ingress ({iface})", $"{iface} In", "⬇", "bps"),
+                    "tx_bytes" => new MetricDefinition(key, $"Network Egress ({iface})", $"{iface} Out", "⬆", "bps"),
+                    _ => new MetricDefinition(key, $"NIC {iface} {type}", iface, "🌐", "")
+                };
+            }
+        }
+
+        return new MetricDefinition(key, key, key, "📊", "");
+    }
+
     public static string DefaultPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "MADTOM",

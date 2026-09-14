@@ -126,8 +126,32 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
             SparkNetDown = netDown,
             SparkCpu = cpu,
             SparkRam = ram,
-            CoreLoads = new float[cores]
+            CoreLoads = new float[cores],
+            ProcessesAvailable = true
         };
+
+        node.Interfaces = new[]
+        {
+            new MADTOM.Plugins.Telemetry.Proto.V1.NicMetric { Name = "eth0", RxBytes = 1048576, TxBytes = 2097152 },
+            new MADTOM.Plugins.Telemetry.Proto.V1.NicMetric { Name = "eth1", RxBytes = 524288, TxBytes = 1048576 }
+        };
+        node.Disks = new[]
+        {
+            new MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice { Name = "sda", ReadBytes = 10737418240, WriteBytes = 21474836480, ReadOps = 150000, WriteOps = 250000 },
+            new MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice { Name = "sda1", ReadBytes = 5368709120, WriteBytes = 10737418240, ReadOps = 75000, WriteOps = 125000 },
+            new MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice { Name = "sdb", ReadBytes = 2147483648, WriteBytes = 4294967296, ReadOps = 30000, WriteOps = 50000 }
+        };
+        node.LatestMetricValues["disk.io.read_bytes"] = 12884901888;
+        node.LatestMetricValues["disk.io.write_bytes"] = 25769803776;
+        node.LatestMetricValues["disk.io.read_ops"] = 180000;
+        node.LatestMetricValues["disk.io.write_ops"] = 300000;
+        foreach (var dev in node.Disks)
+        {
+            node.LatestMetricValues[$"disk.io.{dev.Name}.read_bytes"] = dev.ReadBytes;
+            node.LatestMetricValues[$"disk.io.{dev.Name}.write_bytes"] = dev.WriteBytes;
+            node.LatestMetricValues[$"disk.io.{dev.Name}.read_ops"] = dev.ReadOps;
+            node.LatestMetricValues[$"disk.io.{dev.Name}.write_ops"] = dev.WriteOps;
+        }
 
         for (int i = 0; i < cores; i++)
         {

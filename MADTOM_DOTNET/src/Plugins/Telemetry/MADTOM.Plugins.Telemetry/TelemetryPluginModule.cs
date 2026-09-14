@@ -27,7 +27,7 @@ public class TelemetryPluginModule : IPluginModule
     private TelemetryRootView? _rootView;
 
     public string Id => "telemetry";
-    public string DisplayName => "Telemetry & Operations";
+    public string DisplayName => "Telemetry";
     public string Description => "High-density fleet telemetry, node deep-dive, and global network radar";
     public string IconGlyph => "📊";
     public string Category => "Operations";

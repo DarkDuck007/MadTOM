@@ -2,6 +2,8 @@ package ingest
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/DarkDuck007/madtom/pkg/collector/registry"
@@ -61,12 +63,14 @@ func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) err
 	var records []storage.MetricRecord
 	var latestSample *madtomv1.SystemMetrics
 
+	cfg := p.reg.GetConfig(batch.NodeId)
+
 	for _, sample := range samples {
 		if sample == nil {
 			continue
 		}
 		sample.NodeId = batch.NodeId
-		records = appendSampleRecords(records, batch.NodeId, sample)
+		records = appendSampleRecords(records, batch.NodeId, sample, cfg)
 		if latestSample == nil || sample.TimestampUnixNano > latestSample.TimestampUnixNano {
 			latestSample = sample
 		}
@@ -85,7 +89,23 @@ func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) err
 	return nil
 }
 
-func appendSampleRecords(records []storage.MetricRecord, nodeID string, s *madtomv1.SystemMetrics) []storage.MetricRecord {
+func sanitizeMetricName(name string) string {
+	var sb strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			sb.WriteRune(r)
+		} else {
+			sb.WriteRune('_')
+		}
+	}
+	s := strings.Trim(sb.String(), "_")
+	if s == "" {
+		return "unknown"
+	}
+	return s
+}
+
+func appendSampleRecords(records []storage.MetricRecord, nodeID string, s *madtomv1.SystemMetrics, cfg *madtomv1.NodeConfig) []storage.MetricRecord {
 	ts := s.TimestampUnixNano
 	add := func(metric string, val float64) {
 		records = append(records, storage.MetricRecord{
@@ -144,7 +164,60 @@ func appendSampleRecords(records []storage.MetricRecord, nodeID string, s *madto
 		for _, dev := range s.DiskIo.Devices {
 			add(fmt.Sprintf("disk.io.%s.read_bytes", dev.Name), float64(dev.ReadBytes))
 			add(fmt.Sprintf("disk.io.%s.write_bytes", dev.Name), float64(dev.WriteBytes))
+			add(fmt.Sprintf("disk.io.%s.read_ops", dev.Name), float64(dev.ReadOps))
+			add(fmt.Sprintf("disk.io.%s.write_ops", dev.Name), float64(dev.WriteOps))
 		}
+	}
+
+	if cfg != nil && cfg.ProcessMode == madtomv1.ProcessTelemetryMode_PROCESS_MODE_PROBED_AND_STORED && len(s.Processes) > 0 {
+		topN := int(cfg.TopNProcesses)
+		if topN <= 0 {
+			topN = 5
+		} else if topN > 10 {
+			topN = 10
+		}
+
+		nameCpu := make(map[string]float64)
+		for _, proc := range s.Processes {
+			if proc == nil || proc.Name == "" {
+				continue
+			}
+			nameCpu[proc.Name] += proc.CpuPct
+		}
+
+		type procItem struct {
+			name string
+			cpu  float64
+		}
+		var sortedProcs []procItem
+		for name, cpu := range nameCpu {
+			sortedProcs = append(sortedProcs, procItem{name: name, cpu: cpu})
+		}
+		sort.Slice(sortedProcs, func(i, j int) bool {
+			return sortedProcs[i].cpu > sortedProcs[j].cpu
+		})
+
+		var topSum float64
+		limit := topN
+		if len(sortedProcs) < limit {
+			limit = len(sortedProcs)
+		}
+		for i := 0; i < limit; i++ {
+			item := sortedProcs[i]
+			cleanName := sanitizeMetricName(item.name)
+			add(fmt.Sprintf("proc.cpu.%s", cleanName), item.cpu)
+			topSum += item.cpu
+		}
+
+		totalCpu := 0.0
+		if s.Cpu != nil {
+			totalCpu = s.Cpu.TotalPct
+		}
+		otherCpu := totalCpu - topSum
+		if otherCpu < 0 {
+			otherCpu = 0
+		}
+		add("proc.cpu.other", otherCpu)
 	}
 
 	return records

@@ -139,7 +139,7 @@ public sealed class LexiconService : ILexiconService
                 ["level1Badge"] = "Fleet Observation Level 1",
                 ["filterBaremetal"] = "Dedicated Hosts",
                 ["filterVm"] = "Virtual Machines",
-                ["backToFleet"] = "Back to Fleet Matrix",
+                ["backToFleet"] = "Nodes",
                 ["tabMetrics"] = "Historical Telemetry",
                 ["tabProcesses"] = "Process Manager",
                 ["tabLogs"] = "System Journal",

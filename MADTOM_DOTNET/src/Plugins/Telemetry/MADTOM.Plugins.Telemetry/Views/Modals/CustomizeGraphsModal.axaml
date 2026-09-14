@@ -11,17 +11,20 @@
     <!-- Modal Scrim Backdrop Covering Entire Plugin Viewport -->
     <Grid Background="#CC000000">
         <!-- Main Dialog Container -->
-        <Border Background="{DynamicResource CardBgBrush}"
+        <Border x:Name="DialogContainer"
+                Background="{DynamicResource CardBgBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="14"
-                Padding="24"
                 Width="720"
-                MaxHeight="740"
+                Height="700"
+                MinWidth="520"
+                MinHeight="420"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 BoxShadow="0 14 36 #C0000000">
-            <Grid RowDefinitions="Auto,Auto,*,Auto">
+            <Panel>
+                <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto">
                 <!-- Header -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
                     <StackPanel Spacing="2">
@@ -56,53 +59,56 @@
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="12,10">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <TextBlock Text="Layout Preset:"
-                                           FontFamily="{StaticResource MonoFontFamily}"
-                                           FontWeight="Bold"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           VerticalAlignment="Center"/>
-                                <ComboBox ItemsSource="{Binding AvailablePresets}"
-                                          SelectedItem="{Binding SelectedPreset}"
-                                          Width="210"
-                                          Background="{DynamicResource CardBgBrush}"
-                                          Foreground="{DynamicResource TextPrimaryBrush}"
-                                          BorderBrush="{DynamicResource BorderBrush}"
-                                          FontSize="11"/>
-                                <Button Content="Apply"
-                                        Command="{Binding ApplyPresetCommand}"
-                                        Background="{DynamicResource AccentBrush}"
-                                        Foreground="White"
-                                        FontWeight="Bold"
-                                        FontSize="11"
-                                        Padding="10,5"
-                                        CornerRadius="4"
-                                        Cursor="Hand"
-                                        ToolTip.Tip="Apply selected layout preset to current node/view"/>
-                                <Button Content="Save As…"
-                                        Command="{Binding OpenSavePresetModalCommand}"
-                                        Background="{DynamicResource CardBgBrush}"
-                                        Foreground="{DynamicResource AccentTextBrush}"
-                                        FontSize="11"
-                                        Padding="10,5"
-                                        CornerRadius="4"
-                                        Cursor="Hand"
-                                        ToolTip.Tip="Save current layout as a reusable preset"/>
-                                <Button Content="Delete"
-                                        Command="{Binding DeletePresetCommand}"
-                                        CommandParameter="{Binding SelectedPreset}"
-                                        IsEnabled="{Binding CanDeleteSelectedPreset}"
-                                        Background="{DynamicResource CriticalSubtleBrush}"
-                                        Foreground="{DynamicResource CriticalBrush}"
-                                        FontSize="11"
-                                        Padding="8,5"
-                                        CornerRadius="4"
-                                        Cursor="Hand"
-                                        ToolTip.Tip="Delete selected custom preset"/>
-                            </StackPanel>
-                        </Grid>
+                        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Layout Preset:"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       FontWeight="Bold"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,6"/>
+                            <ComboBox ItemsSource="{Binding AvailablePresets}"
+                                      SelectedItem="{Binding SelectedPreset}"
+                                      Width="210"
+                                      Background="{DynamicResource CardBgBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      FontSize="11"
+                                      Margin="0,0,8,6"/>
+                            <Button Content="Apply"
+                                    Command="{Binding ApplyPresetCommand}"
+                                    Background="{DynamicResource AccentBrush}"
+                                    Foreground="White"
+                                    FontWeight="Bold"
+                                    FontSize="11"
+                                    Padding="10,5"
+                                    CornerRadius="4"
+                                    Cursor="Hand"
+                                    Margin="0,0,8,6"
+                                    ToolTip.Tip="Apply selected layout preset to current node/view"/>
+                            <Button Content="Save As…"
+                                    Command="{Binding OpenSavePresetModalCommand}"
+                                    Background="{DynamicResource CardBgBrush}"
+                                    Foreground="{DynamicResource AccentTextBrush}"
+                                    FontSize="11"
+                                    Padding="10,5"
+                                    CornerRadius="4"
+                                    Cursor="Hand"
+                                    Margin="0,0,8,6"
+                                    ToolTip.Tip="Save current layout as a reusable preset"/>
+                            <Button Content="Delete"
+                                    Command="{Binding DeletePresetCommand}"
+                                    CommandParameter="{Binding SelectedPreset}"
+                                    IsEnabled="{Binding CanDeleteSelectedPreset}"
+                                    Background="{DynamicResource CriticalSubtleBrush}"
+                                    Foreground="{DynamicResource CriticalBrush}"
+                                    FontSize="11"
+                                    Padding="8,5"
+                                    CornerRadius="4"
+                                    Cursor="Hand"
+                                    Margin="0,0,8,6"
+                                    ToolTip.Tip="Delete selected custom preset"/>
+                        </WrapPanel>
                     </Border>
 
                     <!-- Add Metric Row -->
@@ -112,46 +118,48 @@
                             CornerRadius="8"
                             Padding="12,10">
                         <StackPanel Spacing="8">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="Add Metric:"
-                                               FontFamily="{StaticResource MonoFontFamily}"
-                                               FontSize="11"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               VerticalAlignment="Center"/>
-                                    <ComboBox ItemsSource="{Binding AvailableMetrics}"
-                                              SelectedItem="{Binding SelectedMetric}"
-                                              Width="240"
-                                              Background="{DynamicResource CardBgBrush}"
-                                              Foreground="{DynamicResource TextPrimaryBrush}"
-                                              BorderBrush="{DynamicResource BorderBrush}"
-                                              FontSize="11"/>
-                                    <CheckBox Content="Rate of change (/s)"
-                                              IsChecked="{Binding IsAddMetricRateOfChange}"
-                                              FontFamily="{StaticResource MonoFontFamily}"
-                                              FontSize="11"
-                                              Foreground="{DynamicResource TextSecondaryBrush}"
-                                              VerticalAlignment="Center"
-                                              Margin="4,0"/>
-                                    <Button Content="+ Add Graph"
-                                            Command="{Binding AddGraphCommand}"
-                                            Background="{DynamicResource AccentBrush}"
-                                            Foreground="White"
-                                            FontWeight="Bold"
-                                            FontSize="11"
-                                            Padding="12,5"
-                                            CornerRadius="4"
-                                            Cursor="Hand"/>
-                                </StackPanel>
-                            </Grid>
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Add Metric:"
+                                           FontFamily="{StaticResource MonoFontFamily}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,6"/>
+                                <ComboBox ItemsSource="{Binding AvailableMetrics}"
+                                          SelectedItem="{Binding SelectedMetric}"
+                                          Width="220"
+                                          Background="{DynamicResource CardBgBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          BorderBrush="{DynamicResource BorderBrush}"
+                                          FontSize="11"
+                                          Margin="0,0,8,6"/>
+                                <CheckBox Content="Rate of change (/s)"
+                                          IsChecked="{Binding IsAddMetricRateOfChange}"
+                                          FontFamily="{StaticResource MonoFontFamily}"
+                                          FontSize="11"
+                                          Foreground="{DynamicResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,10,6"/>
+                                <Button Content="+ Add Graph"
+                                        Command="{Binding AddGraphCommand}"
+                                        Background="{DynamicResource AccentBrush}"
+                                        Foreground="White"
+                                        FontWeight="Bold"
+                                        FontSize="11"
+                                        Padding="12,5"
+                                        CornerRadius="4"
+                                        Cursor="Hand"
+                                        Margin="0,0,8,6"/>
+                            </WrapPanel>
 
                             <!-- Quick Merges Row -->
-                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Quick Merges:"
                                            FontFamily="{StaticResource MonoFontFamily}"
                                            FontSize="10"
                                            Foreground="{DynamicResource TextMutedBrush}"
-                                           VerticalAlignment="Center"/>
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,6"/>
                                 <Button Content="Merge CPU (Total/User/Sys/IO)"
                                         Command="{Binding QuickMergeCpuCommand}"
                                         Background="{DynamicResource CardBgBrush}"
@@ -159,7 +167,8 @@
                                         FontSize="10"
                                         Padding="8,4"
                                         CornerRadius="4"
-                                        Cursor="Hand"/>
+                                        Cursor="Hand"
+                                        Margin="0,0,6,6"/>
                                 <Button Content="Merge Memory (Used/Avail)"
                                         Command="{Binding QuickMergeMemoryCommand}"
                                         Background="{DynamicResource CardBgBrush}"
@@ -167,7 +176,8 @@
                                         FontSize="10"
                                         Padding="8,4"
                                         CornerRadius="4"
-                                        Cursor="Hand"/>
+                                        Cursor="Hand"
+                                        Margin="0,0,6,6"/>
                                 <Button Content="Merge TWAMP (RTT/Up/Down)"
                                         Command="{Binding QuickMergeTwampCommand}"
                                         Background="{DynamicResource CardBgBrush}"
@@ -175,14 +185,33 @@
                                         FontSize="10"
                                         Padding="8,4"
                                         CornerRadius="4"
-                                        Cursor="Hand"/>
-                            </StackPanel>
+                                        Cursor="Hand"
+                                        Margin="0,0,6,6"/>
+                                <Button Content="Merge Disk I/O (R/W)"
+                                        Command="{Binding QuickMergeDiskIoCommand}"
+                                        Background="{DynamicResource CardBgBrush}"
+                                        Foreground="{DynamicResource AmberBrush}"
+                                        FontSize="10"
+                                        Padding="8,4"
+                                        CornerRadius="4"
+                                        Cursor="Hand"
+                                        Margin="0,0,6,6"/>
+                                <Button Content="Merge Process Breakdown (Top + Total)"
+                                        Command="{Binding QuickMergeProcessCpuCommand}"
+                                        Background="{DynamicResource CardBgBrush}"
+                                        Foreground="{DynamicResource CyanBrush}"
+                                        FontSize="10"
+                                        Padding="8,4"
+                                        CornerRadius="4"
+                                        Cursor="Hand"
+                                        Margin="0,0,6,6"/>
+                            </WrapPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
                 <!-- Active Graphs List -->
-                <ScrollViewer Grid.Row="2" MaxHeight="360" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Graphs}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:MetricGraphViewModel">
@@ -213,7 +242,7 @@
                                                                Foreground="{DynamicResource IndigoBrush}"/>
                                                 </Border>
                                             </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                            <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
                                                 <Button Content="◀ Left"
                                                         Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).MoveGraphLeftCommand}"
                                                         CommandParameter="{Binding}"
@@ -223,6 +252,7 @@
                                                         Padding="6,3"
                                                         CornerRadius="4"
                                                         Cursor="Hand"
+                                                        Margin="0,0,4,4"
                                                         ToolTip.Tip="Move left in row"/>
                                                 <Button Content="Right ▶"
                                                         Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).MoveGraphRightCommand}"
@@ -233,6 +263,7 @@
                                                         Padding="6,3"
                                                         CornerRadius="4"
                                                         Cursor="Hand"
+                                                        Margin="0,0,4,4"
                                                         ToolTip.Tip="Move right in row"/>
                                                 <Button Content="▲ Row Up"
                                                         Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).MoveGraphUpCommand}"
@@ -243,6 +274,7 @@
                                                         Padding="6,3"
                                                         CornerRadius="4"
                                                         Cursor="Hand"
+                                                        Margin="0,0,4,4"
                                                         ToolTip.Tip="Move to row above"/>
                                                 <Button Content="▼ Row Down"
                                                         Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).MoveGraphDownCommand}"
@@ -253,6 +285,7 @@
                                                         Padding="6,3"
                                                         CornerRadius="4"
                                                         Cursor="Hand"
+                                                        Margin="0,0,4,4"
                                                         ToolTip.Tip="Move to row below"/>
                                                 <Button Content="⤹ New Row"
                                                         Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).SeparateGraphToNewRowCommand}"
@@ -263,6 +296,7 @@
                                                         Padding="6,3"
                                                         CornerRadius="4"
                                                         Cursor="Hand"
+                                                        Margin="0,0,4,4"
                                                         ToolTip.Tip="Separate into its own row"/>
                                                 <Button Content="Merge with Next"
                                                         Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).MergeWithNextCommand}"
@@ -272,7 +306,8 @@
                                                         FontSize="10"
                                                         Padding="8,3"
                                                         CornerRadius="4"
-                                                        Cursor="Hand"/>
+                                                        Cursor="Hand"
+                                                        Margin="0,0,4,4"/>
                                                 <Button Content="Split"
                                                         IsVisible="{Binding IsMerged}"
                                                         Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).SplitGraphCommand}"
@@ -282,7 +317,8 @@
                                                         FontSize="10"
                                                         Padding="8,3"
                                                         CornerRadius="4"
-                                                        Cursor="Hand"/>
+                                                        Cursor="Hand"
+                                                        Margin="0,0,4,4"/>
                                                 <Button Content="✕ Remove"
                                                         Command="{Binding $parent[UserControl].((vm:HostMetricsTabViewModel)DataContext).RemoveGraphCommand}"
                                                         CommandParameter="{Binding}"
@@ -292,8 +328,9 @@
                                                         Padding="8,3"
                                                         CornerRadius="4"
                                                         Cursor="Hand"
+                                                        Margin="0,0,4,4"
                                                         ToolTip.Tip="Safely remove this graph"/>
-                                            </StackPanel>
+                                            </WrapPanel>
                                         </Grid>
 
                                         <!-- Series in this graph -->
@@ -323,6 +360,37 @@
                                                                 <Button Background="#F59E0B" Width="14" Height="14" CornerRadius="7" Padding="0" BorderThickness="0" Cursor="Hand" Command="{Binding ChangeColorCommand}" CommandParameter="#F59E0B" ToolTip.Tip="Amber"/>
                                                                 <Button Background="#F97316" Width="14" Height="14" CornerRadius="7" Padding="0" BorderThickness="0" Cursor="Hand" Command="{Binding ChangeColorCommand}" CommandParameter="#F97316" ToolTip.Tip="Orange"/>
                                                                 <Button Background="#EF4444" Width="14" Height="14" CornerRadius="7" Padding="0" BorderThickness="0" Cursor="Hand" Command="{Binding ChangeColorCommand}" CommandParameter="#EF4444" ToolTip.Tip="Red"/>
+                                                                <Button Width="16" Height="16" Padding="0" BorderThickness="0" Background="Transparent" Cursor="Hand" ToolTip.Tip="Custom Color…">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                            <Setter Property="Background" Value="Transparent"/>
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                    <Ellipse Width="14" Height="14" Stroke="{DynamicResource BorderBrush}" StrokeThickness="1">
+                                                                        <Ellipse.Fill>
+                                                                            <ConicGradientBrush Center="50%,50%" Angle="0">
+                                                                                <GradientStop Color="#25A6DD" Offset="0.0"/>
+                                                                                <GradientStop Color="#3563AE" Offset="0.083"/>
+                                                                                <GradientStop Color="#3D4DA0" Offset="0.167"/>
+                                                                                <GradientStop Color="#764095" Offset="0.25"/>
+                                                                                <GradientStop Color="#D7338F" Offset="0.333"/>
+                                                                                <GradientStop Color="#E23058" Offset="0.417"/>
+                                                                                <GradientStop Color="#D93633" Offset="0.5"/>
+                                                                                <GradientStop Color="#EC9137" Offset="0.583"/>
+                                                                                <GradientStop Color="#DEE047" Offset="0.667"/>
+                                                                                <GradientStop Color="#77C157" Offset="0.75"/>
+                                                                                <GradientStop Color="#4DB96F" Offset="0.833"/>
+                                                                                <GradientStop Color="#3AB990" Offset="0.917"/>
+                                                                                <GradientStop Color="#25A6DD" Offset="1.0"/>
+                                                                            </ConicGradientBrush>
+                                                                        </Ellipse.Fill>
+                                                                    </Ellipse>
+                                                                    <Button.Flyout>
+                                                                        <Flyout Placement="Bottom">
+                                                                            <ColorPicker Color="{Binding Color, Mode=TwoWay}" IsAlphaEnabled="False" />
+                                                                        </Flyout>
+                                                                    </Button.Flyout>
+                                                                </Button>
                                                             </StackPanel>
 
                                                             <!-- Remove Series Button (for merged graphs) -->
@@ -371,7 +439,19 @@
                             Cursor="Hand"/>
                 </Grid>
             </Grid>
-        </Border>
+
+            <!-- Symmetric Resize Border Handles -->
+            <Border x:Name="ResizeLeft" HorizontalAlignment="Left" VerticalAlignment="Stretch" Width="8" Margin="0,12" Cursor="SizeWestEast" Background="Transparent"/>
+            <Border x:Name="ResizeRight" HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="8" Margin="0,12" Cursor="SizeWestEast" Background="Transparent"/>
+            <Border x:Name="ResizeTop" HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="8" Margin="12,0" Cursor="SizeNorthSouth" Background="Transparent"/>
+            <Border x:Name="ResizeBottom" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="8" Margin="12,0" Cursor="SizeNorthSouth" Background="Transparent"/>
+
+            <Border x:Name="ResizeTopLeft" HorizontalAlignment="Left" VerticalAlignment="Top" Width="14" Height="14" Cursor="TopLeftCorner" Background="Transparent"/>
+            <Border x:Name="ResizeTopRight" HorizontalAlignment="Right" VerticalAlignment="Top" Width="14" Height="14" Cursor="TopRightCorner" Background="Transparent"/>
+            <Border x:Name="ResizeBottomLeft" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="14" Height="14" Cursor="BottomLeftCorner" Background="Transparent"/>
+            <Border x:Name="ResizeBottomRight" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="14" Height="14" Cursor="BottomRightCorner" Background="Transparent"/>
+        </Panel>
+    </Border>
 
         <!-- Save As Preset Modal Overlay -->
         <Border Background="#CC000000"
@@ -457,6 +537,127 @@
                                 Cursor="Hand"/>
                     </Grid>
                 </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- Custom Process Selector Modal Overlay -->
+        <Border Background="#90000000"
+                IsVisible="{Binding IsCustomProcessModalOpen}"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Border Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="20"
+                    Width="500"
+                    MaxHeight="580"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    BoxShadow="0 10 30 #80000000">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
+                    <!-- Header -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                        <TextBlock Text="Select Custom Process Metric"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Button Grid.Column="1"
+                                Content="✕"
+                                Command="{Binding CancelCustomProcessCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Foreground="{DynamicResource TextSecondaryBrush}"
+                                Cursor="Hand"
+                                Padding="4"/>
+                    </Grid>
+
+                    <!-- Search Filter Box -->
+                    <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,10">
+                        <TextBlock Text="Search Process Name, PID, or User:"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding CustomProcessSearchFilter, Mode=TwoWay}"
+                                 PlaceholderText="Filter processes (e.g. dotnet, madtom, caddy)..."
+                                 Background="{DynamicResource DarkBaseBrush}"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource BorderBrush}"
+                                 Padding="8,6"
+                                 FontSize="12"/>
+                    </StackPanel>
+
+                    <!-- Process List / Selector -->
+                    <Border Grid.Row="2"
+                            Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            MinHeight="200"
+                            MaxHeight="320">
+                        <ListBox ItemsSource="{Binding FilteredSelectableProcesses}"
+                                 SelectedItem="{Binding SelectedCustomProcess, Mode=TwoWay}"
+                                 Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:ProcessInfoModel">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="4,2">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       FontWeight="Bold"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding User, StringFormat='User: {0}'}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Pid, StringFormat='PID: {0}'}"
+                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource CyanBrush}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="10,0"/>
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Cpu, StringFormat='{}{0:F1}% CPU'}"
+                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+
+                    <!-- Action Buttons -->
+                    <Grid Grid.Row="3" ColumnDefinitions="*,*" Margin="0,14,0,0">
+                        <Button Grid.Column="0"
+                                Content="Cancel"
+                                Command="{Binding CancelCustomProcessCommand}"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                Foreground="{DynamicResource TextPrimaryBrush}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Padding="12,8"
+                                Margin="0,0,6,0"
+                                CornerRadius="6"
+                                Cursor="Hand"/>
+                        <Button Grid.Column="1"
+                                Content="Add Process Graph"
+                                Command="{Binding ConfirmAddCustomProcessCommand}"
+                                Background="{DynamicResource AccentBrush}"
+                                Foreground="White"
+                                FontWeight="Bold"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Padding="12,8"
+                                Margin="6,0,0,0"
+                                CornerRadius="6"
+                                Cursor="Hand"/>
+                    </Grid>
+                </Grid>
             </Border>
         </Border>
     </Grid>

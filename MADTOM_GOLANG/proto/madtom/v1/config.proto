@@ -20,6 +20,12 @@ message UpdateNodeConfigRequest {
   NodeConfig config = 2;
 }
 
+enum ProcessTelemetryMode {
+  PROCESS_MODE_DISABLED = 0;          // Neither: No /proc scanning, no streaming, no storage
+  PROCESS_MODE_LIVE_ONLY = 1;         // Probed: Live 1Hz stream for UI, not stored in TSDB
+  PROCESS_MODE_PROBED_AND_STORED = 2; // Probed & Stored: Live stream + Top-N written to TSDB
+}
+
 // NodeConfig controls what the daemon measures and what the collector retains.
 message NodeConfig {
   string node_id = 1;
@@ -43,6 +49,10 @@ message NodeConfig {
   string twamp_target = 14; // TWAMP Light UDP reflector host:port; empty disables probes
   bool twamp_clocks_synchronized = 15; // Operator assertion; reflector must also set its S bit
   uint64 max_spool_bytes = 13;        // Default 1,073,741,824 (1 GB)
+
+  // Process Telemetry Mode & Top-N Count
+  ProcessTelemetryMode process_mode = 16;
+  uint32 top_n_processes = 17; // Top N processes (1 to 10, default 5)
 }
 
 message ConfigAck {
