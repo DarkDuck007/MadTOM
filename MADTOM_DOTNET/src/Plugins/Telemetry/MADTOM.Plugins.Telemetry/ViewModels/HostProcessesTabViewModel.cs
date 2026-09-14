@@ -47,6 +47,14 @@ public partial class HostProcessesTabViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsProcessListTabSelected));
         OnPropertyChanged(nameof(IsProcessOverviewTabSelected));
+        if (IsProcessListTabSelected)
+        {
+            ApplyFilter();
+        }
+        else if (IsProcessOverviewTabSelected)
+        {
+            UpdateOverviewSeriesData();
+        }
     }
 
     [ObservableProperty]
@@ -151,16 +159,35 @@ public partial class HostProcessesTabViewModel : ViewModelBase
         RebuildOverviewSeries();
         LoadProcesses();
         _ = RefreshHistoryAsync();
-        _telemetryProvider.NodeTelemetryUpdated += (_, node) => { if (TargetHostId == "all" || node.Id == TargetHostId) LoadProcesses(); };
+        _telemetryProvider.NodeTelemetryUpdated += (_, node) =>
+        {
+            if (TargetHostId == "all" || node.Id == TargetHostId)
+            {
+                if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+                    LoadProcesses();
+                else
+                    Avalonia.Threading.Dispatcher.UIThread.Post(LoadProcesses);
+            }
+        };
     }
 
     public void SetTargetHost(string hostId)
     {
+        bool changed = TargetHostId != hostId;
         TargetHostId = hostId;
         OnPropertyChanged(nameof(CanSendSignals));
-        _historySamples.Clear();
-        LoadProcesses();
-        _ = RefreshHistoryAsync();
+
+        if (changed)
+        {
+            _historySamples.Clear();
+            RebuildOverviewSeries();
+            LoadProcesses();
+            _ = RefreshHistoryAsync();
+        }
+        else
+        {
+            LoadProcesses();
+        }
     }
 
     private void RebuildOverviewSeries()
@@ -195,12 +222,20 @@ public partial class HostProcessesTabViewModel : ViewModelBase
         }
 
         RecordOverviewSample();
-        ApplyFilter();
+        if (IsProcessListTabSelected)
+        {
+            ApplyFilter();
+        }
     }
 
     private void RecordOverviewSample()
     {
-        long nowNano = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L;
+        if (IsProcessCollectionDisabled) return;
+
+        var node = TargetHostId != "all" ? _telemetryProvider.GetNode(TargetHostId) : null;
+        long nowNano = node != null && node.TimestampUnixNano > 0
+            ? node.TimestampUnixNano
+            : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L;
 
         var top = _allProcesses
             .GroupBy(p => p.Name)
@@ -209,12 +244,21 @@ public partial class HostProcessesTabViewModel : ViewModelBase
             .Take(10)
             .ToList();
 
-        // If _historySamples is empty and we have data, seed a baseline 1s earlier so lines draw immediately
-        if (_historySamples.Count == 0 && top.Count > 0)
+        if (top.Count == 0) return;
+
+        long tsSec = nowNano / 1_000_000_000L;
+
+        // If _historySamples is empty, seed a baseline 1s earlier so lines draw immediately
+        if (_historySamples.Count == 0)
         {
-            var seed = new OverviewSample { TimestampNano = nowNano - 1_000_000_000L };
+            var seed = new OverviewSample { TimestampNano = (tsSec - 1) * 1_000_000_000L };
             seed.TopProcesses.AddRange(top);
             _historySamples.Add(seed);
+        }
+
+        if (_historySamples.Count > 0 && nowNano <= _historySamples[^1].TimestampNano)
+        {
+            nowNano = _historySamples[^1].TimestampNano + 1_000_000_000L;
         }
 
         var sample = new OverviewSample { TimestampNano = nowNano };
@@ -257,14 +301,20 @@ public partial class HostProcessesTabViewModel : ViewModelBase
 
         try
         {
-            foreach (var procName in topProcNames)
+            var tasks = topProcNames.Select(async procName =>
             {
-                if (cts.IsCancellationRequested) return;
                 string cleanName = FleetNodeModel.SanitizeMetricName(procName);
                 string metricName = $"proc.cpu.{cleanName}";
+                var results = await System.Threading.Tasks.Task.WhenAll(
+                    hostIds.Select(id => _telemetryProvider.QueryHistoryAsync(id, metricName, start, end, cts.Token)));
+                return (procName, points: results.SelectMany(r => r).ToList());
+            });
 
-                var results = await System.Threading.Tasks.Task.WhenAll(hostIds.Select(id => _telemetryProvider.QueryHistoryAsync(id, metricName, start, end, cts.Token)));
-                var points = results.SelectMany(r => r).ToList();
+            var queryResults = await System.Threading.Tasks.Task.WhenAll(tasks);
+            if (cts.IsCancellationRequested) return;
+
+            foreach (var (procName, points) in queryResults)
+            {
                 if (points.Count > 0)
                 {
                     var bySec = points
@@ -286,7 +336,7 @@ public partial class HostProcessesTabViewModel : ViewModelBase
 
                 if (allSecs.Count >= 2)
                 {
-                    _historySamples.Clear();
+                    var newSamples = new List<OverviewSample>();
                     foreach (var sec in allSecs)
                     {
                         long nano = sec * 1_000_000_000L;
@@ -299,10 +349,32 @@ public partial class HostProcessesTabViewModel : ViewModelBase
                             .ToList();
 
                         sample.TopProcesses.AddRange(procsAtSec);
-                        _historySamples.Add(sample);
+                        newSamples.Add(sample);
                     }
 
-                    UpdateOverviewSeriesData();
+                    void ApplyLoadedSamples()
+                    {
+                        if (cts.IsCancellationRequested) return;
+
+                        long maxHistNano = allSecs[^1] * 1_000_000_000L;
+                        var liveAfter = _historySamples.Where(s => s.TimestampNano > maxHistNano).ToList();
+
+                        _historySamples.Clear();
+                        _historySamples.AddRange(newSamples);
+                        _historySamples.AddRange(liveAfter);
+
+                        long windowSpanNano = GetScopeSpanNano();
+                        long nowNano = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L;
+                        long pruneThreshold = nowNano - windowSpanNano - 15_000_000_000L;
+                        _historySamples.RemoveAll(s => s.TimestampNano < pruneThreshold);
+
+                        UpdateOverviewSeriesData();
+                    }
+
+                    if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+                        ApplyLoadedSamples();
+                    else
+                        Avalonia.Threading.Dispatcher.UIThread.Post(ApplyLoadedSamples);
                 }
             }
         }
@@ -336,15 +408,28 @@ public partial class HostProcessesTabViewModel : ViewModelBase
         {
             timestamps[i] = _historySamples[i].TimestampNano;
         }
-        OverviewTimestamps = timestamps;
 
         long windowSpanNano = GetScopeSpanNano();
         long latest = timestamps[m - 1];
-        OverviewWindowEnd = latest;
-        OverviewWindowStart = latest - windowSpanNano;
+        long windowStart = latest - windowSpanNano;
+        long windowEnd = latest;
 
-        CurrentRankLeaders.Clear();
         var latestSample = _historySamples[m - 1];
+
+        // Synchronize CurrentRankLeaders without recreating existing controls
+        while (CurrentRankLeaders.Count < OverviewTopN)
+        {
+            int r = CurrentRankLeaders.Count;
+            CurrentRankLeaders.Add(new ProcessRankLeaderModel
+            {
+                Rank = r + 1,
+                ColorHex = RankColors[r % RankColors.Length]
+            });
+        }
+        while (CurrentRankLeaders.Count > OverviewTopN)
+        {
+            CurrentRankLeaders.RemoveAt(CurrentRankLeaders.Count - 1);
+        }
 
         for (int r = 0; r < OverviewTopN && r < OverviewSeries.Count; r++)
         {
@@ -375,14 +460,16 @@ public partial class HostProcessesTabViewModel : ViewModelBase
             string curProc = r < latestSample.TopProcesses.Count ? latestSample.TopProcesses[r].Name : "None";
             double curCpu = r < latestSample.TopProcesses.Count ? latestSample.TopProcesses[r].Cpu : 0.0;
 
-            CurrentRankLeaders.Add(new ProcessRankLeaderModel
-            {
-                Rank = r + 1,
-                ColorHex = RankColors[r % RankColors.Length],
-                ProcessName = curProc,
-                Cpu = curCpu
-            });
+            var leader = CurrentRankLeaders[r];
+            leader.Rank = r + 1;
+            leader.ColorHex = RankColors[r % RankColors.Length];
+            leader.ProcessName = curProc;
+            leader.Cpu = curCpu;
         }
+
+        OverviewTimestamps = timestamps;
+        OverviewWindowStart = windowStart;
+        OverviewWindowEnd = windowEnd;
     }
 
     partial void OnSearchFilterChanged(string value) => ApplyFilter();
@@ -440,10 +527,10 @@ public partial class HostProcessesTabViewModel : ViewModelBase
     }
 }
 
-public sealed class ProcessRankLeaderModel : ObservableObject
+public sealed partial class ProcessRankLeaderModel : ObservableObject
 {
-    public int Rank { get; set; }
-    public string ColorHex { get; set; } = "#06B6D4";
-    public string ProcessName { get; set; } = "-";
-    public double Cpu { get; set; }
+    [ObservableProperty] private int _rank;
+    [ObservableProperty] private string _colorHex = "#06B6D4";
+    [ObservableProperty] private string _processName = "-";
+    [ObservableProperty] private double _cpu;
 }

@@ -1650,5 +1650,43 @@ public class TelemetryAndMetricsTests
         Assert.Equal("", mainVm.Header.CurrentPageTitle);
         Assert.Equal(mainVm.FleetView, mainVm.CurrentView);
     }
+
+    [Fact]
+    public void HostProcessesTabViewModel_ConsecutiveLiveUpdates_AccumulateAndSlideWindowWithoutFlickerOrWiping()
+    {
+        var provider = new TestTelemetryProvider();
+        var node = new FleetNodeModel { Id = "host-alpha", ProcessesAvailable = true };
+        provider.Nodes.Add(node);
+        provider.Processes = new List<ProcessInfoModel>
+        {
+            new() { Pid = 100, Name = "daemon", Cpu = 25.0 }
+        };
+
+        var vm = new HostProcessesTabViewModel(provider);
+        vm.SetTargetHost("host-alpha");
+        vm.SelectProcessOverviewTab();
+
+        // Initial state: seeded baseline + sample 1 = 2 points
+        Assert.Equal(2, vm.OverviewSeries[0].Values.Length);
+        long initialWindowEnd = vm.OverviewWindowEnd;
+
+        // Simulate 5 consecutive ticks arriving from HostDetailViewModel (which calls SetTargetHost("host-alpha"))
+        for (int tick = 1; tick <= 5; tick++)
+        {
+            provider.Processes = new List<ProcessInfoModel>
+            {
+                new() { Pid = 100, Name = "daemon", Cpu = 25.0 + tick }
+            };
+
+            // Mimic HostDetailViewModel invoking SetTargetHost on telemetry tick
+            vm.SetTargetHost("host-alpha");
+
+            // Verify sample count increases continuously and never wipes back to 1 or 0
+            Assert.Equal(2 + tick, vm.OverviewSeries[0].Values.Length);
+            Assert.True(vm.OverviewWindowEnd > initialWindowEnd);
+            Assert.Equal(25.0 + tick, vm.OverviewSeries[0].LatestValue);
+            Assert.Equal(25.0 + tick, vm.CurrentRankLeaders[0].Cpu);
+        }
+    }
 }
 

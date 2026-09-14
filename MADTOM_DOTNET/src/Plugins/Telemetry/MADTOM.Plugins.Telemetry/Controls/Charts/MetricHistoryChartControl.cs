@@ -165,8 +165,14 @@ public sealed class MetricHistoryChartControl : Control
 
     private void OnSeriesItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        _geometryCacheValid = false;
-        InvalidateVisual();
+        if (e.PropertyName is nameof(ChartSeriesModel.Values) or
+                               nameof(ChartSeriesModel.Timestamps) or
+                               nameof(ChartSeriesModel.IsVisible) or
+                               nameof(ChartSeriesModel.ColorHex))
+        {
+            _geometryCacheValid = false;
+            InvalidateVisual();
+        }
     }
 
     public override void Render(DrawingContext context)
