@@ -96,6 +96,8 @@ MADTOM supports three transport configurations to accommodate diverse network en
 
 ### Live Subscriber Delivery
 
+The desktop client has a session-owned numeric history cache, keyed by collector endpoint, node ID, and metric. Its default retention is 60 minutes (configurable from 1 to 1,440 minutes). Monotonic live points are retained in queues and aged out even when nodes stop reporting. Collector query results use a separate short-lived cache (30 seconds, at most 128 ranges of at most 10,000 points each); local samples take precedence at identical timestamps. Clearing or shrinking the cache invalidates in-flight query results. No telemetry cache contents are written to disk.
+
 - Each node subscription retains at most one pending live snapshot. Newer telemetry replaces an older pending snapshot, so slow clients catch up to current state instead of replaying a queue of stale display updates.
 - A new subscriber immediately receives the collector's cached latest snapshot, when available. Duplicate or older timestamps do not replace that snapshot. The final unsubscribe removes the node's subscriber-list entry.
 - Coalescing applies only to live display delivery. Configured stored metrics are committed before publication; WAL acknowledgements and historical storage are unchanged. A snapshot already being sent and gRPC/client buffers are outside the one-pending-snapshot bound.

@@ -11,6 +11,12 @@ The research findings below remain a dated baseline. Two portions have now been 
 
 Final verification: `go test -race -timeout 120s ./...` passed across the Go backend. The architecture guide documents both behaviors. No WAL format, durability policy, protobuf schema, UI code, or codec defaults were changed. Byte/decode limits, empty-spool daemon sampling ownership, collection scheduling, query bounds, and compression tuning remain future work. No end-to-end performance gains have been benchmarked yet.
 
+### Client history cache follow-up
+
+Implemented a provider-owned, in-memory numeric history cache before further zstd work. Default retention is one hour, configurable up to 24 hours through **Node Settings → Collectors**, with an observed-rate memory estimate and a clear-cache button. The retention preference persists separately in `telemetry-cache.json`; telemetry remains session-only. Local monitor-only history survives detail-page recreation, and stored-history queries reuse covered live windows or short-lived collector responses. Incoming numeric snapshots now remove omitted metrics before caching so stale values are not recorded again.
+
+Validation: cache-core tests passed at the first stage; the integrated settings/navigation stage passed all 152 .NET tests, including tests for reopened graphs, retention persistence, invalid settings, clearing, collector identity, and in-flight query invalidation. Documentation link validation passed with 110 internal links. Full details are in the [Client History Cache guide](Documentation/ui-and-config.md#client-history-cache). No compression changes were made.
+
 ## 1. Recommendation
 
 **Use zstd selectively for serialized, sufficiently large, relatively cold data. First bound resource growth and eliminate unnecessary collection, copying, serialization, and disk operations.** These changes address costs that compression cannot remove.

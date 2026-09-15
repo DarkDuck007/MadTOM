@@ -32,6 +32,7 @@ This guide covers the MADTOM Desktop Operator UI, its features, telemetry visual
    - [Missing Data & Downtime Handling](#missing-data--downtime-handling)
    - [Multi-Device Disk I/O Metrics & Diagnostics](#multi-device-disk-io-metrics--diagnostics)
 4. [Collector & Fleet Management](#collector--fleet-management)
+   - [Client History Cache](#client-history-cache)
    - [Opt-In Global Metrics & Top Bar Pinning](#opt-in-global-metrics--top-bar-pinning)
    - [Dynamic Node Grouping & Fleet Filtering](#dynamic-node-grouping--fleet-filtering)
    - [Node Opt-In Settings & Safe Apply Workflow](#node-opt-in-settings--safe-apply-workflow)
@@ -447,6 +448,22 @@ If a remote server (e.g. Oracle Cloud Infrastructure ARM64) displays no disk I/O
 
 ## Collector & Fleet Management
 
+### Client History Cache
+
+Open **Node Settings → Collectors → Client History Cache** to set how long this client retains streamed numeric graph history for all connected nodes. The default is **60 minutes**; enter **120** for two hours, or any whole number from **1 to 1440** minutes, then select **Apply**. Decreasing retention immediately removes older cached samples. Increasing it retains more future samples; it cannot recover monitor-only telemetry from before the client received it.
+
+The read-only estimate textbox predicts memory from observed series counts and sample rates. It also shows approximate current buffer memory. Estimates include an allowance for queue capacity, but exclude chart copies, runtime overhead, and future changes in node/metric counts; they are not a memory limit. Before telemetry arrives, the estimate says it is waiting for data.
+
+Monitor-only graph history now survives navigating away from a node and reopening its details during the same app session. Numeric per-core, NIC, disk, swap/zram, power, TWAMP, and process-name CPU series are included when received; full process snapshots and logs are not historical cache records. Unavailable or omitted metrics are not filled with stale values. Retention uses sample timestamps, and inactive series expire too.
+
+History queries use local data for metrics currently configured as Monitor-only or Off. Stored metrics can use fully covered live windows (allowing up to five seconds between samples and at the live edge), otherwise collector history is merged with cached samples. Successful collector query results, including empty results, can be reused for 30 seconds. Local samples win at identical timestamps. Node configurations are cached for 30 seconds and refreshed immediately after successful settings changes made in this client. A collector failure still allows available local history to be displayed; cancellation remains cancellable.
+
+**Clear cache** clears this client's live history and cached query results across all collectors. New streamed samples start filling it again. It does not delete collector storage or change node collection policies. Already-rendered chart arrays are refreshed when history reloads; they are not part of the cache. Cache contents disappear when the app exits. Only the retention preference persists, in `~/.local/share/MADTOM/telemetry-cache.json` (or the platform's equivalent application-data directory):
+
+```json
+{"RetentionMinutes":60}
+```
+
 Clicking the **Collector Settings (⚙)** icon in the fleet toolbar opens the multi-collector management panel:
 
 ### Opt-In Global Metrics & Top Bar Pinning
@@ -706,5 +723,4 @@ colors:
 
 > [!TIP]
 > If `displayName` is omitted, MADTOM automatically derives a title-cased display name from `themeName` or the filename (e.g. `synthwave-84` becomes `Synthwave 84`). Missing colors automatically fall back to dark-theme defaults.
-
 

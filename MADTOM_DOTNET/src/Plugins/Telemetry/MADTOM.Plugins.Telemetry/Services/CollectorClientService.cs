@@ -107,7 +107,7 @@ public sealed class CollectorClientService : IAsyncDisposable
     {
         try
         {
-            return await _configClient.GetNodeConfigAsync(new GetNodeConfigRequest { NodeId = nodeId }, cancellationToken: ct);
+            return await _configClient.GetNodeConfigAsync(new GetNodeConfigRequest { NodeId = nodeId }, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
         }
         catch
         {

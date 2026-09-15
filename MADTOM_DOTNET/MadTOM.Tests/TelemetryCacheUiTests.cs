@@ -1,0 +1,82 @@
+using MadTOM.Models;
+using MadTOM.Services;
+using MadTOM.ViewModels;
+
+namespace MadTOM.Tests;
+
+public class TelemetryCacheUiTests
+{
+    private sealed class CachedProvider : ITelemetryDataProvider
+    {
+        public TelemetryHistoryCache HistoryCache { get; } = new();
+        public FleetNodeModel Node { get; } = new() { Id = "node", CollectorEndpoint = "test" };
+        public event EventHandler<FleetNodeModel>? NodeTelemetryUpdated { add { } remove { } }
+        public event EventHandler<LogEntryModel>? LogReceived { add { } remove { } }
+        public IReadOnlyList<FleetNodeModel> GetFleetNodes() => new[] { Node };
+        public FleetNodeModel? GetNode(string id) => Node;
+        public ClusterTelemetrySummary GetClusterSummary() => new();
+        public IReadOnlyList<ProcessInfoModel> GetProcesses(string id) => Array.Empty<ProcessInfoModel>();
+        public IReadOnlyList<DropRuleModel> GetDropRules(string id) => Array.Empty<DropRuleModel>();
+        public IReadOnlyList<RegionTrafficModel> GetRegions(string id) => Array.Empty<RegionTrafficModel>();
+        public Task<IReadOnlyList<LODPoint>> QueryHistoryAsync(string id, string metric, DateTime start, DateTime end, CancellationToken ct = default) =>
+            HistoryCache.QueryAsync("test", id, metric, start, end, true, (_, _, _) => throw new Exception("Monitor-only history should be local"), ct);
+        public void SendSignal(string id, int pid, int signal) { }
+        public void PauseLogs(bool paused) { }
+        public void ClearLogs() { }
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public async Task ReopeningDetailGraphsRestoresMonitorOnlyHistory()
+    {
+        using var provider = new CachedProvider();
+        long timestamp = DateTimeOffset.UtcNow.AddMinutes(-2).ToUnixTimeMilliseconds() * 1_000_000;
+        provider.HistoryCache.Record("test", "node", timestamp, new Dictionary<string, double> { ["cpu.total"] = 12 });
+        provider.HistoryCache.Record("test", "node", timestamp + 1_000_000_000, new Dictionary<string, double> { ["cpu.total"] = 34 });
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        for (int visit = 0; visit < 2; visit++)
+        {
+            var view = new HostMetricsTabViewModel(provider, presetStore: new GraphPresetStore(path));
+            view.UpdateForNode("node", provider.Node, provider.GetFleetNodes());
+            view.SetScope("30m");
+            view.Graphs.Clear();
+            var graph = new MetricGraphViewModel("cpu.total");
+            view.Graphs.Add(graph);
+            await view.RefreshHistoryAsync();
+            Assert.Equal(new[] { 12d, 34d }, graph.Series[0].Values);
+        }
+    }
+
+    [Fact]
+    public async Task SettingsValidatePersistEstimateAndClearCache()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "madtom-cache-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var store = new TelemetryCacheSettingsStore(Path.Combine(directory, "cache.json"));
+            Assert.Equal(60, store.LoadMinutes());
+            using var provider = new CachedProvider();
+            long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
+            provider.HistoryCache.Record("test", "node", timestamp, new Dictionary<string, double> { ["cpu.total"] = 1 });
+            var vm = new CollectorSettingsViewModel(new MultiCollectorManager(":memory:"), provider,
+                new NodeGroupStore(Path.Combine(directory, "groups.json")), new GlobalMetricsStore(Path.Combine(directory, "metrics.json")), store);
+            Assert.Equal("60", vm.CacheRetentionMinutes);
+            Assert.Contains("MiB", vm.CacheMemoryEstimate);
+            vm.CacheRetentionMinutes = "120";
+            vm.ApplyCacheRetention();
+            Assert.Equal(120, provider.HistoryCache.RetentionMinutes);
+            Assert.Equal(120, new TelemetryCacheSettingsStore(Path.Combine(directory, "cache.json")).LoadMinutes());
+            vm.CacheRetentionMinutes = "invalid";
+            vm.ApplyCacheRetention();
+            Assert.Equal(120, provider.HistoryCache.RetentionMinutes);
+            Assert.Contains("1–1440", vm.StatusMessage);
+            vm.ClearTelemetryCache();
+            Assert.Empty(await provider.QueryHistoryAsync("node", "cpu.total", DateTime.UtcNow.AddHours(-1), DateTime.UtcNow));
+            Assert.Equal(120, store.LoadMinutes());
+            File.WriteAllText(Path.Combine(directory, "cache.json"), "{\"RetentionMinutes\":-1}");
+            Assert.Equal(60, store.LoadMinutes());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+}

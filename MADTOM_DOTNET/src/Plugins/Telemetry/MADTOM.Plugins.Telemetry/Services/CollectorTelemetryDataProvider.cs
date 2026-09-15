@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using MadTOM.Models;
+using MadTOM.Common;
 using MADTOM.Plugins.Telemetry.Proto.V1;
 
 namespace MadTOM.Services;
@@ -24,14 +25,19 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
     private int _polling;
     private readonly CancellationTokenSource _disposeCts = new();
 
+    public TelemetryHistoryCache HistoryCache { get; }
+    private readonly ConcurrentDictionary<(string, string), (NodeConfig Config, DateTime Expires)> _configs = new();
+    private readonly SemaphoreSlim _configGate = new(1, 1);
+
     public MultiCollectorManager CollectorManager => _collectorManager;
 
     public event EventHandler<FleetNodeModel>? NodeTelemetryUpdated;
     public event EventHandler<LogEntryModel>? LogReceived;
 
-    public CollectorTelemetryDataProvider(MultiCollectorManager collectorManager)
+    public CollectorTelemetryDataProvider(MultiCollectorManager collectorManager, TelemetryHistoryCache? historyCache = null)
     {
         _collectorManager = collectorManager;
+        HistoryCache = historyCache ?? new TelemetryHistoryCache(new TelemetryCacheSettingsStore().LoadMinutes());
 
         // Poll collectors every 3 seconds for new/updated nodes
         _refreshTimer = new Timer(OnPollCollectorsTick, null, 100, 3000);
@@ -43,6 +49,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
 
         try
         {
+            HistoryCache.Prune();
             var discoveredNodes = await _collectorManager.FetchAllNodesAsync(_disposeCts.Token);
             foreach (var node in discoveredNodes)
             {
@@ -202,6 +209,12 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                 node.SparkNetDown = node.SparkNetDown.Append(node.RxBytesPerSecond / 1024).TakeLast(60).ToArray();
             }
 
+            // Keep the prior disk counters for rates, then replace the numeric snapshot.
+            // Omitted/disabled metrics must not become fictitious cached measurements.
+            node.LatestMetricValues.TryGetValue("disk.io.read_bytes", out var previousDiskRead);
+            node.LatestMetricValues.TryGetValue("disk.io.write_bytes", out var previousDiskWrite);
+            node.LatestMetricValues.Clear();
+
             // Populate all raw/computed metric keys for live graph streaming
             if (s.Cpu != null)
             {
@@ -285,8 +298,8 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                 if (hadSample && seconds > 0)
                 {
                     ulong prevRead = 0, prevWrite = 0;
-                    if (node.LatestMetricValues.TryGetValue("disk.io.read_bytes", out var prb)) prevRead = (ulong)prb;
-                    if (node.LatestMetricValues.TryGetValue("disk.io.write_bytes", out var pwb)) prevWrite = (ulong)pwb;
+                    prevRead = (ulong)previousDiskRead;
+                    prevWrite = (ulong)previousDiskWrite;
                     if (s.DiskIo.ReadBytes >= prevRead) node.DiskReadBytesPerSecond = (s.DiskIo.ReadBytes - prevRead) / seconds;
                     if (s.DiskIo.WriteBytes >= prevWrite) node.DiskWriteBytesPerSecond = (s.DiskIo.WriteBytes - prevWrite) / seconds;
                 }
@@ -321,6 +334,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                 node.LatestMetricValues["proc.cpu.other"] = Math.Max(0.0, s.Cpu != null ? s.Cpu.TotalPct - topSum : 0.0);
             }
 
+            HistoryCache.Record(node.CollectorEndpoint, node.Id, s.TimestampUnixNano, node.LatestMetricValues);
             NodeTelemetryUpdated?.Invoke(this, node);
         });
     }
@@ -362,21 +376,44 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
     {
         var node = GetNode(hostId);
         var client = node == null ? null : _collectorManager.GetClientForNode(node);
-        return client == null ? Array.Empty<LODPoint>() : await client.QueryRangeAsync(hostId, metric, start, end, ct: ct);
+        if (node == null) return Array.Empty<LODPoint>();
+        var cfg = await GetNodeConfigAsync(hostId, ct);
+        bool localOnly = client == null || (cfg != null && TelemetryOptInResolver.GetMetricOptInMode(cfg, metric) != TelemetryOptInMode.OptInMonitorAndStore);
+        return await HistoryCache.QueryAsync(node.CollectorEndpoint, hostId, metric, start, end, localOnly,
+            (from, to, token) => client!.QueryRangeAsync(hostId, metric, from, to, ct: token), ct);
     }
 
     public async Task<NodeConfig?> GetNodeConfigAsync(string hostId, CancellationToken ct = default)
     {
         var node = GetNode(hostId);
         var client = node == null ? null : _collectorManager.GetClientForNode(node);
-        return client == null ? null : await client.GetNodeConfigAsync(hostId, ct);
+        if (client == null || node == null) return null;
+        var key = (node.CollectorEndpoint, hostId);
+        await _configGate.WaitAsync(ct);
+        try
+        {
+            if (_configs.TryGetValue(key, out var entry) && entry.Expires > DateTime.UtcNow) return entry.Config.Clone();
+            var config = await client.GetNodeConfigAsync(hostId, ct);
+            ct.ThrowIfCancellationRequested();
+            if (config != null) _configs[key] = (config.Clone(), DateTime.UtcNow.AddSeconds(30));
+            return config;
+        }
+        finally { _configGate.Release(); }
     }
 
     public async Task<bool> UpdateNodeConfigAsync(string hostId, NodeConfig cfg, CancellationToken ct = default)
     {
         var node = GetNode(hostId);
         var client = node == null ? null : _collectorManager.GetClientForNode(node);
-        return client != null && await client.UpdateNodeConfigAsync(hostId, cfg, ct);
+        if (client == null || node == null) return false;
+        await _configGate.WaitAsync(ct);
+        try
+        {
+            bool success = await client.UpdateNodeConfigAsync(hostId, cfg, ct);
+            if (success) _configs[(node.CollectorEndpoint, hostId)] = (cfg.Clone(), DateTime.UtcNow.AddSeconds(30));
+            return success;
+        }
+        finally { _configGate.Release(); }
     }
     public IReadOnlyList<DropRuleModel> GetDropRules(string hostId) => Array.Empty<DropRuleModel>();
     public IReadOnlyList<RegionTrafficModel> GetRegions(string hostId) => Array.Empty<RegionTrafficModel>();
@@ -394,6 +431,8 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
             try { cts.Cancel(); } catch (ObjectDisposedException) { }
         }
         _streamCancelTokens.Clear();
+        HistoryCache.Clear();
+        _configs.Clear();
 
     }
 }

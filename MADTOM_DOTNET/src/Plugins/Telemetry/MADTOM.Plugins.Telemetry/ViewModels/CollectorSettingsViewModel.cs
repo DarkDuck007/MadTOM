@@ -48,6 +48,49 @@ public sealed partial class NodeGroupItemViewModel : ObservableObject
 
 public partial class CollectorSettingsViewModel : ViewModelBase
 {
+    private readonly TelemetryCacheSettingsStore _cacheSettingsStore;
+    private DateTime _lastCacheEstimate;
+    [ObservableProperty] private string _cacheRetentionMinutes = "60";
+    [ObservableProperty] private string _cacheMemoryEstimate = "Waiting for telemetry.";
+    public bool IsCacheAvailable => _dataProvider.HistoryCache != null;
+
+    partial void OnCacheRetentionMinutesChanged(string value) => RefreshCacheEstimate();
+
+    private void RefreshCacheEstimate()
+    {
+        _lastCacheEstimate = DateTime.UtcNow;
+        CacheMemoryEstimate = int.TryParse(CacheRetentionMinutes, out int minutes) && minutes is >= 1 and <= 1440
+            ? _dataProvider.HistoryCache?.Estimate(minutes) ?? "Cache is available with live collector telemetry."
+            : "Enter a whole number from 1 to 1440 minutes (24 hours).";
+    }
+
+    [RelayCommand]
+    public void ApplyCacheRetention()
+    {
+        if (!int.TryParse(CacheRetentionMinutes, out int minutes) || minutes is < 1 or > 1440)
+        {
+            StatusMessage = "Cache retention must be 1–1440 minutes.";
+            return;
+        }
+        if (_dataProvider.HistoryCache is not { } cache) return;
+        try
+        {
+            _cacheSettingsStore.SaveMinutes(minutes);
+            cache.RetentionMinutes = minutes;
+            RefreshCacheEstimate();
+            StatusMessage = $"Client history retention saved: {minutes} minutes.";
+        }
+        catch (Exception ex) { StatusMessage = $"Could not save cache settings: {ex.Message}"; }
+    }
+
+    [RelayCommand]
+    public void ClearTelemetryCache()
+    {
+        _dataProvider.HistoryCache?.Clear();
+        RefreshCacheEstimate();
+        StatusMessage = "Client history cache cleared. New telemetry will start filling it again.";
+    }
+
     private readonly MultiCollectorManager _manager;
     private readonly ITelemetryDataProvider _dataProvider;
     private readonly NodeGroupStore _nodeGroupStore;
@@ -124,13 +167,17 @@ public partial class CollectorSettingsViewModel : ViewModelBase
         MultiCollectorManager manager,
         ITelemetryDataProvider dataProvider,
         NodeGroupStore? nodeGroupStore = null,
-        GlobalMetricsStore? metricsStore = null)
+        GlobalMetricsStore? metricsStore = null,
+        TelemetryCacheSettingsStore? cacheSettingsStore = null)
     {
+        _cacheSettingsStore = cacheSettingsStore ?? new TelemetryCacheSettingsStore();
         _manager = manager;
         _dataProvider = dataProvider;
         _nodeGroupStore = nodeGroupStore ?? new NodeGroupStore();
         _metricsStore = metricsStore ?? new GlobalMetricsStore();
 
+        CacheRetentionMinutes = (_dataProvider.HistoryCache?.RetentionMinutes ?? 60).ToString();
+        RefreshCacheEstimate();
         RefreshNodes();
         RefreshPinnedPreview();
 
@@ -160,6 +207,7 @@ public partial class CollectorSettingsViewModel : ViewModelBase
         _dataProvider.NodeTelemetryUpdated += (_, _) =>
         {
             RefreshGlobalMetrics();
+            if ((DateTime.UtcNow - _lastCacheEstimate).TotalSeconds >= 5) RefreshCacheEstimate();
         };
     }
 
