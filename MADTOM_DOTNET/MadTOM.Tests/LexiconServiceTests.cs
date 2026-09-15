@@ -23,7 +23,7 @@ public class LexiconServiceTests
         var service = LexiconService.Instance;
         service.LoadLexicon("standard");
         Assert.Equal("standard", service.CurrentPack);
-        Assert.Equal("Fleet Infrastructure Matrix", service["fleetTitle"]);
+        Assert.Equal("Nodes", service["fleetTitle"]);
         Assert.Contains("TWAMP transit", service["fleetSubtitle"]);
     }
 

@@ -40,8 +40,20 @@ func NewPipeline(tsdb *storage.TSDB, reg *registry.Registry, collectorName strin
 
 // ProcessBatch ingests a TelemetryBatch, decompressing if needed, and writes points to TSDB.
 func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) error {
+	_, err := p.processBatch(batch, mode)
+	return err
+}
+
+// batchSummary describes successfully ingested samples without retaining decoded payloads.
+type batchSummary struct {
+	sampleCount     int
+	latestTimestamp int64
+}
+
+func (p *Pipeline) processBatch(batch *madtomv1.TelemetryBatch, mode string) (batchSummary, error) {
+	var summary batchSummary
 	if batch == nil {
-		return nil
+		return summary, nil
 	}
 
 	samples := batch.Samples
@@ -50,11 +62,11 @@ func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) err
 	if batch.IsCompressed && len(batch.CompressedPayload) > 0 && p.decoder != nil {
 		decompressed, err := p.decoder.DecodeAll(batch.CompressedPayload, nil)
 		if err != nil {
-			return fmt.Errorf("decompress batch: %w", err)
+			return batchSummary{}, fmt.Errorf("decompress batch: %w", err)
 		}
 		inner := &madtomv1.TelemetryBatch{}
 		if err := proto.Unmarshal(decompressed, inner); err != nil {
-			return err
+			return batchSummary{}, err
 		}
 		samples = inner.Samples
 	}
@@ -70,6 +82,7 @@ func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) err
 		if sample == nil {
 			continue
 		}
+		summary.sampleCount++
 		sample.NodeId = batch.NodeId
 		records = appendSampleRecords(records, batch.NodeId, sample, cfg)
 		if latestSample == nil || sample.TimestampUnixNano > latestSample.TimestampUnixNano {
@@ -79,15 +92,16 @@ func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) err
 
 	if len(records) > 0 {
 		if err := p.tsdb.PutRecordsBatch(records); err != nil {
-			return fmt.Errorf("tsdb put batch: %w", err)
+			return batchSummary{}, fmt.Errorf("tsdb put batch: %w", err)
 		}
 	}
 
 	if latestSample != nil {
+		summary.latestTimestamp = latestSample.TimestampUnixNano
 		p.fanOutLive(batch.NodeId, latestSample)
 	}
 
-	return nil
+	return summary, nil
 }
 
 func sanitizeMetricName(name string) string {
@@ -265,17 +279,26 @@ func (p *Pipeline) fanOutLive(nodeID string, sample *madtomv1.SystemMetrics) {
 	for _, ch := range chans {
 		select {
 		case ch <- event:
-		default: // Non-blocking drop if client is slow
+		default:
+			// Replace the pending snapshot. The consumer may have drained it
+			// since the first select, so receiving must also be non-blocking.
+			select {
+			case <-ch:
+			default:
+			}
+			// Publishers and unsubscribe hold p.mu; only the consumer can
+			// touch this channel concurrently, and it can only free space.
+			ch <- event
 		}
 	}
 }
 
-// Subscribe opens a channel receiving live 1Hz telemetry for nodeID.
-func (p *Pipeline) Subscribe(nodeID string) (chan *madtomv1.LiveTelemetryEvent, func()) {
+// Subscribe retains at most one pending snapshot, replacing it with newer telemetry.
+func (p *Pipeline) Subscribe(nodeID string) (<-chan *madtomv1.LiveTelemetryEvent, func()) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	ch := make(chan *madtomv1.LiveTelemetryEvent, 100)
+	ch := make(chan *madtomv1.LiveTelemetryEvent, 1)
 	p.subscribers[nodeID] = append(p.subscribers[nodeID], ch)
 	if sample := p.latest[nodeID]; sample != nil {
 		ch <- &madtomv1.LiveTelemetryEvent{NodeId: nodeID, CollectorName: p.collectorName, Metrics: sample}
@@ -288,7 +311,14 @@ func (p *Pipeline) Subscribe(nodeID string) (chan *madtomv1.LiveTelemetryEvent, 
 		list := p.subscribers[nodeID]
 		for i, sub := range list {
 			if sub == ch {
-				p.subscribers[nodeID] = append(list[:i], list[i+1:]...)
+				copy(list[i:], list[i+1:])
+				list[len(list)-1] = nil // Release the channel from the backing array.
+				list = list[:len(list)-1]
+				if len(list) == 0 {
+					delete(p.subscribers, nodeID)
+				} else {
+					p.subscribers[nodeID] = list
+				}
 				close(ch)
 				break
 			}

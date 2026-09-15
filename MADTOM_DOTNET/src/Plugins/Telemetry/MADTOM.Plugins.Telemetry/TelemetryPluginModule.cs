@@ -15,7 +15,7 @@ using MadTOM.Views;
 namespace MadTOM;
 
 /// <summary>
-/// Plugin module implementation for MADTOM Telemetry &amp; Operations Matrix.
+/// Plugin module implementation for MADTOM Telemetry - Overview.
 /// Enables in-process visual mounting inside MADTOM Console as well as isolated teardown.
 /// </summary>
 public class TelemetryPluginModule : IPluginModule

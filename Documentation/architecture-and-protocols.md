@@ -13,6 +13,7 @@ This document provides a technical brief on the internal architecture, transport
     - [Push Mode](#push-mode)
     - [Pull Mode](#pull-mode)
     - [Reverse-Push Mode](#reverse-push-mode)
+    - [Live Subscriber Delivery](#live-subscriber-delivery)
   - [Durable Disk Spooling (WAL Engine)](#durable-disk-spooling-wal-engine)
     - [Write-Ahead Log Mechanics](#write-ahead-log-mechanics)
     - [Bounded Quotas \& Eviction](#bounded-quotas--eviction)
@@ -87,10 +88,17 @@ MADTOM supports three transport configurations to accommodate diverse network en
 ### Pull Mode
 - Daemon binds to port `50052`.
 - Collector's `PullScraper` issues periodic gRPC `PollTelemetry` requests (default: 1-second interval) to pull buffered samples.
+- Each cycle drains at most 100 batches, stopping on an empty batch or when the newest successfully ingested sample is less than one scrape interval old. Freshness uses decoded ingestion metadata for both raw and zstd payloads, including batches whose samples arrive out of timestamp order. Decoding happens once; failed ingestion does not advance the acknowledgement cursor. Each RPC has its own five-second deadline.
 
 ### Reverse-Push Mode
 - Daemon binds to port `50052` in passive listening mode.
 - Collector dials the remote daemon. Once the TCP channel is established, the daemon streams telemetry batches **outbound** across the established stream to the collector.
+
+### Live Subscriber Delivery
+
+- Each node subscription retains at most one pending live snapshot. Newer telemetry replaces an older pending snapshot, so slow clients catch up to current state instead of replaying a queue of stale display updates.
+- A new subscriber immediately receives the collector's cached latest snapshot, when available. Duplicate or older timestamps do not replace that snapshot. The final unsubscribe removes the node's subscriber-list entry.
+- Coalescing applies only to live display delivery. Configured stored metrics are committed before publication; WAL acknowledgements and historical storage are unchanged. A snapshot already being sent and gRPC/client buffers are outside the one-pending-snapshot bound.
 
 ---
 
@@ -178,5 +186,3 @@ To avoid redundant disk writes and eliminate counter drift:
 
 - Individual per-core metrics (`cpu.core.0`, `cpu.core.1`, ..., `cpu.core.N`) are available as dedicated chart series and can be individually configured for `Off`, `Monitor Only`, or `Monitor & Store`.
 - In the dashboard graph customization modal, attempting to add a metric that is currently set to `Off` on a node displays an inline opt-in prompt (`[Monitor Only]` vs. `[Monitor & Store]`), updating the node's remote daemon configuration via gRPC and adding the visual graph in a single seamless action.
-
-

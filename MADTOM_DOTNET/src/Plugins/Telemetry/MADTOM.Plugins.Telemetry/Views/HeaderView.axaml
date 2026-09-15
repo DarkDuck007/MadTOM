@@ -40,9 +40,9 @@
                     </Border>
                 </Button>
 
-                <!-- Default title when on Fleet Matrix / root views -->
+                <!-- Default title when on Nodes / root views -->
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding !IsDetailPage}">
-                    <TextBlock Text="Telemetry &amp; Operations Matrix"
+                    <TextBlock Text="Telemetry - Overview"
                                IsVisible="{Binding !IsSidebarCollapsed}"
                                FontWeight="Bold"
                                FontSize="12"

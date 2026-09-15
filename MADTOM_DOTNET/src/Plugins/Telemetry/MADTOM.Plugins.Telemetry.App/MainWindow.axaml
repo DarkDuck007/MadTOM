@@ -4,7 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1440" d:DesignHeight="900"
         x:Class="MADTOM.Plugins.Telemetry.App.MainWindow"
-        Title="MADTOM Telemetry &amp; Operations Matrix (Standalone)"
+        Title="MADTOM Telemetry - Overview (Standalone)"
         Width="1440" Height="900"
         MinWidth="1100" MinHeight="700"
         Background="{DynamicResource AppBgBrush}">

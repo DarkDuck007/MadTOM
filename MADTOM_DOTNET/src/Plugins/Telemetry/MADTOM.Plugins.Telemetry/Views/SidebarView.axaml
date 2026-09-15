@@ -55,7 +55,7 @@
                                Foreground="{DynamicResource TextMutedBrush}"
                                Margin="4,0,0,4"/>
 
-                    <!-- Fleet Matrix Button -->
+                    <!-- Nodes Button -->
                     <Button Command="{Binding NavigateCommand}"
                             CommandParameter="fleet"
                             Classes="nav-item"

@@ -133,7 +133,8 @@ func (p *PullScraper) executeScrape(target *ScrapeTarget) {
 			target.conn = nil
 			return
 		}
-		if err := p.pipeline.ProcessBatch(batch, "PULL"); err != nil {
+		summary, err := p.pipeline.processBatch(batch, "PULL")
+		if err != nil {
 			log.Printf("[Scraper] Ingestion failed for %s segment %s: %v", target.NodeID, batch.SegmentId, err)
 			return
 		}
@@ -141,7 +142,7 @@ func (p *PullScraper) executeScrape(target *ScrapeTarget) {
 		target.LastAckedOffset = batch.SegmentOffset
 		req.LastAckedSegmentId = batch.SegmentId
 		req.LastAckedOffset = batch.SegmentOffset
-		if len(batch.Samples) > 0 && time.Since(time.Unix(0, batch.Samples[len(batch.Samples)-1].TimestampUnixNano)) < target.Interval {
+		if summary.sampleCount == 0 || time.Since(time.Unix(0, summary.latestTimestamp)) < target.Interval {
 			return
 		}
 	}

@@ -134,7 +134,7 @@ public sealed class LexiconService : ILexiconService
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["fleetTitle"] = "Fleet Infrastructure Matrix",
+                ["fleetTitle"] = "Nodes",
                 ["fleetSubtitle"] = "Ultra-compact directional TWAMP transit, aggregated hardware sparklines, and viewport-filling micro-core strips.",
                 ["level1Badge"] = "Fleet Observation Level 1",
                 ["filterBaremetal"] = "Dedicated Hosts",
@@ -159,7 +159,7 @@ public sealed class LexiconService : ILexiconService
                 ["vmBadge"] = "Virtual Machine",
                 ["navSectionViews"] = "Telemetry Views",
                 ["navSectionNodes"] = "Active Nodes",
-                ["navFleetMatrix"] = "Fleet Matrix",
+                ["navFleetMatrix"] = "Nodes",
                 ["navGlobalRadar"] = "Global Network Radar",
                 ["radarTitle"] = "Global Network Radar",
                 ["radarSubtitle"] = "Macro routing distribution, autonomous system (ASN) peering paths, and global TWAMP vector transit.",
