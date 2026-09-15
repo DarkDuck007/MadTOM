@@ -17,6 +17,36 @@ Implemented a provider-owned, in-memory numeric history cache before further zst
 
 Validation: cache-core tests passed at the first stage; the integrated settings/navigation stage passed all 152 .NET tests, including tests for reopened graphs, retention persistence, invalid settings, clearing, collector identity, and in-flight query invalidation. Documentation link validation passed with 110 internal links. Full details are in the [Client History Cache guide](Documentation/ui-and-config.md#client-history-cache). No compression changes were made.
 
+### Cached graph resolution follow-up
+
+Metric graphs now request three times their plotting width in points and apply the same time-based display reduction to merged collector/cache history and live updates. Single-node graphs preserve sub-second timestamps. Sampling retains bucket endpoints and extrema, leaves the raw session cache unchanged, and uses retained source windows to avoid cumulative live-update reduction. Resizing refreshes the query budget; remote cache reuse checks resolution as well as time coverage.
+
+Validation: all 160 .NET tests passed, including graph width/resize budgets, unreduced 30-minute 1 Hz history, spike retention, higher-resolution remote cache misses, and cached sub-second history displayed through the metrics view model. See [Resolution-Adaptive Downsampling](Documentation/ui-and-config.md#resolution-adaptive-downsampling-lttb). No compression changes were made.
+
+### Drawing resolution follow-up
+
+Separated the retained 3× history budget from actual chart geometry. **Node Settings → Performance** now exposes a persistent client-wide drawing density from 0.1× to 2× plotting width, defaulting to 1×. The renderer samples the zoomed visible window, retaining extrema and edge neighbours within its budget. Applying settings invalidates open chart geometry without changing history or requesting collector data.
+
+Validation: all 166 .NET tests passed, including drawing budgets at 0.1×/1×/2×, extrema retention, visible-window edge continuity, sparse data, and persisted/invalid settings. Compilation passed using single-process MSBuild; test execution required local socket access outside the sandbox. All 111 internal documentation links passed validation.
+
+### Performance controls follow-up
+
+Drawing and retained-history density now each have a slider paired with a compact numeric up/down. Drawing remains 0.1×–2× (default 1×); retained metric history is configurable from 1×–10× (default 3×). Both preferences persist together, with backward-compatible defaults. History changes update open metric graphs through the existing debounced resolution refresh; drawing-only changes remain independent of history queries and raw cache retention.
+
+Validation: all 170 .NET tests passed, covering configurable history budgets, both numeric values through the settings command, persistence, invalid values, and legacy settings defaults. XAML compilation and all 111 internal documentation links passed.
+
+### Numeric editor layout correction
+
+Performance numeric editors now use a 32-pixel height and a 22-pixel-wide column of stacked spin buttons, leaving space for the value. A scoped spinner template preserves native increment/decrement handling.
+
+Validation: all 171 .NET tests passed, including a compiled-template regression test for vertically stacked buttons and native increase/decrease events. XAML compilation and all 111 documentation links passed.
+
+### Scrolling stability correction
+
+Anchored client history and drawing buckets to absolute timestamps at fixed scope/resolution. Sliding windows no longer continually regroup old interior samples; drawing retains original sample coordinates and values. Partial edge buckets remain free to update. Duplicate/late single-node notifications no longer overwrite samples, and repeated timestamps cannot reset a calculated counter rate.
+
+Validation: all 174 .NET tests passed. Regression coverage advances a 30-minute window through ten updates at history 1× and drawing 1×/0.2×, verifying unchanged interior selections and original point coordinates/values. Duplicate/late rate updates and tiny viewport limits are covered. All 111 documentation links passed.
+
 ## 1. Recommendation
 
 **Use zstd selectively for serialized, sufficiently large, relatively cold data. First bound resource growth and eliminate unnecessary collection, copying, serialization, and disk operations.** These changes address costs that compression cannot remove.

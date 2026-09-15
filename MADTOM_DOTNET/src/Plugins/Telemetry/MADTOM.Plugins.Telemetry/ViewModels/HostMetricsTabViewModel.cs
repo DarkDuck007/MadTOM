@@ -15,6 +15,9 @@ namespace MadTOM.ViewModels;
 
 public partial class MetricGraphViewModel : ViewModelBase
 {
+    [ObservableProperty] private int _historyPointBudget = 2400;
+    public event Action? HistoryResolutionChanged;
+    partial void OnHistoryPointBudgetChanged(int value) => HistoryResolutionChanged?.Invoke();
     [ObservableProperty] private string _title = string.Empty;
     [ObservableProperty] private bool _isVisible = true;
     [ObservableProperty] private long[] _timestamps = Array.Empty<long>();
@@ -58,6 +61,52 @@ public partial class MetricGraphViewModel : ViewModelBase
 
 public partial class HostMetricsTabViewModel : ViewModelBase
 {
+    private readonly Dictionary<ChartSeriesModel, (long[] Times, double[] Values)> _displaySources = new();
+    private readonly HashSet<MetricGraphViewModel> _resolutionGraphs = new();
+    private CancellationTokenSource? _resolutionRefreshCts;
+
+    private async void OnHistoryResolutionChanged()
+    {
+        _resolutionRefreshCts?.Cancel();
+        var cts = _resolutionRefreshCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(200, cts.Token);
+            await RefreshHistoryAsync();
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            if (ReferenceEquals(_resolutionRefreshCts, cts)) _resolutionRefreshCts = null;
+            cts.Dispose();
+        }
+    }
+
+    private void TrackGraphResolutions()
+    {
+        foreach (var graph in _resolutionGraphs.Where(g => !Graphs.Contains(g)).ToArray())
+        {
+            graph.HistoryResolutionChanged -= OnHistoryResolutionChanged;
+            _resolutionGraphs.Remove(graph);
+        }
+        foreach (var graph in Graphs)
+            if (_resolutionGraphs.Add(graph)) graph.HistoryResolutionChanged += OnHistoryResolutionChanged;
+        var activeSeries = Graphs.SelectMany(g => g.Series).ToHashSet();
+        foreach (var series in _displaySources.Keys.Where(s => !activeSeries.Contains(s)).ToArray())
+            _displaySources.Remove(series);
+    }
+
+    private void ApplyDisplayBudget(ChartSeriesModel series, int budget, long start, long end)
+    {
+        // Live appends must start from source data, never repeatedly reduce an already sampled curve.
+        _displaySources[series] = (series.Timestamps, series.Values);
+        if (series.Values.Length <= Math.Clamp(budget, 4, 100000)) return;
+        var points = series.Values.Select((value, i) => new LODPoint(series.Timestamps[i], value, value, value)).ToArray();
+        var sampled = GraphHistoryResolution.Downsample(points, budget, start, end);
+        series.Timestamps = sampled.Select(p => p.TimestampUnixNano).ToArray();
+        series.Values = sampled.Select(p => p.Value).ToArray();
+    }
+
     private readonly ITelemetryDataProvider? _provider;
     private readonly GraphLayoutStore? _layoutStore;
     private readonly GraphPresetStore _presetStore;
@@ -146,6 +195,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         GraphPresetStore? presetStore = null)
     {
         _provider = provider;
+        Graphs.CollectionChanged += (_, _) => TrackGraphResolutions();
         _layoutStore = layoutStore;
         _presetStore = presetStore ?? new GraphPresetStore();
         PopulateAvailableMetrics(null, Array.Empty<FleetNodeModel>());
@@ -1153,6 +1203,16 @@ public partial class HostMetricsTabViewModel : ViewModelBase
 
                 if (sampleVal.HasValue)
                 {
+                    // Repeated/late notifications must not replace an existing observation or rate.
+                    var previousTimes = _displaySources.TryGetValue(series, out var previousSource)
+                        ? previousSource.Times : series.Timestamps;
+                    if ((!IsAggregatedMode && previousTimes.Length > 0 && timestampNano <= previousTimes[^1]) ||
+                        (series.IsRateOfChange && timestampNano <= series.PreviousRawSampleTimestampNano))
+                    {
+                        maxPoints = Math.Max(maxPoints, series.Values.Length);
+                        continue;
+                    }
+
                     double currentRaw = sampleVal.Value;
                     double plotVal = currentRaw;
 
@@ -1177,8 +1237,9 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         series.PreviousRawSampleTimestampNano = timestampNano;
                     }
 
-                    var currentTs = series.Timestamps;
-                    var currentVals = series.Values;
+                    var source = _displaySources.TryGetValue(series, out var saved) ? saved : (series.Timestamps, series.Values);
+                    var currentTs = source.Item1;
+                    var currentVals = source.Item2;
 
                     long tsSec = timestampNano / 1_000_000_000L;
                     int startIdx = 0;
@@ -1186,7 +1247,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     while (startIdx < currentTs.Length && currentTs[startIdx] < pruneThreshold)
                         startIdx++;
 
-                    bool replaceLast = currentTs.Length > 0 && (currentTs[^1] / 1_000_000_000L) == tsSec;
+                    bool replaceLast = currentTs.Length > 0 && (IsAggregatedMode ? (currentTs[^1] / 1_000_000_000L) == tsSec : currentTs[^1] == timestampNano);
 
                     int newCount = (currentTs.Length - startIdx) + (replaceLast ? 0 : 1);
                     var newTs = new long[newCount];
@@ -1205,7 +1266,8 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     series.Timestamps = newTs;
                     series.Values = newVals;
                     series.LatestValue = plotVal;
-                    maxPoints = Math.Max(maxPoints, newCount);
+                    ApplyDisplayBudget(series, graph.HistoryPointBudget, windowStartNano, windowEndNano);
+                    maxPoints = Math.Max(maxPoints, series.Values.Length);
                 }
                 else
                 {
@@ -1251,15 +1313,16 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 int maxPoints = 0;
                 foreach (var series in graph.Series.ToArray())
                 {
-                    var results = await Task.WhenAll(ids.Select(id => _provider.QueryHistoryAsync(id, series.Metric, start, end, cts.Token)));
+                    var results = await Task.WhenAll(ids.Select(id => _provider.QueryHistoryWithResolutionAsync(id, series.Metric, start, end, graph.HistoryPointBudget, cts.Token)));
                     if (cts.IsCancellationRequested) return;
 
-                    var points = results.SelectMany(s => s.GroupBy(p => p.TimestampUnixNano / 1_000_000_000L).Select(g => g.OrderBy(p => p.TimestampUnixNano).Last()))
-                                        .GroupBy(p => p.TimestampUnixNano / 1_000_000_000L)
+                    long timestampUnit = IsAggregatedMode ? 1_000_000_000L : 1L;
+                    var points = results.SelectMany(s => s.GroupBy(p => p.TimestampUnixNano / timestampUnit).Select(g => g.OrderBy(p => p.TimestampUnixNano).Last()))
+                                        .GroupBy(p => p.TimestampUnixNano / timestampUnit)
                                         .OrderBy(g => g.Key)
                                         .ToArray();
 
-                    series.Timestamps = points.Select(g => g.Key * 1_000_000_000L).ToArray();
+                    series.Timestamps = points.Select(g => g.Key * timestampUnit).ToArray();
                     series.Values = points.Select(g => series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio") ? g.Average(p => p.Value) : g.Sum(p => p.Value)).ToArray();
 
                     if (series.IsRateOfChange)
@@ -1291,6 +1354,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         }
                     }
 
+                    ApplyDisplayBudget(series, graph.HistoryPointBudget, windowStartNano, windowEndNano);
                     series.LatestValue = series.Values.LastOrDefault();
                     maxPoints = Math.Max(maxPoints, series.Values.Length);
                 }
@@ -1336,7 +1400,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         catch (Exception ex) { if (!cts.IsCancellationRequested) foreach (var graph in Graphs) graph.Status = $"Query failed: {ex.Message}"; }
         finally
         {
-            _isQueryRunning = false;
+            if (ReferenceEquals(_queryCts, cts)) _isQueryRunning = false;
         }
     }
 

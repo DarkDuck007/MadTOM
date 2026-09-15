@@ -408,6 +408,14 @@ public class TelemetryAndMetricsTests
         Assert.Single(series.Values);
         Assert.Equal(1_500_000.0, series.LatestValue, 1);
 
+        // Duplicate and late notifications must not overwrite the rate or its baseline.
+        vm.UpdateForNode("test-node", node, new[] { node });
+        Assert.Equal(1_500_000.0, Assert.Single(series.Values));
+        node.TimestampUnixNano = t0;
+        node.LatestMetricValues["nic.eth0.rx_bytes"] = 99;
+        vm.UpdateForNode("test-node", node, new[] { node });
+        Assert.Equal(1_500_000.0, Assert.Single(series.Values));
+
         // Sample 3: 1 second later, counter reset / reboot (counter dropped to 500,000)
         long t2 = t1 + 1_000_000_000L;
         node.TimestampUnixNano = t2;

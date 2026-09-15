@@ -48,6 +48,26 @@ public sealed partial class NodeGroupItemViewModel : ObservableObject
 
 public partial class CollectorSettingsViewModel : ViewModelBase
 {
+    private readonly GraphPerformanceSettings _performanceSettings;
+    [ObservableProperty] private double _graphPointsPerPixel = 1;
+    [ObservableProperty] private double _historyPointsPerPixel = 3;
+
+    [RelayCommand]
+    public void ApplyGraphPerformance()
+    {
+        if (!GraphPerformanceSettings.IsValid(GraphPointsPerPixel) || !GraphPerformanceSettings.IsValidHistory(HistoryPointsPerPixel))
+        {
+            StatusMessage = "Drawing density must be 0.1–2 and history density must be 1–10 points per pixel.";
+            return;
+        }
+        try
+        {
+            _performanceSettings.Save(GraphPointsPerPixel, HistoryPointsPerPixel);
+            StatusMessage = "Graph performance settings saved. Applies to all client graphs.";
+        }
+        catch (Exception ex) { StatusMessage = $"Could not save performance settings: {ex.Message}"; }
+    }
+
     private readonly TelemetryCacheSettingsStore _cacheSettingsStore;
     private DateTime _lastCacheEstimate;
     [ObservableProperty] private string _cacheRetentionMinutes = "60";
@@ -168,8 +188,12 @@ public partial class CollectorSettingsViewModel : ViewModelBase
         ITelemetryDataProvider dataProvider,
         NodeGroupStore? nodeGroupStore = null,
         GlobalMetricsStore? metricsStore = null,
-        TelemetryCacheSettingsStore? cacheSettingsStore = null)
+        TelemetryCacheSettingsStore? cacheSettingsStore = null,
+        GraphPerformanceSettings? performanceSettings = null)
     {
+        _performanceSettings = performanceSettings ?? GraphPerformanceSettings.Current;
+        GraphPointsPerPixel = _performanceSettings.PointsPerPixel;
+        HistoryPointsPerPixel = _performanceSettings.HistoryPointsPerPixel;
         _cacheSettingsStore = cacheSettingsStore ?? new TelemetryCacheSettingsStore();
         _manager = manager;
         _dataProvider = dataProvider;

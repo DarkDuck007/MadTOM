@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using MadTOM.Models;
+using MadTOM.Services;
 
 namespace MadTOM.Controls.Charts;
 
@@ -17,6 +18,10 @@ namespace MadTOM.Controls.Charts;
 /// </summary>
 public sealed class MetricHistoryChartControl : Control
 {
+    public static readonly StyledProperty<int> HistoryPointBudgetProperty =
+        AvaloniaProperty.Register<MetricHistoryChartControl, int>(nameof(HistoryPointBudget), 2400);
+    public int HistoryPointBudget { get => GetValue(HistoryPointBudgetProperty); set => SetValue(HistoryPointBudgetProperty, value); }
+
     public static readonly StyledProperty<long[]> TimestampsProperty =
         AvaloniaProperty.Register<MetricHistoryChartControl, long[]>(nameof(Timestamps), Array.Empty<long>());
 
@@ -114,6 +119,8 @@ public sealed class MetricHistoryChartControl : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (change.Property == BoundsProperty && Bounds.Width > 68)
+            SetCurrentValue(HistoryPointBudgetProperty, GraphHistoryResolution.PointBudget(Bounds.Width - 68, GraphPerformanceSettings.Current.HistoryPointsPerPixel));
         if (change.Property == ValuesProperty ||
             change.Property == TimestampsProperty ||
             change.Property == WindowStartProperty ||
@@ -291,7 +298,9 @@ public sealed class MetricHistoryChartControl : Control
 
         if (!cacheMatches)
         {
-            RebuildGeometryCache(activeSeries, MapPoint, topPad + plotH, plotW);
+            long visibleStart = wStart + (long)(pan / (plotW * zoom) * timeSpanNano);
+            long visibleEnd = visibleStart + (long)(timeSpanNano / zoom);
+            RebuildGeometryCache(activeSeries, MapPoint, topPad + plotH, plotW, visibleStart, visibleEnd);
             _cachedWidth = w;
             _cachedHeight = h;
             _cachedZoom = zoom;
@@ -563,7 +572,7 @@ public sealed class MetricHistoryChartControl : Control
         return isRate ? $"{v:F2}/s" : $"{v:F2}";
     }
 
-    private void RebuildGeometryCache(List<ChartSeriesModel> activeSeries, Func<long, double, int, int, Point> mapPoint, double baselineY, double plotW)
+    private void RebuildGeometryCache(List<ChartSeriesModel> activeSeries, Func<long, double, int, int, Point> mapPoint, double baselineY, double plotW, long visibleStart, long visibleEnd)
     {
         _cachedSeriesGeometries.Clear();
 
@@ -573,7 +582,7 @@ public sealed class MetricHistoryChartControl : Control
             int count = vals.Length;
             if (count < 2) continue;
 
-            var points = BuildDecimatedPoints(series, mapPoint, plotW);
+            var points = BuildDecimatedPoints(series, mapPoint, plotW, visibleStart, visibleEnd);
             if (points.Count < 2) continue;
 
             var fillGeom = new StreamGeometry();
@@ -601,97 +610,34 @@ public sealed class MetricHistoryChartControl : Control
         }
     }
 
-    private static List<Point> BuildDecimatedPoints(ChartSeriesModel series, Func<long, double, int, int, Point> mapPoint, double plotW)
+    private static List<Point> BuildDecimatedPoints(ChartSeriesModel series, Func<long, double, int, int, Point> mapPoint, double plotW, long visibleStart, long visibleEnd)
     {
-        var vals = series.Values;
-        var ts = series.Timestamps;
-        int count = vals.Length;
-        if (count <= 300)
-        {
-            var list = new List<Point>(count);
-            for (int i = 0; i < count; i++)
-            {
-                long t = ts.Length > i ? ts[i] : 0;
-                list.Add(mapPoint(t, vals[i], i, count));
-            }
-            return list;
-        }
+        var mapped = new List<Point>(series.Values.Length);
+        for (int i = 0; i < series.Values.Length; i++)
+            mapped.Add(mapPoint(series.Timestamps.Length > i ? series.Timestamps[i] : 0,
+                series.Values[i], i, series.Values.Length));
+        return GraphDrawingResolution.Reduce(mapped, 52, plotW, GraphPerformanceSettings.Current.PointsPerPixel, series.Timestamps, visibleStart, visibleEnd);
+    }
 
-        var decimated = new List<Point>(Math.Min(count, (int)plotW * 2 + 16));
-        int lastCol = int.MinValue;
-        Point firstInCol = default;
-        Point lastInCol = default;
-        Point minPt = default;
-        Point maxPt = default;
-        int ptsInCol = 0;
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        GraphPerformanceSettings.Current.Changed += OnDrawingSettingsChanged;
+        OnDrawingSettingsChanged();
+    }
 
-        void FlushColumn()
-        {
-            if (ptsInCol == 1)
-            {
-                decimated.Add(firstInCol);
-            }
-            else if (ptsInCol == 2)
-            {
-                decimated.Add(firstInCol);
-                decimated.Add(lastInCol);
-            }
-            else if (ptsInCol > 2)
-            {
-                decimated.Add(firstInCol);
-                if (minPt != firstInCol && minPt != lastInCol && maxPt != firstInCol && maxPt != lastInCol)
-                {
-                    if (minPt.X <= maxPt.X)
-                    {
-                        decimated.Add(minPt);
-                        decimated.Add(maxPt);
-                    }
-                    else
-                    {
-                        decimated.Add(maxPt);
-                        decimated.Add(minPt);
-                    }
-                }
-                else if (minPt != firstInCol && minPt != lastInCol)
-                {
-                    decimated.Add(minPt);
-                }
-                else if (maxPt != firstInCol && maxPt != lastInCol)
-                {
-                    decimated.Add(maxPt);
-                }
-                decimated.Add(lastInCol);
-            }
-            ptsInCol = 0;
-        }
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        GraphPerformanceSettings.Current.Changed -= OnDrawingSettingsChanged;
+        base.OnDetachedFromVisualTree(e);
+    }
 
-        for (int i = 0; i < count; i++)
-        {
-            long t = ts.Length > i ? ts[i] : 0;
-            Point pt = mapPoint(t, vals[i], i, count);
-            int col = (int)Math.Round(pt.X);
-
-            if (col != lastCol)
-            {
-                if (ptsInCol > 0) FlushColumn();
-                lastCol = col;
-                firstInCol = pt;
-                lastInCol = pt;
-                minPt = pt;
-                maxPt = pt;
-                ptsInCol = 1;
-            }
-            else
-            {
-                lastInCol = pt;
-                if (pt.Y < minPt.Y) minPt = pt;
-                if (pt.Y > maxPt.Y) maxPt = pt;
-                ptsInCol++;
-            }
-        }
-        if (ptsInCol > 0) FlushColumn();
-
-        return decimated;
+    private void OnDrawingSettingsChanged()
+    {
+        if (Bounds.Width > 68)
+            SetCurrentValue(HistoryPointBudgetProperty, GraphHistoryResolution.PointBudget(Bounds.Width - 68, GraphPerformanceSettings.Current.HistoryPointsPerPixel));
+        _geometryCacheValid = false;
+        InvalidateVisual();
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)

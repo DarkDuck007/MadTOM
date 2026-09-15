@@ -372,7 +372,10 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
         ? _nodes.Values.SelectMany(n => n.Processes).ToArray()
         : GetNode(hostId)?.Processes ?? Array.Empty<ProcessInfoModel>();
 
-    public async Task<IReadOnlyList<LODPoint>> QueryHistoryAsync(string hostId, string metric, DateTime start, DateTime end, CancellationToken ct = default)
+    public Task<IReadOnlyList<LODPoint>> QueryHistoryAsync(string hostId, string metric, DateTime start, DateTime end, CancellationToken ct = default)
+        => QueryHistoryWithResolutionAsync(hostId, metric, start, end, 2400, ct);
+
+    public async Task<IReadOnlyList<LODPoint>> QueryHistoryWithResolutionAsync(string hostId, string metric, DateTime start, DateTime end, int targetPoints, CancellationToken ct = default)
     {
         var node = GetNode(hostId);
         var client = node == null ? null : _collectorManager.GetClientForNode(node);
@@ -380,7 +383,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
         var cfg = await GetNodeConfigAsync(hostId, ct);
         bool localOnly = client == null || (cfg != null && TelemetryOptInResolver.GetMetricOptInMode(cfg, metric) != TelemetryOptInMode.OptInMonitorAndStore);
         return await HistoryCache.QueryAsync(node.CollectorEndpoint, hostId, metric, start, end, localOnly,
-            (from, to, token) => client!.QueryRangeAsync(hostId, metric, from, to, ct: token), ct);
+            (from, to, token) => client!.QueryRangeAsync(hostId, metric, from, to, targetPoints: Math.Clamp(targetPoints, 4, 100000), ct: token), ct, targetPoints);
     }
 
     public async Task<NodeConfig?> GetNodeConfigAsync(string hostId, CancellationToken ct = default)

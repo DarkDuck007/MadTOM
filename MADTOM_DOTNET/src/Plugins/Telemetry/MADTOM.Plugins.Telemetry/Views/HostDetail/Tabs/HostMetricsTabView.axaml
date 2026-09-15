@@ -243,6 +243,7 @@
 
                                                 <!-- The Chart -->
                                                 <charts:MetricHistoryChartControl SeriesList="{Binding Series}"
+                                                                                  HistoryPointBudget="{Binding HistoryPointBudget, Mode=TwoWay}"
                                                                                   Timestamps="{Binding Timestamps}"
                                                                                   WindowStart="{Binding WindowStart}"
                                                                                   WindowEnd="{Binding WindowEnd}"

@@ -25,6 +25,7 @@ This guide covers the MADTOM Desktop Operator UI, its features, telemetry visual
    - [Relative Scopes (1m, 5m, 30m, 2h, 6h, 12h, 24h)](#relative-scopes-1m-5m-30m-2h-6h-12h-24h)
    - [Custom Scope (Date & Time Picker)](#custom-scope-date--time-picker)
    - [Resolution-Adaptive Downsampling (LTTB)](#resolution-adaptive-downsampling-lttb)
+   - [Graph Performance Settings](#graph-performance-settings)
    - [Graph Navigation: Zoom, Pan & Page Scrolling](#graph-navigation-zoom-pan--page-scrolling)
    - [Memory Normalization in Tooltips](#memory-normalization-in-tooltips)
    - [Graph Groups, Side-by-Side Rows & Reordering](#graph-groups-side-by-side-rows--reordering)
@@ -357,9 +358,27 @@ Clicking the **Custom** scope button opens a modal to select precise start and e
 - Custom windows remain frozen at the selected bounds and do not refresh automatically with incoming live samples.
 
 ### Resolution-Adaptive Downsampling (LTTB)
-When querying historical ranges with tens of thousands of data points, `madtom-collector` applies **Largest-Triangle-Three-Buckets (LTTB)** downsampling:
-- Reduces raw points down to an optimal visual budget (default: 1,200 points).
-- Accurately preserves visual peaks, valleys, outliers, and trend lines without flattening spikes.
+Metric graphs request a point budget of **three times the plotting width by default** (in logical pixels), leaving extra detail for zooming. A 750-pixel plotting area requests up to 2,250 points; a 30-minute history sampled once per second therefore fits without reduction. Before layout, the budget defaults to 2,400 points. Resizing refreshes history after a 200 ms debounce, and cached collector responses are reused only when their resolution is sufficient.
+
+The collector applies **Largest-Triangle-Three-Buckets (LTTB)** to the requested budget. After merging collector and local history and calculating counter rates, the client reduces dense series using time buckets that retain first, minimum, maximum, and last values. Cached and newly streamed samples use the same display budget. Client history and drawing buckets use fixed absolute-time boundaries for a given scope and resolution. Scrolling therefore keeps completed interior buckets stable, with original sample timestamps and values preserved. The newest incomplete bucket and the window edges can still change as samples arrive or expire; resizing, zooming, changing density, collector refetches, and automatic Y-axis scaling can also change the rendered shape. Duplicate or late single-node live notifications do not overwrite existing samples or counter rates. Series below the budget remain unchanged, and single-node graphs preserve sub-second timestamps; multi-node aggregation retains its existing one-second alignment.
+
+This display reduction leaves the raw session cache intact. Active graphs also retain their source window so live updates do not repeatedly reduce previously sampled curves; these chart arrays are outside the cache memory estimate. Zoom uses the retained detail and cannot restore samples already discarded by collector downsampling.
+
+### Graph Performance Settings
+
+Open **Node Settings → Performance** to set **Graph drawing resolution** with a slider or compact numeric up/down from **0.1× to 2×**, then select **Apply**. The default is **1×**. This client-wide setting limits drawn points per series using the plotting width in logical pixels, independently of the configurable history budget (default 3×). A 750-pixel plot draws at most 75, 750, or 1,500 points at 0.1×, 1×, or 2× respectively. Very narrow plots retain a minimum of two points to draw a line.
+
+Lower settings reduce line and fill geometry; higher settings retain more visible detail. Sampling preserves bucket endpoints and extrema. Zooming and panning sample the visible window again, retaining only the closest off-screen neighbours for edge continuity. Changing only drawing resolution redraws open charts without fetching history or changing the session cache.
+
+Both numeric editors use a readable value field with small up/down arrows stacked on the right. You can type a value or use the arrows to step it.
+
+**Retained history resolution** has its own slider and compact numeric up/down, ranging from **1× to 10×**, default **3×**. This controls how many points metric graphs retain per logical pixel for zooming and request from the collector. Higher values use more graph memory and can increase query size; lower values limit available zoom detail. Select **Apply** to save both settings. Changing history resolution refreshes open metric graphs after the existing debounce; raw cache retention remains controlled by the Collectors tab.
+
+Both preferences persist in `~/.local/share/MADTOM/performance.json` (or the platform's equivalent application-data directory). Missing, malformed, or out-of-range values fall back independently to drawing 1× and history 3×. Older files without the history field use 3×:
+
+```json
+{"GraphPointsPerPixel": 1, "HistoryPointsPerPixel": 3}
+```
 
 ### Graph Navigation: Zoom, Pan & Page Scrolling
 
@@ -723,4 +742,3 @@ colors:
 
 > [!TIP]
 > If `displayName` is omitted, MADTOM automatically derives a title-cased display name from `themeName` or the filename (e.g. `synthwave-84` becomes `Synthwave 84`). Missing colors automatically fall back to dark-theme defaults.
-

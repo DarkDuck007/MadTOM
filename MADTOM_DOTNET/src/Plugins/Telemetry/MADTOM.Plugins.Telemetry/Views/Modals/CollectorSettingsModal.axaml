@@ -4,11 +4,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MadTOM.ViewModels"
              xmlns:services="using:MadTOM.Services"
+             xmlns:controls="using:MadTOM.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="MadTOM.Views.Modals.CollectorSettingsModal"
              x:DataType="vm:CollectorSettingsViewModel">
 
     <UserControl.Styles>
+        <controls:PerformanceNumberStyles/>
         <Style Selector="Button.active-btn">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
@@ -217,6 +219,33 @@
                             </Border>
                         </StackPanel>
                         </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="Performance" FontSize="12">
+                        <StackPanel Margin="0,12,0,0" Spacing="12">
+                            <TextBlock Text="Graph drawing resolution" FontWeight="Bold"/>
+                            <TextBlock Text="Maximum drawn points per pixel of plotting width, per series. Applies to all graphs in this client."
+                                       TextWrapping="Wrap"/>
+                            <Grid ColumnDefinitions="*,90">
+                                <Slider Margin="0,0,12,0" Minimum="0.1" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                                        Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
+                                <NumericUpDown Classes="performance-number" Grid.Column="1" Minimum="0.1" Maximum="5" Increment="0.1" FormatString="0.0"
+                                               Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
+                            </Grid>
+                            <TextBlock Text="Drawing: 0.1×–2×. Default: 1×. Lower values reduce drawing work."
+                                       TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="Retained history resolution" FontWeight="Bold"/>
+                            <Grid ColumnDefinitions="*,90">
+                                <Slider Margin="0,0,12,0" Minimum="1" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True"
+                                        Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
+                                <NumericUpDown Classes="performance-number" Grid.Column="1" Minimum="1" Maximum="10" Increment="0.5" FormatString="0.0"
+                                               Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
+                            </Grid>
+                            <TextBlock Text="History: 1×–10× plotting width. Default: 3×. Higher values retain more zoom detail and increase memory use and collector query size. Raw session cache retention is unchanged."
+                                       TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <Button Content="Apply" Command="{Binding ApplyGraphPerformanceCommand}" HorizontalAlignment="Left"/>
+
+                        </StackPanel>
                     </TabItem>
 
                     <!-- TAB 2: Node Opt-In Settings -->

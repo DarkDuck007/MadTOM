@@ -22,7 +22,7 @@ public sealed class TelemetryHistoryCache
     private long _generation;
     private const long Second = 1_000_000_000;
     private sealed record RemoteRange((string Collector, string Node, string Metric) Key,
-        long Start, long End, DateTime Expires, LODPoint[] Points);
+        long Start, long End, DateTime Expires, LODPoint[] Points, int PointBudget);
 
     public TelemetryHistoryCache(int retentionMinutes = 60, Func<DateTime>? utcNow = null)
     {
@@ -87,7 +87,7 @@ public sealed class TelemetryHistoryCache
 
     public async Task<IReadOnlyList<LODPoint>> QueryAsync(string collector, string node, string metric,
         DateTime start, DateTime end, bool localOnly,
-        Func<DateTime, DateTime, CancellationToken, Task<IReadOnlyList<LODPoint>>> fetch, CancellationToken ct = default)
+        Func<DateTime, DateTime, CancellationToken, Task<IReadOnlyList<LODPoint>>> fetch, CancellationToken ct = default, int targetPoints = 0)
     {
         ct.ThrowIfCancellationRequested();
         long from = Nano(start), to = Nano(end);
@@ -101,12 +101,12 @@ public sealed class TelemetryHistoryCache
             generation = _generation;
             local = ReadLocked(key, from, to);
             if (localOnly || (_live.TryGetValue(key, out var series) && Covers(series.Points.ToArray(), from, to))) return local;
-            var cached = _remote.LastOrDefault(r => r.Key == key && r.Start <= from && (r.End >= to || (_live.TryGetValue(key, out var tail) && Covers(tail.Points.ToArray(), r.End, to))));
+            var cached = _remote.LastOrDefault(r => r.Key == key && (targetPoints <= 0 || (r.PointBudget >= targetPoints && r.PointBudget / Math.Max(1.0, r.End - (double)r.Start) >= targetPoints / Math.Max(1.0, to - (double)from))) && r.Start <= from && (r.End >= to || (_live.TryGetValue(key, out var tail) && Covers(tail.Points.ToArray(), r.End, to))));
             if (cached != null) return Merge(cached.Points, local, from, to);
         }
 
         // Broader minute-aligned starts allow nearby navigation requests to reuse historical results.
-        DateTime fetchStart = new DateTime(start.ToUniversalTime().Ticks / TimeSpan.TicksPerMinute * TimeSpan.TicksPerMinute, DateTimeKind.Utc);
+        DateTime fetchStart = targetPoints > 0 ? start : new DateTime(start.ToUniversalTime().Ticks / TimeSpan.TicksPerMinute * TimeSpan.TicksPerMinute, DateTimeKind.Utc);
         IReadOnlyList<LODPoint> remote;
         bool fetchSucceeded = true;
         try { remote = await fetch(fetchStart, end, ct).ConfigureAwait(false); }
@@ -119,7 +119,7 @@ public sealed class TelemetryHistoryCache
             if (generation != _generation) return ReadLocked(key, from, to);
             if (fetchSucceeded && remote.Count <= 10000)
             {
-                _remote.Add(new(key, Nano(fetchStart), to, _utcNow().AddSeconds(30), remote.ToArray()));
+                _remote.Add(new(key, Nano(fetchStart), to, _utcNow().AddSeconds(30), remote.ToArray(), targetPoints));
                 if (_remote.Count > 128) _remote.RemoveAt(0);
             }
             return Merge(remote, ReadLocked(key, from, to), from, to);

@@ -48,6 +48,58 @@ public class TelemetryCacheUiTests
     }
 
     [Fact]
+    public async Task DenseCachedHistoryUsesGraphBudgetWithoutLosingSubsecondDetail()
+    {
+        using var provider = new CachedProvider();
+        long timestamp = DateTimeOffset.UtcNow.AddMinutes(-29).ToUnixTimeMilliseconds() * 1_000_000;
+        for (int i = 0; i < 17000; i++)
+            provider.HistoryCache.Record("test", "node", timestamp + i * 100_000_000L,
+                new Dictionary<string, double> { ["cpu.total"] = i == 1001 ? 999 : i % 10 });
+        var view = new HostMetricsTabViewModel(provider, presetStore: new GraphPresetStore(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json")));
+        view.UpdateForNode("node", provider.Node, provider.GetFleetNodes());
+        view.SetScope("30m");
+        view.Graphs.Clear();
+        var graph = new MetricGraphViewModel("cpu.total") { HistoryPointBudget = 2250 };
+        view.Graphs.Add(graph);
+        await view.RefreshHistoryAsync();
+        Assert.InRange(graph.Values.Length, 1800, 2250);
+        Assert.Contains(999d, graph.Values);
+        Assert.Contains(graph.Timestamps, t => t % 1_000_000_000L != 0);
+        Assert.Equal(17000, (await provider.QueryHistoryAsync("node", "cpu.total", DateTime.UtcNow.AddMinutes(-30), DateTime.UtcNow)).Count);
+    }
+
+    [Fact]
+    public void PerformanceControlsSaveBothNumericValuesAndRejectInvalidHistory()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "madtom-performance-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var provider = new CachedProvider();
+            string path = Path.Combine(directory, "performance.json");
+            var settings = new GraphPerformanceSettings(path);
+            var vm = new CollectorSettingsViewModel(new MultiCollectorManager(":memory:"), provider,
+                new NodeGroupStore(Path.Combine(directory, "groups.json")),
+                new GlobalMetricsStore(Path.Combine(directory, "metrics.json")),
+                new TelemetryCacheSettingsStore(Path.Combine(directory, "cache.json")), settings);
+            Assert.Equal(1, vm.GraphPointsPerPixel);
+            Assert.Equal(3, vm.HistoryPointsPerPixel);
+            vm.GraphPointsPerPixel = 0.5;
+            vm.HistoryPointsPerPixel = 5.5;
+            vm.ApplyGraphPerformanceCommand.Execute(null);
+            var saved = new GraphPerformanceSettings(path);
+            Assert.Equal(0.5, saved.PointsPerPixel);
+            Assert.Equal(5.5, saved.HistoryPointsPerPixel);
+            vm.HistoryPointsPerPixel = 11;
+            vm.ApplyGraphPerformanceCommand.Execute(null);
+            Assert.Equal(5.5, new GraphPerformanceSettings(path).HistoryPointsPerPixel);
+            Assert.Contains("1–10", vm.StatusMessage);
+            Assert.Equal(60, provider.HistoryCache.RetentionMinutes);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public async Task SettingsValidatePersistEstimateAndClearCache()
     {
         string directory = Path.Combine(Path.GetTempPath(), "madtom-cache-" + Guid.NewGuid());
