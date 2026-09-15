@@ -39,6 +39,10 @@ type WALManager struct {
 	currentSeq    int64
 	currentBytes  int64
 	currentOffset int64
+
+	// In-memory segment tracking for O(1) writes and bounded memory/CPU
+	segments        []segmentMeta
+	totalSpoolBytes int64
 }
 
 // NewWALManager initializes or recovers the WAL spool directory.
@@ -72,11 +76,13 @@ func NewWALManager(dir string, nodeID string, maxTotalSpool int64, enableZstd bo
 		w.decoder = dec
 	}
 
-	// Recover existing highest segment sequence
-	segments, err := w.listSegments()
+	// Recover existing segments and sequence once on initialization
+	segments, totalSize, err := w.scanDirectory()
 	if err != nil {
 		return nil, err
 	}
+	w.segments = segments
+	w.totalSpoolBytes = totalSize
 
 	if len(segments) > 0 {
 		w.currentSeq = segments[len(segments)-1].seq
@@ -148,6 +154,12 @@ func (w *WALManager) WriteMetrics(samples []*madtomv1.SystemMetrics) (*madtomv1.
 	w.currentOffset += totalWritten
 	batch.SegmentOffset = w.currentOffset
 
+	// Update size of current segment and total spool bytes in memory
+	if len(w.segments) > 0 {
+		w.segments[len(w.segments)-1].size += totalWritten
+	}
+	w.totalSpoolBytes += totalWritten
+
 	// Check total spool quota and purge oldest if exceeded
 	w.enforceQuotaLocked()
 
@@ -165,8 +177,7 @@ func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, e
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	segments, err := w.listSegments()
-	if err != nil || len(segments) == 0 {
+	if len(w.segments) == 0 {
 		return nil, nil
 	}
 
@@ -174,7 +185,7 @@ func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, e
 	var firstSeg, lastSeg segmentMeta
 	var lastOffset int64
 
-	for i, seg := range segments {
+	for i, seg := range w.segments {
 		samples, offset, err := w.readSegmentFileLocked(seg)
 		if err != nil {
 			return nil, err
@@ -189,7 +200,7 @@ func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, e
 		lastOffset = offset
 		allSamples = append(allSamples, samples...)
 
-		if len(allSamples) >= maxSamples || i == len(segments)-1 {
+		if len(allSamples) >= maxSamples || i == len(w.segments)-1 {
 			break
 		}
 	}
@@ -207,7 +218,7 @@ func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, e
 		NodeId:        w.nodeID,
 		SegmentId:     segID,
 		SegmentOffset: lastOffset,
-		IsBacklog:     len(segments) > 1 || len(allSamples) > 1,
+		IsBacklog:     len(w.segments) > 1 || len(allSamples) > 1,
 		Samples:       allSamples,
 	}
 
@@ -228,12 +239,11 @@ func (w *WALManager) ReadOldestBatch() (*madtomv1.TelemetryBatch, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	segments, err := w.listSegments()
-	if err != nil || len(segments) == 0 {
+	if len(w.segments) == 0 {
 		return nil, nil
 	}
 
-	oldest := segments[0]
+	oldest := w.segments[0]
 	samples, offset, err := w.readSegmentFileLocked(oldest)
 	if err != nil {
 		return nil, err
@@ -260,6 +270,12 @@ func (w *WALManager) readSegmentFileLocked(seg segmentMeta) ([]*madtomv1.SystemM
 	}
 	defer f.Close()
 
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	fileSize := fi.Size()
+
 	var samples []*madtomv1.SystemMetrics
 	var offset int64
 	for {
@@ -272,7 +288,7 @@ func (w *WALManager) readSegmentFileLocked(seg segmentMeta) ([]*madtomv1.SystemM
 			return nil, 0, fmt.Errorf("incomplete WAL header: %w", err)
 		}
 		length := int64(binary.BigEndian.Uint32(lenBuf[:]))
-		if length <= 0 || length > seg.size-offset-4 {
+		if length <= 0 || length > fileSize-offset-4 {
 			return nil, 0, fmt.Errorf("invalid WAL record length")
 		}
 		payload := make([]byte, length)
@@ -341,6 +357,17 @@ func (w *WALManager) acknowledgeSingleSegmentLocked(seg string) error {
 		return fmt.Errorf("failed to remove acknowledged segment %s: %w", seg, err)
 	}
 
+	for i, s := range w.segments {
+		if s.name == seg {
+			w.totalSpoolBytes -= s.size
+			if w.totalSpoolBytes < 0 {
+				w.totalSpoolBytes = 0
+			}
+			w.segments = append(w.segments[:i], w.segments[i+1:]...)
+			break
+		}
+	}
+
 	return nil
 }
 
@@ -368,12 +395,8 @@ func (w *WALManager) acknowledgeRangeLocked(startSeg, endSeg string) error {
 		return fmt.Errorf("invalid segment sequence range: %d > %d", startSeq, endSeq)
 	}
 
-	segments, err := w.listSegments()
-	if err != nil {
-		return err
-	}
-
-	for _, seg := range segments {
+	newSegments := make([]segmentMeta, 0, len(w.segments))
+	for _, seg := range w.segments {
 		if seg.seq >= startSeq && seg.seq <= endSeq {
 			if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == seg.name {
 				_ = w.currentFile.Sync()
@@ -385,8 +408,15 @@ func (w *WALManager) acknowledgeRangeLocked(startSeg, endSeg string) error {
 			if err := os.Remove(seg.path); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("failed to remove acknowledged segment %s: %w", seg.name, err)
 			}
+			w.totalSpoolBytes -= seg.size
+		} else {
+			newSegments = append(newSegments, seg)
 		}
 	}
+	if w.totalSpoolBytes < 0 {
+		w.totalSpoolBytes = 0
+	}
+	w.segments = newSegments
 
 	return nil
 }
@@ -396,11 +426,7 @@ func (w *WALManager) HasPendingBacklog() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	segments, err := w.listSegments()
-	if err != nil {
-		return false
-	}
-	for _, s := range segments {
+	for _, s := range w.segments {
 		if s.size > 0 {
 			return true
 		}
@@ -427,16 +453,24 @@ func (w *WALManager) rotateLocked() error {
 	w.currentFile = f
 	w.currentBytes = 0
 	w.currentOffset = 0
+
+	w.segments = append(w.segments, segmentMeta{
+		path: filePath,
+		name: name,
+		seq:  w.currentSeq,
+		size: 0,
+	})
 	return nil
 }
 
-func (w *WALManager) listSegments() ([]segmentMeta, error) {
+func (w *WALManager) scanDirectory() ([]segmentMeta, int64, error) {
 	entries, err := os.ReadDir(w.dir)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var segments []segmentMeta
+	var totalSize int64
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -452,11 +486,13 @@ func (w *WALManager) listSegments() ([]segmentMeta, error) {
 			if err != nil {
 				continue
 			}
+			sz := info.Size()
+			totalSize += sz
 			segments = append(segments, segmentMeta{
 				path: filepath.Join(w.dir, name),
 				name: name,
 				seq:  seq,
-				size: info.Size(),
+				size: sz,
 			})
 		}
 	}
@@ -465,31 +501,28 @@ func (w *WALManager) listSegments() ([]segmentMeta, error) {
 		return segments[i].seq < segments[j].seq
 	})
 
-	return segments, nil
+	return segments, totalSize, nil
 }
 
 func (w *WALManager) enforceQuotaLocked() {
-	segments, err := w.listSegments()
-	if err != nil || len(segments) <= 1 {
+	if w.totalSpoolBytes <= w.maxTotalSpool || len(w.segments) <= 1 {
 		return
 	}
 
-	var totalSize int64
-	for _, s := range segments {
-		totalSize += s.size
-	}
-
-	// Purge oldest segments until totalSize is within maxTotalSpool
-	for totalSize > w.maxTotalSpool && len(segments) > 1 {
-		oldest := segments[0]
+	// Purge oldest segments until totalSpoolBytes is within maxTotalSpool
+	for w.totalSpoolBytes > w.maxTotalSpool && len(w.segments) > 1 {
+		oldest := w.segments[0]
 		// Don't remove the currently active write file
 		if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == oldest.name {
 			break
 		}
 
 		_ = os.Remove(oldest.path)
-		totalSize -= oldest.size
-		segments = segments[1:]
+		w.totalSpoolBytes -= oldest.size
+		w.segments = w.segments[1:]
+	}
+	if w.totalSpoolBytes < 0 {
+		w.totalSpoolBytes = 0
 	}
 }
 

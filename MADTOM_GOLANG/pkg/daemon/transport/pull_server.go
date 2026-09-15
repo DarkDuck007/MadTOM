@@ -10,6 +10,7 @@ import (
 
 	"github.com/DarkDuck007/madtom/pkg/daemon/collector"
 	"github.com/DarkDuck007/madtom/pkg/daemon/spool"
+	"github.com/DarkDuck007/madtom/pkg/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -19,17 +20,19 @@ import (
 // PullServer provides a gRPC listener for the collector to scrape pending telemetry batches.
 type PullServer struct {
 	madtomv1.UnimplementedIngestServiceServer
-	mu       sync.RWMutex
-	port     int
-	nodeID   string
-	wal      *spool.WALManager
-	engine   *collector.Engine
-	config   *madtomv1.NodeConfig
-	server   *grpc.Server
-	listener net.Listener
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
-	streamMu sync.Mutex
+	mu              sync.RWMutex
+	port            int
+	nodeID          string
+	wal             *spool.WALManager
+	engine          *collector.Engine
+	config          *madtomv1.NodeConfig
+	server          *grpc.Server
+	listener        net.Listener
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
+	streamMu        sync.Mutex
+	hasActiveStream bool
+	lastActive      time.Time
 }
 
 // NewPullServer creates a new PullServer instance.
@@ -38,11 +41,12 @@ func NewPullServer(port int, nodeID string, wal *spool.WALManager, engine *colle
 		cfg = collector.DefaultConfig(nodeID)
 	}
 	return &PullServer{
-		port:   port,
-		nodeID: nodeID,
-		wal:    wal,
-		engine: engine,
-		config: cfg,
+		port:       port,
+		nodeID:     nodeID,
+		wal:        wal,
+		engine:     engine,
+		config:     cfg,
+		lastActive: time.Now(),
 	}
 }
 
@@ -61,8 +65,15 @@ func (s *PullServer) Start() error {
 		for {
 			s.mu.Lock()
 			cfg := s.config
+			hasActiveClient := s.hasActiveStream || time.Since(s.lastActive) < 15*time.Second
 			s.mu.Unlock()
-			_, _ = s.wal.WriteMetrics([]*madtomv1.SystemMetrics{s.engine.Collect(cfg)})
+
+			sample := s.engine.Collect(cfg)
+			if !hasActiveClient && cfg != nil {
+				optin.StripMonitorOnlyMetrics(sample, cfg)
+			}
+
+			_, _ = s.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample})
 			if !wait(ctx, pollInterval(cfg)) {
 				return
 			}
@@ -98,6 +109,7 @@ func (s *PullServer) PollTelemetry(ctx context.Context, req *madtomv1.PollReques
 	defer func() { log.Printf("[Poll] Request for %q finished in %s", req.NodeId, time.Since(started)) }()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.lastActive = time.Now()
 	if err := ctx.Err(); err != nil {
 		return nil, status.FromContextError(err).Err()
 	}
@@ -160,10 +172,17 @@ func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBat
 		return status.Errorf(codes.InvalidArgument, "node ID mismatch: collector requested %q, daemon is %q; configure the collector target with the daemon node ID", hello.NodeId, s.nodeID)
 	}
 	s.mu.Lock()
+	s.hasActiveStream = true
+	s.lastActive = time.Now()
 	if hello.Config != nil {
 		s.config = hello.Config
 	}
 	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.hasActiveStream = false
+		s.mu.Unlock()
+	}()
 	for {
 		batch, err := s.wal.ReadBatchChunk(spool.DefaultChunkMaxSamples)
 		if err != nil {
@@ -189,6 +208,7 @@ func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBat
 			return err
 		}
 		s.mu.Lock()
+		s.lastActive = time.Now()
 		if ack.Config != nil {
 			s.config = ack.Config
 		}

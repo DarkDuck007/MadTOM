@@ -53,6 +53,24 @@ message MemoryMetrics {
   double zram_ratio = 12;
   uint64 pgfault_sec = 13;
   uint64 pgmajfault_sec = 14;
+  uint64 swap_used_bytes = 15;
+  repeated SwapDevice swap_devices = 16;
+  repeated ZramDevice zram_devices = 17;
+}
+
+message SwapDevice {
+  string name = 1;
+  uint64 total_bytes = 2;
+  uint64 used_bytes = 3;
+  uint32 priority = 4;
+}
+
+message ZramDevice {
+  string name = 1;           // e.g. "zram0"
+  uint64 disksize_bytes = 2; // virtual device disk size
+  uint64 orig_data_bytes = 3; // uncompressed original data size
+  uint64 compr_data_bytes = 4; // compressed data size
+  uint64 mem_used_bytes = 5; // total memory consumed including metadata
 }
 
 // PowerMetrics details AC line power, battery state, health and draw.

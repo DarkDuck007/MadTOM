@@ -154,9 +154,20 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                 node.RamTotal = $"{Math.Round((double)s.Memory.MemTotalBytes / (1024 * 1024 * 1024), 1)} GB";
                 node.ZramRatio = Math.Round(s.Memory.ZramRatio, 2);
 
+                if (s.Memory.SwapDevices != null && s.Memory.SwapDevices.Count > 0)
+                {
+                    node.SwapDevices = s.Memory.SwapDevices.ToArray();
+                }
+                if (s.Memory.ZramDevices != null && s.Memory.ZramDevices.Count > 0)
+                {
+                    node.ZramDevices = s.Memory.ZramDevices.ToArray();
+                }
+
                 if (s.Memory.SwapTotalBytes > 0)
                 {
-                    double swapUsed = (double)(s.Memory.SwapTotalBytes - Math.Min(s.Memory.SwapTotalBytes, s.Memory.SwapFreeBytes));
+                    double swapUsed = s.Memory.SwapUsedBytes > 0 
+                        ? s.Memory.SwapUsedBytes 
+                        : (double)(s.Memory.SwapTotalBytes - Math.Min(s.Memory.SwapTotalBytes, s.Memory.SwapFreeBytes));
                     node.SwapUsedPct = Math.Round((swapUsed / s.Memory.SwapTotalBytes) * 100.0, 1);
                 }
 
@@ -198,6 +209,10 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                 node.LatestMetricValues["cpu.user"] = s.Cpu.UserPct;
                 node.LatestMetricValues["cpu.system"] = s.Cpu.SystemPct;
                 node.LatestMetricValues["cpu.iowait"] = s.Cpu.IowaitPct;
+                for (int i = 0; i < s.Cpu.PerCorePct.Count; i++)
+                {
+                    node.LatestMetricValues[$"cpu.core.{i}"] = s.Cpu.PerCorePct[i];
+                }
             }
             if (s.Memory != null)
             {
@@ -205,8 +220,35 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                 node.LatestMetricValues["memory.available"] = s.Memory.MemAvailableBytes;
                 node.LatestMetricValues["memory.used"] = (double)(s.Memory.MemTotalBytes - Math.Min(s.Memory.MemTotalBytes, s.Memory.MemAvailableBytes));
                 node.LatestMetricValues["memory.swap_total"] = s.Memory.SwapTotalBytes;
-                node.LatestMetricValues["memory.swap_free"] = s.Memory.SwapFreeBytes;
-                node.LatestMetricValues["memory.zram_ratio"] = s.Memory.ZramRatio;
+                node.LatestMetricValues["memory.swap_used"] = s.Memory.SwapUsedBytes > 0 
+                    ? s.Memory.SwapUsedBytes 
+                    : (double)(s.Memory.SwapTotalBytes - Math.Min(s.Memory.SwapTotalBytes, s.Memory.SwapFreeBytes));
+
+                if (s.Memory.SwapDevices != null)
+                {
+                    foreach (var swapDev in s.Memory.SwapDevices)
+                    {
+                        if (swapDev != null && !string.IsNullOrEmpty(swapDev.Name))
+                        {
+                            node.LatestMetricValues[$"swap.{swapDev.Name}.total_bytes"] = swapDev.TotalBytes;
+                            node.LatestMetricValues[$"swap.{swapDev.Name}.used_bytes"] = swapDev.UsedBytes;
+                        }
+                    }
+                }
+
+                if (s.Memory.ZramDevices != null)
+                {
+                    foreach (var zramDev in s.Memory.ZramDevices)
+                    {
+                        if (zramDev != null && !string.IsNullOrEmpty(zramDev.Name))
+                        {
+                            node.LatestMetricValues[$"zram.{zramDev.Name}.disksize_bytes"] = zramDev.DisksizeBytes;
+                            node.LatestMetricValues[$"zram.{zramDev.Name}.mem_used_bytes"] = zramDev.MemUsedBytes;
+                            node.LatestMetricValues[$"zram.{zramDev.Name}.orig_data_bytes"] = zramDev.OrigDataBytes;
+                            node.LatestMetricValues[$"zram.{zramDev.Name}.compr_data_bytes"] = zramDev.ComprDataBytes;
+                        }
+                    }
+                }
             }
             if (s.Power != null)
             {
@@ -321,6 +363,20 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
         var node = GetNode(hostId);
         var client = node == null ? null : _collectorManager.GetClientForNode(node);
         return client == null ? Array.Empty<LODPoint>() : await client.QueryRangeAsync(hostId, metric, start, end, ct: ct);
+    }
+
+    public async Task<NodeConfig?> GetNodeConfigAsync(string hostId, CancellationToken ct = default)
+    {
+        var node = GetNode(hostId);
+        var client = node == null ? null : _collectorManager.GetClientForNode(node);
+        return client == null ? null : await client.GetNodeConfigAsync(hostId, ct);
+    }
+
+    public async Task<bool> UpdateNodeConfigAsync(string hostId, NodeConfig cfg, CancellationToken ct = default)
+    {
+        var node = GetNode(hostId);
+        var client = node == null ? null : _collectorManager.GetClientForNode(node);
+        return client != null && await client.UpdateNodeConfigAsync(hostId, cfg, ct);
     }
     public IReadOnlyList<DropRuleModel> GetDropRules(string hostId) => Array.Empty<DropRuleModel>();
     public IReadOnlyList<RegionTrafficModel> GetRegions(string hostId) => Array.Empty<RegionTrafficModel>();

@@ -23,6 +23,10 @@ This document provides a technical brief on the internal architecture, transport
   - [TWAMP Light Latency Measurement (RFC 5357)](#twamp-light-latency-measurement-rfc-5357)
     - [Packet Structure \& Timestamping](#packet-structure--timestamping)
     - [One-Way vs. Round-Trip Calculation](#one-way-vs-round-trip-calculation)
+  - [3-Tier Metric Opt-In System \& Data Model](#3-tier-metric-opt-in-system--data-model)
+    - [Opt-In Operating Modes](#opt-in-operating-modes)
+    - [Swap \& Multi-Device ZRAM Storage](#swap--multi-device-zram-storage)
+    - [Per-Core CPU Visualization](#per-core-cpu-visualization)
 
 ---
 
@@ -98,10 +102,12 @@ To guarantee zero data loss during network outages, reboots, or collector downti
 - Every metric sample collected is appended to a local WAL file (`segment-{seq}.wal`).
 - Segments remain safely on disk until an explicit `BatchAck` is received from the collector confirming persistent ingestion.
 - Upon reconnection, the daemon automatically replays pending segments in sequence order.
+- **In-Memory Segment Indexing**: Segment metadata and total spool capacity are maintained in-memory for $O(1)$ amortized append and eviction operations, avoiding filesystem directory scans and stat syscalls during collection ticks.
+- **Offline Efficiency**: When disconnected in `PROCESS_MODE_LIVE_ONLY`, bulky process snapshots are suppressed from offline disk spooling to prevent storage and memory exhaustion, preserving standard system telemetry metrics for backlog replay. Reconnection uses exponential backoff to minimize idle CPU and network strain.
 
 ### Bounded Quotas & Eviction
 - Spool capacity is bounded by `-max-spool-mb` (default: 1024 MB = 1 GB).
-- If disk space exceeds the quota while offline, the oldest unacknowledged segments are evicted circular-style to protect endpoint storage.
+- If disk space exceeds the quota while offline, the oldest unacknowledged segments are evicted circular-style to protect endpoint storage without re-scanning the directory.
 
 ### Optional Zstandard Compression
 - Passing `-zstd=true` on the daemon activates transparent Zstandard compression for on-disk WAL records and in-flight gRPC streams, cutting network bandwidth and disk usage by ~70%.
@@ -141,4 +147,36 @@ MADTOM integrates native **TWAMP Light** (Two-Way Active Measurement Protocol) u
   - Forward: $T_2 - T_1$
   - Reverse: $T_4 - T_3$
   - Only evaluated when `-twamp-clocks-synchronized=true` is asserted and the reflector's synchronization bit is set.
+
+---
+
+## 3-Tier Metric Opt-In System & Data Model
+
+To optimize endpoint resource consumption and storage scalability across large clusters, MADTOM implements a granular **3-tier opt-in telemetry model** across both the Go daemon/collector and .NET Avalonia dashboard.
+
+### Opt-In Operating Modes
+
+Every metric subsystem and individual hardware device (NICs, CPU cores, swap partitions, ZRAM devices, power sensors) supports three distinct operation modes:
+
+| Mode | Enum Value | Description & Storage Semantics |
+|---|---|---|
+| **Off** | `0` (`OPT_IN_OFF`) | Probe is completely disabled. No CPU syscalls, no network packets, zero overhead. |
+| **Monitor Only** | `1` (`OPT_IN_MONITOR_ONLY`) | Streamed live at 1 Hz over gRPC streams when an operator is actively viewing the node in the UI. **Zero disk writes**: stripped from offline WAL spool (`segment-*.wal`) and ignored by collector TSDB ingestion. |
+| **Monitor & Store** | `2` (`OPT_IN_MONITOR_AND_STORE`) | Streamed live to the dashboard **and** durably committed to the collector's Pebble TSDB (and buffered in daemon WAL spool during offline disconnected periods). |
+
+> [!IMPORTANT]
+> When a daemon is offline or has no connected subscribers, `optin.StripMonitorOnlyMetrics` strips all `OPT_IN_MONITOR_ONLY` metrics before writing to the WAL spool, ensuring that offline backlog buffers only store essential metrics meant for long-term historical analysis.
+
+### Swap & Multi-Device ZRAM Storage
+
+To avoid redundant disk writes and eliminate counter drift:
+- **Swap Partitions**: Captured from `/proc/swaps` with per-device entries (`swap.<dev>.total_bytes`, `swap.<dev>.used_bytes`).
+- **Swap Optimization**: TSDB persists `swap_total` and `swap_used`. Redundant metrics like `swap_free` are never persisted to disk; they are derived on-the-fly dynamically ($\text{SwapTotal} - \text{SwapUsed}$).
+- **Multi-Device ZRAM**: Supports multiple concurrent ZRAM devices (e.g. `zram0`, `zram1`) matching `zramctl`. Records `disksize_bytes` (virtual size), `mem_used_bytes` (actual memory overhead), `orig_data_bytes` (uncompressed size), and `compr_data_bytes` (compressed size). Compression ratio ($\text{orig} / \text{compr}$) is calculated dynamically and never written to TSDB.
+
+### Per-Core CPU Visualization
+
+- Individual per-core metrics (`cpu.core.0`, `cpu.core.1`, ..., `cpu.core.N`) are available as dedicated chart series and can be individually configured for `Off`, `Monitor Only`, or `Monitor & Store`.
+- In the dashboard graph customization modal, attempting to add a metric that is currently set to `Off` on a node displays an inline opt-in prompt (`[Monitor Only]` vs. `[Monitor & Store]`), updating the node's remote daemon configuration via gRPC and adding the visual graph in a single seamless action.
+
 

@@ -3,6 +3,8 @@ package collector
 import (
 	"bufio"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,8 +49,9 @@ func (m *MemoryCollector) Collect(includeSwapZram bool) *madtomv1.MemoryMetrics 
 		metrics.PgmajfaultSec = uint64(float64(curPgMajFlt-m.lastPgMajFlt) / elapsedSec)
 	}
 
-	// ZRAM metrics
+	// ZRAM & Swap partition metrics
 	if includeSwapZram {
+		m.readSwaps(metrics)
 		m.readZram(metrics)
 	}
 
@@ -105,6 +108,10 @@ func (m *MemoryCollector) readMeminfo(metrics *madtomv1.MemoryMetrics) {
 			metrics.SwapFreeBytes = bytes
 		}
 	}
+
+	if metrics.SwapTotalBytes >= metrics.SwapFreeBytes {
+		metrics.SwapUsedBytes = metrics.SwapTotalBytes - metrics.SwapFreeBytes
+	}
 }
 
 func (m *MemoryCollector) readVmstatFaults() (uint64, uint64) {
@@ -130,30 +137,99 @@ func (m *MemoryCollector) readVmstatFaults() (uint64, uint64) {
 	return pgfault, pgmajfault
 }
 
-func (m *MemoryCollector) readZram(metrics *madtomv1.MemoryMetrics) {
-	// Check /sys/block/zram0/mm_stat
-	// Columns: orig_data_size compr_data_size mem_used_total mem_limit max_used_total same_pages pages_compacted ...
-	data, err := os.ReadFile("/sys/block/zram0/mm_stat")
-	if err == nil {
-		fields := strings.Fields(string(data))
-		if len(fields) >= 2 {
-			metrics.ZramOrigBytes, _ = strconv.ParseUint(fields[0], 10, 64)
-			metrics.ZramComprBytes, _ = strconv.ParseUint(fields[1], 10, 64)
-			if metrics.ZramComprBytes > 0 {
-				metrics.ZramRatio = float64(metrics.ZramOrigBytes) / float64(metrics.ZramComprBytes)
-			}
-		}
+func (m *MemoryCollector) readSwaps(metrics *madtomv1.MemoryMetrics) {
+	file, err := os.Open("/proc/swaps")
+	if err != nil {
 		return
 	}
+	defer file.Close()
 
-	// Fallback to separate files if mm_stat is not present
-	origBytes, err1 := os.ReadFile("/sys/block/zram0/orig_data_size")
-	comprBytes, err2 := os.ReadFile("/sys/block/zram0/compr_data_size")
-	if err1 == nil && err2 == nil {
-		metrics.ZramOrigBytes, _ = strconv.ParseUint(strings.TrimSpace(string(origBytes)), 10, 64)
-		metrics.ZramComprBytes, _ = strconv.ParseUint(strings.TrimSpace(string(comprBytes)), 10, 64)
-		if metrics.ZramComprBytes > 0 {
-			metrics.ZramRatio = float64(metrics.ZramOrigBytes) / float64(metrics.ZramComprBytes)
+	scanner := bufio.NewScanner(file)
+	// Skip header line
+	if scanner.Scan() {
+		_ = scanner.Text()
+	}
+
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 5 {
+			continue
 		}
+		filePath := fields[0]
+		devName := strings.TrimPrefix(filePath, "/dev/")
+		if strings.HasPrefix(devName, "/") {
+			devName = strings.TrimPrefix(devName, "/")
+		}
+		if devName == "" {
+			devName = filePath
+		}
+
+		sizeKb, err1 := strconv.ParseUint(fields[2], 10, 64)
+		usedKb, err2 := strconv.ParseUint(fields[3], 10, 64)
+		prio, _ := strconv.ParseInt(fields[4], 10, 32)
+
+		if err1 == nil && err2 == nil {
+			metrics.SwapDevices = append(metrics.SwapDevices, &madtomv1.SwapDevice{
+				Name:       devName,
+				TotalBytes: sizeKb * 1024,
+				UsedBytes:  usedKb * 1024,
+				Priority:   uint32(prio),
+			})
+		}
+	}
+}
+
+func (m *MemoryCollector) readZram(metrics *madtomv1.MemoryMetrics) {
+	matches, err := filepath.Glob("/sys/block/zram*")
+	if err != nil || len(matches) == 0 {
+		return
+	}
+	sort.Strings(matches)
+
+	var totalOrig, totalCompr uint64
+
+	for _, dir := range matches {
+		devName := filepath.Base(dir)
+		var disksize, origBytes, comprBytes, memUsed uint64
+
+		if data, err := os.ReadFile(filepath.Join(dir, "disksize")); err == nil {
+			disksize, _ = strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
+		}
+
+		if data, err := os.ReadFile(filepath.Join(dir, "mm_stat")); err == nil {
+			fields := strings.Fields(string(data))
+			if len(fields) >= 3 {
+				origBytes, _ = strconv.ParseUint(fields[0], 10, 64)
+				comprBytes, _ = strconv.ParseUint(fields[1], 10, 64)
+				memUsed, _ = strconv.ParseUint(fields[2], 10, 64)
+			}
+		} else {
+			if b, err := os.ReadFile(filepath.Join(dir, "orig_data_size")); err == nil {
+				origBytes, _ = strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
+			}
+			if b, err := os.ReadFile(filepath.Join(dir, "compr_data_size")); err == nil {
+				comprBytes, _ = strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
+			}
+			if b, err := os.ReadFile(filepath.Join(dir, "mem_used_total")); err == nil {
+				memUsed, _ = strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
+			}
+		}
+
+		metrics.ZramDevices = append(metrics.ZramDevices, &madtomv1.ZramDevice{
+			Name:           devName,
+			DisksizeBytes:  disksize,
+			OrigDataBytes:  origBytes,
+			ComprDataBytes: comprBytes,
+			MemUsedBytes:   memUsed,
+		})
+
+		totalOrig += origBytes
+		totalCompr += comprBytes
+	}
+
+	metrics.ZramOrigBytes = totalOrig
+	metrics.ZramComprBytes = totalCompr
+	if totalCompr > 0 {
+		metrics.ZramRatio = float64(totalOrig) / float64(totalCompr)
 	}
 }

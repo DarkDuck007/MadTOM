@@ -18,6 +18,9 @@ public interface ITelemetryDataProvider : IDisposable
     
     System.Threading.Tasks.Task<IReadOnlyList<LODPoint>> QueryHistoryAsync(string hostId, string metric, DateTime start, DateTime end, System.Threading.CancellationToken ct = default) => System.Threading.Tasks.Task.FromResult<IReadOnlyList<LODPoint>>(Array.Empty<LODPoint>());
 
+    System.Threading.Tasks.Task<MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig?> GetNodeConfigAsync(string hostId, System.Threading.CancellationToken ct = default) => System.Threading.Tasks.Task.FromResult<MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig?>(null);
+    System.Threading.Tasks.Task<bool> UpdateNodeConfigAsync(string hostId, MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig cfg, System.Threading.CancellationToken ct = default) => System.Threading.Tasks.Task.FromResult(false);
+
     void SendSignal(string hostId, int pid, int signal);
     void PauseLogs(bool paused);
     void ClearLogs();

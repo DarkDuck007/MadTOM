@@ -304,6 +304,9 @@ type MemoryMetrics struct {
 	ZramRatio         float64                `protobuf:"fixed64,12,opt,name=zram_ratio,json=zramRatio,proto3" json:"zram_ratio,omitempty"`
 	PgfaultSec        uint64                 `protobuf:"varint,13,opt,name=pgfault_sec,json=pgfaultSec,proto3" json:"pgfault_sec,omitempty"`
 	PgmajfaultSec     uint64                 `protobuf:"varint,14,opt,name=pgmajfault_sec,json=pgmajfaultSec,proto3" json:"pgmajfault_sec,omitempty"`
+	SwapUsedBytes     uint64                 `protobuf:"varint,15,opt,name=swap_used_bytes,json=swapUsedBytes,proto3" json:"swap_used_bytes,omitempty"`
+	SwapDevices       []*SwapDevice          `protobuf:"bytes,16,rep,name=swap_devices,json=swapDevices,proto3" json:"swap_devices,omitempty"`
+	ZramDevices       []*ZramDevice          `protobuf:"bytes,17,rep,name=zram_devices,json=zramDevices,proto3" json:"zram_devices,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -436,6 +439,171 @@ func (x *MemoryMetrics) GetPgmajfaultSec() uint64 {
 	return 0
 }
 
+func (x *MemoryMetrics) GetSwapUsedBytes() uint64 {
+	if x != nil {
+		return x.SwapUsedBytes
+	}
+	return 0
+}
+
+func (x *MemoryMetrics) GetSwapDevices() []*SwapDevice {
+	if x != nil {
+		return x.SwapDevices
+	}
+	return nil
+}
+
+func (x *MemoryMetrics) GetZramDevices() []*ZramDevice {
+	if x != nil {
+		return x.ZramDevices
+	}
+	return nil
+}
+
+type SwapDevice struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	TotalBytes    uint64                 `protobuf:"varint,2,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	UsedBytes     uint64                 `protobuf:"varint,3,opt,name=used_bytes,json=usedBytes,proto3" json:"used_bytes,omitempty"`
+	Priority      uint32                 `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwapDevice) Reset() {
+	*x = SwapDevice{}
+	mi := &file_madtom_v1_metrics_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapDevice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapDevice) ProtoMessage() {}
+
+func (x *SwapDevice) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_metrics_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapDevice.ProtoReflect.Descriptor instead.
+func (*SwapDevice) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SwapDevice) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SwapDevice) GetTotalBytes() uint64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+func (x *SwapDevice) GetUsedBytes() uint64 {
+	if x != nil {
+		return x.UsedBytes
+	}
+	return 0
+}
+
+func (x *SwapDevice) GetPriority() uint32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+type ZramDevice struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                              // e.g. "zram0"
+	DisksizeBytes  uint64                 `protobuf:"varint,2,opt,name=disksize_bytes,json=disksizeBytes,proto3" json:"disksize_bytes,omitempty"`      // virtual device disk size
+	OrigDataBytes  uint64                 `protobuf:"varint,3,opt,name=orig_data_bytes,json=origDataBytes,proto3" json:"orig_data_bytes,omitempty"`    // uncompressed original data size
+	ComprDataBytes uint64                 `protobuf:"varint,4,opt,name=compr_data_bytes,json=comprDataBytes,proto3" json:"compr_data_bytes,omitempty"` // compressed data size
+	MemUsedBytes   uint64                 `protobuf:"varint,5,opt,name=mem_used_bytes,json=memUsedBytes,proto3" json:"mem_used_bytes,omitempty"`       // total memory consumed including metadata
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ZramDevice) Reset() {
+	*x = ZramDevice{}
+	mi := &file_madtom_v1_metrics_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZramDevice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZramDevice) ProtoMessage() {}
+
+func (x *ZramDevice) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_metrics_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZramDevice.ProtoReflect.Descriptor instead.
+func (*ZramDevice) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ZramDevice) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ZramDevice) GetDisksizeBytes() uint64 {
+	if x != nil {
+		return x.DisksizeBytes
+	}
+	return 0
+}
+
+func (x *ZramDevice) GetOrigDataBytes() uint64 {
+	if x != nil {
+		return x.OrigDataBytes
+	}
+	return 0
+}
+
+func (x *ZramDevice) GetComprDataBytes() uint64 {
+	if x != nil {
+		return x.ComprDataBytes
+	}
+	return 0
+}
+
+func (x *ZramDevice) GetMemUsedBytes() uint64 {
+	if x != nil {
+		return x.MemUsedBytes
+	}
+	return 0
+}
+
 // PowerMetrics details AC line power, battery state, health and draw.
 type PowerMetrics struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -454,7 +622,7 @@ type PowerMetrics struct {
 
 func (x *PowerMetrics) Reset() {
 	*x = PowerMetrics{}
-	mi := &file_madtom_v1_metrics_proto_msgTypes[3]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +634,7 @@ func (x *PowerMetrics) String() string {
 func (*PowerMetrics) ProtoMessage() {}
 
 func (x *PowerMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_metrics_proto_msgTypes[3]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,7 +647,7 @@ func (x *PowerMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PowerMetrics.ProtoReflect.Descriptor instead.
 func (*PowerMetrics) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{3}
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PowerMetrics) GetAcPlugged() bool {
@@ -555,7 +723,7 @@ type NetworkMetrics struct {
 
 func (x *NetworkMetrics) Reset() {
 	*x = NetworkMetrics{}
-	mi := &file_madtom_v1_metrics_proto_msgTypes[4]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -567,7 +735,7 @@ func (x *NetworkMetrics) String() string {
 func (*NetworkMetrics) ProtoMessage() {}
 
 func (x *NetworkMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_metrics_proto_msgTypes[4]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -580,7 +748,7 @@ func (x *NetworkMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkMetrics.ProtoReflect.Descriptor instead.
 func (*NetworkMetrics) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{4}
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *NetworkMetrics) GetInterfaces() []*NicMetric {
@@ -611,7 +779,7 @@ type NicMetric struct {
 
 func (x *NicMetric) Reset() {
 	*x = NicMetric{}
-	mi := &file_madtom_v1_metrics_proto_msgTypes[5]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -623,7 +791,7 @@ func (x *NicMetric) String() string {
 func (*NicMetric) ProtoMessage() {}
 
 func (x *NicMetric) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_metrics_proto_msgTypes[5]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +804,7 @@ func (x *NicMetric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NicMetric.ProtoReflect.Descriptor instead.
 func (*NicMetric) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{5}
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *NicMetric) GetName() string {
@@ -737,7 +905,7 @@ type ProcessMetric struct {
 
 func (x *ProcessMetric) Reset() {
 	*x = ProcessMetric{}
-	mi := &file_madtom_v1_metrics_proto_msgTypes[6]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -749,7 +917,7 @@ func (x *ProcessMetric) String() string {
 func (*ProcessMetric) ProtoMessage() {}
 
 func (x *ProcessMetric) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_metrics_proto_msgTypes[6]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -762,7 +930,7 @@ func (x *ProcessMetric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessMetric.ProtoReflect.Descriptor instead.
 func (*ProcessMetric) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{6}
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ProcessMetric) GetPid() int32 {
@@ -822,7 +990,7 @@ type TwampMetrics struct {
 
 func (x *TwampMetrics) Reset() {
 	*x = TwampMetrics{}
-	mi := &file_madtom_v1_metrics_proto_msgTypes[7]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -834,7 +1002,7 @@ func (x *TwampMetrics) String() string {
 func (*TwampMetrics) ProtoMessage() {}
 
 func (x *TwampMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_metrics_proto_msgTypes[7]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -847,7 +1015,7 @@ func (x *TwampMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TwampMetrics.ProtoReflect.Descriptor instead.
 func (*TwampMetrics) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{7}
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *TwampMetrics) GetTarget() string {
@@ -913,7 +1081,7 @@ type DiskIoMetrics struct {
 
 func (x *DiskIoMetrics) Reset() {
 	*x = DiskIoMetrics{}
-	mi := &file_madtom_v1_metrics_proto_msgTypes[8]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -925,7 +1093,7 @@ func (x *DiskIoMetrics) String() string {
 func (*DiskIoMetrics) ProtoMessage() {}
 
 func (x *DiskIoMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_metrics_proto_msgTypes[8]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -938,7 +1106,7 @@ func (x *DiskIoMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskIoMetrics.ProtoReflect.Descriptor instead.
 func (*DiskIoMetrics) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{8}
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DiskIoMetrics) GetReadBytes() uint64 {
@@ -989,7 +1157,7 @@ type DiskIoDevice struct {
 
 func (x *DiskIoDevice) Reset() {
 	*x = DiskIoDevice{}
-	mi := &file_madtom_v1_metrics_proto_msgTypes[9]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1001,7 +1169,7 @@ func (x *DiskIoDevice) String() string {
 func (*DiskIoDevice) ProtoMessage() {}
 
 func (x *DiskIoDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_metrics_proto_msgTypes[9]
+	mi := &file_madtom_v1_metrics_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1014,7 +1182,7 @@ func (x *DiskIoDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskIoDevice.ProtoReflect.Descriptor instead.
 func (*DiskIoDevice) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{9}
+	return file_madtom_v1_metrics_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DiskIoDevice) GetName() string {
@@ -1088,7 +1256,7 @@ const file_madtom_v1_metrics_proto_rawDesc = "" +
 	"\bload_15m\x18\t \x01(\x01R\aload15m\x12*\n" +
 	"\x11ctxt_switches_sec\x18\n" +
 	" \x01(\x04R\x0fctxtSwitchesSec\x12\"\n" +
-	"\rcore_freq_mhz\x18\v \x03(\rR\vcoreFreqMhz\"\xaa\x04\n" +
+	"\rcore_freq_mhz\x18\v \x03(\rR\vcoreFreqMhz\"\xc6\x05\n" +
 	"\rMemoryMetrics\x12&\n" +
 	"\x0fmem_total_bytes\x18\x01 \x01(\x04R\rmemTotalBytes\x12$\n" +
 	"\x0emem_free_bytes\x18\x02 \x01(\x04R\fmemFreeBytes\x12.\n" +
@@ -1107,7 +1275,25 @@ const file_madtom_v1_metrics_proto_rawDesc = "" +
 	"zram_ratio\x18\f \x01(\x01R\tzramRatio\x12\x1f\n" +
 	"\vpgfault_sec\x18\r \x01(\x04R\n" +
 	"pgfaultSec\x12%\n" +
-	"\x0epgmajfault_sec\x18\x0e \x01(\x04R\rpgmajfaultSec\"\xcc\x02\n" +
+	"\x0epgmajfault_sec\x18\x0e \x01(\x04R\rpgmajfaultSec\x12&\n" +
+	"\x0fswap_used_bytes\x18\x0f \x01(\x04R\rswapUsedBytes\x128\n" +
+	"\fswap_devices\x18\x10 \x03(\v2\x15.madtom.v1.SwapDeviceR\vswapDevices\x128\n" +
+	"\fzram_devices\x18\x11 \x03(\v2\x15.madtom.v1.ZramDeviceR\vzramDevices\"|\n" +
+	"\n" +
+	"SwapDevice\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1f\n" +
+	"\vtotal_bytes\x18\x02 \x01(\x04R\n" +
+	"totalBytes\x12\x1d\n" +
+	"\n" +
+	"used_bytes\x18\x03 \x01(\x04R\tusedBytes\x12\x1a\n" +
+	"\bpriority\x18\x04 \x01(\rR\bpriority\"\xbf\x01\n" +
+	"\n" +
+	"ZramDevice\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\x0edisksize_bytes\x18\x02 \x01(\x04R\rdisksizeBytes\x12&\n" +
+	"\x0forig_data_bytes\x18\x03 \x01(\x04R\rorigDataBytes\x12(\n" +
+	"\x10compr_data_bytes\x18\x04 \x01(\x04R\x0ecomprDataBytes\x12$\n" +
+	"\x0emem_used_bytes\x18\x05 \x01(\x04R\fmemUsedBytes\"\xcc\x02\n" +
 	"\fPowerMetrics\x12\x1d\n" +
 	"\n" +
 	"ac_plugged\x18\x01 \x01(\bR\tacPlugged\x12'\n" +
@@ -1191,34 +1377,38 @@ func file_madtom_v1_metrics_proto_rawDescGZIP() []byte {
 	return file_madtom_v1_metrics_proto_rawDescData
 }
 
-var file_madtom_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_madtom_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_madtom_v1_metrics_proto_goTypes = []any{
 	(*SystemMetrics)(nil),  // 0: madtom.v1.SystemMetrics
 	(*CpuMetrics)(nil),     // 1: madtom.v1.CpuMetrics
 	(*MemoryMetrics)(nil),  // 2: madtom.v1.MemoryMetrics
-	(*PowerMetrics)(nil),   // 3: madtom.v1.PowerMetrics
-	(*NetworkMetrics)(nil), // 4: madtom.v1.NetworkMetrics
-	(*NicMetric)(nil),      // 5: madtom.v1.NicMetric
-	(*ProcessMetric)(nil),  // 6: madtom.v1.ProcessMetric
-	(*TwampMetrics)(nil),   // 7: madtom.v1.TwampMetrics
-	(*DiskIoMetrics)(nil),  // 8: madtom.v1.DiskIoMetrics
-	(*DiskIoDevice)(nil),   // 9: madtom.v1.DiskIoDevice
+	(*SwapDevice)(nil),     // 3: madtom.v1.SwapDevice
+	(*ZramDevice)(nil),     // 4: madtom.v1.ZramDevice
+	(*PowerMetrics)(nil),   // 5: madtom.v1.PowerMetrics
+	(*NetworkMetrics)(nil), // 6: madtom.v1.NetworkMetrics
+	(*NicMetric)(nil),      // 7: madtom.v1.NicMetric
+	(*ProcessMetric)(nil),  // 8: madtom.v1.ProcessMetric
+	(*TwampMetrics)(nil),   // 9: madtom.v1.TwampMetrics
+	(*DiskIoMetrics)(nil),  // 10: madtom.v1.DiskIoMetrics
+	(*DiskIoDevice)(nil),   // 11: madtom.v1.DiskIoDevice
 }
 var file_madtom_v1_metrics_proto_depIdxs = []int32{
-	1, // 0: madtom.v1.SystemMetrics.cpu:type_name -> madtom.v1.CpuMetrics
-	2, // 1: madtom.v1.SystemMetrics.memory:type_name -> madtom.v1.MemoryMetrics
-	3, // 2: madtom.v1.SystemMetrics.power:type_name -> madtom.v1.PowerMetrics
-	4, // 3: madtom.v1.SystemMetrics.network:type_name -> madtom.v1.NetworkMetrics
-	6, // 4: madtom.v1.SystemMetrics.processes:type_name -> madtom.v1.ProcessMetric
-	7, // 5: madtom.v1.SystemMetrics.twamp:type_name -> madtom.v1.TwampMetrics
-	8, // 6: madtom.v1.SystemMetrics.disk_io:type_name -> madtom.v1.DiskIoMetrics
-	5, // 7: madtom.v1.NetworkMetrics.interfaces:type_name -> madtom.v1.NicMetric
-	9, // 8: madtom.v1.DiskIoMetrics.devices:type_name -> madtom.v1.DiskIoDevice
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	1,  // 0: madtom.v1.SystemMetrics.cpu:type_name -> madtom.v1.CpuMetrics
+	2,  // 1: madtom.v1.SystemMetrics.memory:type_name -> madtom.v1.MemoryMetrics
+	5,  // 2: madtom.v1.SystemMetrics.power:type_name -> madtom.v1.PowerMetrics
+	6,  // 3: madtom.v1.SystemMetrics.network:type_name -> madtom.v1.NetworkMetrics
+	8,  // 4: madtom.v1.SystemMetrics.processes:type_name -> madtom.v1.ProcessMetric
+	9,  // 5: madtom.v1.SystemMetrics.twamp:type_name -> madtom.v1.TwampMetrics
+	10, // 6: madtom.v1.SystemMetrics.disk_io:type_name -> madtom.v1.DiskIoMetrics
+	3,  // 7: madtom.v1.MemoryMetrics.swap_devices:type_name -> madtom.v1.SwapDevice
+	4,  // 8: madtom.v1.MemoryMetrics.zram_devices:type_name -> madtom.v1.ZramDevice
+	7,  // 9: madtom.v1.NetworkMetrics.interfaces:type_name -> madtom.v1.NicMetric
+	11, // 10: madtom.v1.DiskIoMetrics.devices:type_name -> madtom.v1.DiskIoDevice
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_metrics_proto_init() }
@@ -1232,7 +1422,7 @@ func file_madtom_v1_metrics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_madtom_v1_metrics_proto_rawDesc), len(file_madtom_v1_metrics_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

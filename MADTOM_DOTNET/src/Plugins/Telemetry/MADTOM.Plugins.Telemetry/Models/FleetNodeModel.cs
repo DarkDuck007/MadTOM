@@ -47,6 +47,8 @@ public sealed partial class FleetNodeModel : ObservableObject
     public System.Collections.Generic.IReadOnlyList<ProcessInfoModel> Processes { get; set; } = Array.Empty<ProcessInfoModel>();
     public System.Collections.Generic.IReadOnlyList<MADTOM.Plugins.Telemetry.Proto.V1.NicMetric> Interfaces { get; set; } = Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.NicMetric>();
     public System.Collections.Generic.IReadOnlyList<MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice> Disks { get; set; } = Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice>();
+    public System.Collections.Generic.IReadOnlyList<MADTOM.Plugins.Telemetry.Proto.V1.SwapDevice> SwapDevices { get; set; } = Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.SwapDevice>();
+    public System.Collections.Generic.IReadOnlyList<MADTOM.Plugins.Telemetry.Proto.V1.ZramDevice> ZramDevices { get; set; } = Array.Empty<MADTOM.Plugins.Telemetry.Proto.V1.ZramDevice>();
     public bool ProcessesAvailable { get; set; }
 
     [ObservableProperty]

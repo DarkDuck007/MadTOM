@@ -71,6 +71,39 @@ public sealed class GlobalMetricsStore
                 };
             }
         }
+        else if (key.StartsWith("cpu.core.", StringComparison.OrdinalIgnoreCase))
+        {
+            string coreIdx = key.Substring("cpu.core.".Length);
+            return new MetricDefinition(key, $"CPU Core {coreIdx}", $"Core {coreIdx}", "⚙", "%");
+        }
+        else if (key.Equals("memory.swap_used", StringComparison.OrdinalIgnoreCase))
+        {
+            return new MetricDefinition(key, "Swap Memory Used", "Swap Used", "💾", "B");
+        }
+        else if (key.Equals("memory.swap_total", StringComparison.OrdinalIgnoreCase))
+        {
+            return new MetricDefinition(key, "Swap Total Size", "Swap Total", "💾", "B");
+        }
+        else if (key.StartsWith("swap.", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = key.Split('.');
+            if (parts.Length >= 3)
+            {
+                string dev = parts[1];
+                string type = parts[2].Replace("_", " ");
+                return new MetricDefinition(key, $"Swap {dev} ({type})", $"{dev} {type}", "💾", "B");
+            }
+        }
+        else if (key.StartsWith("zram.", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = key.Split('.');
+            if (parts.Length >= 3)
+            {
+                string dev = parts[1];
+                string type = parts[2].Replace("_", " ");
+                return new MetricDefinition(key, $"ZRAM {dev} ({type})", $"{dev} {type}", "🗜", "B");
+            }
+        }
 
         return new MetricDefinition(key, key, key, "📊", "");
     }

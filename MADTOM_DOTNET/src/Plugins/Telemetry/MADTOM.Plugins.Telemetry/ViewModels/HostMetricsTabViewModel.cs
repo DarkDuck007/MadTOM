@@ -6,8 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MadTOM.Common;
 using MadTOM.Models;
 using MadTOM.Services;
+using MADTOM.Plugins.Telemetry.Proto.V1;
 
 namespace MadTOM.ViewModels;
 
@@ -97,10 +99,15 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public ObservableCollection<ProcessInfoModel> FilteredSelectableProcesses { get; } = new();
     [ObservableProperty] private ProcessInfoModel? _selectedCustomProcess;
 
+    [ObservableProperty] private bool _isOptInPromptOpen;
+    [ObservableProperty] private string _optInPromptMetric = string.Empty;
+    [ObservableProperty] private string _optInPromptHostId = string.Empty;
+    [ObservableProperty] private bool _isOptInProcessing;
+
     private static readonly string[] BaseMetrics = new[]
     {
         "cpu.total", "cpu.user", "cpu.system", "cpu.iowait",
-        "memory.used", "memory.available", "memory.total", "memory.swap_free", "memory.zram_ratio",
+        "memory.used", "memory.available", "memory.total", "memory.swap_used", "memory.swap_total",
         "power.battery_pct", "power.rate_watts",
         "twamp.rtt", "twamp.forward", "twamp.reverse",
         "disk.io.read_bytes", "disk.io.write_bytes", "disk.io.read_ops", "disk.io.write_ops"
@@ -249,6 +256,36 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             }
         }
 
+        int coreCount = IsAggregatedMode 
+            ? (allNodes.Count > 0 ? allNodes.Max(n => n.Cores) : 0) 
+            : (node?.Cores ?? 0);
+        for (int c = 0; c < coreCount; c++)
+        {
+            AvailableMetrics.Add($"cpu.core.{c}");
+        }
+
+        var swapDevs = (IsAggregatedMode ? allNodes.SelectMany(n => n.SwapDevices) : (node?.SwapDevices ?? Array.Empty<SwapDevice>()))
+            .Select(d => d.Name)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct();
+        foreach (var name in swapDevs)
+        {
+            AvailableMetrics.Add($"swap.{name}.total_bytes");
+            AvailableMetrics.Add($"swap.{name}.used_bytes");
+        }
+
+        var zramDevs = (IsAggregatedMode ? allNodes.SelectMany(n => n.ZramDevices) : (node?.ZramDevices ?? Array.Empty<ZramDevice>()))
+            .Select(d => d.Name)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct();
+        foreach (var name in zramDevs)
+        {
+            AvailableMetrics.Add($"zram.{name}.disksize_bytes");
+            AvailableMetrics.Add($"zram.{name}.mem_used_bytes");
+            AvailableMetrics.Add($"zram.{name}.orig_data_bytes");
+            AvailableMetrics.Add($"zram.{name}.compr_data_bytes");
+        }
+
         AvailableMetrics.Add("process.breakdown");
         AvailableMetrics.Add("custom.process");
 
@@ -270,7 +307,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    public void AddGraph()
+    public async Task AddGraphAsync()
     {
         if (string.IsNullOrWhiteSpace(SelectedMetric)) return;
         if (SelectedMetric == "process.breakdown")
@@ -283,12 +320,77 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             OpenCustomProcessSelector();
             return;
         }
-        bool isRate = IsAddMetricRateOfChange;
-        string label = isRate ? $"{SelectedMetric} (rate/s)" : SelectedMetric;
-        string title = label;
-        if (Graphs.Any(g => g.Series.Count == 1 && g.Series[0].Metric == SelectedMetric && g.Series[0].IsRateOfChange == isRate)) return;
 
-        var series = new ChartSeriesModel(SelectedMetric, label, GraphLayoutStore.GetDefaultColor(SelectedMetric))
+        // Interactive opt-in check: if the metric is currently OFF on the target host, prompt immediately!
+        if (_provider != null && !IsAggregatedMode && !string.IsNullOrEmpty(TargetHostId))
+        {
+            var config = await _provider.GetNodeConfigAsync(TargetHostId);
+            if (config != null)
+            {
+                var mode = TelemetryOptInResolver.GetMetricOptInMode(config, SelectedMetric);
+                if (mode == TelemetryOptInMode.OptInOff)
+                {
+                    OptInPromptMetric = SelectedMetric;
+                    OptInPromptHostId = TargetHostId;
+                    IsOptInPromptOpen = true;
+                    return;
+                }
+            }
+        }
+
+        ExecuteAddGraph(SelectedMetric);
+    }
+
+    public void AddGraph() => _ = AddGraphAsync();
+
+    [RelayCommand]
+    public async Task OptInAndAddGraphAsync(string modeStr)
+    {
+        string metric = OptInPromptMetric;
+        string hostId = OptInPromptHostId;
+        if (string.IsNullOrEmpty(metric) || string.IsNullOrEmpty(hostId) || _provider == null)
+        {
+            IsOptInPromptOpen = false;
+            return;
+        }
+
+        IsOptInProcessing = true;
+        try
+        {
+            var mode = modeStr == "store" 
+                ? TelemetryOptInMode.OptInMonitorAndStore 
+                : TelemetryOptInMode.OptInMonitorOnly;
+
+            var cfg = await _provider.GetNodeConfigAsync(hostId);
+            if (cfg != null)
+            {
+                TelemetryOptInResolver.SetMetricOptInMode(cfg, metric, mode);
+                await _provider.UpdateNodeConfigAsync(hostId, cfg);
+            }
+        }
+        finally
+        {
+            IsOptInProcessing = false;
+            IsOptInPromptOpen = false;
+        }
+
+        ExecuteAddGraph(metric);
+    }
+
+    [RelayCommand]
+    public void CancelOptInPrompt()
+    {
+        IsOptInPromptOpen = false;
+    }
+
+    private void ExecuteAddGraph(string metricName)
+    {
+        bool isRate = IsAddMetricRateOfChange;
+        string label = isRate ? $"{metricName} (rate/s)" : metricName;
+        string title = label;
+        if (Graphs.Any(g => g.Series.Count == 1 && g.Series[0].Metric == metricName && g.Series[0].IsRateOfChange == isRate)) return;
+
+        var series = new ChartSeriesModel(metricName, label, GraphLayoutStore.GetDefaultColor(metricName))
         {
             IsRateOfChange = isRate
         };

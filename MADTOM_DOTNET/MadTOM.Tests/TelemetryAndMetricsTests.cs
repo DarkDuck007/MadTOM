@@ -6,6 +6,8 @@ using MadTOM.Models;
 using MadTOM.Services;
 using MadTOM.ViewModels;
 using MADTOM.PluginContracts;
+using MadTOM.Common;
+using MADTOM.Plugins.Telemetry.Proto.V1;
 using Xunit;
 
 namespace MadTOM.Tests;
@@ -1422,6 +1424,8 @@ public class TelemetryAndMetricsTests
     {
         public List<FleetNodeModel> Nodes { get; } = new();
         public List<ProcessInfoModel> Processes { get; set; } = new();
+        public Dictionary<string, NodeConfig> Configs { get; } = new();
+        public List<(string HostId, NodeConfig Config)> UpdatedConfigs { get; } = new();
 
         public event EventHandler<FleetNodeModel>? NodeTelemetryUpdated;
         public event EventHandler<LogEntryModel>? LogReceived;
@@ -1438,6 +1442,19 @@ public class TelemetryAndMetricsTests
         public void Dispose() { }
 
         public void TriggerTelemetryUpdated(FleetNodeModel node) => NodeTelemetryUpdated?.Invoke(this, node);
+
+        public Task<NodeConfig?> GetNodeConfigAsync(string hostId, CancellationToken ct = default)
+        {
+            Configs.TryGetValue(hostId, out var cfg);
+            return Task.FromResult<NodeConfig?>(cfg);
+        }
+
+        public Task<bool> UpdateNodeConfigAsync(string hostId, NodeConfig config, CancellationToken ct = default)
+        {
+            Configs[hostId] = config;
+            UpdatedConfigs.Add((hostId, config));
+            return Task.FromResult(true);
+        }
     }
 
     [Fact]
@@ -1687,6 +1704,134 @@ public class TelemetryAndMetricsTests
             Assert.Equal(25.0 + tick, vm.OverviewSeries[0].LatestValue);
             Assert.Equal(25.0 + tick, vm.CurrentRankLeaders[0].Cpu);
         }
+    }
+
+    [Fact]
+    public void TelemetryOptInResolver_ResolvesAndSetsModesCorrectly()
+    {
+        // 1. Backward compatibility resolution
+        Assert.Equal(TelemetryOptInMode.OptInMonitorAndStore, TelemetryOptInResolver.ResolveMode(TelemetryOptInMode.OptInOff, legacyBool: true));
+        Assert.Equal(TelemetryOptInMode.OptInOff, TelemetryOptInResolver.ResolveMode(TelemetryOptInMode.OptInOff, legacyBool: false));
+        Assert.Equal(TelemetryOptInMode.OptInMonitorOnly, TelemetryOptInResolver.ResolveMode(TelemetryOptInMode.OptInMonitorOnly, legacyBool: false));
+        Assert.Equal(TelemetryOptInMode.OptInMonitorAndStore, TelemetryOptInResolver.ResolveMode(TelemetryOptInMode.OptInMonitorAndStore, legacyBool: false));
+
+        // 2. Querying modes from TelemetryNodeConfig with inheritance & overrides
+        var config = new NodeConfig
+        {
+            CollectCpuOverall = true,
+            CpuOverallMode = TelemetryOptInMode.OptInMonitorAndStore,
+            CpuPerCoreMode = TelemetryOptInMode.OptInMonitorOnly,
+            NetworkMode = TelemetryOptInMode.OptInMonitorAndStore,
+            MemoryBasicMode = TelemetryOptInMode.OptInMonitorAndStore,
+            MemorySwapMode = TelemetryOptInMode.OptInMonitorOnly,
+            ZramMode = TelemetryOptInMode.OptInOff
+        };
+        // Per-core override: core 0 is Off, core 1 is not in dictionary (inherits CpuPerCoreMode)
+        config.CoreModes["0"] = TelemetryOptInMode.OptInOff;
+        // Per-NIC override: eth0 inherits NetworkMode, docker0 is explicitly Off
+        config.NicModes["docker0"] = TelemetryOptInMode.OptInOff;
+        // Per-swap override: /dev/nvme0n1p2 is Store, zram0 is not in dictionary (inherits MemorySwapMode)
+        config.SwapDeviceModes["/dev/nvme0n1p2"] = TelemetryOptInMode.OptInMonitorAndStore;
+
+        Assert.Equal(TelemetryOptInMode.OptInMonitorAndStore, TelemetryOptInResolver.GetMetricOptInMode(config, "cpu.total"));
+        Assert.Equal(TelemetryOptInMode.OptInOff, TelemetryOptInResolver.GetMetricOptInMode(config, "cpu.core.0"));
+        Assert.Equal(TelemetryOptInMode.OptInMonitorOnly, TelemetryOptInResolver.GetMetricOptInMode(config, "cpu.core.1"));
+        Assert.Equal(TelemetryOptInMode.OptInMonitorAndStore, TelemetryOptInResolver.GetMetricOptInMode(config, "nic.eth0.rx_bytes"));
+        Assert.Equal(TelemetryOptInMode.OptInOff, TelemetryOptInResolver.GetMetricOptInMode(config, "nic.docker0.rx_bytes"));
+        Assert.Equal(TelemetryOptInMode.OptInMonitorAndStore, TelemetryOptInResolver.GetMetricOptInMode(config, "swap./dev/nvme0n1p2.used_bytes"));
+        Assert.Equal(TelemetryOptInMode.OptInMonitorOnly, TelemetryOptInResolver.GetMetricOptInMode(config, "swap.zram0.used_bytes"));
+        Assert.Equal(TelemetryOptInMode.OptInOff, TelemetryOptInResolver.GetMetricOptInMode(config, "zram.zram0.disksize_bytes"));
+
+        // 3. Setting modes via SetMetricOptInMode
+        TelemetryOptInResolver.SetMetricOptInMode(config, "cpu.core.0", TelemetryOptInMode.OptInMonitorAndStore);
+        Assert.Equal(TelemetryOptInMode.OptInMonitorAndStore, config.CoreModes["0"]);
+        Assert.Equal(TelemetryOptInMode.OptInMonitorAndStore, TelemetryOptInResolver.GetMetricOptInMode(config, "cpu.core.0"));
+
+        TelemetryOptInResolver.SetMetricOptInMode(config, "zram.zram0.disksize_bytes", TelemetryOptInMode.OptInMonitorOnly);
+        Assert.Equal(TelemetryOptInMode.OptInMonitorOnly, config.ZramDeviceModes["zram0"]);
+        Assert.Equal(TelemetryOptInMode.OptInMonitorOnly, config.ZramMode);
+
+        TelemetryOptInResolver.SetMetricOptInMode(config, "power.battery_pct", TelemetryOptInMode.OptInMonitorAndStore);
+        Assert.Equal(TelemetryOptInMode.OptInMonitorAndStore, config.PowerMode);
+        Assert.True(config.CollectPowerBattery);
+    }
+
+    [Fact]
+    public void PopulateAvailableMetrics_IncludesPerCoreAndSwapZramDevices()
+    {
+        var vm = new HostMetricsTabViewModel();
+        var node = new FleetNodeModel
+        {
+            Id = "node-alpha",
+            Cores = 4,
+            SwapDevices = new[]
+            {
+                new MADTOM.Plugins.Telemetry.Proto.V1.SwapDevice { Name = "/dev/dm-0", TotalBytes = 8589934592, UsedBytes = 1073741824 }
+            },
+            ZramDevices = new[]
+            {
+                new MADTOM.Plugins.Telemetry.Proto.V1.ZramDevice { Name = "zram0", DisksizeBytes = 4294967296, MemUsedBytes = 536870912 }
+            }
+        };
+
+        vm.UpdateForNode("node-alpha", node, new[] { node });
+
+        // Check per-core metrics
+        Assert.Contains("cpu.core.0", vm.AvailableMetrics);
+        Assert.Contains("cpu.core.1", vm.AvailableMetrics);
+        Assert.Contains("cpu.core.2", vm.AvailableMetrics);
+        Assert.Contains("cpu.core.3", vm.AvailableMetrics);
+        Assert.DoesNotContain("cpu.core.4", vm.AvailableMetrics);
+
+        // Check swap and zram metrics
+        Assert.Contains("memory.swap_used", vm.AvailableMetrics);
+        Assert.Contains("memory.swap_total", vm.AvailableMetrics);
+        Assert.DoesNotContain("memory.swap_free", vm.AvailableMetrics);
+        Assert.DoesNotContain("memory.zram_ratio", vm.AvailableMetrics);
+
+        Assert.Contains("swap./dev/dm-0.total_bytes", vm.AvailableMetrics);
+        Assert.Contains("swap./dev/dm-0.used_bytes", vm.AvailableMetrics);
+
+        Assert.Contains("zram.zram0.disksize_bytes", vm.AvailableMetrics);
+        Assert.Contains("zram.zram0.mem_used_bytes", vm.AvailableMetrics);
+        Assert.Contains("zram.zram0.orig_data_bytes", vm.AvailableMetrics);
+        Assert.Contains("zram.zram0.compr_data_bytes", vm.AvailableMetrics);
+    }
+
+    [Fact]
+    public async Task HostMetricsTabViewModel_AddGraph_TriggersOptInPromptWhenOff()
+    {
+        var provider = new TestTelemetryProvider();
+        var node = new FleetNodeModel { Id = "host-gamma", Cores = 4 };
+        provider.Nodes.Add(node);
+
+        var config = new NodeConfig
+        {
+            CollectCpuOverall = true,
+            CpuOverallMode = TelemetryOptInMode.OptInMonitorAndStore,
+            CpuPerCoreMode = TelemetryOptInMode.OptInOff
+        };
+        provider.Configs["host-gamma"] = config;
+
+        var vm = new HostMetricsTabViewModel(provider);
+        vm.UpdateForNode("host-gamma", node, new[] { node });
+
+        // Select a metric that is currently OFF
+        vm.SelectedMetric = "cpu.core.0";
+        await vm.AddGraphAsync();
+
+        // Should trigger interactive opt-in prompt
+        Assert.True(vm.IsOptInPromptOpen);
+        Assert.Equal("cpu.core.0", vm.OptInPromptMetric);
+        Assert.Equal("host-gamma", vm.OptInPromptHostId);
+
+        // Confirm "store" mode
+        await vm.OptInAndAddGraphAsync("store");
+
+        // Prompt closes, node config is updated, graph is created
+        Assert.False(vm.IsOptInPromptOpen);
+        Assert.Contains(provider.UpdatedConfigs, u => u.HostId == "host-gamma" && u.Config.CoreModes["0"] == TelemetryOptInMode.OptInMonitorAndStore);
+        Assert.Contains(vm.Graphs, g => g.Series.Any(s => s.Metric == "cpu.core.0"));
     }
 }
 

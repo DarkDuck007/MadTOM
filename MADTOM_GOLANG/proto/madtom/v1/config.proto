@@ -26,11 +26,18 @@ enum ProcessTelemetryMode {
   PROCESS_MODE_PROBED_AND_STORED = 2; // Probed & Stored: Live stream + Top-N written to TSDB
 }
 
+// TelemetryOptInMode defines the 3-state collection and retention policy.
+enum TelemetryOptInMode {
+  OPT_IN_OFF = 0;               // Disabled: no probing/collection
+  OPT_IN_MONITOR_ONLY = 1;      // Live stream only: zero disk writes (neither WAL nor TSDB)
+  OPT_IN_MONITOR_AND_STORE = 2; // Live stream + persisted in TSDB (and WAL backlog when offline)
+}
+
 // NodeConfig controls what the daemon measures and what the collector retains.
 message NodeConfig {
   string node_id = 1;
   
-  // Opt-in Collection Switches (Daemon Level)
+  // Legacy Opt-in Collection Switches (Daemon Level)
   bool collect_cpu_overall = 2;
   bool collect_cpu_per_core = 3;
   bool collect_memory_basic = 4;
@@ -53,6 +60,28 @@ message NodeConfig {
   // Process Telemetry Mode & Top-N Count
   ProcessTelemetryMode process_mode = 16;
   uint32 top_n_processes = 17; // Top N processes (1 to 10, default 5)
+
+  // Unified 3-Tier Metric Opt-In Modes & Granular Overrides
+  TelemetryOptInMode cpu_overall_mode = 18;
+  TelemetryOptInMode cpu_per_core_mode = 19;
+  map<string, TelemetryOptInMode> core_modes = 20;
+
+  TelemetryOptInMode memory_basic_mode = 21;
+  TelemetryOptInMode memory_swap_mode = 22;
+  map<string, TelemetryOptInMode> swap_device_modes = 23;
+  TelemetryOptInMode zram_mode = 24;
+  map<string, TelemetryOptInMode> zram_device_modes = 25;
+
+  TelemetryOptInMode network_mode = 26;
+  map<string, TelemetryOptInMode> nic_modes = 27;
+
+  TelemetryOptInMode disk_io_mode = 28;
+  map<string, TelemetryOptInMode> disk_device_modes = 29;
+
+  TelemetryOptInMode power_mode = 30;
+  map<string, TelemetryOptInMode> power_metric_modes = 31;
+
+  TelemetryOptInMode twamp_mode = 32;
 }
 
 message ConfigAck {

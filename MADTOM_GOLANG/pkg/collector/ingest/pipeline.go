@@ -8,6 +8,7 @@ import (
 
 	"github.com/DarkDuck007/madtom/pkg/collector/registry"
 	"github.com/DarkDuck007/madtom/pkg/collector/storage"
+	"github.com/DarkDuck007/madtom/pkg/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"github.com/klauspost/compress/zstd"
 	"google.golang.org/protobuf/proto"
@@ -108,6 +109,9 @@ func sanitizeMetricName(name string) string {
 func appendSampleRecords(records []storage.MetricRecord, nodeID string, s *madtomv1.SystemMetrics, cfg *madtomv1.NodeConfig) []storage.MetricRecord {
 	ts := s.TimestampUnixNano
 	add := func(metric string, val float64) {
+		if optin.GetMetricOptInMode(cfg, metric) != madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			return
+		}
 		records = append(records, storage.MetricRecord{
 			NodeID:        nodeID,
 			MetricName:    metric,
@@ -129,6 +133,9 @@ func appendSampleRecords(records []storage.MetricRecord, nodeID string, s *madto
 		add("cpu.user", s.Cpu.UserPct)
 		add("cpu.system", s.Cpu.SystemPct)
 		add("cpu.iowait", s.Cpu.IowaitPct)
+		for i, corePct := range s.Cpu.PerCorePct {
+			add(fmt.Sprintf("cpu.core.%d", i), corePct)
+		}
 	}
 
 	if s.Memory != nil {
@@ -136,9 +143,22 @@ func appendSampleRecords(records []storage.MetricRecord, nodeID string, s *madto
 		add("memory.available", float64(s.Memory.MemAvailableBytes))
 		add("memory.used", float64(s.Memory.MemTotalBytes-s.Memory.MemAvailableBytes))
 		add("memory.swap_total", float64(s.Memory.SwapTotalBytes))
-		add("memory.swap_free", float64(s.Memory.SwapFreeBytes))
-		if s.Memory.ZramRatio > 0 {
-			add("memory.zram_ratio", s.Memory.ZramRatio)
+		add("memory.swap_used", float64(s.Memory.SwapUsedBytes))
+
+		for _, dev := range s.Memory.SwapDevices {
+			if dev != nil && dev.Name != "" {
+				add(fmt.Sprintf("swap.%s.total_bytes", dev.Name), float64(dev.TotalBytes))
+				add(fmt.Sprintf("swap.%s.used_bytes", dev.Name), float64(dev.UsedBytes))
+			}
+		}
+
+		for _, dev := range s.Memory.ZramDevices {
+			if dev != nil && dev.Name != "" {
+				add(fmt.Sprintf("zram.%s.disksize_bytes", dev.Name), float64(dev.DisksizeBytes))
+				add(fmt.Sprintf("zram.%s.mem_used_bytes", dev.Name), float64(dev.MemUsedBytes))
+				add(fmt.Sprintf("zram.%s.orig_data_bytes", dev.Name), float64(dev.OrigDataBytes))
+				add(fmt.Sprintf("zram.%s.compr_data_bytes", dev.Name), float64(dev.ComprDataBytes))
+			}
 		}
 	}
 

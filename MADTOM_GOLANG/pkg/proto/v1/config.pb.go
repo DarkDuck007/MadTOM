@@ -70,6 +70,56 @@ func (ProcessTelemetryMode) EnumDescriptor() ([]byte, []int) {
 	return file_madtom_v1_config_proto_rawDescGZIP(), []int{0}
 }
 
+// TelemetryOptInMode defines the 3-state collection and retention policy.
+type TelemetryOptInMode int32
+
+const (
+	TelemetryOptInMode_OPT_IN_OFF               TelemetryOptInMode = 0 // Disabled: no probing/collection
+	TelemetryOptInMode_OPT_IN_MONITOR_ONLY      TelemetryOptInMode = 1 // Live stream only: zero disk writes (neither WAL nor TSDB)
+	TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE TelemetryOptInMode = 2 // Live stream + persisted in TSDB (and WAL backlog when offline)
+)
+
+// Enum value maps for TelemetryOptInMode.
+var (
+	TelemetryOptInMode_name = map[int32]string{
+		0: "OPT_IN_OFF",
+		1: "OPT_IN_MONITOR_ONLY",
+		2: "OPT_IN_MONITOR_AND_STORE",
+	}
+	TelemetryOptInMode_value = map[string]int32{
+		"OPT_IN_OFF":               0,
+		"OPT_IN_MONITOR_ONLY":      1,
+		"OPT_IN_MONITOR_AND_STORE": 2,
+	}
+)
+
+func (x TelemetryOptInMode) Enum() *TelemetryOptInMode {
+	p := new(TelemetryOptInMode)
+	*p = x
+	return p
+}
+
+func (x TelemetryOptInMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TelemetryOptInMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_madtom_v1_config_proto_enumTypes[1].Descriptor()
+}
+
+func (TelemetryOptInMode) Type() protoreflect.EnumType {
+	return &file_madtom_v1_config_proto_enumTypes[1]
+}
+
+func (x TelemetryOptInMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TelemetryOptInMode.Descriptor instead.
+func (TelemetryOptInMode) EnumDescriptor() ([]byte, []int) {
+	return file_madtom_v1_config_proto_rawDescGZIP(), []int{1}
+}
+
 type GetNodeConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -170,7 +220,7 @@ func (x *UpdateNodeConfigRequest) GetConfig() *NodeConfig {
 type NodeConfig struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	NodeId string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// Opt-in Collection Switches (Daemon Level)
+	// Legacy Opt-in Collection Switches (Daemon Level)
 	CollectCpuOverall         bool `protobuf:"varint,2,opt,name=collect_cpu_overall,json=collectCpuOverall,proto3" json:"collect_cpu_overall,omitempty"`
 	CollectCpuPerCore         bool `protobuf:"varint,3,opt,name=collect_cpu_per_core,json=collectCpuPerCore,proto3" json:"collect_cpu_per_core,omitempty"`
 	CollectMemoryBasic        bool `protobuf:"varint,4,opt,name=collect_memory_basic,json=collectMemoryBasic,proto3" json:"collect_memory_basic,omitempty"`
@@ -190,8 +240,24 @@ type NodeConfig struct {
 	// Process Telemetry Mode & Top-N Count
 	ProcessMode   ProcessTelemetryMode `protobuf:"varint,16,opt,name=process_mode,json=processMode,proto3,enum=madtom.v1.ProcessTelemetryMode" json:"process_mode,omitempty"`
 	TopNProcesses uint32               `protobuf:"varint,17,opt,name=top_n_processes,json=topNProcesses,proto3" json:"top_n_processes,omitempty"` // Top N processes (1 to 10, default 5)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Unified 3-Tier Metric Opt-In Modes & Granular Overrides
+	CpuOverallMode   TelemetryOptInMode            `protobuf:"varint,18,opt,name=cpu_overall_mode,json=cpuOverallMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"cpu_overall_mode,omitempty"`
+	CpuPerCoreMode   TelemetryOptInMode            `protobuf:"varint,19,opt,name=cpu_per_core_mode,json=cpuPerCoreMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"cpu_per_core_mode,omitempty"`
+	CoreModes        map[string]TelemetryOptInMode `protobuf:"bytes,20,rep,name=core_modes,json=coreModes,proto3" json:"core_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=madtom.v1.TelemetryOptInMode"`
+	MemoryBasicMode  TelemetryOptInMode            `protobuf:"varint,21,opt,name=memory_basic_mode,json=memoryBasicMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"memory_basic_mode,omitempty"`
+	MemorySwapMode   TelemetryOptInMode            `protobuf:"varint,22,opt,name=memory_swap_mode,json=memorySwapMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"memory_swap_mode,omitempty"`
+	SwapDeviceModes  map[string]TelemetryOptInMode `protobuf:"bytes,23,rep,name=swap_device_modes,json=swapDeviceModes,proto3" json:"swap_device_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=madtom.v1.TelemetryOptInMode"`
+	ZramMode         TelemetryOptInMode            `protobuf:"varint,24,opt,name=zram_mode,json=zramMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"zram_mode,omitempty"`
+	ZramDeviceModes  map[string]TelemetryOptInMode `protobuf:"bytes,25,rep,name=zram_device_modes,json=zramDeviceModes,proto3" json:"zram_device_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=madtom.v1.TelemetryOptInMode"`
+	NetworkMode      TelemetryOptInMode            `protobuf:"varint,26,opt,name=network_mode,json=networkMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"network_mode,omitempty"`
+	NicModes         map[string]TelemetryOptInMode `protobuf:"bytes,27,rep,name=nic_modes,json=nicModes,proto3" json:"nic_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=madtom.v1.TelemetryOptInMode"`
+	DiskIoMode       TelemetryOptInMode            `protobuf:"varint,28,opt,name=disk_io_mode,json=diskIoMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"disk_io_mode,omitempty"`
+	DiskDeviceModes  map[string]TelemetryOptInMode `protobuf:"bytes,29,rep,name=disk_device_modes,json=diskDeviceModes,proto3" json:"disk_device_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=madtom.v1.TelemetryOptInMode"`
+	PowerMode        TelemetryOptInMode            `protobuf:"varint,30,opt,name=power_mode,json=powerMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"power_mode,omitempty"`
+	PowerMetricModes map[string]TelemetryOptInMode `protobuf:"bytes,31,rep,name=power_metric_modes,json=powerMetricModes,proto3" json:"power_metric_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=madtom.v1.TelemetryOptInMode"`
+	TwampMode        TelemetryOptInMode            `protobuf:"varint,32,opt,name=twamp_mode,json=twampMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"twamp_mode,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *NodeConfig) Reset() {
@@ -343,6 +409,111 @@ func (x *NodeConfig) GetTopNProcesses() uint32 {
 	return 0
 }
 
+func (x *NodeConfig) GetCpuOverallMode() TelemetryOptInMode {
+	if x != nil {
+		return x.CpuOverallMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetCpuPerCoreMode() TelemetryOptInMode {
+	if x != nil {
+		return x.CpuPerCoreMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetCoreModes() map[string]TelemetryOptInMode {
+	if x != nil {
+		return x.CoreModes
+	}
+	return nil
+}
+
+func (x *NodeConfig) GetMemoryBasicMode() TelemetryOptInMode {
+	if x != nil {
+		return x.MemoryBasicMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetMemorySwapMode() TelemetryOptInMode {
+	if x != nil {
+		return x.MemorySwapMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetSwapDeviceModes() map[string]TelemetryOptInMode {
+	if x != nil {
+		return x.SwapDeviceModes
+	}
+	return nil
+}
+
+func (x *NodeConfig) GetZramMode() TelemetryOptInMode {
+	if x != nil {
+		return x.ZramMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetZramDeviceModes() map[string]TelemetryOptInMode {
+	if x != nil {
+		return x.ZramDeviceModes
+	}
+	return nil
+}
+
+func (x *NodeConfig) GetNetworkMode() TelemetryOptInMode {
+	if x != nil {
+		return x.NetworkMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetNicModes() map[string]TelemetryOptInMode {
+	if x != nil {
+		return x.NicModes
+	}
+	return nil
+}
+
+func (x *NodeConfig) GetDiskIoMode() TelemetryOptInMode {
+	if x != nil {
+		return x.DiskIoMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetDiskDeviceModes() map[string]TelemetryOptInMode {
+	if x != nil {
+		return x.DiskDeviceModes
+	}
+	return nil
+}
+
+func (x *NodeConfig) GetPowerMode() TelemetryOptInMode {
+	if x != nil {
+		return x.PowerMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetPowerMetricModes() map[string]TelemetryOptInMode {
+	if x != nil {
+		return x.PowerMetricModes
+	}
+	return nil
+}
+
+func (x *NodeConfig) GetTwampMode() TelemetryOptInMode {
+	if x != nil {
+		return x.TwampMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
 type ConfigAck struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -404,7 +575,7 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"a\n" +
 	"\x17UpdateNodeConfigRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12-\n" +
-	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xeb\x06\n" +
+	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xfd\x13\n" +
 	"\n" +
 	"NodeConfig\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12.\n" +
@@ -424,14 +595,56 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\x19twamp_clocks_synchronized\x18\x0f \x01(\bR\x17twampClocksSynchronized\x12&\n" +
 	"\x0fmax_spool_bytes\x18\r \x01(\x04R\rmaxSpoolBytes\x12B\n" +
 	"\fprocess_mode\x18\x10 \x01(\x0e2\x1f.madtom.v1.ProcessTelemetryModeR\vprocessMode\x12&\n" +
-	"\x0ftop_n_processes\x18\x11 \x01(\rR\rtopNProcesses\"?\n" +
+	"\x0ftop_n_processes\x18\x11 \x01(\rR\rtopNProcesses\x12G\n" +
+	"\x10cpu_overall_mode\x18\x12 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x0ecpuOverallMode\x12H\n" +
+	"\x11cpu_per_core_mode\x18\x13 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x0ecpuPerCoreMode\x12C\n" +
+	"\n" +
+	"core_modes\x18\x14 \x03(\v2$.madtom.v1.NodeConfig.CoreModesEntryR\tcoreModes\x12I\n" +
+	"\x11memory_basic_mode\x18\x15 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x0fmemoryBasicMode\x12G\n" +
+	"\x10memory_swap_mode\x18\x16 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x0ememorySwapMode\x12V\n" +
+	"\x11swap_device_modes\x18\x17 \x03(\v2*.madtom.v1.NodeConfig.SwapDeviceModesEntryR\x0fswapDeviceModes\x12:\n" +
+	"\tzram_mode\x18\x18 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\bzramMode\x12V\n" +
+	"\x11zram_device_modes\x18\x19 \x03(\v2*.madtom.v1.NodeConfig.ZramDeviceModesEntryR\x0fzramDeviceModes\x12@\n" +
+	"\fnetwork_mode\x18\x1a \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\vnetworkMode\x12@\n" +
+	"\tnic_modes\x18\x1b \x03(\v2#.madtom.v1.NodeConfig.NicModesEntryR\bnicModes\x12?\n" +
+	"\fdisk_io_mode\x18\x1c \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\n" +
+	"diskIoMode\x12V\n" +
+	"\x11disk_device_modes\x18\x1d \x03(\v2*.madtom.v1.NodeConfig.DiskDeviceModesEntryR\x0fdiskDeviceModes\x12<\n" +
+	"\n" +
+	"power_mode\x18\x1e \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\tpowerMode\x12Y\n" +
+	"\x12power_metric_modes\x18\x1f \x03(\v2+.madtom.v1.NodeConfig.PowerMetricModesEntryR\x10powerMetricModes\x12<\n" +
+	"\n" +
+	"twamp_mode\x18  \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\ttwampMode\x1a[\n" +
+	"\x0eCoreModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1aa\n" +
+	"\x14SwapDeviceModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1aa\n" +
+	"\x14ZramDeviceModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1aZ\n" +
+	"\rNicModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1aa\n" +
+	"\x14DiskDeviceModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1ab\n" +
+	"\x15PowerMetricModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\"?\n" +
 	"\tConfigAck\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage*q\n" +
 	"\x14ProcessTelemetryMode\x12\x19\n" +
 	"\x15PROCESS_MODE_DISABLED\x10\x00\x12\x1a\n" +
 	"\x16PROCESS_MODE_LIVE_ONLY\x10\x01\x12\"\n" +
-	"\x1ePROCESS_MODE_PROBED_AND_STORED\x10\x022\xa6\x01\n" +
+	"\x1ePROCESS_MODE_PROBED_AND_STORED\x10\x02*[\n" +
+	"\x12TelemetryOptInMode\x12\x0e\n" +
+	"\n" +
+	"OPT_IN_OFF\x10\x00\x12\x17\n" +
+	"\x13OPT_IN_MONITOR_ONLY\x10\x01\x12\x1c\n" +
+	"\x18OPT_IN_MONITOR_AND_STORE\x10\x022\xa6\x01\n" +
 	"\rConfigService\x12G\n" +
 	"\rGetNodeConfig\x12\x1f.madtom.v1.GetNodeConfigRequest\x1a\x15.madtom.v1.NodeConfig\x12L\n" +
 	"\x10UpdateNodeConfig\x12\".madtom.v1.UpdateNodeConfigRequest\x1a\x14.madtom.v1.ConfigAckBYZ3github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1\xaa\x02!MADTOM.Plugins.Telemetry.Proto.V1b\x06proto3"
@@ -448,27 +661,55 @@ func file_madtom_v1_config_proto_rawDescGZIP() []byte {
 	return file_madtom_v1_config_proto_rawDescData
 }
 
-var file_madtom_v1_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_madtom_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_madtom_v1_config_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_madtom_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_madtom_v1_config_proto_goTypes = []any{
 	(ProcessTelemetryMode)(0),       // 0: madtom.v1.ProcessTelemetryMode
-	(*GetNodeConfigRequest)(nil),    // 1: madtom.v1.GetNodeConfigRequest
-	(*UpdateNodeConfigRequest)(nil), // 2: madtom.v1.UpdateNodeConfigRequest
-	(*NodeConfig)(nil),              // 3: madtom.v1.NodeConfig
-	(*ConfigAck)(nil),               // 4: madtom.v1.ConfigAck
+	(TelemetryOptInMode)(0),         // 1: madtom.v1.TelemetryOptInMode
+	(*GetNodeConfigRequest)(nil),    // 2: madtom.v1.GetNodeConfigRequest
+	(*UpdateNodeConfigRequest)(nil), // 3: madtom.v1.UpdateNodeConfigRequest
+	(*NodeConfig)(nil),              // 4: madtom.v1.NodeConfig
+	(*ConfigAck)(nil),               // 5: madtom.v1.ConfigAck
+	nil,                             // 6: madtom.v1.NodeConfig.CoreModesEntry
+	nil,                             // 7: madtom.v1.NodeConfig.SwapDeviceModesEntry
+	nil,                             // 8: madtom.v1.NodeConfig.ZramDeviceModesEntry
+	nil,                             // 9: madtom.v1.NodeConfig.NicModesEntry
+	nil,                             // 10: madtom.v1.NodeConfig.DiskDeviceModesEntry
+	nil,                             // 11: madtom.v1.NodeConfig.PowerMetricModesEntry
 }
 var file_madtom_v1_config_proto_depIdxs = []int32{
-	3, // 0: madtom.v1.UpdateNodeConfigRequest.config:type_name -> madtom.v1.NodeConfig
-	0, // 1: madtom.v1.NodeConfig.process_mode:type_name -> madtom.v1.ProcessTelemetryMode
-	1, // 2: madtom.v1.ConfigService.GetNodeConfig:input_type -> madtom.v1.GetNodeConfigRequest
-	2, // 3: madtom.v1.ConfigService.UpdateNodeConfig:input_type -> madtom.v1.UpdateNodeConfigRequest
-	3, // 4: madtom.v1.ConfigService.GetNodeConfig:output_type -> madtom.v1.NodeConfig
-	4, // 5: madtom.v1.ConfigService.UpdateNodeConfig:output_type -> madtom.v1.ConfigAck
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4,  // 0: madtom.v1.UpdateNodeConfigRequest.config:type_name -> madtom.v1.NodeConfig
+	0,  // 1: madtom.v1.NodeConfig.process_mode:type_name -> madtom.v1.ProcessTelemetryMode
+	1,  // 2: madtom.v1.NodeConfig.cpu_overall_mode:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 3: madtom.v1.NodeConfig.cpu_per_core_mode:type_name -> madtom.v1.TelemetryOptInMode
+	6,  // 4: madtom.v1.NodeConfig.core_modes:type_name -> madtom.v1.NodeConfig.CoreModesEntry
+	1,  // 5: madtom.v1.NodeConfig.memory_basic_mode:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 6: madtom.v1.NodeConfig.memory_swap_mode:type_name -> madtom.v1.TelemetryOptInMode
+	7,  // 7: madtom.v1.NodeConfig.swap_device_modes:type_name -> madtom.v1.NodeConfig.SwapDeviceModesEntry
+	1,  // 8: madtom.v1.NodeConfig.zram_mode:type_name -> madtom.v1.TelemetryOptInMode
+	8,  // 9: madtom.v1.NodeConfig.zram_device_modes:type_name -> madtom.v1.NodeConfig.ZramDeviceModesEntry
+	1,  // 10: madtom.v1.NodeConfig.network_mode:type_name -> madtom.v1.TelemetryOptInMode
+	9,  // 11: madtom.v1.NodeConfig.nic_modes:type_name -> madtom.v1.NodeConfig.NicModesEntry
+	1,  // 12: madtom.v1.NodeConfig.disk_io_mode:type_name -> madtom.v1.TelemetryOptInMode
+	10, // 13: madtom.v1.NodeConfig.disk_device_modes:type_name -> madtom.v1.NodeConfig.DiskDeviceModesEntry
+	1,  // 14: madtom.v1.NodeConfig.power_mode:type_name -> madtom.v1.TelemetryOptInMode
+	11, // 15: madtom.v1.NodeConfig.power_metric_modes:type_name -> madtom.v1.NodeConfig.PowerMetricModesEntry
+	1,  // 16: madtom.v1.NodeConfig.twamp_mode:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 17: madtom.v1.NodeConfig.CoreModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 18: madtom.v1.NodeConfig.SwapDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 19: madtom.v1.NodeConfig.ZramDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 20: madtom.v1.NodeConfig.NicModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 21: madtom.v1.NodeConfig.DiskDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 22: madtom.v1.NodeConfig.PowerMetricModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	2,  // 23: madtom.v1.ConfigService.GetNodeConfig:input_type -> madtom.v1.GetNodeConfigRequest
+	3,  // 24: madtom.v1.ConfigService.UpdateNodeConfig:input_type -> madtom.v1.UpdateNodeConfigRequest
+	4,  // 25: madtom.v1.ConfigService.GetNodeConfig:output_type -> madtom.v1.NodeConfig
+	5,  // 26: madtom.v1.ConfigService.UpdateNodeConfig:output_type -> madtom.v1.ConfigAck
+	25, // [25:27] is the sub-list for method output_type
+	23, // [23:25] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_config_proto_init() }
@@ -481,8 +722,8 @@ func file_madtom_v1_config_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_madtom_v1_config_proto_rawDesc), len(file_madtom_v1_config_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   4,
+			NumEnums:      2,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

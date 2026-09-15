@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DarkDuck007/madtom/pkg/daemon/twamp"
+	"github.com/DarkDuck007/madtom/pkg/optin"
 
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 )
@@ -57,29 +58,87 @@ func (e *Engine) Collect(cfg *madtomv1.NodeConfig) *madtomv1.SystemMetrics {
 	}
 
 	// 1. CPU
-	if cfg.CollectCpuOverall || cfg.CollectCpuPerCore {
-		metrics.Cpu = e.cpuCollector.Collect(cfg.CollectCpuPerCore)
+	cpuOverall := optin.ResolveMode(cfg.CpuOverallMode, cfg.CollectCpuOverall)
+	cpuPerCore := optin.ResolveMode(cfg.CpuPerCoreMode, cfg.CollectCpuPerCore)
+	if cpuOverall != madtomv1.TelemetryOptInMode_OPT_IN_OFF || cpuPerCore != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+		metrics.Cpu = e.cpuCollector.Collect(cpuPerCore != madtomv1.TelemetryOptInMode_OPT_IN_OFF)
 	}
 
 	// 2. Memory
-	if cfg.CollectMemoryBasic || cfg.CollectMemorySwapZram {
-		metrics.Memory = e.memCollector.Collect(cfg.CollectMemorySwapZram)
+	memBasic := optin.ResolveMode(cfg.MemoryBasicMode, cfg.CollectMemoryBasic)
+	memSwap := optin.ResolveMode(cfg.MemorySwapMode, cfg.CollectMemorySwapZram)
+	zram := optin.ResolveMode(cfg.ZramMode, cfg.CollectMemorySwapZram)
+	if memBasic != madtomv1.TelemetryOptInMode_OPT_IN_OFF || memSwap != madtomv1.TelemetryOptInMode_OPT_IN_OFF || zram != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+		includeSwapZram := (memSwap != madtomv1.TelemetryOptInMode_OPT_IN_OFF || zram != madtomv1.TelemetryOptInMode_OPT_IN_OFF)
+		metrics.Memory = e.memCollector.Collect(includeSwapZram)
+
+		if metrics.Memory != nil {
+			if memSwap == madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+				metrics.Memory.SwapDevices = nil
+			} else if len(metrics.Memory.SwapDevices) > 0 && len(cfg.SwapDeviceModes) > 0 {
+				var filtered []*madtomv1.SwapDevice
+				for _, d := range metrics.Memory.SwapDevices {
+					if optin.GetMetricOptInMode(cfg, "swap."+d.Name) != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+						filtered = append(filtered, d)
+					}
+				}
+				metrics.Memory.SwapDevices = filtered
+			}
+
+			if zram == madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+				metrics.Memory.ZramDevices = nil
+			} else if len(metrics.Memory.ZramDevices) > 0 && len(cfg.ZramDeviceModes) > 0 {
+				var filtered []*madtomv1.ZramDevice
+				for _, d := range metrics.Memory.ZramDevices {
+					if optin.GetMetricOptInMode(cfg, "zram."+d.Name) != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+						filtered = append(filtered, d)
+					}
+				}
+				metrics.Memory.ZramDevices = filtered
+			}
+		}
 	}
 
 	// 3. Power & Battery
-	if cfg.CollectPowerBattery {
+	pwr := optin.ResolveMode(cfg.PowerMode, cfg.CollectPowerBattery)
+	if pwr != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
 		metrics.Power = e.pwrCollector.Collect()
 	}
 
 	// 4. Network Interfaces
-	if cfg.CollectNetworkInterfaces {
+	netMode := optin.ResolveMode(cfg.NetworkMode, cfg.CollectNetworkInterfaces)
+	if netMode != madtomv1.TelemetryOptInMode_OPT_IN_OFF || len(cfg.NicModes) > 0 {
 		metrics.Network = e.netCollector.Collect()
+		if metrics.Network != nil && len(metrics.Network.Interfaces) > 0 {
+			var filtered []*madtomv1.NicMetric
+			for _, nic := range metrics.Network.Interfaces {
+				if optin.GetMetricOptInMode(cfg, "nic."+nic.Name+".rx_bytes") != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+					filtered = append(filtered, nic)
+				}
+			}
+			metrics.Network.Interfaces = filtered
+		}
 	}
 
 	// 5. Disk I/O
-	metrics.DiskIo = e.diskCollector.Collect()
+	diskMode := optin.ResolveMode(cfg.DiskIoMode, true)
+	if diskMode != madtomv1.TelemetryOptInMode_OPT_IN_OFF || len(cfg.DiskDeviceModes) > 0 {
+		metrics.DiskIo = e.diskCollector.Collect()
+		if metrics.DiskIo != nil && len(metrics.DiskIo.Devices) > 0 {
+			var filtered []*madtomv1.DiskIoDevice
+			for _, dev := range metrics.DiskIo.Devices {
+				if optin.GetMetricOptInMode(cfg, "disk.io."+dev.Name+".read_bytes") != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+					filtered = append(filtered, dev)
+				}
+			}
+			metrics.DiskIo.Devices = filtered
+		}
+	}
 
-	metrics.Twamp = twamp.Probe(cfg.TwampTarget, cfg.TwampClocksSynchronized, uint32(time.Now().UnixNano()))
+	twampMode := optin.ResolveMode(cfg.TwampMode, cfg.TwampTarget != "")
+	if twampMode != madtomv1.TelemetryOptInMode_OPT_IN_OFF && cfg.TwampTarget != "" {
+		metrics.Twamp = twamp.Probe(cfg.TwampTarget, cfg.TwampClocksSynchronized, uint32(time.Now().UnixNano()))
+	}
 	if cfg.ProcessMode != madtomv1.ProcessTelemetryMode_PROCESS_MODE_DISABLED {
 		metrics.Processes, metrics.ProcessesAvailable = e.processCollector.Collect()
 	} else {

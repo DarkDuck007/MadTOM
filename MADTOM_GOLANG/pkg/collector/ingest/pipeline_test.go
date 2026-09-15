@@ -129,3 +129,125 @@ func TestPipeline_ProcessTelemetryStorageModes(t *testing.T) {
 		t.Fatalf("expected proc.cpu.other value 10.0, got %+v", ptsOther)
 	}
 }
+
+func TestPipeline_3TierOptInAndNewMetrics(t *testing.T) {
+	db, err := storage.OpenTSDB(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	reg := registry.NewRegistry("test-collector")
+	pipeline := NewPipeline(db, reg, "test-collector")
+
+	now := time.Now().UnixNano()
+
+	cfg := &madtomv1.NodeConfig{
+		NodeId:            "node-2",
+		CollectCpuOverall: true,
+		CpuOverallMode:    madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE,
+		CollectCpuPerCore: true,
+		CpuPerCoreMode:    madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE,
+		CoreModes: map[string]madtomv1.TelemetryOptInMode{
+			"1": madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY, // Core 1 is MONITOR_ONLY -> TSDB should NOT store it
+		},
+		MemorySwapMode: madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE,
+		ZramMode:       madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE,
+		NetworkMode:    madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY, // Network default is MONITOR_ONLY
+		NicModes: map[string]madtomv1.TelemetryOptInMode{
+			"eth0": madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE, // eth0 overridden to STORE
+		},
+	}
+	reg.SetConfig("node-2", cfg)
+
+	sample := &madtomv1.SystemMetrics{
+		NodeId:            "node-2",
+		TimestampUnixNano: now,
+		Cpu: &madtomv1.CpuMetrics{
+			TotalPct:   33.3,
+			PerCorePct: []float64{20.0, 40.0},
+		},
+		Memory: &madtomv1.MemoryMetrics{
+			MemTotalBytes:  16000000000,
+			SwapTotalBytes: 8000000000,
+			SwapFreeBytes:  6000000000,
+			SwapUsedBytes:  2000000000,
+			ZramOrigBytes:  500000000,
+			ZramComprBytes: 250000000,
+			ZramRatio:      2.0,
+			SwapDevices: []*madtomv1.SwapDevice{
+				{Name: "zram0", TotalBytes: 8000000000, UsedBytes: 2000000000},
+			},
+			ZramDevices: []*madtomv1.ZramDevice{
+				{Name: "zram0", DisksizeBytes: 8000000000, MemUsedBytes: 260000000, OrigDataBytes: 500000000, ComprDataBytes: 250000000},
+			},
+		},
+		Network: &madtomv1.NetworkMetrics{
+			Interfaces: []*madtomv1.NicMetric{
+				{Name: "eth0", RxBytes: 12345},
+				{Name: "docker0", RxBytes: 67890},
+			},
+		},
+	}
+
+	batch := &madtomv1.TelemetryBatch{
+		NodeId:  "node-2",
+		Samples: []*madtomv1.SystemMetrics{sample},
+	}
+
+	if err := pipeline.ProcessBatch(batch, "PUSH"); err != nil {
+		t.Fatalf("process batch failed: %v", err)
+	}
+
+	// 1. cpu.core.0 should be in TSDB (20.0)
+	ptsC0, err := db.QueryRange("node-2", "cpu.core.0", now-1000, now+1000)
+	if err != nil || len(ptsC0) != 1 || ptsC0[0].Value != 20.0 {
+		t.Fatalf("expected cpu.core.0 = 20.0, got %+v (err: %v)", ptsC0, err)
+	}
+
+	// 2. cpu.core.1 was MONITOR_ONLY -> should NOT be in TSDB
+	ptsC1, err := db.QueryRange("node-2", "cpu.core.1", now-1000, now+1000)
+	if err != nil || len(ptsC1) != 0 {
+		t.Fatalf("expected cpu.core.1 to be 0 points, got %d", len(ptsC1))
+	}
+
+	// 3. memory.swap_used should be stored (2000000000)
+	ptsSwapUsed, err := db.QueryRange("node-2", "memory.swap_used", now-1000, now+1000)
+	if err != nil || len(ptsSwapUsed) != 1 || ptsSwapUsed[0].Value != 2000000000 {
+		t.Fatalf("expected swap_used 2000000000, got %+v", ptsSwapUsed)
+	}
+
+	// 4. memory.swap_free must NOT be stored
+	ptsSwapFree, _ := db.QueryRange("node-2", "memory.swap_free", now-1000, now+1000)
+	if len(ptsSwapFree) != 0 {
+		t.Fatalf("expected memory.swap_free NOT stored, got %d points", len(ptsSwapFree))
+	}
+
+	// 5. memory.zram_ratio must NOT be stored
+	ptsZramRatio, _ := db.QueryRange("node-2", "memory.zram_ratio", now-1000, now+1000)
+	if len(ptsZramRatio) != 0 {
+		t.Fatalf("expected memory.zram_ratio NOT stored, got %d points", len(ptsZramRatio))
+	}
+
+	// 6. swap.zram0.used_bytes and zram.zram0.mem_used_bytes stored
+	ptsSwapDev, _ := db.QueryRange("node-2", "swap.zram0.used_bytes", now-1000, now+1000)
+	if len(ptsSwapDev) != 1 || ptsSwapDev[0].Value != 2000000000 {
+		t.Fatalf("expected swap.zram0.used_bytes 2000000000, got %+v", ptsSwapDev)
+	}
+
+	ptsZramDev, _ := db.QueryRange("node-2", "zram.zram0.mem_used_bytes", now-1000, now+1000)
+	if len(ptsZramDev) != 1 || ptsZramDev[0].Value != 260000000 {
+		t.Fatalf("expected zram.zram0.mem_used_bytes 260000000, got %+v", ptsZramDev)
+	}
+
+	// 7. eth0 was overridden to STORE -> stored; docker0 was default MONITOR_ONLY -> NOT stored
+	ptsEth0, _ := db.QueryRange("node-2", "nic.eth0.rx_bytes", now-1000, now+1000)
+	if len(ptsEth0) != 1 || ptsEth0[0].Value != 12345 {
+		t.Fatalf("expected eth0 rx_bytes stored, got %+v", ptsEth0)
+	}
+
+	ptsDocker0, _ := db.QueryRange("node-2", "nic.docker0.rx_bytes", now-1000, now+1000)
+	if len(ptsDocker0) != 0 {
+		t.Fatalf("expected docker0 rx_bytes NOT stored, got %d points", len(ptsDocker0))
+	}
+}

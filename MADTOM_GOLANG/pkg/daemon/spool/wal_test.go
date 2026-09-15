@@ -232,3 +232,68 @@ func TestReadBatchChunkAndRangeAck(t *testing.T) {
 		t.Fatal("expected no pending backlog after acknowledging all chunks")
 	}
 }
+
+func TestWALManagerOfflineAccumulationAndQuotaEnforcement(t *testing.T) {
+	dir := t.TempDir()
+	// Set 200 KB quota to exercise bounded FIFO drop under high volume
+	wal, err := NewWALManager(dir, "node-perf", 200*1024, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer wal.Close()
+
+	start := time.Now()
+	numBatches := 2000
+	for i := 1; i <= numBatches; i++ {
+		_, err := wal.WriteMetrics([]*madtomv1.SystemMetrics{
+			{
+				NodeId:            "node-perf",
+				TimestampUnixNano: int64(i),
+				Cpu:               &madtomv1.CpuMetrics{TotalPct: float64(i % 100)},
+			},
+		})
+		if err != nil {
+			t.Fatalf("failed write on batch %d: %v", i, err)
+		}
+	}
+	elapsed := time.Since(start)
+	t.Logf("Wrote %d batches in %s (%.2f µs/batch)", numBatches, elapsed, float64(elapsed.Microseconds())/float64(numBatches))
+
+	// Under O(1) in-memory tracking, 2,000 file writes must complete quickly without stalling on stat() syscalls
+	if elapsed > 10*time.Second {
+		t.Fatalf("offline batch writes too slow, possible O(N) disk scan leak: took %s", elapsed)
+	}
+
+	// Verify bounded quota was respected
+	if wal.totalSpoolBytes > wal.maxTotalSpool {
+		t.Fatalf("totalSpoolBytes %d exceeded maxTotalSpool %d", wal.totalSpoolBytes, wal.maxTotalSpool)
+	}
+
+	if !wal.HasPendingBacklog() {
+		t.Fatal("expected pending backlog")
+	}
+
+	// Read chunk from surviving backlog
+	chunk, err := wal.ReadBatchChunk(50)
+	if err != nil {
+		t.Fatalf("failed to read backlog chunk: %v", err)
+	}
+	if chunk == nil || len(chunk.Samples) == 0 {
+		t.Fatal("expected non-empty chunk")
+	}
+
+	// Verify restarting WAL recovers the segments and total size cleanly
+	wal.Close()
+	recoveredWal, err := NewWALManager(dir, "node-perf", 200*1024, false)
+	if err != nil {
+		t.Fatalf("failed to recover WAL: %v", err)
+	}
+	defer recoveredWal.Close()
+
+	if recoveredWal.totalSpoolBytes > recoveredWal.maxTotalSpool {
+		t.Fatalf("recovered totalSpoolBytes %d exceeded max", recoveredWal.totalSpoolBytes)
+	}
+	if len(recoveredWal.segments) != len(wal.segments) {
+		t.Fatalf("recovered segment count mismatch: got %d, want %d", len(recoveredWal.segments), len(wal.segments))
+	}
+}

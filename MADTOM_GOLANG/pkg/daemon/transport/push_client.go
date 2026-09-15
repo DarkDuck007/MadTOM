@@ -7,6 +7,7 @@ import (
 
 	"github.com/DarkDuck007/madtom/pkg/daemon/collector"
 	"github.com/DarkDuck007/madtom/pkg/daemon/spool"
+	"github.com/DarkDuck007/madtom/pkg/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -40,8 +41,18 @@ func (p *PushClient) sampleLoop() {
 	for {
 		p.mu.RLock()
 		cfg := p.config
+		connected := p.isConnected
 		p.mu.RUnlock()
-		_, _ = p.wal.WriteMetrics([]*madtomv1.SystemMetrics{p.engine.Collect(cfg)})
+
+		sample := p.engine.Collect(cfg)
+		// When offline, strip all MONITOR_ONLY and live-only metrics from the offline WAL backlog.
+		// Offline WAL segments are strictly for catch-up replay into TSDB upon reconnect,
+		// and TSDB never records MONITOR_ONLY metrics.
+		if !connected && cfg != nil {
+			optin.StripMonitorOnlyMetrics(sample, cfg)
+		}
+
+		_, _ = p.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample})
 		if !wait(p.ctx, pollInterval(cfg)) {
 			return
 		}
@@ -65,34 +76,46 @@ func wait(ctx context.Context, d time.Duration) bool {
 }
 func (p *PushClient) runLoop() {
 	defer p.wg.Done()
+	backoff := time.Second
 	for p.ctx.Err() == nil {
-		p.connect()
+		hadActivity := p.connect()
 		p.setConnected(false)
-		if !wait(p.ctx, time.Second) {
+		if hadActivity {
+			backoff = time.Second
+		} else {
+			if backoff < 15*time.Second {
+				backoff *= 2
+				if backoff > 15*time.Second {
+					backoff = 15 * time.Second
+				}
+			}
+		}
+		if !wait(p.ctx, backoff) {
 			return
 		}
 	}
 }
-func (p *PushClient) connect() {
+func (p *PushClient) connect() bool {
 	conn, err := grpc.NewClient(p.collectorAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return
+		return false
 	}
 	defer conn.Close()
 	ctx, cancel := context.WithCancel(p.ctx)
 	defer cancel()
 	stream, err := madtomv1.NewIngestServiceClient(conn).PushBatchStream(ctx)
 	if err != nil {
-		return
+		return false
 	}
+	hadActivity := false
 	for ctx.Err() == nil {
 		batch, err := p.wal.ReadBatchChunk(spool.DefaultChunkMaxSamples)
 		if err != nil {
-			return
+			return hadActivity
 		}
 		if batch == nil {
 			if !wait(ctx, 100*time.Millisecond) {
-				return
+				return hadActivity
 			}
 			continue
 		}
@@ -105,10 +128,11 @@ func (p *PushClient) connect() {
 		}
 		timeout.Stop()
 		if err != nil || ack == nil || !ack.Success || ack.NodeId != batch.NodeId || ack.SegmentId != batch.SegmentId || ack.SegmentOffset != batch.SegmentOffset {
-			return
+			return hadActivity
 		}
+		hadActivity = true
 		if err = p.wal.AcknowledgeSegment(ack.SegmentId); err != nil {
-			return
+			return hadActivity
 		}
 		p.mu.Lock()
 		if ack.Config != nil {
@@ -117,6 +141,7 @@ func (p *PushClient) connect() {
 		p.isConnected = true
 		p.mu.Unlock()
 	}
+	return hadActivity
 }
 func (p *PushClient) setConnected(value bool) {
 	p.mu.Lock()
