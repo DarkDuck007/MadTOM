@@ -72,6 +72,21 @@ public partial class CollectorSettingsViewModel : ViewModelBase
     private DateTime _lastCacheEstimate;
     [ObservableProperty] private string _cacheRetentionMinutes = "60";
     [ObservableProperty] private string _cacheMemoryEstimate = "Waiting for telemetry.";
+    [ObservableProperty] private int _liveCacheLimitMiB = 64;
+    [ObservableProperty] private int _storedCacheLimitMiB = 32;
+    [ObservableProperty] private int _storedCacheRetentionSeconds = 30;
+    [ObservableProperty] private string _liveCacheUsage = "0 MiB";
+    [ObservableProperty] private string _storedCacheUsage = "0 MiB";
+    [ObservableProperty] private string _totalCacheUsage = "0 MiB";
+    [ObservableProperty] private string _storedCacheEstimate = "Up to 32 MiB";
+    [ObservableProperty] private string _totalCacheEstimate = "Up to 96 MiB";
+    partial void OnLiveCacheLimitMiBChanged(int value) => RefreshCacheEstimate();
+    partial void OnStoredCacheLimitMiBChanged(int value) => RefreshCacheEstimate();
+
+    [RelayCommand] public void RefreshCacheStats() => RefreshCacheEstimate();
+    [RelayCommand] public void ClearLiveCache() { _dataProvider.HistoryCache?.ClearLive(); RefreshCacheEstimate(); }
+    [RelayCommand] public void ClearStoredCache() { _dataProvider.HistoryCache?.ClearStored(); RefreshCacheEstimate(); }
+
     public bool IsCacheAvailable => _dataProvider.HistoryCache != null;
 
     partial void OnCacheRetentionMinutesChanged(string value) => RefreshCacheEstimate();
@@ -79,9 +94,21 @@ public partial class CollectorSettingsViewModel : ViewModelBase
     private void RefreshCacheEstimate()
     {
         _lastCacheEstimate = DateTime.UtcNow;
-        CacheMemoryEstimate = int.TryParse(CacheRetentionMinutes, out int minutes) && minutes is >= 1 and <= 1440
-            ? _dataProvider.HistoryCache?.Estimate(minutes) ?? "Cache is available with live collector telemetry."
-            : "Enter a whole number from 1 to 1440 minutes (24 hours).";
+        if (!int.TryParse(CacheRetentionMinutes, out int minutes) || minutes is < 1 or > 1440)
+        {
+            CacheMemoryEstimate = "Enter 1–1440 minutes.";
+            return;
+        }
+        if (_dataProvider?.HistoryCache is not { } cache) return;
+        var usage = cache.GetUsage(minutes);
+        LiveCacheUsage = $"{usage.LiveBytes / 1048576.0:F2} MiB · {usage.SeriesCount} series / {usage.LivePoints:N0} points";
+        StoredCacheUsage = $"{usage.StoredBytes / 1048576.0:F2} MiB · {usage.StoredRanges} ranges / {usage.StoredPoints:N0} points";
+        TotalCacheUsage = $"{usage.TotalBytes / 1048576.0:F2} MiB";
+        double projected = Math.Min(usage.ProjectedLiveBytes / 1048576, LiveCacheLimitMiB);
+        CacheMemoryEstimate = usage.SeriesCount == 0 ? $"Waiting for samples · cap {LiveCacheLimitMiB} MiB"
+            : $"~{projected:F1} MiB at {minutes} min · cap {LiveCacheLimitMiB} MiB";
+        StoredCacheEstimate = $"Up to {StoredCacheLimitMiB} MiB · depends on queries";
+        TotalCacheEstimate = $"Live forecast + stored cap: ~{projected + StoredCacheLimitMiB:F1} MiB · total cap {LiveCacheLimitMiB + StoredCacheLimitMiB} MiB";
     }
 
     [RelayCommand]
@@ -92,13 +119,19 @@ public partial class CollectorSettingsViewModel : ViewModelBase
             StatusMessage = "Cache retention must be 1–1440 minutes.";
             return;
         }
+        if (LiveCacheLimitMiB is < 1 or > 4096 || StoredCacheLimitMiB is < 1 or > 4096 || StoredCacheRetentionSeconds is < 1 or > 86400)
+        {
+            StatusMessage = "Cache limits: 1–4096 MiB each; stored retention: 1–86400 seconds.";
+            return;
+        }
         if (_dataProvider.HistoryCache is not { } cache) return;
         try
         {
-            _cacheSettingsStore.SaveMinutes(minutes);
-            cache.RetentionMinutes = minutes;
+            _cacheSettingsStore.Save(new TelemetryCacheSettingsStore.Settings { RetentionMinutes = minutes,
+                LiveLimitMiB = LiveCacheLimitMiB, StoredLimitMiB = StoredCacheLimitMiB, StoredRetentionSeconds = StoredCacheRetentionSeconds });
+            cache.Configure(minutes, LiveCacheLimitMiB * 1048576L, StoredCacheLimitMiB * 1048576L, StoredCacheRetentionSeconds);
             RefreshCacheEstimate();
-            StatusMessage = $"Client history retention saved: {minutes} minutes.";
+            StatusMessage = "Cache limits saved and applied.";
         }
         catch (Exception ex) { StatusMessage = $"Could not save cache settings: {ex.Message}"; }
     }
@@ -201,6 +234,9 @@ public partial class CollectorSettingsViewModel : ViewModelBase
         _metricsStore = metricsStore ?? new GlobalMetricsStore();
 
         CacheRetentionMinutes = (_dataProvider.HistoryCache?.RetentionMinutes ?? 60).ToString();
+        LiveCacheLimitMiB = (int)((_dataProvider.HistoryCache?.LiveLimitBytes ?? 64L * 1048576) / 1048576);
+        StoredCacheLimitMiB = (int)((_dataProvider.HistoryCache?.StoredLimitBytes ?? 32L * 1048576) / 1048576);
+        StoredCacheRetentionSeconds = _dataProvider.HistoryCache?.StoredRetentionSeconds ?? 30;
         RefreshCacheEstimate();
         RefreshNodes();
         RefreshPinnedPreview();

@@ -200,52 +200,65 @@
                                     <TextBlock Text="Cancel" FontSize="11"/>
                                 </Button>
                             </Grid>
-                            <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1" CornerRadius="8" Padding="12">
-                                <StackPanel Spacing="8" IsEnabled="{Binding IsCacheAvailable}">
-                                    <TextBlock Text="CLIENT HISTORY CACHE" FontWeight="Bold" FontSize="11"/>
-                                    <TextBlock Text="Keep streamed graph history, including Monitor-only metrics, while this app is open. Applies to all connected nodes."
-                                               TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="Retention (minutes)" VerticalAlignment="Center"/>
-                                        <TextBox Text="{Binding CacheRetentionMinutes, Mode=TwoWay}" Width="90" PlaceholderText="60"/>
-                                        <Button Content="Apply" Command="{Binding ApplyCacheRetentionCommand}"/>
-                                        <Button Content="Clear cache" Command="{Binding ClearTelemetryCacheCommand}"/>
-                                    </StackPanel>
-                                    <TextBox Text="{Binding CacheMemoryEstimate, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"/>
-                                    <TextBlock Text="Default: 60 minutes. Use 120 for two hours; maximum 1440 (24 hours). History is cleared when the app exits."
-                                               TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
-                                </StackPanel>
-                            </Border>
+
                         </StackPanel>
                         </ScrollViewer>
                     </TabItem>
 
                     <TabItem Header="Performance" FontSize="12">
-                        <StackPanel Margin="0,12,0,0" Spacing="12">
-                            <TextBlock Text="Graph drawing resolution" FontWeight="Bold"/>
-                            <TextBlock Text="Maximum drawn points per pixel of plotting width, per series. Applies to all graphs in this client."
-                                       TextWrapping="Wrap"/>
-                            <Grid ColumnDefinitions="*,90">
-                                <Slider Margin="0,0,12,0" Minimum="0.1" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True"
-                                        Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
-                                <NumericUpDown Classes="performance-number" Grid.Column="1" Minimum="0.1" Maximum="5" Increment="0.1" FormatString="0.0"
-                                               Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,6,0,0" Spacing="6">
+                            <TextBlock Text="GRAPH RESOLUTION · points per plotting pixel" FontSize="11" FontWeight="Bold"/>
+                            <Grid ColumnDefinitions="110,*,82,70" RowDefinitions="32,32">
+                                <TextBlock Text="Drawing" VerticalAlignment="Center" FontSize="11"/>
+                                <Slider Grid.Column="1" Margin="6,0" Minimum="0.1" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
+                                <NumericUpDown Grid.Column="2" Classes="performance-number" Minimum="0.1" Maximum="5" Increment="0.1" FormatString="0.0" Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
+                                <Button Grid.Column="3" Grid.RowSpan="2" Content="Apply" Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center" Command="{Binding ApplyGraphPerformanceCommand}"/>
+                                <TextBlock Grid.Row="1" Text="History / zoom" VerticalAlignment="Center" FontSize="11"/>
+                                <Slider Grid.Row="1" Grid.Column="1" Margin="6,0" Minimum="1" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True" Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
+                                <NumericUpDown Grid.Row="1" Grid.Column="2" Classes="performance-number" Minimum="1" Maximum="10" Increment="0.5" FormatString="0.0" Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
                             </Grid>
-                            <TextBlock Text="Drawing: 0.1×–2×. Default: 1×. Lower values reduce drawing work."
-                                       TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            <TextBlock Text="Retained history resolution" FontWeight="Bold"/>
-                            <Grid ColumnDefinitions="*,90">
-                                <Slider Margin="0,0,12,0" Minimum="1" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True"
-                                        Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
-                                <NumericUpDown Classes="performance-number" Grid.Column="1" Minimum="1" Maximum="10" Increment="0.5" FormatString="0.0"
-                                               Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
+                            <TextBlock Text="Defaults: drawing 1×, history 3×. More history uses more memory and query data." FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,2"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="CLIENT CACHES · all connected nodes" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Content="Refresh" Padding="6,2" Command="{Binding RefreshCacheStatsCommand}"/>
                             </Grid>
-                            <TextBlock Text="History: 1×–10× plotting width. Default: 3×. Higher values retain more zoom detail and increase memory use and collector query size. Raw session cache retention is unchanged."
-                                       TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                            <Button Content="Apply" Command="{Binding ApplyGraphPerformanceCommand}" HorizontalAlignment="Left"/>
-
+                            <Grid ColumnDefinitions="*,90,110,60" RowDefinitions="22,32,Auto,Auto,32,Auto,Auto" IsEnabled="{Binding IsCacheAvailable}">
+                                <TextBlock Text="Cache" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="1" Text="Limit (MiB)" FontSize="10"/>
+                                <TextBlock Grid.Column="2" Text="Age limit" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Text="Streamed history" FontSize="11" VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Row="1" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" Value="{Binding LiveCacheLimitMiB, Mode=TwoWay}"/>
+                                <Grid Grid.Row="1" Grid.Column="2" ColumnDefinitions="80,*">
+                                    <NumericUpDown Classes="performance-number" Minimum="1" Maximum="1440" Increment="30" FormatString="0" Value="{Binding CacheRetentionMinutes, Mode=TwoWay}"/>
+                                    <TextBlock Grid.Column="1" Text="min" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                </Grid>
+                                <Button Grid.Row="1" Grid.Column="3" Content="Clear" Padding="4,2" Command="{Binding ClearLiveCacheCommand}"/>
+                                <TextBlock Grid.Row="2" Grid.ColumnSpan="4" Text="{Binding LiveCacheUsage}" FontSize="11" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding CacheMemoryEstimate}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4"/>
+                                <TextBlock Grid.Row="4" Text="Stored query results" FontSize="11" VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Row="4" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" Value="{Binding StoredCacheLimitMiB, Mode=TwoWay}"/>
+                                <Grid Grid.Row="4" Grid.Column="2" ColumnDefinitions="80,*">
+                                    <NumericUpDown Classes="performance-number" Minimum="1" Maximum="86400" Increment="30" FormatString="0" Value="{Binding StoredCacheRetentionSeconds, Mode=TwoWay}"/>
+                                    <TextBlock Grid.Column="1" Text="sec" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                                </Grid>
+                                <Button Grid.Row="4" Grid.Column="3" Content="Clear" Padding="4,2" Command="{Binding ClearStoredCacheCommand}"/>
+                                <TextBlock Grid.Row="5" Grid.ColumnSpan="4" Text="{Binding StoredCacheUsage}" FontSize="11" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="6" Grid.ColumnSpan="4" Text="{Binding StoredCacheEstimate}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Grid>
+                            <Border Background="{DynamicResource DarkBaseBrush}" Padding="6,4" CornerRadius="4">
+                                <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+                                    <TextBlock Text="Total estimated use" FontSize="11" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding TotalCacheUsage}" FontSize="11" Margin="8,0"/>
+                                    <Button Grid.Column="2" Grid.RowSpan="2" Content="Apply caches" Padding="6,2" Command="{Binding ApplyCacheRetentionCommand}" IsEnabled="{Binding IsCacheAvailable}"/>
+                                    <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding TotalCacheEstimate}" FontSize="10" TextWrapping="Wrap"/>
+                                </Grid>
+                            </Border>
+                            <TextBlock Text="Oldest streamed samples and least-recently-used stored ranges are evicted at the size limit. Age limits also apply. Estimates exclude charts/runtime; stored forecasts depend on queries. Clear affects this client only. Updates every 2 seconds."
+                                       FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"/>
                         </StackPanel>
+                        </ScrollViewer>
                     </TabItem>
 
                     <!-- TAB 2: Node Opt-In Settings -->

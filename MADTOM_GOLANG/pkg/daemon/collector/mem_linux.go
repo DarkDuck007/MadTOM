@@ -14,20 +14,28 @@ import (
 )
 
 type MemoryCollector struct {
-	mu            sync.Mutex
-	lastPgFault   uint64
-	lastPgMajFlt  uint64
-	lastCheckTime time.Time
+	readSwapDevices func(*madtomv1.MemoryMetrics)
+	readZramDevices func(*madtomv1.MemoryMetrics)
+	mu              sync.Mutex
+	lastPgFault     uint64
+	lastPgMajFlt    uint64
+	lastCheckTime   time.Time
 }
 
 func NewMemoryCollector() *MemoryCollector {
 	m := &MemoryCollector{}
+	m.readSwapDevices = m.readSwaps
+	m.readZramDevices = m.readZram
 	m.lastPgFault, m.lastPgMajFlt = m.readVmstatFaults()
 	m.lastCheckTime = time.Now()
 	return m
 }
 
 func (m *MemoryCollector) Collect(includeSwapZram bool) *madtomv1.MemoryMetrics {
+	return m.CollectSelected(includeSwapZram, includeSwapZram)
+}
+
+func (m *MemoryCollector) CollectSelected(includeSwap, includeZram bool) *madtomv1.MemoryMetrics {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -50,9 +58,11 @@ func (m *MemoryCollector) Collect(includeSwapZram bool) *madtomv1.MemoryMetrics 
 	}
 
 	// ZRAM & Swap partition metrics
-	if includeSwapZram {
-		m.readSwaps(metrics)
-		m.readZram(metrics)
+	if includeSwap {
+		m.readSwapDevices(metrics)
+	}
+	if includeZram {
+		m.readZramDevices(metrics)
 	}
 
 	m.lastPgFault = curPgFault

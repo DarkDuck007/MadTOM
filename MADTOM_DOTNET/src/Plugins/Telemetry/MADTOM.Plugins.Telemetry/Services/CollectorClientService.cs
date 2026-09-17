@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
@@ -11,9 +12,11 @@ namespace MadTOM.Services;
 
 public sealed class CollectorClientService : IAsyncDisposable
 {
-    private readonly GrpcChannel _channel;
-    private readonly QueryService.QueryServiceClient _queryClient;
-    private readonly ConfigService.ConfigServiceClient _configClient;
+    private readonly object _channelLock = new();
+    private readonly string _httpEndpoint;
+    private GrpcChannel _channel;
+    private QueryService.QueryServiceClient _queryClient;
+    private ConfigService.ConfigServiceClient _configClient;
 
     public string Endpoint { get; }
     public string CollectorName { get; private set; }
@@ -23,21 +26,61 @@ public sealed class CollectorClientService : IAsyncDisposable
         Endpoint = endpoint;
         CollectorName = initialName;
 
-        var httpEndpoint = endpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                           endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+        _httpEndpoint = endpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                        endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
             ? endpoint
             : $"http://{endpoint}";
 
-        _channel = GrpcChannel.ForAddress(httpEndpoint);
+        _channel = CreateChannel(_httpEndpoint);
         _queryClient = new QueryService.QueryServiceClient(_channel);
         _configClient = new ConfigService.ConfigServiceClient(_channel);
+    }
+
+    private static GrpcChannel CreateChannel(string httpEndpoint)
+    {
+        var handler = new SocketsHttpHandler
+        {
+            KeepAlivePingDelay = TimeSpan.FromSeconds(5),
+            KeepAlivePingTimeout = TimeSpan.FromSeconds(3),
+            KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
+            ConnectTimeout = TimeSpan.FromSeconds(5),
+            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(15),
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            EnableMultipleHttp2Connections = true
+        };
+
+        return GrpcChannel.ForAddress(httpEndpoint, new GrpcChannelOptions
+        {
+            HttpHandler = handler,
+            DisposeHttpClient = true
+        });
+    }
+
+    public void ResetChannel()
+    {
+        lock (_channelLock)
+        {
+            try { _channel.Dispose(); } catch { }
+            _channel = CreateChannel(_httpEndpoint);
+            _queryClient = new QueryService.QueryServiceClient(_channel);
+            _configClient = new ConfigService.ConfigServiceClient(_channel);
+        }
+    }
+
+    private (QueryService.QueryServiceClient query, ConfigService.ConfigServiceClient config) GetClients()
+    {
+        lock (_channelLock)
+        {
+            return (_queryClient, _configClient);
+        }
     }
 
     public async Task<IReadOnlyList<FleetNodeModel>> ListNodesAsync(CancellationToken ct = default)
     {
         try
         {
-            var response = await _queryClient.ListNodesAsync(new ListNodesRequest(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            var (queryClient, _) = GetClients();
+            var response = await queryClient.ListNodesAsync(new ListNodesRequest(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
             if (!string.IsNullOrEmpty(response.CollectorName))
             {
                 CollectorName = response.CollectorName;
@@ -59,6 +102,11 @@ public sealed class CollectorClientService : IAsyncDisposable
             }
             return nodes;
         }
+        catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
+        {
+            ResetChannel();
+            return Array.Empty<FleetNodeModel>();
+        }
         catch
         {
             return Array.Empty<FleetNodeModel>();
@@ -73,17 +121,19 @@ public sealed class CollectorClientService : IAsyncDisposable
         int targetPoints = 1200,
         CancellationToken ct = default)
     {
+        var req = new RangeQueryRequest
         {
-            var req = new RangeQueryRequest
-            {
-                NodeId = nodeId,
-                MetricName = metricName,
-                StartTimeUnixNano = new DateTimeOffset(start).ToUnixTimeMilliseconds() * 1_000_000,
-                EndTimeUnixNano = new DateTimeOffset(end).ToUnixTimeMilliseconds() * 1_000_000,
-                TargetPoints = (uint)Math.Max(2, targetPoints)
-            };
+            NodeId = nodeId,
+            MetricName = metricName,
+            StartTimeUnixNano = new DateTimeOffset(start).ToUnixTimeMilliseconds() * 1_000_000,
+            EndTimeUnixNano = new DateTimeOffset(end).ToUnixTimeMilliseconds() * 1_000_000,
+            TargetPoints = (uint)Math.Clamp(targetPoints, 4, 100000)
+        };
 
-            var response = await _queryClient.QueryRangeAsync(req, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
+        try
+        {
+            var (queryClient, _) = GetClients();
+            var response = await queryClient.QueryRangeAsync(req, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
             var points = new List<LODPoint>(response.Points.Count);
             foreach (var pt in response.Points)
             {
@@ -91,12 +141,17 @@ public sealed class CollectorClientService : IAsyncDisposable
             }
             return points;
         }
-
+        catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
+        {
+            ResetChannel();
+            throw;
+        }
     }
 
     public async IAsyncEnumerable<LiveTelemetryEvent> SubscribeLiveAsync(string nodeId, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        using var call = _queryClient.SubscribeLive(new LiveSubscriptionRequest { NodeId = nodeId }, cancellationToken: ct);
+        var (queryClient, _) = GetClients();
+        using var call = queryClient.SubscribeLive(new LiveSubscriptionRequest { NodeId = nodeId }, cancellationToken: ct);
         while (await call.ResponseStream.MoveNext(ct))
         {
             yield return call.ResponseStream.Current;
@@ -107,7 +162,13 @@ public sealed class CollectorClientService : IAsyncDisposable
     {
         try
         {
-            return await _configClient.GetNodeConfigAsync(new GetNodeConfigRequest { NodeId = nodeId }, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            var (_, configClient) = GetClients();
+            return await configClient.GetNodeConfigAsync(new GetNodeConfigRequest { NodeId = nodeId }, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+        }
+        catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
+        {
+            ResetChannel();
+            return null;
         }
         catch
         {
@@ -119,12 +180,18 @@ public sealed class CollectorClientService : IAsyncDisposable
     {
         try
         {
-            var res = await _configClient.UpdateNodeConfigAsync(new UpdateNodeConfigRequest
+            var (_, configClient) = GetClients();
+            var res = await configClient.UpdateNodeConfigAsync(new UpdateNodeConfigRequest
             {
                 NodeId = nodeId,
                 Config = config
-            }, cancellationToken: ct);
+            }, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
             return res.Success;
+        }
+        catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
+        {
+            ResetChannel();
+            return false;
         }
         catch
         {
@@ -134,7 +201,10 @@ public sealed class CollectorClientService : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _channel.Dispose();
+        lock (_channelLock)
+        {
+            try { _channel.Dispose(); } catch { }
+        }
         return ValueTask.CompletedTask;
     }
 }

@@ -15,7 +15,7 @@ public sealed class TelemetryHistoryCache
     private readonly List<RemoteRange> _remote = new();
     private sealed class Series
     {
-        public Queue<LODPoint> Points { get; } = new();
+        public Queue<LODPoint> Points { get; set; } = new();
         public long Latest;
     }
     private int _retentionMinutes;
@@ -28,6 +28,92 @@ public sealed class TelemetryHistoryCache
     {
         _utcNow = utcNow ?? (() => DateTime.UtcNow);
         _retentionMinutes = Math.Clamp(retentionMinutes, 1, 1440);
+    }
+
+    private long _liveLimitBytes = 64L * 1048576;
+    private long _storedLimitBytes = 32L * 1048576;
+    private int _storedRetentionSeconds = 30;
+    public long LiveLimitBytes { get { lock (_gate) return _liveLimitBytes; } }
+    public long StoredLimitBytes { get { lock (_gate) return _storedLimitBytes; } }
+    public int StoredRetentionSeconds { get { lock (_gate) return _storedRetentionSeconds; } }
+
+    public void Configure(int minutes, long liveBytes, long storedBytes, int storedSeconds)
+    {
+        if (minutes is < 1 or > 1440 || liveBytes < 1 || storedBytes < 1 || storedSeconds is < 1 or > 86400)
+            throw new ArgumentOutOfRangeException(nameof(minutes));
+        lock (_gate)
+        {
+            _generation++;
+            _retentionMinutes = minutes;
+            _liveLimitBytes = liveBytes;
+            _storedLimitBytes = storedBytes;
+            if (_storedRetentionSeconds != storedSeconds) _remote.Clear();
+            _storedRetentionSeconds = storedSeconds;
+            PruneLocked();
+            EnforceLimitsLocked();
+        }
+    }
+
+    public sealed record Usage(long LiveBytes, long StoredBytes, long LivePoints, int SeriesCount, int StoredRanges,
+        long StoredPoints, double ProjectedLiveBytes)
+    {
+        public long TotalBytes => LiveBytes + StoredBytes;
+    }
+    private static long KeyBytes((string Collector, string Node, string Metric) key) =>
+        256L + 2L * (key.Collector.Length + key.Node.Length + key.Metric.Length);
+    private long LiveBytesLocked() => _live.Sum(pair => KeyBytes(pair.Key) + 32L * pair.Value.Points.EnsureCapacity(0));
+    private static long RangeBytes(RemoteRange range) => KeyBytes(range.Key) + 32L * range.Points.Length;
+    public Usage GetUsage(int minutes)
+    {
+        lock (_gate)
+        {
+            PruneLocked();
+            double projected = 0;
+            foreach (var (key, series) in _live)
+            {
+                double seconds = series.Points.Count > 1 ? (series.Latest - series.Points.Peek().TimestampUnixNano) / (double)Second : 0;
+                double rate = seconds > 0 ? (series.Points.Count - 1) / seconds : 1;
+                projected += Math.Ceiling(minutes * 60 * rate) * 32 * 1.5 + KeyBytes(key);
+            }
+            return new(LiveBytesLocked(), _remote.Sum(RangeBytes), _live.Sum(p => (long)p.Value.Points.Count),
+                _live.Count, _remote.Count, _remote.Sum(r => (long)r.Points.Length), projected);
+        }
+    }
+    public void ClearLive() { lock (_gate) { _generation++; _live.Clear(); } }
+    public void ClearStored() { lock (_gate) { _generation++; _remote.Clear(); } }
+
+    private void EnforceLimitsLocked()
+    {
+        long bytes = LiveBytesLocked();
+        if (bytes > _liveLimitBytes)
+        {
+            // Reclaim retained queue capacity before evicting actual observations.
+            foreach (var series in _live.Values) series.Points = new Queue<LODPoint>(series.Points);
+            bytes = LiveBytesLocked();
+            var oldest = new PriorityQueue<(string Collector, string Node, string Metric), long>();
+            foreach (var (key, series) in _live)
+                if (series.Points.Count > 0) oldest.Enqueue(key, series.Points.Peek().TimestampUnixNano);
+            while (bytes > _liveLimitBytes * 3 / 4 && oldest.TryDequeue(out var key, out _))
+            {
+                var series = _live[key];
+                series.Points.Dequeue();
+                bytes -= 32;
+                if (series.Points.Count == 0) { bytes -= KeyBytes(key); _live.Remove(key); }
+                else oldest.Enqueue(key, series.Points.Peek().TimestampUnixNano);
+            }
+            foreach (var series in _live.Values)
+            {
+                var compact = new Queue<LODPoint>((int)Math.Ceiling(series.Points.Count * 1.25));
+                foreach (var point in series.Points) compact.Enqueue(point);
+                series.Points = compact;
+            }
+        }
+        long remoteBytes = _remote.Sum(RangeBytes);
+        while (_remote.Count > 0 && (remoteBytes > _storedLimitBytes || _remote.Count > 128))
+        {
+            remoteBytes -= RangeBytes(_remote[0]);
+            _remote.RemoveAt(0);
+        }
     }
 
     public int RetentionMinutes
@@ -58,6 +144,7 @@ public sealed class TelemetryHistoryCache
                 series.Latest = timestamp;
                 while (points.Count > 0 && points.Peek().TimestampUnixNano < cutoff) points.Dequeue();
             }
+            EnforceLimitsLocked();
         }
     }
 
@@ -102,7 +189,7 @@ public sealed class TelemetryHistoryCache
             local = ReadLocked(key, from, to);
             if (localOnly || (_live.TryGetValue(key, out var series) && Covers(series.Points.ToArray(), from, to))) return local;
             var cached = _remote.LastOrDefault(r => r.Key == key && (targetPoints <= 0 || (r.PointBudget >= targetPoints && r.PointBudget / Math.Max(1.0, r.End - (double)r.Start) >= targetPoints / Math.Max(1.0, to - (double)from))) && r.Start <= from && (r.End >= to || (_live.TryGetValue(key, out var tail) && Covers(tail.Points.ToArray(), r.End, to))));
-            if (cached != null) return Merge(cached.Points, local, from, to);
+            if (cached != null) { _remote.Remove(cached); _remote.Add(cached); return Merge(cached.Points, local, from, to); }
         }
 
         // Broader minute-aligned starts allow nearby navigation requests to reuse historical results.
@@ -119,8 +206,8 @@ public sealed class TelemetryHistoryCache
             if (generation != _generation) return ReadLocked(key, from, to);
             if (fetchSucceeded && remote.Count <= 10000)
             {
-                _remote.Add(new(key, Nano(fetchStart), to, _utcNow().AddSeconds(30), remote.ToArray(), targetPoints));
-                if (_remote.Count > 128) _remote.RemoveAt(0);
+                _remote.Add(new(key, Nano(fetchStart), to, _utcNow().AddSeconds(_storedRetentionSeconds), remote.ToArray(), targetPoints));
+                EnforceLimitsLocked();
             }
             return Merge(remote, ReadLocked(key, from, to), from, to);
         }

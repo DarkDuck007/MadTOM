@@ -150,19 +150,38 @@ public sealed class MultiCollectorManager : IAsyncDisposable
 
     public async Task StartLiveStreamAsync(FleetNodeModel node, Action<LiveTelemetryEvent> onSample, CancellationToken ct)
     {
-        var client = GetClientForNode(node);
-        if (client == null) return;
+        while (!ct.IsCancellationRequested)
+        {
+            var client = GetClientForNode(node);
+            if (client == null) break;
 
-        try
-        {
-            await foreach (var ev in client.SubscribeLiveAsync(node.Id, ct))
+            try
             {
-                onSample(ev);
+                await foreach (var ev in client.SubscribeLiveAsync(node.Id, ct))
+                {
+                    onSample(ev);
+                }
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected upon cancel
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception)
+            {
+                // Network interrupted or connection reset; reset channel and reconnect
+                client.ResetChannel();
+            }
+
+            if (ct.IsCancellationRequested) break;
+
+            try
+            {
+                await Task.Delay(1500, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
     }
 

@@ -24,7 +24,7 @@ This guide covers the MADTOM Desktop Operator UI, its features, telemetry visual
    - [Pinned Slim Scope Bar](#pinned-slim-scope-bar)
    - [Relative Scopes (1m, 5m, 30m, 2h, 6h, 12h, 24h)](#relative-scopes-1m-5m-30m-2h-6h-12h-24h)
    - [Custom Scope (Date & Time Picker)](#custom-scope-date--time-picker)
-   - [Resolution-Adaptive Downsampling (LTTB)](#resolution-adaptive-downsampling-lttb)
+   - [Resolution-Adaptive Downsampling](#resolution-adaptive-downsampling)
    - [Graph Performance Settings](#graph-performance-settings)
    - [Graph Navigation: Zoom, Pan & Page Scrolling](#graph-navigation-zoom-pan--page-scrolling)
    - [Memory Normalization in Tooltips](#memory-normalization-in-tooltips)
@@ -357,10 +357,10 @@ Clicking the **Custom** scope button opens a modal to select precise start and e
 - Custom scopes interpret dates and times in the **operator's local machine timezone** (e.g. JST, UTC+9) and convert them to UTC for the TSDB query.
 - Custom windows remain frozen at the selected bounds and do not refresh automatically with incoming live samples.
 
-### Resolution-Adaptive Downsampling (LTTB)
+### Resolution-Adaptive Downsampling
 Metric graphs request a point budget of **three times the plotting width by default** (in logical pixels), leaving extra detail for zooming. A 750-pixel plotting area requests up to 2,250 points; a 30-minute history sampled once per second therefore fits without reduction. Before layout, the budget defaults to 2,400 points. Resizing refreshes history after a 200 ms debounce, and cached collector responses are reused only when their resolution is sufficient.
 
-The collector applies **Largest-Triangle-Three-Buckets (LTTB)** to the requested budget. After merging collector and local history and calculating counter rates, the client reduces dense series using time buckets that retain first, minimum, maximum, and last values. Cached and newly streamed samples use the same display budget. Client history and drawing buckets use fixed absolute-time boundaries for a given scope and resolution. Scrolling therefore keeps completed interior buckets stable, with original sample timestamps and values preserved. The newest incomplete bucket and the window edges can still change as samples arrive or expire; resizing, zooming, changing density, collector refetches, and automatic Y-axis scaling can also change the rendered shape. Duplicate or late single-node live notifications do not overwrite existing samples or counter rates. Series below the budget remain unchanged, and single-node graphs preserve sub-second timestamps; multi-node aggregation retains its existing one-second alignment.
+The collector now samples during its storage scan using fixed absolute-time buckets retaining first, minimum, maximum, and last samples. This replaces LTTB in the range-query path, bounds working point memory by the requested budget, and leaves sparse results unchanged. After merging collector and local history and calculating counter rates, the client reduces dense series using time buckets that retain first, minimum, maximum, and last values. Cached and newly streamed samples use the same display budget. Client history and drawing buckets use fixed absolute-time boundaries for a given scope and resolution. Scrolling therefore keeps completed interior buckets stable, with original sample timestamps and values preserved. The newest incomplete bucket and the window edges can still change as samples arrive or expire; resizing, zooming, changing density, collector refetches, and automatic Y-axis scaling can also change the rendered shape. Duplicate or late single-node live notifications do not overwrite existing samples or counter rates. Series below the budget remain unchanged, and single-node graphs preserve sub-second timestamps; multi-node aggregation retains its existing one-second alignment.
 
 This display reduction leaves the raw session cache intact. Active graphs also retain their source window so live updates do not repeatedly reduce previously sampled curves; these chart arrays are outside the cache memory estimate. Zoom uses the retained detail and cannot restore samples already discarded by collector downsampling.
 
@@ -372,7 +372,7 @@ Lower settings reduce line and fill geometry; higher settings retain more visibl
 
 Both numeric editors use a readable value field with small up/down arrows stacked on the right. You can type a value or use the arrows to step it.
 
-**Retained history resolution** has its own slider and compact numeric up/down, ranging from **1× to 10×**, default **3×**. This controls how many points metric graphs retain per logical pixel for zooming and request from the collector. Higher values use more graph memory and can increase query size; lower values limit available zoom detail. Select **Apply** to save both settings. Changing history resolution refreshes open metric graphs after the existing debounce; raw cache retention remains controlled by the Collectors tab.
+**Retained history resolution** has its own slider and compact numeric up/down, ranging from **1× to 10×**, default **3×**. This controls how many points metric graphs retain per logical pixel for zooming and request from the collector. Higher values use more graph memory and can increase query size; lower values limit available zoom detail. Select **Apply** to save both settings. Changing history resolution refreshes open metric graphs after the existing debounce; cache limits are configured below the graph controls in Performance.
 
 Both preferences persist in `~/.local/share/MADTOM/performance.json` (or the platform's equivalent application-data directory). Missing, malformed, or out-of-range values fall back independently to drawing 1× and history 3×. Older files without the history field use 3×:
 
@@ -469,18 +469,29 @@ If a remote server (e.g. Oracle Cloud Infrastructure ARM64) displays no disk I/O
 
 ### Client History Cache
 
-Open **Node Settings → Collectors → Client History Cache** to set how long this client retains streamed numeric graph history for all connected nodes. The default is **60 minutes**; enter **120** for two hours, or any whole number from **1 to 1440** minutes, then select **Apply**. Decreasing retention immediately removes older cached samples. Increasing it retains more future samples; it cannot recover monitor-only telemetry from before the client received it.
+Open **Node Settings → Performance → Client Caches** to set how long this client retains streamed numeric graph history for all connected nodes. The default is **60 minutes**; enter **120** for two hours, or any whole number from **1 to 1440** minutes, then select **Apply caches**. Decreasing retention immediately removes older cached samples. Increasing it retains more future samples; it cannot recover monitor-only telemetry from before the client received it.
 
-The read-only estimate textbox predicts memory from observed series counts and sample rates. It also shows approximate current buffer memory. Estimates include an allowance for queue capacity, but exclude chart copies, runtime overhead, and future changes in node/metric counts; they are not a memory limit. Before telemetry arrives, the estimate says it is waiting for data.
+The compact grid shows each cache's estimated memory and series/point or range/point counts, plus a combined total:
+
+| Cache | Default size limit | Default age limit | Eviction |
+|---|---:|---:|---|
+| Streamed history | 64 MiB | 60 minutes | Oldest samples first; queue capacity is reclaimed with growth headroom |
+| Stored query results | 32 MiB | 30 seconds | Least-recently-used ranges first; expired ranges are removed |
+
+Each size limit accepts **1–4096 MiB**. Streamed age accepts **1–1440 minutes**; stored age accepts **1–86400 seconds**. **Apply caches** persists and enforces changes immediately. Both age and size apply, so memory pressure may shorten retained history. Increasing stored age can reuse stale responses longer; changing that age clears existing stored results. Stored cache safety limits remain 128 ranges and 10,000 points per response; larger responses are displayed without being cached.
+
+Stats refresh every two seconds while settings are open, or immediately via **Refresh**. Streamed memory forecasts use observed rates/counts and the entered cap. Stored usage depends on queries, so its forecast is an upper bound. Totals show combined current usage, streamed forecast plus stored cap, and the combined configured cap. Estimates include allocated point buffers and approximate entry/key overhead, excluding chart copies, transient responses, and runtime/allocator overhead. These are cache budgets, not a limit on process memory.
 
 Monitor-only graph history now survives navigating away from a node and reopening its details during the same app session. Numeric per-core, NIC, disk, swap/zram, power, TWAMP, and process-name CPU series are included when received; full process snapshots and logs are not historical cache records. Unavailable or omitted metrics are not filled with stale values. Retention uses sample timestamps, and inactive series expire too.
 
-History queries use local data for metrics currently configured as Monitor-only or Off. Stored metrics can use fully covered live windows (allowing up to five seconds between samples and at the live edge), otherwise collector history is merged with cached samples. Successful collector query results, including empty results, can be reused for 30 seconds. Local samples win at identical timestamps. Node configurations are cached for 30 seconds and refreshed immediately after successful settings changes made in this client. A collector failure still allows available local history to be displayed; cancellation remains cancellable.
+History queries use local data for metrics currently configured as Monitor-only or Off. Stored metrics can use fully covered live windows (allowing up to five seconds between samples and at the live edge), otherwise collector history is merged with cached samples. Successful collector query results, including empty results, can be reused for the stored age limit (30 seconds by default). Local samples win at identical timestamps. Node configurations are cached for 30 seconds and refreshed immediately after successful settings changes made in this client. A collector failure still allows available local history to be displayed; cancellation remains cancellable.
 
-**Clear cache** clears this client's live history and cached query results across all collectors. New streamed samples start filling it again. It does not delete collector storage or change node collection policies. Already-rendered chart arrays are refreshed when history reloads; they are not part of the cache. Cache contents disappear when the app exits. Only the retention preference persists, in `~/.local/share/MADTOM/telemetry-cache.json` (or the platform's equivalent application-data directory):
+Each cache has an independent **Clear** button. Clearing streamed history preserves stored results, and clearing stored results preserves streamed history. Clears and settings changes invalidate in-flight fills. Clearing affects only this client's cache, not collector storage or already-rendered chart arrays. Both caches disappear at app exit.
+
+Preferences persist in `~/.local/share/MADTOM/telemetry-cache.json` (or the platform equivalent); older files use defaults for missing fields:
 
 ```json
-{"RetentionMinutes":60}
+{"RetentionMinutes":60,"LiveLimitMiB":64,"StoredLimitMiB":32,"StoredRetentionSeconds":30}
 ```
 
 Clicking the **Collector Settings (⚙)** icon in the fleet toolbar opens the multi-collector management panel:

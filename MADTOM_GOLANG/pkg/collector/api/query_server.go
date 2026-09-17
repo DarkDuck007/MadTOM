@@ -2,12 +2,13 @@ package api
 
 import (
 	"context"
+	"errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"net"
 	"strings"
+	"time"
 
-	"github.com/DarkDuck007/madtom/pkg/collector/downsample"
 	"github.com/DarkDuck007/madtom/pkg/collector/ingest"
 	"github.com/DarkDuck007/madtom/pkg/collector/registry"
 	"github.com/DarkDuck007/madtom/pkg/collector/storage"
@@ -15,7 +16,12 @@ import (
 )
 
 // Server implements QueryService and ConfigService for client UIs.
+const MaxConcurrentHistoryQueries = 4
+const MaxHistoryScanPoints = 5_000_000
+const HistoryQueryTimeout = 10 * time.Second
+
 type Server struct {
+	historySlots chan struct{}
 	madtomv1.UnimplementedQueryServiceServer
 	madtomv1.UnimplementedConfigServiceServer
 	collectorName string
@@ -27,6 +33,7 @@ type Server struct {
 // NewServer constructs a new API server.
 func NewServer(collectorName string, tsdb *storage.TSDB, reg *registry.Registry, pipeline *ingest.Pipeline) *Server {
 	return &Server{
+		historySlots:  make(chan struct{}, MaxConcurrentHistoryQueries),
 		collectorName: collectorName,
 		tsdb:          tsdb,
 		reg:           reg,
@@ -48,17 +55,34 @@ func (s *Server) QueryRange(ctx context.Context, req *madtomv1.RangeQueryRequest
 	if req.StartTimeUnixNano < 0 || req.EndTimeUnixNano <= req.StartTimeUnixNano || req.TargetPoints > 100000 {
 		return nil, status.Error(codes.InvalidArgument, "invalid time range or point budget")
 	}
-	rawPoints, err := s.tsdb.QueryRange(req.NodeId, req.MetricName, req.StartTimeUnixNano, req.EndTimeUnixNano)
-	if err != nil {
-		return nil, err
-	}
-
 	targetPoints := int(req.TargetPoints)
-	if targetPoints <= 0 {
-		targetPoints = 1200 // default resolution budget
+	if targetPoints == 0 {
+		targetPoints = 1200
 	}
-
-	sampled := downsample.DownsampleLTTB(rawPoints, targetPoints)
+	if targetPoints < 4 {
+		return nil, status.Error(codes.InvalidArgument, "point budget must be zero (default) or 4–100000")
+	}
+	ctx, cancel := context.WithTimeout(ctx, HistoryQueryTimeout)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, status.FromContextError(err).Err()
+	}
+	select {
+	case s.historySlots <- struct{}{}:
+		defer func() { <-s.historySlots }()
+	default:
+		return nil, status.Error(codes.ResourceExhausted, "historical query capacity reached; retry later")
+	}
+	sampled, err := s.tsdb.QueryRangeSampled(ctx, req.NodeId, req.MetricName, req.StartTimeUnixNano, req.EndTimeUnixNano, targetPoints, MaxHistoryScanPoints)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, status.FromContextError(ctx.Err()).Err()
+		}
+		if errors.Is(err, storage.ErrQueryScanLimit) {
+			return nil, status.Error(codes.ResourceExhausted, err.Error())
+		}
+		return nil, status.Error(codes.Internal, "historical storage query failed")
+	}
 
 	protoPoints := make([]*madtomv1.TimeSeriesPoint, len(sampled))
 	for i, pt := range sampled {

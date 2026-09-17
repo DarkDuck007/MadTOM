@@ -21,11 +21,13 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
     private readonly MultiCollectorManager _collectorManager;
     private readonly ConcurrentDictionary<string, FleetNodeModel> _nodes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _streamCancelTokens = new();
+    private readonly ConcurrentDictionary<string, DateTime> _lastSampleReceived = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _refreshTimer;
     private int _polling;
     private readonly CancellationTokenSource _disposeCts = new();
 
     public TelemetryHistoryCache HistoryCache { get; }
+    private readonly HistoryQueryCoordinator _historyQueries = new();
     private readonly ConcurrentDictionary<(string, string), (NodeConfig Config, DateTime Expires)> _configs = new();
     private readonly SemaphoreSlim _configGate = new(1, 1);
 
@@ -37,7 +39,13 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
     public CollectorTelemetryDataProvider(MultiCollectorManager collectorManager, TelemetryHistoryCache? historyCache = null)
     {
         _collectorManager = collectorManager;
-        HistoryCache = historyCache ?? new TelemetryHistoryCache(new TelemetryCacheSettingsStore().LoadMinutes());
+        HistoryCache = historyCache ?? new TelemetryHistoryCache();
+        if (historyCache == null)
+        {
+            var settings = new TelemetryCacheSettingsStore().Load();
+            HistoryCache.Configure(settings.RetentionMinutes, settings.LiveLimitMiB * 1048576L,
+                settings.StoredLimitMiB * 1048576L, settings.StoredRetentionSeconds);
+        }
 
         // Poll collectors every 3 seconds for new/updated nodes
         _refreshTimer = new Timer(OnPollCollectorsTick, null, 100, 3000);
@@ -50,7 +58,22 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
         try
         {
             HistoryCache.Prune();
+
+            // Stream watchdog: if a node has an active stream registered but hasn't received
+            // any telemetry sample in >8 seconds, abort the hung stream token so it will reconnect.
+            var now = DateTime.UtcNow;
+            foreach (var kvp in _streamCancelTokens)
+            {
+                if (_lastSampleReceived.TryGetValue(kvp.Key, out var lastRx) && (now - lastRx) > TimeSpan.FromSeconds(8))
+                {
+                    try { kvp.Value.Cancel(); } catch { }
+                    _streamCancelTokens.TryRemove(kvp.Key, out _);
+                }
+            }
+
             var discoveredNodes = await _collectorManager.FetchAllNodesAsync(_disposeCts.Token);
+            var discoveredIds = new HashSet<string>(discoveredNodes.Select(n => n.Id), StringComparer.OrdinalIgnoreCase);
+
             foreach (var node in discoveredNodes)
             {
                 if (_nodes.TryAdd(node.Id, node))
@@ -72,10 +95,34 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
                     });
                 }
             }
+
+            // If a previously discovered node was not returned in this cycle, mark it offline
+            foreach (var kvp in _nodes)
+            {
+                if (!discoveredIds.Contains(kvp.Key) && kvp.Value.Status != "offline")
+                {
+                    var stale = kvp.Value;
+                    stale.Status = "offline";
+                    Dispatcher.UIThread.Post(() => NodeTelemetryUpdated?.Invoke(this, stale));
+                }
+            }
         }
         catch
         {
-            // Transient network failure handled silently
+            // Transient network failure: mark nodes as offline if they haven't received telemetry recently
+            var now = DateTime.UtcNow;
+            foreach (var kvp in _nodes)
+            {
+                if (_lastSampleReceived.TryGetValue(kvp.Key, out var lastRx) && (now - lastRx) > TimeSpan.FromSeconds(6))
+                {
+                    var stale = kvp.Value;
+                    if (stale.Status != "offline")
+                    {
+                        stale.Status = "offline";
+                        Dispatcher.UIThread.Post(() => NodeTelemetryUpdated?.Invoke(this, stale));
+                    }
+                }
+            }
         }
         finally { Interlocked.Exchange(ref _polling, 0); }
     }
@@ -117,9 +164,11 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
 
     private void UpdateNodeFromMetrics(FleetNodeModel node, SystemMetrics s)
     {
+        _lastSampleReceived[node.Id] = DateTime.UtcNow;
         Dispatcher.UIThread.Post(() =>
         {
             if (_disposeCts.IsCancellationRequested || s.TimestampUnixNano <= node.TimestampUnixNano) return;
+            node.Status = "online";
             double seconds = (s.TimestampUnixNano - node.TimestampUnixNano) / 1e9;
             var previousInterfaces = node.Interfaces.ToDictionary(i => i.Name);
             bool hadSample = node.TimestampUnixNano > 0;
@@ -383,7 +432,9 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
         var cfg = await GetNodeConfigAsync(hostId, ct);
         bool localOnly = client == null || (cfg != null && TelemetryOptInResolver.GetMetricOptInMode(cfg, metric) != TelemetryOptInMode.OptInMonitorAndStore);
         return await HistoryCache.QueryAsync(node.CollectorEndpoint, hostId, metric, start, end, localOnly,
-            (from, to, token) => client!.QueryRangeAsync(hostId, metric, from, to, targetPoints: Math.Clamp(targetPoints, 4, 100000), ct: token), ct, targetPoints);
+            (from, to, token) => _historyQueries.QueryAsync(
+                new(node.CollectorEndpoint, hostId, metric, from.ToUniversalTime().Ticks, to.ToUniversalTime().Ticks, Math.Clamp(targetPoints, 4, 100000)),
+                sharedToken => client!.QueryRangeAsync(hostId, metric, from, to, targetPoints: Math.Clamp(targetPoints, 4, 100000), ct: sharedToken), token), ct, targetPoints);
     }
 
     public async Task<NodeConfig?> GetNodeConfigAsync(string hostId, CancellationToken ct = default)
@@ -434,6 +485,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
             try { cts.Cancel(); } catch (ObjectDisposedException) { }
         }
         _streamCancelTokens.Clear();
+        _historyQueries.Dispose();
         HistoryCache.Clear();
         _configs.Clear();
 

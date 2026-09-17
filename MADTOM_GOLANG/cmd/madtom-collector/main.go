@@ -20,6 +20,7 @@ import (
 	"github.com/DarkDuck007/madtom/pkg/collector/storage"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 func main() {
@@ -79,7 +80,19 @@ func main() {
 	}
 	defer lis.Close()
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             3 * time.Second, // Allow clients to ping as frequently as every 3s
+			PermitWithoutStream: true,            // Allow pings even when there are no active streams
+		}),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle:     15 * time.Minute,
+			MaxConnectionAge:      30 * time.Minute,
+			MaxConnectionAgeGrace: 5 * time.Second,
+			Time:                  10 * time.Second, // Ping client if idle for 10s
+			Timeout:               3 * time.Second,  // Wait 3s for client response
+		}),
+	)
 
 	// Ingestion Push service
 	pushServer := ingest.NewPushServer(pipeline)

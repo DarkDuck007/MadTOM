@@ -21,7 +21,7 @@ Validation: cache-core tests passed at the first stage; the integrated settings/
 
 Metric graphs now request three times their plotting width in points and apply the same time-based display reduction to merged collector/cache history and live updates. Single-node graphs preserve sub-second timestamps. Sampling retains bucket endpoints and extrema, leaves the raw session cache unchanged, and uses retained source windows to avoid cumulative live-update reduction. Resizing refreshes the query budget; remote cache reuse checks resolution as well as time coverage.
 
-Validation: all 160 .NET tests passed, including graph width/resize budgets, unreduced 30-minute 1 Hz history, spike retention, higher-resolution remote cache misses, and cached sub-second history displayed through the metrics view model. See [Resolution-Adaptive Downsampling](Documentation/ui-and-config.md#resolution-adaptive-downsampling-lttb). No compression changes were made.
+Validation: all 160 .NET tests passed, including graph width/resize budgets, unreduced 30-minute 1 Hz history, spike retention, higher-resolution remote cache misses, and cached sub-second history displayed through the metrics view model. See [Resolution-Adaptive Downsampling](Documentation/ui-and-config.md#resolution-adaptive-downsampling). No compression changes were made.
 
 ### Drawing resolution follow-up
 
@@ -46,6 +46,24 @@ Validation: all 171 .NET tests passed, including a compiled-template regression 
 Anchored client history and drawing buckets to absolute timestamps at fixed scope/resolution. Sliding windows no longer continually regroup old interior samples; drawing retains original sample coordinates and values. Partial edge buckets remain free to update. Duplicate/late single-node notifications no longer overwrite samples, and repeated timestamps cannot reset a calculated counter rate.
 
 Validation: all 174 .NET tests passed. Regression coverage advances a 30-minute window through ten updates at history 1× and drawing 1×/0.2×, verifying unchanged interior selections and original point coordinates/values. Duplicate/late rate updates and tiny viewport limits are covered. All 111 documentation links passed.
+
+### Cache budgets and visibility follow-up
+
+Moved cache controls from Collectors into a dense Performance grid. Added independent streamed/stored size budgets (default 64/32 MiB), stored age configuration (default 30 seconds), separate clears, usage/counts, forecasts/caps, and combined totals. Stats refresh every two seconds while settings are open. Size pressure evicts oldest streamed samples with queue-capacity reclamation and least-recently-used stored ranges. Settings persist with defaults for older files and invalidate in-flight fills. Estimates cover cache storage, excluding chart/transient arrays and runtime overhead.
+
+Validation: build/XAML compilation passed. The full .NET run passed 178 of 179 tests; the daemon/collector integration test initially received a sample without process availability and passed its isolated retry. Cache regressions cover size eviction, allocated-buffer reclamation, immediate shrink, stored LRU/expiry, remote-only accounting, independent clears, in-flight invalidation, settings persistence, and legacy defaults. All 111 documentation links passed.
+
+### Historical query bounds — 2026-09-17
+
+Replaced the range RPC's unbounded raw materialization plus LTTB pass with a storage scan retaining bounded absolute-time endpoint/extrema buckets. Added four-scan collector admission, a ten-second deadline, five-million-record scan limit, and cancellation. The desktop now coordinates history RPCs with per-collector/global concurrency limits (4/8), identical-request sharing, and reference-counted cancellation. This changes range-query sampling from LTTB; sparse data and original sample timestamps/values are preserved. Legacy internal raw queries remain unchanged.
+
+Validation: collector storage/API tests passed under the race detector; client coordinator tests cover shared readers, last-reader cancellation, queue cancellation, retries, and concurrency. Final verification passed all 182 .NET tests and the full Go race suite. In the local 100,000-point fixture, raw queries allocated 8,948,701 bytes/op (49 allocations) versus 25,112 bytes/op (12 allocations) for a 750-point bounded query. This microbenchmark measures allocations per query, not peak RSS or production latency; the scan still reads matching records up to its work limit.
+
+### Collection work reduction — 2026-09-17
+
+Process snapshots now maintain a 1,000-candidate heap, rank by CPU/RSS with deterministic PID ties, and defer UID/status reads and protobuf materialization until after selection. All process counters are still scanned for ranking/baselines; the pre-existing 1,000-process coverage limit remains. Swap and zram device probes are independently gated; all-OFF network override maps no longer force collection. WAL segmentation remains unchanged because current acknowledgements delete whole segments; grouping records requires record-level replay/acknowledgement work first.
+
+Validation: a 1,050-process fixture verifies all 1,050 counter baselines are retained while only 1,000 status files are read and the correct leaders are returned. Separate probe tests cover swap/zram combinations and all-OFF network overrides. Collector tests and the full Go race suite passed; all 111 internal documentation links passed. Further metadata scheduling, TWAMP isolation, and compression byte/decode safeguards remain planned.
 
 ## 1. Recommendation
 

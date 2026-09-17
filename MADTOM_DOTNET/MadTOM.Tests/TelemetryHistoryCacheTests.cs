@@ -12,6 +12,69 @@ public class TelemetryHistoryCacheTests
         c.QueryAsync(collector, "node", "cpu.total", start, _now, true, (_, _, _) => throw new Exception("monitor-only must stay local"));
 
     [Fact]
+    public async Task SizePressureEvictsOldestLiveSamplesAndReclaimsAllocatedBuffers()
+    {
+        var cache = new TelemetryHistoryCache(60, () => _now);
+        cache.Configure(60, 4096, 4096, 30);
+        for (int i = 0; i < 1000; i++) Record(cache, _now.AddSeconds(-1000 + i), i);
+        var points = await Read(cache, _now.AddHours(-1));
+        Assert.InRange(points.Count, 1, 120);
+        Assert.Equal(999, points[^1].Value);
+        Assert.True(points[0].Value > 0);
+        Assert.InRange(cache.GetUsage(60).LiveBytes, 1, 4096);
+        cache.Configure(60, 1024, 4096, 30);
+        Assert.InRange(cache.GetUsage(60).LiveBytes, 1, 1024);
+        Assert.Equal(999, (await Read(cache, _now.AddHours(-1)))[^1].Value);
+    }
+
+    [Fact]
+    public async Task StoredSizeLimitUsesLruAndReportsUsageWithoutLiveData()
+    {
+        var cache = new TelemetryHistoryCache(60, () => _now);
+        cache.Configure(60, 4096, 650, 60);
+        int fetches = 0;
+        Task<IReadOnlyList<LODPoint>> Fetch(DateTime a, DateTime b, CancellationToken ct)
+        {
+            fetches++;
+            return Task.FromResult<IReadOnlyList<LODPoint>>(new[] { new LODPoint(Nano(_now), 1, 1, 1) });
+        }
+        Task<IReadOnlyList<LODPoint>> Query(string metric) => cache.QueryAsync("a", "n", metric, _now.AddHours(-1), _now, false, Fetch);
+        await Query("x"); await Query("y"); await Query("x"); await Query("z");
+        Assert.Equal(3, fetches);
+        await Query("x");
+        Assert.Equal(3, fetches);
+        await Query("y");
+        Assert.Equal(4, fetches);
+        var usage = cache.GetUsage(60);
+        Assert.Equal(0, usage.LiveBytes);
+        Assert.Equal(2, usage.StoredRanges);
+        Assert.InRange(usage.StoredBytes, 1, 650);
+        Assert.Equal(usage.StoredBytes, usage.TotalBytes);
+        _now = _now.AddSeconds(61);
+        Assert.Equal(0, cache.GetUsage(60).StoredRanges);
+    }
+
+    [Fact]
+    public async Task SeparateClearsPreserveOtherCacheAndRejectInflightResults()
+    {
+        var cache = new TelemetryHistoryCache(60, () => _now);
+        Record(cache, _now, 4);
+        Task<IReadOnlyList<LODPoint>> Fetch(DateTime a, DateTime b, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<LODPoint>>(new[] { new LODPoint(Nano(_now), 9, 9, 9) });
+        await cache.QueryAsync("a", "n", "x", _now.AddHours(-1), _now, false, Fetch);
+        cache.ClearLive();
+        Assert.Equal(1, cache.GetUsage(60).StoredRanges);
+        Record(cache, _now, 5);
+        var pending = new TaskCompletionSource<IReadOnlyList<LODPoint>>();
+        var query = cache.QueryAsync("a", "n", "y", _now.AddHours(-1), _now, false, (_, _, _) => pending.Task);
+        cache.ClearStored();
+        pending.SetResult(new[] { new LODPoint(Nano(_now), 9, 9, 9) });
+        Assert.Empty(await query);
+        Assert.Equal(0, cache.GetUsage(60).StoredRanges);
+        Assert.Single(await Read(cache, _now.AddHours(-1)));
+    }
+
+    [Fact]
     public async Task HistorySurvivesReadersAndSeparatesCollectors()
     {
         var cache = new TelemetryHistoryCache(120, () => _now);

@@ -69,8 +69,7 @@ func (e *Engine) Collect(cfg *madtomv1.NodeConfig) *madtomv1.SystemMetrics {
 	memSwap := optin.ResolveMode(cfg.MemorySwapMode, cfg.CollectMemorySwapZram)
 	zram := optin.ResolveMode(cfg.ZramMode, cfg.CollectMemorySwapZram)
 	if memBasic != madtomv1.TelemetryOptInMode_OPT_IN_OFF || memSwap != madtomv1.TelemetryOptInMode_OPT_IN_OFF || zram != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
-		includeSwapZram := (memSwap != madtomv1.TelemetryOptInMode_OPT_IN_OFF || zram != madtomv1.TelemetryOptInMode_OPT_IN_OFF)
-		metrics.Memory = e.memCollector.Collect(includeSwapZram)
+		metrics.Memory = e.memCollector.CollectSelected(memSwap != madtomv1.TelemetryOptInMode_OPT_IN_OFF, zram != madtomv1.TelemetryOptInMode_OPT_IN_OFF)
 
 		if metrics.Memory != nil {
 			if memSwap == madtomv1.TelemetryOptInMode_OPT_IN_OFF {
@@ -107,7 +106,7 @@ func (e *Engine) Collect(cfg *madtomv1.NodeConfig) *madtomv1.SystemMetrics {
 
 	// 4. Network Interfaces
 	netMode := optin.ResolveMode(cfg.NetworkMode, cfg.CollectNetworkInterfaces)
-	if netMode != madtomv1.TelemetryOptInMode_OPT_IN_OFF || len(cfg.NicModes) > 0 {
+	if netMode != madtomv1.TelemetryOptInMode_OPT_IN_OFF || hasEnabledDevice(cfg.NicModes) {
 		metrics.Network = e.netCollector.Collect()
 		if metrics.Network != nil && len(metrics.Network.Interfaces) > 0 {
 			var filtered []*madtomv1.NicMetric
@@ -186,4 +185,14 @@ func readCPUModel() string {
 		}
 	}
 	return runtime.GOARCH
+}
+
+// An override map containing only OFF entries does not require a network probe.
+func hasEnabledDevice(modes map[string]madtomv1.TelemetryOptInMode) bool {
+	for _, mode := range modes {
+		if mode != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+			return true
+		}
+	}
+	return false
 }

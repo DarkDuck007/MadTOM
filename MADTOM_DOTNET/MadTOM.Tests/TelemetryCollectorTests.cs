@@ -233,5 +233,30 @@ public class TelemetryCollectorTests
             try { System.IO.Directory.Delete(tempDir, true); } catch { }
         }
     }
+
+    [Fact]
+    public async Task CollectorClientService_ResetChannel_IsThreadSafeAndReentrant()
+    {
+        await using var client = new CollectorClientService("127.0.0.1:59999");
+        var tasks = new List<Task>();
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(Task.Run(() => client.ResetChannel()));
+        }
+        await Task.WhenAll(tasks);
+        await client.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task CollectorClientService_UnreachableEndpoint_TriggersResetAndReturnsGracefully()
+    {
+        await using var client = new CollectorClientService("127.0.0.1:59998");
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var nodes = await client.ListNodesAsync(cts.Token);
+        Assert.Empty(nodes);
+
+        bool updated = await client.UpdateNodeConfigAsync("node1", new MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig(), cts.Token);
+        Assert.False(updated);
+    }
 }
 

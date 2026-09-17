@@ -8,9 +8,12 @@ namespace MadTOM.Views.Modals;
 
 public partial class CollectorSettingsModal : UserControl
 {
+    private readonly Avalonia.Threading.DispatcherTimer _cacheStatsTimer = new() { Interval = System.TimeSpan.FromSeconds(2) };
+
     public CollectorSettingsModal()
     {
         InitializeComponent();
+        _cacheStatsTimer.Tick += (_, _) => (DataContext as CollectorSettingsViewModel)?.RefreshCacheStats();
         AddHandler(KeyDownEvent, (s, e) =>
         {
             if (e.Key == Key.Escape && DataContext is CollectorSettingsViewModel vm)
@@ -54,7 +57,14 @@ public partial class CollectorSettingsModal : UserControl
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        _cacheStatsTimer.Start();
         this.FindControl<ScrollViewer>("NodeSettingsScrollViewer")?.ScrollToHome();
     }
+    protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        _cacheStatsTimer.Stop();
+        base.OnDetachedFromVisualTree(e);
+    }
+
 }
 

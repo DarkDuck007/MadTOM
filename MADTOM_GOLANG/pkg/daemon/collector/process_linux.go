@@ -1,28 +1,61 @@
 package collector
 
 import (
-	"sort"
+	"container/heap"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
 
 // Read process snapshots from procfs. CPU share uses aggregate CPU tick deltas,
 // avoiding assumptions about the kernel's CLK_TCK setting.
+const processSnapshotLimit = 1000
+
+type processCandidate struct {
+	pid     int32
+	name    string
+	threads uint32
+	cpu     float64
+	rss     uint64
+}
+
+func betterProcess(a, b processCandidate) bool {
+	if a.cpu != b.cpu {
+		return a.cpu > b.cpu
+	}
+	if a.rss != b.rss {
+		return a.rss > b.rss
+	}
+	return a.pid < b.pid
+}
+
+type processHeap []processCandidate
+
+func (h processHeap) Len() int           { return len(h) }
+func (h processHeap) Less(i, j int) bool { return betterProcess(h[j], h[i]) }
+func (h processHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *processHeap) Push(x any)        { *h = append(*h, x.(processCandidate)) }
+func (h *processHeap) Pop() any          { old := *h; x := old[len(old)-1]; *h = old[:len(old)-1]; return x }
+
 type ProcessCollector struct {
+	procRoot string
+	readFile func(string) ([]byte, error)
 	previous map[int32]uint64
 	total    uint64
 }
 
-func NewProcessCollector() *ProcessCollector { return &ProcessCollector{previous: map[int32]uint64{}} }
+func NewProcessCollector() *ProcessCollector {
+	return &ProcessCollector{previous: map[int32]uint64{}, procRoot: "/proc", readFile: os.ReadFile}
+}
 func (p *ProcessCollector) Collect() ([]*madtomv1.ProcessMetric, bool) {
-	entries, err := os.ReadDir("/proc")
+	entries, err := os.ReadDir(p.procRoot)
 	if err != nil {
 		return nil, false
 	}
-	stat, err := os.ReadFile("/proc/stat")
+	stat, err := p.readFile(filepath.Join(p.procRoot, "stat"))
 	if err != nil {
 		return nil, false
 	}
@@ -32,13 +65,13 @@ func (p *ProcessCollector) Collect() ([]*madtomv1.ProcessMetric, bool) {
 		total += n
 	}
 	next := map[int32]uint64{}
-	var result []*madtomv1.ProcessMetric
+	candidates := make(processHeap, 0, processSnapshotLimit)
 	for _, entry := range entries {
 		pid, err := strconv.ParseInt(entry.Name(), 10, 32)
 		if err != nil {
 			continue
 		}
-		raw, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "stat"))
+		raw, err := p.readFile(filepath.Join(p.procRoot, entry.Name(), "stat"))
 		if err != nil {
 			continue
 		}
@@ -61,27 +94,32 @@ func (p *ProcessCollector) Collect() ([]*madtomv1.ProcessMetric, bool) {
 		}
 		threads, _ := strconv.ParseUint(fields[17], 10, 32)
 		rss, _ := strconv.ParseUint(fields[21], 10, 64)
+		candidate := processCandidate{int32(pid), strings.Clone(line[left+1 : right]), uint32(threads), cpu, rss * uint64(os.Getpagesize())}
+		if len(candidates) < processSnapshotLimit {
+			heap.Push(&candidates, candidate)
+		} else if betterProcess(candidate, candidates[0]) {
+			candidates[0] = candidate
+			heap.Fix(&candidates, 0)
+		}
+	}
+	// Only materialize protobufs and read UID/status details for retained leaders.
+	sort.Slice(candidates, func(i, j int) bool { return betterProcess(candidates[i], candidates[j]) })
+	result := make([]*madtomv1.ProcessMetric, 0, len(candidates))
+	for _, c := range candidates {
 		uid := "unknown"
-		status, _ := os.ReadFile(filepath.Join("/proc", entry.Name(), "status"))
-		for _, l := range strings.Split(string(status), "\n") {
-			if strings.HasPrefix(l, "Uid:") {
-				f := strings.Fields(l)
-				if len(f) > 1 {
-					uid = f[1]
+		status, _ := p.readFile(filepath.Join(p.procRoot, strconv.Itoa(int(c.pid)), "status"))
+		for _, line := range strings.Split(string(status), "\n") {
+			if strings.HasPrefix(line, "Uid:") {
+				fields := strings.Fields(line)
+				if len(fields) > 1 {
+					uid = fields[1]
 				}
 				break
 			}
 		}
-		result = append(result, &madtomv1.ProcessMetric{Pid: int32(pid), Name: line[left+1 : right], User: uid, Threads: uint32(threads), CpuPct: cpu, RssBytes: rss * uint64(os.Getpagesize())})
+		result = append(result, &madtomv1.ProcessMetric{Pid: c.pid, Name: c.name, User: uid, Threads: c.threads, CpuPct: c.cpu, RssBytes: c.rss})
 	}
-	// A process snapshot is telemetry, not a full process dump. Keep the most
-	// useful bounded subset so a node with tens of thousands of short-lived
-	// processes cannot freeze the collector UI or exhaust the WAL.
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].CpuPct != result[j].CpuPct { return result[i].CpuPct > result[j].CpuPct }
-		return result[i].RssBytes > result[j].RssBytes
-	})
-	if len(result) > 1000 { result = result[:1000] }
+
 	p.previous = next
 	p.total = total
 	return result, true

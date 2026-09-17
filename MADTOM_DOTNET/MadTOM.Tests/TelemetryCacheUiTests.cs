@@ -115,9 +115,16 @@ public class TelemetryCacheUiTests
                 new NodeGroupStore(Path.Combine(directory, "groups.json")), new GlobalMetricsStore(Path.Combine(directory, "metrics.json")), store);
             Assert.Equal("60", vm.CacheRetentionMinutes);
             Assert.Contains("MiB", vm.CacheMemoryEstimate);
+            vm.LiveCacheLimitMiB = 8;
+            vm.StoredCacheLimitMiB = 4;
+            vm.StoredCacheRetentionSeconds = 90;
             vm.CacheRetentionMinutes = "120";
             vm.ApplyCacheRetention();
             Assert.Equal(120, provider.HistoryCache.RetentionMinutes);
+            Assert.Equal(8 * 1048576L, provider.HistoryCache.LiveLimitBytes);
+            Assert.Equal(4, store.Load().StoredLimitMiB);
+            Assert.Equal(90, provider.HistoryCache.StoredRetentionSeconds);
+            Assert.Contains("MiB", vm.TotalCacheUsage);
             Assert.Equal(120, new TelemetryCacheSettingsStore(Path.Combine(directory, "cache.json")).LoadMinutes());
             vm.CacheRetentionMinutes = "invalid";
             vm.ApplyCacheRetention();
@@ -128,6 +135,9 @@ public class TelemetryCacheUiTests
             Assert.Equal(120, store.LoadMinutes());
             File.WriteAllText(Path.Combine(directory, "cache.json"), "{\"RetentionMinutes\":-1}");
             Assert.Equal(60, store.LoadMinutes());
+            Assert.Equal(64, store.Load().LiveLimitMiB);
+            Assert.Equal(32, store.Load().StoredLimitMiB);
+            Assert.Equal(30, store.Load().StoredRetentionSeconds);
         }
         finally { Directory.Delete(directory, true); }
     }
