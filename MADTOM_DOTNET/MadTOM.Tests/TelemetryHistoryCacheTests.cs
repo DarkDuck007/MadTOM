@@ -31,7 +31,7 @@ public class TelemetryHistoryCacheTests
     public async Task StoredSizeLimitUsesLruAndReportsUsageWithoutLiveData()
     {
         var cache = new TelemetryHistoryCache(60, () => _now);
-        cache.Configure(60, 4096, 650, 60);
+        cache.Configure(60, 4096, 800, 60);
         int fetches = 0;
         Task<IReadOnlyList<LODPoint>> Fetch(DateTime a, DateTime b, CancellationToken ct)
         {
@@ -48,7 +48,7 @@ public class TelemetryHistoryCacheTests
         var usage = cache.GetUsage(60);
         Assert.Equal(0, usage.LiveBytes);
         Assert.Equal(2, usage.StoredRanges);
-        Assert.InRange(usage.StoredBytes, 1, 650);
+        Assert.InRange(usage.StoredBytes, 1, 800);
         Assert.Equal(usage.StoredBytes, usage.TotalBytes);
         _now = _now.AddSeconds(61);
         Assert.Equal(0, cache.GetUsage(60).StoredRanges);

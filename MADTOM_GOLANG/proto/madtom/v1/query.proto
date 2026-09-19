@@ -32,8 +32,13 @@ message NodeInfo {
 }
 
 message ListNodesResponse {
+  // Negotiated response envelope; decoded content is this same message type.
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
   string collector_name = 1;
   repeated NodeInfo nodes = 2;
+  bool transport_stats_supported = 3;
+  repeated TransportCompressionStats transport_stats = 4;
 }
 
 message RangeQueryRequest {
@@ -52,6 +57,9 @@ message TimeSeriesPoint {
 }
 
 message RangeQueryResponse {
+  // Negotiated response envelope; decoded content is this same message type.
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
   string node_id = 1;
   string metric_name = 2;
   repeated TimeSeriesPoint points = 3;
@@ -63,8 +71,25 @@ message LiveSubscriptionRequest {
 }
 
 message LiveTelemetryEvent {
+  // Negotiated response envelope; decoded content is this same message type.
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
   string node_id = 1;
   string collector_name = 2;
   SystemMetrics metrics = 3;
 }
 
+
+// Collector-lifetime successfully decoded incoming payloads, including retries.
+// Zstd ratio uses only compressed frames; bytes exclude outer protobuf/framing.
+message TransportCompressionStats {
+  string node_id = 1;
+  string mode = 2;
+  uint64 batches = 3;
+  uint64 zstd_batches = 4;
+  uint64 zstd_bytes = 5;
+  uint64 decoded_zstd_bytes = 6;
+  int64 last_seen_unix_nano = 7;
+  uint64 raw_bytes = 8; // Serialized samples in frames sent without zstd.
+  bool raw_bytes_supported = 9;
+}

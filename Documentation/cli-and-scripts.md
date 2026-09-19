@@ -101,7 +101,10 @@ Located at `MADTOM_DOTNET/publish.sh` and symlinked to root `./publish.sh`. Prod
 Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploys Go daemons to a remote Linux host via SSH, staging in `/tmp`, copying into the destination with `sudo`, and restarting the remote systemd service.
 
 #### Key Features:
-- **Architecture Auto-Detection**: When `--arch auto` (default) is used, queries `uname -m` over SSH and compiles for the remote architecture automatically if the local binary doesn't match.
+- **Multi-Host YAML Deployment**: Deploy to multiple servers sequentially with a single command via `-c / --config deploy.yaml`.
+- **Non-Interactive Authentication**: Pass SSH and sudo passwords directly via CLI flags (`--ssh-pass`, `--sudo-pass`) or YAML configuration for automation.
+- **Custom Service Overrides**: Override systemd service unit name per server or globally via `-s / --service`.
+- **Architecture Auto-Detection & Build Caching**: When `--arch auto` (default) is used, queries `uname -m` over SSH and compiles for the remote architecture automatically, caching builds across identical target architectures.
 - **Binary Architecture Validation**: Uses `file -b` to verify the binary matches the destination architecture before uploading, preventing remote `Exec format error`.
 - **Safe Sudo Staging**: Passes the sudo password securely via standard input without exposing it in process listings.
 - **Systemd Alignment**: Inspects the remote service's `ExecStart` path and automatically syncs the binary to that location.
@@ -109,11 +112,13 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 #### Syntax
 ```bash
 ./deploy.sh [OPTIONS] [USER@HOST | USER HOST]
+./deploy.sh -c config.yaml [OPTIONS]
 ```
 
 #### Options
 | Option | Argument | Default | Description |
 |---|---|---|---|
+| `-c`, `--config` | `PATH` | *(none)* | Path to YAML configuration file for multi-host deployment |
 | `-u`, `--user` | `USER` | Interactive prompt | Remote SSH username |
 | `-h`, `--host` | `HOST` | Interactive prompt | Remote hostname or IP address |
 | `-p`, `--port` | `PORT` | `22` | SSH port |
@@ -121,16 +126,25 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 | `-d`, `--dest` | `PATH` | `/opt/madtomd` | Remote target destination path |
 | `-s`, `--service` | `NAME` | `madtomd.service` | Remote systemd service name to restart |
 | `-a`, `--arch` | `amd64` \| `arm64` \| `arm` \| `auto` | `auto` | Target architecture (auto-probed via SSH) |
+| `--ssh-pass` | `PASS` | *(none)* | Remote SSH login password |
+| `--sudo-pass` | `PASS` | `--ssh-pass` | Remote sudo elevation password |
 | `--build` | *(none)* | Disabled | Force local Go compilation before deployment |
+| `--dry-run` | *(none)* | Disabled | Validate deployment configuration without connecting |
 | `--help` | *(none)* | *(none)* | Show usage help and exit |
 
 #### Examples
 ```bash
+# Multi-host deployment from YAML config
+./deploy.sh -c deploy.yaml
+
+# Deploy to multiple hosts overriding the restarted systemd service name
+./deploy.sh -c deploy.yaml -s madtomd.service
+
+# Non-interactive single-host deployment with CLI passwords
+./deploy.sh -u danial -h la.realiteam.art --ssh-pass secret123 --sudo-pass secret123
+
 # Interactive deployment (prompts for user, host, and password)
 ./deploy.sh
-
-# Deploy to remote host with architecture auto-detection
-./deploy.sh root@192.168.1.100
 
 # Deploy to an ARM64 server, forcing compilation
 ./deploy.sh -u danial -h 10.0.0.12 -a arm64 --build
@@ -195,11 +209,26 @@ The daemon runs on each monitored Linux host. It samples CPU, memory, network in
 | `-mode` | `string` | `push` | Ingestion mode: `push`, `pull`, or `reverse-push` |
 | `-collector` | `host:port` | `127.0.0.1:50051` | Collector gRPC address (used in `push` mode) |
 | `-listen-port` | `int` | `50052` | Port daemon listens on (used in `pull` and `reverse-push` modes) |
-| `-spool-dir` | `path` | `/tmp/madtom/wal` | Local disk Write-Ahead Log (WAL) directory for offline buffering |
+| `-spool-dir` | `path` | `/tmp/madtom/wal` | Local WAL directory containing grouped segment files and durable `wal-state.json` replay cursors |
 | `-max-spool-mb` | `int64` | `1024` (1 GB) | Maximum disk space for WAL spool before circular segment eviction |
+| `--migrate` | `bool` | `false` | Run pending, versioned WAL migrations on startup, before collection or transport, then continue normal operation. Failure exits startup. |
 | `-zstd` | `bool` | `false` | Enable zstd compression for on-disk WAL segments and gRPC batches |
-| `-twamp-target` | `host:port` | `""` | Target TWAMP Light UDP reflector endpoint (e.g. `10.0.0.1:862`) |
+| `-twamp-target` | `string` | `""` | Target TWAMP Light UDP reflector (`collector`, `auto`, bare IP/host, or `host:port`) |
+| `-twamp-port` | `int` | `862` | Default UDP port for TWAMP Light probing when target lacks an explicit port |
 | `-twamp-clocks-synchronized` | `bool` | `false` | Assert synchronized clocks (NTP/PTP) to enable true one-way latency |
+
+To migrate an existing spool, stop its daemon and restart with the same settings plus `--migrate`:
+
+```bash
+./madtom-daemon --migrate -spool-dir=/var/lib/madtomd/wal -node-id=my-node
+```
+
+Include your usual mode, collector, quota and compression flags. Successful migration continues into normal daemon operation; repeated use skips completed versions. Without `--migrate`, startup never runs the migration suite. An interrupted migration blocks normal startup and instructs you to restart with `--migrate`. The daemon holds an exclusive spool-directory lock; older binaries do not honor this lock, so stop them first.
+
+Version 0 means an unversioned legacy spool. Version 1 repacks pending records into replay-sized batches, preserving sample order and acknowledged prefixes. Migration temporarily needs space for both the original spool and its replacements; staging does not evict data to meet `-max-spool-mb`. Replacement encoding follows `-zstd`, so converting compressed originals to raw may require substantially more space. Normal quota eviction resumes after startup.
+
+A single sample exceeding the replay limit, corrupt/incomplete records, or data beyond the 64 MiB record/decode safety bounds stops migration with an error. Originals remain intact before cutover; oversized individual samples still need a future transport-format solution. This command does not migrate Collector databases or UI caches. Newer unsupported WAL versions are rejected; downgrade compatibility is not promised.
+
 
 #### Execution Examples
 ```bash
@@ -224,26 +253,34 @@ The daemon runs on each monitored Linux host. It samples CPU, memory, network in
   -mode="reverse-push" \
   -listen-port=50052
 
-# Enabling TWAMP Light Latency Probes
+# Enabling TWAMP Light Latency Probes against the Collector
 ./madtom-daemon \
   -node-id="edge-node-01" \
   -mode="push" \
   -collector="collector.internal:50051" \
-  -twamp-target="gateway.internal:862" \
+  -twamp-target="collector" \
   -twamp-clocks-synchronized=true
+
+# Enabling TWAMP Probes against a custom gateway port
+./madtom-daemon \
+  -node-id="edge-node-02" \
+  -mode="push" \
+  -collector="collector.internal:50051" \
+  -twamp-target="gateway.internal:8620"
 ```
 
 ---
 
 ### 2. `madtom-collector` — Central Telemetry Hub
 
-The collector aggregates telemetry from all daemons, persists metrics into an embedded CockroachDB Pebble TSDB, manages live subscriptions, and serves operator UI queries via gRPC.
+The collector aggregates telemetry from all daemons, persists metrics into an embedded CockroachDB Pebble TSDB, manages live subscriptions, provides a native TWAMP Light UDP reflector, and serves operator UI queries via gRPC.
 
 #### Command Arguments
 | Argument | Type | Default | Description |
 |---|---|---|---|
 | `-name` | `string` | `"Local Collector"` | Display name shown on UI node cards |
 | `-port` | `int` | `50051` | Unified gRPC TCP port (serves ingestion, live streaming, and UI queries) |
+| `-twamp-port` | `int` | `862` | UDP port for native RFC 5357 TWAMP Light reflector (`0` disables). Note: port 862 requires `CAP_NET_BIND_SERVICE` or root. |
 | `-data-dir` | `path` | `/tmp/madtom/collector_data` | Pebble TSDB directory path for persistent time-series data |
 | `-pull-targets` | `string` | `""` | Comma-separated list of pull daemons: `node-id@host:port,...` |
 | `-pull-interval` | `duration` | `1s` | Polling frequency for pull targets (default 1s for 1Hz resolution) |
@@ -251,10 +288,25 @@ The collector aggregates telemetry from all daemons, persists metrics into an em
 
 #### Execution Examples
 ```bash
-# Basic standalone collector
+# Basic standalone collector with native TWAMP reflector
+./madtom-collector \
+  -name="Lab Gateway" \
+  -port=50051 \
+  -twamp-port=862 \
+  -data-dir="/var/lib/madtom-collector/data"
+
+# Standalone collector with unprivileged TWAMP port
+./madtom-collector \
+  -name="Lab Gateway" \
+  -port=50051 \
+  -twamp-port=8620 \
+  -data-dir="/var/lib/madtom-collector/data"
+
+# Basic standalone collector with standard port 862
 ./madtom-collector \
   -name="Primary Hub" \
   -port=50051 \
+  -twamp-port=862 \
   -data-dir="/var/lib/madtom/collector_data"
 
 # Collector polling pull-mode nodes across subnets

@@ -125,61 +125,39 @@
 
                                         <!-- Themes Section -->
                                         <StackPanel Spacing="6">
-                                            <TextBlock Text="THEMES"
+                                            <TextBlock Text="COLOR THEME"
                                                        FontSize="10"
                                                        FontWeight="Bold"
                                                        LetterSpacing="1"
                                                        Foreground="{DynamicResource TextMutedBrush}" />
 
-                                            <ItemsControl ItemsSource="{Binding AvailableThemes}">
-                                                <ItemsControl.ItemTemplate>
+                                            <ComboBox ItemsSource="{Binding AvailableThemes}"
+                                                      SelectedItem="{Binding SelectedThemeOption, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch"
+                                                      FontSize="11"
+                                                      Background="{DynamicResource DarkBaseBrush}"
+                                                      BorderBrush="{DynamicResource BorderBrush}"
+                                                      CornerRadius="6"
+                                                      Padding="8,5">
+                                                <ComboBox.ItemTemplate>
                                                     <DataTemplate x:DataType="vm:ThemeOption">
-                                                        <Button Command="{Binding SelectCommand}"
-                                                                Background="Transparent"
-                                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                                                BorderThickness="1"
-                                                                CornerRadius="6"
-                                                                Padding="8,5"
-                                                                Margin="0,2"
-                                                                HorizontalAlignment="Stretch"
-                                                                HorizontalContentAlignment="Stretch"
-                                                                Cursor="Hand">
-                                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                <!-- Preview Swatch -->
-                                                                <Border Grid.Column="0"
-                                                                        Width="16" Height="16"
-                                                                        CornerRadius="4"
-                                                                        Margin="0,0,10,0"
-                                                                        VerticalAlignment="Center"
-                                                                        BorderBrush="{Binding PreviewAccent}"
-                                                                        BorderThickness="2"
-                                                                        Background="{Binding PreviewBg}" />
-
-                                                                <!-- Theme Name and Category -->
-                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding DisplayName}"
-                                                                               FontSize="11"
-                                                                               FontWeight="SemiBold"
-                                                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                                    <TextBlock Text="{Binding Category}"
-                                                                               FontSize="9"
-                                                                               Foreground="{DynamicResource TextMutedBrush}" />
-                                                                </StackPanel>
-
-                                                                <!-- Active Checkmark -->
-                                                                <TextBlock Grid.Column="2"
-                                                                           Text="✓"
-                                                                           FontSize="12"
-                                                                           FontWeight="Bold"
-                                                                           Foreground="{DynamicResource AccentBrush}"
-                                                                           VerticalAlignment="Center"
-                                                                           Margin="8,0,4,0"
-                                                                           IsVisible="{Binding IsActive}" />
-                                                            </Grid>
-                                                        </Button>
+                                                        <Grid ColumnDefinitions="Auto,*">
+                                                            <Border Grid.Column="0"
+                                                                    Width="14" Height="14"
+                                                                    CornerRadius="3"
+                                                                    Margin="0,0,8,0"
+                                                                    VerticalAlignment="Center"
+                                                                    BorderBrush="{Binding PreviewAccent}"
+                                                                    BorderThickness="1.5"
+                                                                    Background="{Binding PreviewBg}" />
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding DisplayName}"
+                                                                       FontSize="11"
+                                                                       VerticalAlignment="Center" />
+                                                        </Grid>
                                                     </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
                                         </StackPanel>
 
                                         <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
@@ -285,6 +263,40 @@
                                                 <Button Grid.Column="4" Content="200%" Command="{Binding SetUiScaleCommand}" CommandParameter="200"
                                                         FontSize="9" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,0,0" Padding="4,2" Background="{DynamicResource DarkBaseBrush}" CornerRadius="3" />
                                             </Grid>
+                                        </StackPanel>
+
+                                        <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
+
+                                        <!-- System Tray Section -->
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="SYSTEM TRAY BEHAVIOR"
+                                                       FontSize="10"
+                                                       FontWeight="Bold"
+                                                       LetterSpacing="1"
+                                                       Foreground="{DynamicResource TextMutedBrush}" />
+
+                                            <ComboBox ItemsSource="{Binding TrayBehaviorOptions}"
+                                                      SelectedItem="{Binding SelectedTrayBehavior, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch"
+                                                      FontSize="11"
+                                                      Background="{DynamicResource DarkBaseBrush}"
+                                                      BorderBrush="{DynamicResource BorderBrush}"
+                                                      CornerRadius="6"
+                                                      Padding="8,5">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:TrayBehaviorOption">
+                                                        <StackPanel Spacing="1">
+                                                            <TextBlock Text="{Binding DisplayName}"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                            <TextBlock Text="{Binding Description}"
+                                                                       FontSize="9"
+                                                                       Foreground="{DynamicResource TextMutedBrush}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:MadTOM.Views"
+        x:Class="MadTOM.Views.CompressionDiagnosticsWindow"
+        Width="520" Height="520" MinWidth="360" MinHeight="260"
+        Title="Zstd diagnostics" WindowDecorations="None" CanResize="True"
+        ShowInTaskbar="False" ShowActivated="False">
+    <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1" Padding="10">
+        <Grid RowDefinitions="Auto,*">
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+                <Border Background="Transparent" PointerPressed="DragHeader" Height="28" MinHeight="0">
+                    <TextBlock Text="ZSTD DIAGNOSTICS" VerticalAlignment="Center" FontWeight="Bold"/>
+                </Border>
+                <ToggleButton x:Name="PinButton" Grid.Column="1" Width="28" MinWidth="0" Padding="0" Height="28" MinHeight="0"
+                              Click="TogglePin" ToolTip.Tip="Keep this panel open" AutomationProperties.Name="Pin diagnostics">
+                    <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.5"
+                          Data="M 5,1 L 11,1 L 10,6 L 13,9 L 3,9 L 6,6 Z M 8,9 L 8,15"/>
+                </ToggleButton>
+                <Button Grid.Column="2" Content="×" Width="28" MinWidth="0" Padding="0" Height="28" MinHeight="0" Margin="4,0,0,0"
+                        FontSize="16" AutomationProperties.Name="Close diagnostics" Click="ClosePanel" ToolTip.Tip="Close diagnostics"/>
+            </Grid>
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <views:CompressionDiagnosticsView/>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</Window>

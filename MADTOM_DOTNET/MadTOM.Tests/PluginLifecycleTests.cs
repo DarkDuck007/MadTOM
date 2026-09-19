@@ -17,6 +17,7 @@ public class PluginLifecycleTests
         public ILexiconHost Lexicons => this;
         public IThemeHost Themes => this;
         public IMessenger Messenger => WeakReferenceMessenger.Default;
+        public ITrayMenuService Tray { get; } = new TrayMenuService();
 
         public string CurrentLexicon { get; private set; } = "goose";
         public event EventHandler<string>? CurrentLexiconChanged;

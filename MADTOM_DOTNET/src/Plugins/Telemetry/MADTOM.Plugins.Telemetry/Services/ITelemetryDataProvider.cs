@@ -7,6 +7,7 @@ namespace MadTOM.Services;
 public interface ITelemetryDataProvider : IDisposable
 {
     TelemetryHistoryCache? HistoryCache => null;
+    ClientCompressionSnapshot GetCompressionDiagnostics() => ClientCompressionSnapshot.Unavailable;
     IReadOnlyList<FleetNodeModel> GetFleetNodes();
     FleetNodeModel? GetNode(string hostId);
     ClusterTelemetrySummary GetClusterSummary();

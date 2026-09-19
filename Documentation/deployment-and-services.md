@@ -45,33 +45,80 @@ sequenceDiagram
 
 | Flag | Argument | Default | Description |
 |---|---|---|---|
+| `-c`, `--config` | `PATH` | *(none)* | Path to YAML configuration file for multi-host deployments (e.g. `deploy.yaml`) |
 | `-u`, `--user` | `USER` | Prompted | Remote SSH username |
 | `-h`, `--host` | `HOST` | Prompted | Remote hostname or IP address |
 | `-p`, `--port` | `PORT` | `22` | Remote SSH port |
 | `-b`, `--binary` | `PATH` | `bin/madtom-daemon` | Local executable to upload |
 | `-d`, `--dest` | `PATH` | `/opt/madtomd` | Target binary path on remote machine |
-| `-s`, `--service` | `NAME` | `madtomd.service` | Systemd service unit to restart |
+| `-s`, `--service` | `NAME` | `madtomd.service` | Systemd service unit to restart (can override config defaults) |
 | `-a`, `--arch` | `amd64` \| `arm64` \| `arm` \| `auto` | `auto` | Target architecture (auto-probed via SSH) |
-| `--build` | *(none)* | Disabled | Force local compilation before deploying |
+| `--ssh-pass` | `PASS` | *(none)* | Non-interactive SSH login password |
+| `--sudo-pass` | `PASS` | `--ssh-pass` | Remote sudo password (piped securely to `sudo -S`) |
+| `--build` | *(none)* | Disabled | Force local compilation before deploying (reuses build across hosts) |
+| `--dry-run` | *(none)* | Disabled | Validate target parameters without connecting or modifying remote systems |
 | `--help` | *(none)* | *(none)* | Show usage help |
+
+### Multi-Host Deployment via YAML (`deploy.yaml`)
+
+To deploy to multiple servers in a single run, create a `deploy.yaml` file (excluded from git via `.gitignore`). A template is provided in [`deploy.example.yaml`](file:///home/danial/Programming/Projects/CSharp/MADTOM/deploy.example.yaml):
+
+```bash
+cp deploy.example.yaml deploy.yaml
+./deploy.sh -c deploy.yaml
+```
+
+#### Configuration Schema
+
+```yaml
+# Global defaults applied to all servers unless overridden
+defaults:
+  user: danial
+  port: 22
+  service: madtomd.service
+  dest: /opt/madtomd
+  binary: bin/madtom-daemon
+  arch: auto
+  build: true
+  ssh_pass: ""
+  sudo_pass: ""
+
+# Target server list
+servers:
+  - host: la.realiteam.art
+    ssh_pass: "SECRET_SSH_PASSWORD"
+    sudo_pass: "SECRET_SUDO_PASSWORD"
+  - host: oc1.realiteam.art
+    ssh_pass: "SECRET_SSH_PASSWORD"
+    sudo_pass: "SECRET_SUDO_PASSWORD"
+  - host: realiteam.art
+    ssh_pass: "SECRET_SSH_PASSWORD"
+    sudo_pass: "SECRET_SUDO_PASSWORD"
+```
+
+> [!NOTE]
+> When `-c` is provided, `deploy.sh` iterates through each host, cross-compiles the Go binary once per required architecture, uploads via SCP, installs with `sudo`, restarts the service, and displays a deployment summary report.
 
 ### Examples
 
 ```bash
-# 1. Interactive deployment (prompts for user, host, and sudo password)
+# 1. Multi-host deployment with YAML configuration
+./deploy.sh -c deploy.yaml
+
+# 2. Multi-host deployment overriding systemd service across all hosts
+./deploy.sh -c deploy.yaml -s madtomd.service
+
+# 3. Single-host non-interactive deployment with CLI passwords
+./deploy.sh -u danial -h la.realiteam.art --ssh-pass secret123 --sudo-pass secret123
+
+# 4. Interactive single-host deployment (prompts for user, host, and sudo password)
 ./deploy.sh
 
-# 2. Deploy to remote node with auto-architecture probe
-./deploy.sh danial@node-01.internal
+# 5. Compile for ARM64 and deploy with custom service
+./deploy.sh -u danial -h 10.0.0.12 -a arm64 -s madtom-custom.service --build
 
-# 3. Explicitly compile for ARM64 and deploy
-./deploy.sh -u danial -h 10.0.0.12 -a arm64 --build
-
-# 4. Deploy the central collector hub instead of a node daemon
-./deploy.sh -u admin -h 10.0.0.15 \
-  -b bin/madtom-collector \
-  -d /opt/madtom-collector \
-  -s madtom-collector.service
+# 6. Dry run validation without executing commands
+./deploy.sh -c deploy.yaml --dry-run
 ```
 
 ---

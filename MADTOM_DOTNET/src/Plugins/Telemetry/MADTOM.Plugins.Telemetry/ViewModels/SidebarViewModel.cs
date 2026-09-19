@@ -24,6 +24,41 @@ public partial class SidebarViewModel : ViewModelBase
     [ObservableProperty]
     private int _onlineCount;
 
+    [ObservableProperty]
+    private bool _isTwampAvailable;
+
+    public string TwampStatus => IsTwampAvailable ? "ONLINE" : "Unavailable";
+    public string TwampTooltipText => $"RFC 5357 TWAMP: {TwampStatus}";
+
+    partial void OnIsTwampAvailableChanged(bool value)
+    {
+        OnPropertyChanged(nameof(TwampStatus));
+        OnPropertyChanged(nameof(TwampTooltipText));
+    }
+
+    [ObservableProperty]
+    private string _zstdSummary = "Unknown";
+
+    [ObservableProperty]
+    private System.Collections.Generic.IReadOnlyList<CompressionDiagnosticRow> _compressionRows = Array.Empty<CompressionDiagnosticRow>();
+
+    [ObservableProperty]
+    private System.Collections.Generic.IReadOnlyList<CompressionDiagnosticRow> _transportCompressionRows = Array.Empty<CompressionDiagnosticRow>();
+
+    public void RefreshCompressionSummary()
+    {
+        var usage = _telemetryProvider.HistoryCache?.GetUsage(1);
+        if (usage != null) ZstdSummary = ClientCompressionSnapshot.FormatBytes(usage.LiveZstdBytes + usage.StoredZstdBytes);
+    }
+
+    public void RefreshCompressionDiagnostics()
+    {
+        var snapshot = _telemetryProvider.GetCompressionDiagnostics();
+        ZstdSummary = snapshot.Summary;
+        CompressionRows = snapshot.MemoryRows;
+        TransportCompressionRows = snapshot.TransportRowsView;
+    }
+
     public ObservableCollection<FleetNodeModel> Nodes { get; } = new();
 
     public event Action<string>? ViewChangeRequested;
@@ -32,6 +67,7 @@ public partial class SidebarViewModel : ViewModelBase
     public SidebarViewModel(ITelemetryDataProvider telemetryProvider)
     {
         _telemetryProvider = telemetryProvider;
+        RefreshCompressionDiagnostics();
 
         foreach (var node in _telemetryProvider.GetFleetNodes())
         {
@@ -43,28 +79,17 @@ public partial class SidebarViewModel : ViewModelBase
 
         _telemetryProvider.NodeTelemetryUpdated += (s, updatedNode) =>
         {
-            void Apply()
+            var existing = Nodes.FirstOrDefault(n => n.Id.Equals(updatedNode.Id, StringComparison.OrdinalIgnoreCase));
+            if (existing == null)
             {
-                var existing = Nodes.FirstOrDefault(n => n.Id.Equals(updatedNode.Id, StringComparison.OrdinalIgnoreCase));
-                if (existing == null)
-                {
-                    Nodes.Add(updatedNode);
-                }
-                else
-                {
-                    existing.Status = updatedNode.Status;
-                }
-                UpdateOnlineCount();
-            }
-
-            if (Avalonia.Threading.Dispatcher.UIThread?.CheckAccess() == false)
-            {
-                Avalonia.Threading.Dispatcher.UIThread.Post(Apply);
+                Nodes.Add(updatedNode);
             }
             else
             {
-                Apply();
+                existing.Status = updatedNode.Status;
+                existing.Twamp = updatedNode.Twamp;
             }
+            UpdateOnlineCount();
         };
     }
 
@@ -72,6 +97,7 @@ public partial class SidebarViewModel : ViewModelBase
     {
         OnlineCount = Nodes.Count(n => n.Status.Equals("healthy", StringComparison.OrdinalIgnoreCase) ||
                                        n.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
+        IsTwampAvailable = Nodes.Any(n => n.Twamp != null && n.Twamp.Available);
     }
 
     [RelayCommand]

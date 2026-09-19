@@ -65,6 +65,12 @@ Process snapshots now maintain a 1,000-candidate heap, rank by CPU/RSS with dete
 
 Validation: a 1,050-process fixture verifies all 1,050 counter baselines are retained while only 1,000 status files are read and the correct leaders are returned. Separate probe tests cover swap/zram combinations and all-OFF network overrides. Collector tests and the full Go race suite passed; all 111 internal documentation links passed. Further metadata scheduling, TWAMP isolation, and compression byte/decode safeguards remain planned.
 
+### Grouped WAL and durable replay cursors — 2026-09-17
+
+Records now share segments up to 10 MiB (bounded further by the spool quota), retaining per-record fsync. Existing wire offsets now drive durable prefix acknowledgements in push, pull, and reverse-push; `wal-state.json` atomically checkpoints cursors and sequence high-water state before deletion. Replay stops at record boundaries and a 3 MiB byte budget, and startup repairs only incomplete newest-file tails. Legacy records remain readable, with explicit errors for oversized or corrupt data. Pull empty-spool sampling returns the pending prefix to avoid acknowledging past a concurrent sampler record. Sampling errors are surfaced. WAL zstd decode is bounded at 64 MiB; compression scope is unchanged.
+
+Validation: `go test -race -timeout 90s ./...` passed across the backend, including push/pull/reverse-push integration. WAL tests cover lost and duplicate ACKs, appends during an in-flight batch, partial/range ACKs, restart cursor recovery, torn latest/sealed frames, corrupt complete records, failed checkpoint persistence, sequence high-water recovery, legacy/compressed replay, byte limits, atomic sample records, and quota behavior. A 100-write fixture using this implementation created 100 segments with forced per-record rotation versus one grouped segment; every append retained its fsync. This demonstrates file-count reduction, not a production throughput or hardware power-loss guarantee. All 111 documentation links passed.
+
 ## 1. Recommendation
 
 **Use zstd selectively for serialized, sufficiently large, relatively cold data. First bound resource growth and eliminate unnecessary collection, copying, serialization, and disk operations.** These changes address costs that compression cannot remove.
@@ -325,3 +331,54 @@ Features that change durability, retention, data resolution, or deployment depen
 Leave existing documentation untouched during this research task. Once changes are implemented, synchronize CLI/config/UI/architecture documentation with verified behavior. In particular, recheck existing claims about fixed compression savings, universally compressed streams, prefix Bloom filters, segment sizing, and zero data loss: quotas and durability boundaries qualify those claims. Document the final per-layer policy and actual measured workload results instead of promising a blanket percentage.
 
 **Final direction:** pursue broad resource efficiency with selective compression. Zstd is a strong candidate for larger serialized batches, cold history, and archives. Hot in-memory collections benefit first from bounded representations, less duplication, and less work; the storage engine and transport each need their own measured compression policy.
+
+
+## Explicit WAL migration suite — 2026-09-18
+
+- Added opt-in daemon `--migrate`, ordered version steps and persisted WAL version tracking. Completed steps are skipped; unsupported future versions fail safely. Normal startup does not migrate.
+- Version 0 → 1 repacks raw/zstd legacy pending records into replay-sized records, preserving sample order and ACK prefixes with fresh sequence IDs. Atomic cutover intent and durable state allow explicit restart/resume after interruption.
+- Added exclusive daemon spool ownership and startup blocking while a migration is incomplete. Migration staging bypasses quota eviction and requires temporary disk headroom.
+- Limitations: oversized individual samples cannot be split by this migration; corrupt/incomplete or over-safety-bound records fail before cutover. No automatic downgrade, Collector DB migration or UI-cache migration. The new-write replay limit remains unchanged.
+- Validation: migration tests cover raw/zstd oversized multi-sample records, ordering, partial ACKs, repeat runs, cutover interruption phases, oversized single-sample preservation, abandoned staging, future-version rejection, explicit-only behavior and exclusive ownership. Full Go race suite and documentation link validation run for this stage.
+
+
+## Client compression diagnostics baseline — 2026-09-19
+
+- NFLOG is explicitly Unimplemented; its implementation remains deferred.
+- Replaced ZSTD Cache placeholder with current client compressed-memory status and a dense hover table for cache estimates and per-Collector/channel received protobuf counters. Reconnects retain counters; removed Collectors disappear. Refresh work runs only while hovered.
+- Current client caches and channels do not use zstd: compressed memory is 0 B, ratios are unavailable. Remote daemon/WAL metrics, codec timings/failures and workspace usage require a future diagnostics protocol; do not infer them from client payloads.
+- Collector ingestion limits are excluded from this UI stage. They remain a proposed resource safeguard for decoded allocations and concurrent ingestion, independent of this diagnostics work.
+- Validation: added tests for concurrent accounting, uncompressed-cache reporting, channel reset retention, endpoint separation/removal and unknown remote metrics. Build, full .NET tests and documentation link checks run for this stage.
+
+### Floating diagnostics panel follow-up — 2026-09-19
+
+Replaced the constrained tooltip with an owned diagnostics window: hover preview, click/tap activation, pinning, draggable title bar, close/Escape, and a vertically scrollable body. Content stretches to the window width without a fixed inner width. Initial placement respects the screen work area; refresh and dismissal timers stop when closed. Added interaction-state tests alongside narrow-column layout tests. Native window movement and touch interaction still require manual desktop validation.
+
+### Transport compression reporting — 2026-09-19
+
+Added a separate transport section below client memory and additive Collector discovery fields exposing per-node/per-mode received batch counts, zstd payload bytes and decoded-zstd bytes. Ratios exclude raw batches, framing and TLS; retries count as received traffic. Counters reset on Collector restart. Existing daemons work unchanged; old Collectors remain Not reported. Compact 28px pin/close buttons replace the oversized title-bar controls, with a vector pin icon. Tests cover compressed/raw/malformed batches, retry counts, snapshot isolation, ratios and older-Collector fallback. No compression expansion or data migration is included.
+
+
+### Client zstd expansion and raw traffic accounting — 2026-09-19
+
+- Added lossless, selectively compressed 256-point live-history blocks and compressed stored-query results. Hot tails remain raw; retained-byte budgets include encoded/raw buffers and estimated metadata. Partial expiry rechecks budgets, and shrinking below one block preserves recent samples where the budget permits.
+- Added negotiated zstd response envelopes for inventory, history, live telemetry and configuration. Updated clients opt in; old clients retain raw responses, and new clients accept old servers. Shared codec ownership, a 1 KiB minimum, 10% minimum savings, exact length checks and a 16 MiB decoded-envelope ceiling apply. No daemon changes or migration are required.
+- Added separate uncompressed-byte and total-payload counters for client-facing channels and daemon ingestion. Ratios continue to exclude raw traffic. Memory diagnostics show actual retained zstd payload bytes, decoded equivalents and total retained estimates.
+- Tests cover lossless timestamp/floating-point round trips, incompressible fallback, cache reuse/clear/budget/expiry behavior, malformed/nested envelopes, old-peer negotiation, unary/streaming gRPC compression, raw counters, and Go-to-.NET zstd interoperability. Production CPU/RSS and workload-specific compression savings remain to be profiled; codec workspaces and temporary decode buffers are outside cache estimates.
+
+Validation completed: .NET build succeeded; all 200 .NET tests passed. Full Go race suite passed, followed by the added unary/streaming RPC negotiation tests. Documentation link validation and `git diff --check` passed. No deployment or migration was run.
+
+
+### Stored-query admission and eviction correction — 2026-09-19
+
+Raised per-result admission from 10,000 points to the requested **64K (65,536)**. Removed the independent 128-range eviction cap; configured retained-byte budget and absolute age remain authoritative. Results exceeding either the per-result point ceiling or their entire byte budget are displayed without being cached and cannot evict useful entries. Compression now runs outside the cache lock; generation/cancellation checks still prevent stale fills after clears/settings changes. Concurrent fills for identical intervals retain one result without allowing a later coarser result to replace finer data.
+
+Regression tests cover 10,001–65,536-point cache hits, the 65,537 boundary, more than 128 retained ranges, oversized-result preservation, concurrent duplicate/coarser fills and absolute-age expiry. The 30-second default age remains configurable and is explained in the UI tooltip and documentation.
+
+Validation: build succeeded; all 217 .NET tests passed, including the 64K boundary and admission/eviction regressions. Documentation links and whitespace checks passed. No Collector or daemon changes are required for this correction.
+
+### Rolling stored-query cache reuse — 2026-09-19
+
+Relative scopes move their end time on every visit. Previously, a cached range could only serve that new end when live samples covered it; nodes with sparse, delayed or absent live samples repeatedly fetched entire ranges and accumulated overlapping entries. Queries now reuse a sufficiently detailed cached prefix and fetch only the uncovered tail. A successful tail fetch replaces the rolling entry at the same requested resolution, retaining the original expiry so late-arriving history can still refresh. Empty tails are cached; failures preserve available history without claiming coverage. Clear/settings generation checks and the 64K admission ceiling still apply.
+
+Validation: build succeeded and all 221 .NET tests passed. Four new regressions cover repeated rolling visits without live coverage, empty tails and original expiry, failed tails and clearing during a fetch, and rejecting insufficient resolution when zooming. Documentation links and whitespace checks passed. This correction requires only a client update.

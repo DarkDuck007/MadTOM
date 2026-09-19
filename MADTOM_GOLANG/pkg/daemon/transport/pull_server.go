@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DarkDuck007/madtom/pkg/daemon/collector"
+	"github.com/DarkDuck007/madtom/pkg/daemon/config"
 	"github.com/DarkDuck007/madtom/pkg/daemon/spool"
 	"github.com/DarkDuck007/madtom/pkg/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
@@ -23,6 +24,7 @@ type PullServer struct {
 	mu              sync.RWMutex
 	port            int
 	nodeID          string
+	spoolDir        string
 	wal             *spool.WALManager
 	engine          *collector.Engine
 	config          *madtomv1.NodeConfig
@@ -36,13 +38,18 @@ type PullServer struct {
 }
 
 // NewPullServer creates a new PullServer instance.
-func NewPullServer(port int, nodeID string, wal *spool.WALManager, engine *collector.Engine, cfg *madtomv1.NodeConfig) *PullServer {
+func NewPullServer(port int, nodeID string, wal *spool.WALManager, engine *collector.Engine, cfg *madtomv1.NodeConfig, spoolDir ...string) *PullServer {
 	if cfg == nil {
 		cfg = collector.DefaultConfig(nodeID)
+	}
+	var sDir string
+	if len(spoolDir) > 0 {
+		sDir = spoolDir[0]
 	}
 	return &PullServer{
 		port:       port,
 		nodeID:     nodeID,
+		spoolDir:   sDir,
 		wal:        wal,
 		engine:     engine,
 		config:     cfg,
@@ -73,7 +80,9 @@ func (s *PullServer) Start() error {
 				optin.StripMonitorOnlyMetrics(sample, cfg)
 			}
 
-			_, _ = s.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample})
+			if _, err := s.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample}); err != nil {
+				log.Printf("[PullServer] WAL append failed: %v", err)
+			}
 			if !wait(ctx, pollInterval(cfg)) {
 				return
 			}
@@ -122,8 +131,8 @@ func (s *PullServer) PollTelemetry(ctx context.Context, req *madtomv1.PollReques
 	}
 	// Acknowledge previously scraped segment if requested
 	if req.LastAckedSegmentId != "" {
-		if err := s.wal.AcknowledgeSegment(req.LastAckedSegmentId); err != nil {
-			log.Printf("[PullServer] Error acknowledging segment %s: %v", req.LastAckedSegmentId, err)
+		if err := s.wal.AcknowledgeSegment(req.LastAckedSegmentId, req.LastAckedOffset); err != nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "acknowledge spool: %v", err)
 		}
 	}
 
@@ -142,14 +151,18 @@ func (s *PullServer) PollTelemetry(ctx context.Context, req *madtomv1.PollReques
 
 	// 2. Otherwise sample live metrics immediately
 	sample := s.engine.Collect(s.config)
-	batch, err = s.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample})
-	if err != nil {
-		return &madtomv1.TelemetryBatch{
-			NodeId:  s.nodeID,
-			Samples: []*madtomv1.SystemMetrics{sample},
-		}, nil
+	if _, err = s.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample}); err != nil {
+		return nil, status.Errorf(codes.Internal, "write spool: %v", err)
 	}
-
+	// A concurrent sampler may have appended first. Return the pending prefix,
+	// never a newer standalone record whose ACK would skip an earlier sample.
+	batch, err = s.wal.ReadBatchChunk(maxSamples)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "read spool: %v", err)
+	}
+	if batch == nil {
+		return &madtomv1.TelemetryBatch{NodeId: s.nodeID}, nil
+	}
 	return batch, nil
 }
 
@@ -204,13 +217,16 @@ func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBat
 		if !ack.Success || ack.NodeId != s.nodeID || ack.SegmentId != batch.SegmentId || ack.SegmentOffset != batch.SegmentOffset {
 			return status.Error(codes.FailedPrecondition, "batch was not acknowledged")
 		}
-		if err := s.wal.AcknowledgeSegment(ack.SegmentId); err != nil {
+		if err := s.wal.AcknowledgeSegment(ack.SegmentId, ack.SegmentOffset); err != nil {
 			return err
 		}
 		s.mu.Lock()
 		s.lastActive = time.Now()
 		if ack.Config != nil {
 			s.config = ack.Config
+			if s.spoolDir != "" {
+				_ = config.SaveConfig(s.spoolDir, ack.Config)
+			}
 		}
 		s.mu.Unlock()
 	}

@@ -6,52 +6,59 @@ This guide covers the MADTOM Desktop Operator UI, its features, telemetry visual
 
 ## Table of Contents
 
-1. [Desktop UI Overview](#desktop-ui-overview)
-   - [UI Scaling & Display Multiplier](#ui-scaling--display-multiplier)
-   - [Interactive Resizable Sidebars](#interactive-resizable-sidebars)
-   - [Symmetrically Resizable Centered Modals](#symmetrically-resizable-centered-modals)
-   - [Modal Escape Key Navigation](#modal-escape-key-navigation)
-2. [Configuration & Persistent Storage](#configuration--persistent-storage)
-   - [Location & Resolving Paths](#location--resolving-paths)
-   - [`graphs.json` — Custom Graph Groups & Layouts](#graphsjson--custom-graph-groups--layouts)
-   - [`graph-presets.json` — Layout Presets](#graph-presetsjson--layout-presets)
-   - [`node-groups.json` — Custom Node Grouping](#node-groupsjson--custom-node-grouping)
-   - [`global-metrics.json` — Pinned Top-Bar Metrics & Modifiers](#global-metricsjson--pinned-top-bar-metrics--modifiers)
-   - [`collectors.json` — Saved Collector Hubs](#collectorsjson--saved-collector-hubs)
-   - [`settings.json` — Persistent User Preferences](#settingsjson--persistent-user-preferences)
-   - [`themes/` — Custom Runtime Themes (YAML / JSON)](#themes--custom-runtime-themes-yaml--json)
-3. [Telemetry Graph Scopes & Resolution](#telemetry-graph-scopes--resolution)
-   - [Pinned Slim Scope Bar](#pinned-slim-scope-bar)
-   - [Relative Scopes (1m, 5m, 30m, 2h, 6h, 12h, 24h)](#relative-scopes-1m-5m-30m-2h-6h-12h-24h)
-   - [Custom Scope (Date & Time Picker)](#custom-scope-date--time-picker)
-   - [Resolution-Adaptive Downsampling](#resolution-adaptive-downsampling)
-   - [Graph Performance Settings](#graph-performance-settings)
-   - [Graph Navigation: Zoom, Pan & Page Scrolling](#graph-navigation-zoom-pan--page-scrolling)
-   - [Memory Normalization in Tooltips](#memory-normalization-in-tooltips)
-   - [Graph Groups, Side-by-Side Rows & Reordering](#graph-groups-side-by-side-rows--reordering)
-   - [Custom Color Wheel & Series ColorPicker](#custom-color-wheel--series-colorpicker)
-   - [Missing Data & Downtime Handling](#missing-data--downtime-handling)
-   - [Multi-Device Disk I/O Metrics & Diagnostics](#multi-device-disk-io-metrics--diagnostics)
-4. [Collector & Fleet Management](#collector--fleet-management)
-   - [Client History Cache](#client-history-cache)
-   - [Opt-In Global Metrics & Top Bar Pinning](#opt-in-global-metrics--top-bar-pinning)
-   - [Dynamic Node Grouping & Fleet Filtering](#dynamic-node-grouping--fleet-filtering)
-   - [Node Opt-In Settings & Safe Apply Workflow](#node-opt-in-settings--safe-apply-workflow)
-   - [Adding a Collector](#adding-a-collector)
-   - [Editing a Collector](#editing-a-collector)
-   - [Removing a Collector](#removing-a-collector)
-   - [Multi-Hub Aggregation](#multi-hub-aggregation)
-5. [Process Monitoring, Storage Modes & Graphing](#process-monitoring-storage-modes--graphing)
-   - [Three-Tier Collection Policy](#three-tier-collection-policy)
-   - [Top-N Process Count Configuration](#top-n-process-count-configuration)
-   - [Historical TSDB Metric Storage & Breakdown Charting](#historical-tsdb-metric-storage--breakdown-charting)
-   - [Processes Manager: Sub-Tabs & True Top N Overview](#processes-manager-sub-tabs--true-top-n-overview)
-6. [Theming & Display Contrast Profiles](#theming--display-contrast-profiles)
-   - [Accessing Theme & Lexicon Settings](#accessing-theme--lexicon-settings)
-   - [Built-in Palettes](#built-in-palettes)
-   - [Dynamic Theme Loading & File Watching](#dynamic-theme-loading--file-watching)
-   - [Plugin Theme Overrides](#plugin-theme-overrides)
-   - [Custom Theme Schema & Example](#custom-theme-schema--example)
+- [UI Guide \& Configuration Reference](#ui-guide--configuration-reference)
+  - [Table of Contents](#table-of-contents)
+  - [Desktop UI Overview](#desktop-ui-overview)
+    - [UI Scaling \& Display Multiplier](#ui-scaling--display-multiplier)
+    - [System Tray \& Background Execution](#system-tray--background-execution)
+    - [Interactive Resizable Sidebars](#interactive-resizable-sidebars)
+    - [Symmetrically Resizable Centered Modals](#symmetrically-resizable-centered-modals)
+    - [Modal Escape Key Navigation](#modal-escape-key-navigation)
+  - [Configuration \& Persistent Storage](#configuration--persistent-storage)
+    - [Location \& Resolving Paths](#location--resolving-paths)
+    - [`graphs.json` — Custom Graph Groups \& Layouts](#graphsjson--custom-graph-groups--layouts)
+    - [`graph-presets.json` — Layout Presets](#graph-presetsjson--layout-presets)
+    - [`node-groups.json` — Custom Node Grouping](#node-groupsjson--custom-node-grouping)
+    - [`global-metrics.json` — Pinned Top-Bar Metrics \& Modifiers](#global-metricsjson--pinned-top-bar-metrics--modifiers)
+    - [`collectors.json` — Saved Collector Hubs](#collectorsjson--saved-collector-hubs)
+    - [`settings.json` — Persistent User Preferences](#settingsjson--persistent-user-preferences)
+    - [`themes/` — Custom Runtime Themes (YAML / JSON)](#themes--custom-runtime-themes-yaml--json)
+  - [Telemetry Graph Scopes \& Resolution](#telemetry-graph-scopes--resolution)
+    - [Pinned Slim Scope Bar](#pinned-slim-scope-bar)
+    - [Relative Scopes (1m, 5m, 30m, 2h, 6h, 12h, 24h)](#relative-scopes-1m-5m-30m-2h-6h-12h-24h)
+    - [Custom Scope (Date \& Time Picker)](#custom-scope-date--time-picker)
+    - [Resolution-Adaptive Downsampling](#resolution-adaptive-downsampling)
+    - [Graph Performance Settings](#graph-performance-settings)
+    - [Graph Navigation: Zoom, Pan \& Page Scrolling](#graph-navigation-zoom-pan--page-scrolling)
+    - [Memory Normalization in Tooltips](#memory-normalization-in-tooltips)
+    - [Graph Groups, Side-by-Side Rows \& Reordering](#graph-groups-side-by-side-rows--reordering)
+    - [Custom Color Wheel \& Series ColorPicker](#custom-color-wheel--series-colorpicker)
+    - [Missing Data \& Downtime Handling](#missing-data--downtime-handling)
+    - [Multi-Device Disk I/O Metrics \& Diagnostics](#multi-device-disk-io-metrics--diagnostics)
+      - [Troubleshooting Disk I/O on Cloud \& ARM64 Instances](#troubleshooting-disk-io-on-cloud--arm64-instances)
+  - [Collector \& Fleet Management](#collector--fleet-management)
+    - [Compression Diagnostics](#compression-diagnostics)
+    - [Client History Cache](#client-history-cache)
+    - [Opt-In Global Metrics \& Top Bar Pinning](#opt-in-global-metrics--top-bar-pinning)
+    - [Dynamic Node Grouping \& Fleet Filtering](#dynamic-node-grouping--fleet-filtering)
+    - [Node Opt-In Settings \& Safe Apply Workflow](#node-opt-in-settings--safe-apply-workflow)
+    - [Adding a Collector](#adding-a-collector)
+    - [Editing a Collector](#editing-a-collector)
+    - [Removing a Collector](#removing-a-collector)
+    - [Multi-Hub Aggregation](#multi-hub-aggregation)
+  - [Process Monitoring, Storage Modes \& Graphing](#process-monitoring-storage-modes--graphing)
+    - [Three-Tier Collection Policy](#three-tier-collection-policy)
+    - [Top-N Process Count Configuration](#top-n-process-count-configuration)
+    - [Historical TSDB Metric Storage \& Breakdown Charting](#historical-tsdb-metric-storage--breakdown-charting)
+    - [Processes Manager: Sub-Tabs \& True Top N Overview](#processes-manager-sub-tabs--true-top-n-overview)
+  - [Theming \& Display Contrast Profiles](#theming--display-contrast-profiles)
+    - [Accessing Theme \& Lexicon Settings](#accessing-theme--lexicon-settings)
+    - [Built-in Palettes](#built-in-palettes)
+    - [Dynamic Theme Loading \& File Watching](#dynamic-theme-loading--file-watching)
+    - [Plugin Theme Overrides](#plugin-theme-overrides)
+    - [Custom Theme Schema \& Example](#custom-theme-schema--example)
+      - [YAML Schema Example (`example-synthwave.yaml`)](#yaml-schema-example-example-synthwaveyaml)
+      - [JSON Schema Example (`my-theme.json`)](#json-schema-example-my-themejson)
 
 ---
 
@@ -79,6 +86,38 @@ MADTOM Console features an app-wide layout scaling engine powered by Avalonia's 
   - **Quick Preset Chips**: Fast one-click jumps to `50%`, `75%`, `100%`, `150%`, and `200%`.
   - **Reset Button**: One-click restoration back to default 100% scale.
 - **Persistence**: Saved to `UiScalePercent` in `~/.local/share/MADTOM/settings.json` and restored on startup.
+
+### System Tray & Background Execution
+
+MADTOM Console includes a native system tray integration designed for 24/7 background telemetry monitoring:
+- **Decoupled Architecture**:
+  - `MADTOM.Console` (host application) owns the tray icon, OS tray communication, window minimization/hiding, and top-level menu actions (**Open MADTOM Console** and **Quit MADTOM**).
+  - Plugins dynamically register contextual status sections into the tray via the host's `ITrayMenuService` contract without hardcoding UI dependencies into the host.
+  - Each registered section is automatically prefaced with a compact, non-intrusive plugin header (`— {PluginName} —`) rendered in native muted/disabled color to cleanly attribute ownership across multiple loaded plugins.
+- **Telemetry Overview Section**:
+  - Registered dynamically by `MADTOM.Plugins.Telemetry`.
+  - Appears between the Open and Quit buttons with live aggregated metrics:
+    - `● {online}/{total} Online` — Live fleet connectivity ratio.
+    - `⚡ CPU: {cpu:F1}% | RAM: {ram:F0}%` — Fleet average CPU utilization and RAM consumption.
+    - `🌐 TWAMP: {latency} ms` — Average RFC 5357 round-trip latency. **Conditionality Rule**: This item is strictly hidden in the tray menu when no nodes are actively reporting TWAMP telemetry, preventing empty or misleading 0ms displays.
+- **Flicker-Free In-Place Tray Updates**:
+  - The tray menu instance is created once and updated in-place via `NativeMenuItem.Header` mutations.
+  - Periodic telemetry updates only trigger change notifications if formatted values have altered, preventing redundant DBusMenu rebuild signals and eliminating tray icon sizing/flicker artifacts on Linux desktop shells.
+- **RFC 5357 TWAMP Sidebar Status**:
+  - The compact TWAMP status indicator card on the bottom-left corner of the Telemetry sidebar (`SidebarView.axaml`) displays `ONLINE` in emerald green when nodes report TWAMP latency, and gracefully shows `Unavailable` in muted slate gray when no active probes are present.
+- **Zero-CPU Background Execution**:
+  - Sending MADTOM to the system tray hides the main window via Avalonia's `Window.Hide()`, instructing the window manager/display server to unmap the window surface.
+  - Avalonia's `IRenderLoop` immediately halts GPU rendering loops and layout passes (reducing CPU and GPU consumption to 0%).
+  - All background services—including gRPC collector streaming, multi-node polling, TWAMP reflector probes, and TSDB history cache updates—remain 100% active.
+  - Waking MADTOM from the tray restores the window instantaneously (< 5ms) without needing to reinitialize views or reload telemetry state.
+- **Settings Flyout Dropdowns**:
+  - The Settings flyout (gear icon **⚙**) uses clean dropdown menus (`ComboBox`) to avoid clutter:
+    - **COLOR THEME**: Select from all built-in and dynamic themes via a compact ComboBox with color swatch previews.
+    - **SYSTEM TRAY BEHAVIOR**: Mutually exclusive dropdown configuring minimize/close behavior:
+      - `Close Button (X)`: Minimizes to tray when X is clicked (Default).
+      - `Minimize Button (_)`: Minimizes to tray when _ is clicked.
+      - `Disabled`: Standard window buttons (X exits MADTOM).
+  - Saved to `settings.json` and persisted across restarts.
 
 ### Interactive Resizable Sidebars
 
@@ -307,7 +346,10 @@ Stores runtime operator interface preferences across sessions.
   "Language": "goose",
   "IsConsoleSidebarCollapsed": false,
   "IsTelemetrySidebarCollapsed": false,
-  "UiScalePercent": 100
+  "UiScalePercent": 100,
+  "CloseToTray": true,
+  "MinimizeToTray": false,
+  "ShowTrayIcon": true
 }
 ```
 
@@ -316,6 +358,9 @@ Stores runtime operator interface preferences across sessions.
 - **`IsConsoleSidebarCollapsed`**: Navigation rail collapse state for the `MADTOM.Console` host.
 - **`IsTelemetrySidebarCollapsed`**: Navigation rail collapse state for the Telemetry plugin module.
 - **`UiScalePercent`**: Application-wide UI display scaling percentage (10 to 1000, default 100).
+- **`CloseToTray`**: When `true`, closing the main window with `X` minimizes MADTOM to the system tray (default: `true`).
+- **`MinimizeToTray`**: When `true`, clicking the minimize button `_` sends MADTOM directly to the tray (default: `false`).
+- **`ShowTrayIcon`**: Controls visibility of the system tray icon (default: `true`).
 - All state changes are written atomically (`settings.json.tmp` -> `settings.json`) upon user interaction and restored seamlessly on startup.
 
 ---
@@ -467,6 +512,24 @@ If a remote server (e.g. Oracle Cloud Infrastructure ARM64) displays no disk I/O
 
 ## Collector & Fleet Management
 
+### Compression Diagnostics
+
+The sidebar **ZSTD Memory** value is the compressed payload bytes currently retained in client memory, not cumulative transport traffic or total process memory. Live history seals 256-point blocks into zstd, retaining a small raw append tail; stored-query results are compressed on cache insertion. Small or incompressible blocks stay raw. The value can remain **0 B** until enough compressible history accumulates. Providers without diagnostics show **Unknown**.
+
+Hover or tap the row or its collapsed icon to open a floating diagnostics window. Hover previews close after leaving both the trigger and panel; tapping keeps the window open until it loses focus or is closed. The compact pin-icon button keeps it open across focus changes. Drag its title bar to move it, and use **×** or Escape to close it. The window refreshes every two seconds while open and closes with its owning UI.
+
+The panel uses its own window surface to avoid tooltip clipping under UI scaling. Its initial position is constrained to the screen work area. Channel names and values wrap to the available width, and the body scrolls vertically:
+
+- Current live and stored-query compressed bytes, decoded-equivalent bytes for those compressed blocks, ratios and point counts. **Retained (est.)** includes encoded blocks, raw buffers and approximate metadata; `~` marks estimates.
+- Received logical protobuf bytes/messages for each configured Collector's inventory, history, live and configuration channels. Counts accumulate across channel reconnects and reset when the Collector is removed/recreated. They exclude HTTP/2/TLS framing, requests, and traffic between daemons and Collectors.
+- Updated clients automatically negotiate zstd response envelopes with updated Collectors for inventory, historical queries, live streams and configuration responses. Messages below 1 KiB or saving less than 10% remain raw. **Raw so far** means no compressed response has arrived yet, including when connected to an older Collector. Ratios include compressed messages only.
+- A separate **ZSTD · TRANSPORT** section below client memory shows daemon → Collector counters grouped by endpoint, node and transport mode. Decoded/raw bytes, zstd bytes and ratios cover successfully decoded compressed frames only. The count is zstd batches / all received decodable batches, including retries, since Collector startup.
+- **Zstd observed** means compressed frames have arrived during that Collector lifetime. **No zstd seen** does not mean the daemon flag is disabled: small batches may be sent raw. **Awaiting data** means an updated Collector has no observations; **Not reported** means no compatible report is available.
+- **RAW · UNCOMPRESSED TRAFFIC** shows bytes passed without compression and total payload bytes (raw + compressed) per channel. Daemon counters measure the samples-only protobuf payload; client counters measure response protobufs. Neither includes envelope/HTTP2/TLS overhead. Older Collectors without raw-counter support show **—**, not zero.
+- Upgrade both Collector and client to enable client-facing compression and see all remote transport statistics; existing daemons need no upgrade for this reporting. This is an additive protocol change and needs no data migration. Reports arrive with normal node discovery; the panel's two-second refresh does not issue extra requests. WAL disk usage, codec time, failures and workspace memory remain unavailable.
+
+NFLOG displays **Unimplemented** in both sidebar layouts. NFLOG implementation remains deferred.
+
 ### Client History Cache
 
 Open **Node Settings → Performance → Client Caches** to set how long this client retains streamed numeric graph history for all connected nodes. The default is **60 minutes**; enter **120** for two hours, or any whole number from **1 to 1440** minutes, then select **Apply caches**. Decreasing retention immediately removes older cached samples. Increasing it retains more future samples; it cannot recover monitor-only telemetry from before the client received it.
@@ -475,16 +538,18 @@ The compact grid shows each cache's estimated memory and series/point or range/p
 
 | Cache | Default size limit | Default age limit | Eviction |
 |---|---:|---:|---|
-| Streamed history | 64 MiB | 60 minutes | Oldest samples first; queue capacity is reclaimed with growth headroom |
+| Streamed history | 64 MiB | 60 minutes | Oldest sealed blocks first; raw boundary buffers are pruned and compacted |
 | Stored query results | 32 MiB | 30 seconds | Least-recently-used ranges first; expired ranges are removed |
 
-Each size limit accepts **1–4096 MiB**. Streamed age accepts **1–1440 minutes**; stored age accepts **1–86400 seconds**. **Apply caches** persists and enforces changes immediately. Both age and size apply, so memory pressure may shorten retained history. Increasing stored age can reuse stale responses longer; changing that age clears existing stored results. Stored cache safety limits remain 128 ranges and 10,000 points per response; larger responses are displayed without being cached.
+Each size limit accepts **1–4096 MiB**. Streamed age accepts **1–1440 minutes**; stored age accepts **1–86400 seconds**. **Apply caches** persists and enforces changes immediately. Both age and size apply, so memory pressure may shorten retained history. Increasing stored age can reuse stale responses longer; changing that age clears existing stored results. Stored results up to **64K points (65,536) per response** are eligible for caching. Larger results are displayed without being cached. There is no separate 128-range cap: total retention follows the configured retained-byte budget (including compression and estimated metadata). A result that cannot fit by itself is skipped without evicting existing entries. Concurrent fills for an identical interval retain one result, preserving the finer resolution.
 
-Stats refresh every two seconds while settings are open, or immediately via **Refresh**. Streamed memory forecasts use observed rates/counts and the entered cap. Stored usage depends on queries, so its forecast is an upper bound. Totals show combined current usage, streamed forecast plus stored cap, and the combined configured cap. Estimates include allocated point buffers and approximate entry/key overhead, excluding chart copies, transient responses, and runtime/allocator overhead. These are cache budgets, not a limit on process memory.
+History compression is lossless: timestamps and all value/min/max bits are preserved. Sealed live blocks are decompressed only for overlapping reads or partial expiry; stored results are decompressed when read. Size budgets account for encoded/raw buffers and estimated metadata. Budgets are rechecked when partial expiry materializes a raw head. There is no persistent cache migration: both caches are session-only.
+
+Stats refresh every two seconds while settings are open, or immediately via **Refresh**. Streamed memory forecasts use observed rates/counts and retained bytes per point, including current compression effectiveness. Stored usage depends on queries, so its forecast is an upper bound. Totals show combined current usage, streamed forecast plus stored cap, and the combined configured cap. Estimates include allocated point buffers and approximate entry/key overhead, excluding chart copies, transient decompression/response buffers, shared codec workspaces, and runtime/allocator overhead. These are cache budgets, not a limit on process memory.
 
 Monitor-only graph history now survives navigating away from a node and reopening its details during the same app session. Numeric per-core, NIC, disk, swap/zram, power, TWAMP, and process-name CPU series are included when received; full process snapshots and logs are not historical cache records. Unavailable or omitted metrics are not filled with stale values. Retention uses sample timestamps, and inactive series expire too.
 
-History queries use local data for metrics currently configured as Monitor-only or Off. Stored metrics can use fully covered live windows (allowing up to five seconds between samples and at the live edge), otherwise collector history is merged with cached samples. Successful collector query results, including empty results, can be reused for the stored age limit (30 seconds by default). Local samples win at identical timestamps. Node configurations are cached for 30 seconds and refreshed immediately after successful settings changes made in this client. A collector failure still allows available local history to be displayed; cancellation remains cancellable.
+History queries use local data for metrics currently configured as Monitor-only or Off. Stored metrics can use fully covered live windows (allowing up to five seconds between samples and at the live edge), otherwise collector history is merged with cached samples. Successful collector query results, including empty results, can be reused for the stored age limit (30 seconds by default). This is an absolute age since fetching, even below the memory budget; hits do not extend freshness. Increase the stored age in Performance settings if longer reuse is desired, allowing for potentially late-arriving telemetry. When a relative scope moves forward and live samples do not cover its new end, the client reuses a sufficiently detailed cached prefix and fetches only the uncovered tail. Successful tail fetches replace the rolling entry at the same requested resolution, including empty tails, without extending the original prefix expiry. Failed tail fetches can display the cached prefix but do not mark the missing interval as covered. Local samples win at identical timestamps. Node configurations are cached for 30 seconds and refreshed immediately after successful settings changes made in this client. A collector failure still allows available local history to be displayed; cancellation remains cancellable.
 
 Each cache has an independent **Clear** button. Clearing streamed history preserves stored results, and clearing stored results preserves streamed history. Clears and settings changes invalidate in-flight fills. Clearing affects only this client's cache, not collector storage or already-rendered chart arrays. Both caches disappear at app exit.
 

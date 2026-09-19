@@ -2,10 +2,12 @@ package transport
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
 	"github.com/DarkDuck007/madtom/pkg/daemon/collector"
+	"github.com/DarkDuck007/madtom/pkg/daemon/config"
 	"github.com/DarkDuck007/madtom/pkg/daemon/spool"
 	"github.com/DarkDuck007/madtom/pkg/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
@@ -18,6 +20,7 @@ import (
 type PushClient struct {
 	mu                    sync.RWMutex
 	collectorAddr, nodeID string
+	spoolDir              string
 	wal                   *spool.WALManager
 	engine                *collector.Engine
 	config                *madtomv1.NodeConfig
@@ -27,12 +30,19 @@ type PushClient struct {
 	isConnected           bool
 }
 
-func NewPushClient(address, nodeID string, wal *spool.WALManager, engine *collector.Engine, cfg *madtomv1.NodeConfig) *PushClient {
+func NewPushClient(address, nodeID string, wal *spool.WALManager, engine *collector.Engine, cfg *madtomv1.NodeConfig, spoolDir ...string) *PushClient {
 	if cfg == nil {
 		cfg = collector.DefaultConfig(nodeID)
 	}
+	if engine != nil && address != "" {
+		engine.SetCollectorAddr(address)
+	}
+	var sDir string
+	if len(spoolDir) > 0 {
+		sDir = spoolDir[0]
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &PushClient{collectorAddr: address, nodeID: nodeID, wal: wal, engine: engine, config: cfg, ctx: ctx, cancel: cancel}
+	return &PushClient{collectorAddr: address, nodeID: nodeID, spoolDir: sDir, wal: wal, engine: engine, config: cfg, ctx: ctx, cancel: cancel}
 }
 func (p *PushClient) Start() { p.wg.Add(2); go p.sampleLoop(); go p.runLoop() }
 func (p *PushClient) Stop()  { p.cancel(); p.wg.Wait() }
@@ -52,7 +62,9 @@ func (p *PushClient) sampleLoop() {
 			optin.StripMonitorOnlyMetrics(sample, cfg)
 		}
 
-		_, _ = p.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample})
+		if _, err := p.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample}); err != nil {
+			log.Printf("[PushClient] WAL append failed: %v", err)
+		}
 		if !wait(p.ctx, pollInterval(cfg)) {
 			return
 		}
@@ -131,12 +143,15 @@ func (p *PushClient) connect() bool {
 			return hadActivity
 		}
 		hadActivity = true
-		if err = p.wal.AcknowledgeSegment(ack.SegmentId); err != nil {
+		if err = p.wal.AcknowledgeSegment(ack.SegmentId, ack.SegmentOffset); err != nil {
 			return hadActivity
 		}
 		p.mu.Lock()
 		if ack.Config != nil {
 			p.config = ack.Config
+			if p.spoolDir != "" {
+				_ = config.SaveConfig(p.spoolDir, ack.Config)
+			}
 		}
 		p.isConnected = true
 		p.mu.Unlock()

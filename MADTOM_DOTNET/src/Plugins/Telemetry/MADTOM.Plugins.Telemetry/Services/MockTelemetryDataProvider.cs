@@ -299,6 +299,11 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
 
     public void ClearLogs() { }
 
+    public void RaiseNodeTelemetryUpdated(FleetNodeModel node)
+    {
+        NodeTelemetryUpdated?.Invoke(this, node);
+    }
+
     public void Dispose()
     {
         _streamTimer?.Dispose();

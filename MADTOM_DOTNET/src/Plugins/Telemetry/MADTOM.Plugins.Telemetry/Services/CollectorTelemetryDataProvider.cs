@@ -32,6 +32,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
     private readonly SemaphoreSlim _configGate = new(1, 1);
 
     public MultiCollectorManager CollectorManager => _collectorManager;
+    public ClientCompressionSnapshot GetCompressionDiagnostics() => _collectorManager.GetCompressionDiagnostics(HistoryCache);
 
     public event EventHandler<FleetNodeModel>? NodeTelemetryUpdated;
     public event EventHandler<LogEntryModel>? LogReceived;

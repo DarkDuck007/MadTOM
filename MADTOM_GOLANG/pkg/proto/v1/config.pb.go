@@ -218,8 +218,11 @@ func (x *UpdateNodeConfigRequest) GetConfig() *NodeConfig {
 
 // NodeConfig controls what the daemon measures and what the collector retains.
 type NodeConfig struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	NodeId string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Negotiated response envelope; decoded content is this same message type.
+	ZstdPayload []byte `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
+	DecodedSize uint32 `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
+	NodeId      string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	// Legacy Opt-in Collection Switches (Daemon Level)
 	CollectCpuOverall         bool `protobuf:"varint,2,opt,name=collect_cpu_overall,json=collectCpuOverall,proto3" json:"collect_cpu_overall,omitempty"`
 	CollectCpuPerCore         bool `protobuf:"varint,3,opt,name=collect_cpu_per_core,json=collectCpuPerCore,proto3" json:"collect_cpu_per_core,omitempty"`
@@ -288,6 +291,20 @@ func (x *NodeConfig) ProtoReflect() protoreflect.Message {
 // Deprecated: Use NodeConfig.ProtoReflect.Descriptor instead.
 func (*NodeConfig) Descriptor() ([]byte, []int) {
 	return file_madtom_v1_config_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *NodeConfig) GetZstdPayload() []byte {
+	if x != nil {
+		return x.ZstdPayload
+	}
+	return nil
+}
+
+func (x *NodeConfig) GetDecodedSize() uint32 {
+	if x != nil {
+		return x.DecodedSize
+	}
+	return 0
 }
 
 func (x *NodeConfig) GetNodeId() string {
@@ -515,9 +532,12 @@ func (x *NodeConfig) GetTwampMode() TelemetryOptInMode {
 }
 
 type ConfigAck struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Negotiated response envelope; decoded content is this same message type.
+	ZstdPayload   []byte `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
+	DecodedSize   uint32 `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
+	Success       bool   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -552,6 +572,20 @@ func (*ConfigAck) Descriptor() ([]byte, []int) {
 	return file_madtom_v1_config_proto_rawDescGZIP(), []int{3}
 }
 
+func (x *ConfigAck) GetZstdPayload() []byte {
+	if x != nil {
+		return x.ZstdPayload
+	}
+	return nil
+}
+
+func (x *ConfigAck) GetDecodedSize() uint32 {
+	if x != nil {
+		return x.DecodedSize
+	}
+	return 0
+}
+
 func (x *ConfigAck) GetSuccess() bool {
 	if x != nil {
 		return x.Success
@@ -575,9 +609,11 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"a\n" +
 	"\x17UpdateNodeConfigRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12-\n" +
-	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xfd\x13\n" +
+	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xc3\x14\n" +
 	"\n" +
-	"NodeConfig\x12\x17\n" +
+	"NodeConfig\x12!\n" +
+	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
+	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12.\n" +
 	"\x13collect_cpu_overall\x18\x02 \x01(\bR\x11collectCpuOverall\x12/\n" +
 	"\x14collect_cpu_per_core\x18\x03 \x01(\bR\x11collectCpuPerCore\x120\n" +
@@ -632,8 +668,10 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1ab\n" +
 	"\x15PowerMetricModesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
-	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\"?\n" +
-	"\tConfigAck\x12\x18\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\"\x85\x01\n" +
+	"\tConfigAck\x12!\n" +
+	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
+	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage*q\n" +
 	"\x14ProcessTelemetryMode\x12\x19\n" +

@@ -3,11 +3,12 @@ package api
 import (
 	"context"
 	"errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"net"
 	"strings"
 	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/DarkDuck007/madtom/pkg/collector/ingest"
 	"github.com/DarkDuck007/madtom/pkg/collector/registry"
@@ -44,10 +45,12 @@ func NewServer(collectorName string, tsdb *storage.TSDB, reg *registry.Registry,
 // ListNodes returns all monitored nodes registered with this collector.
 func (s *Server) ListNodes(ctx context.Context, req *madtomv1.ListNodesRequest) (*madtomv1.ListNodesResponse, error) {
 	nodes := s.reg.ListNodes()
-	return &madtomv1.ListNodesResponse{
-		CollectorName: s.collectorName,
-		Nodes:         nodes,
-	}, nil
+	return encodeResponse(ctx, &madtomv1.ListNodesResponse{
+		CollectorName:           s.collectorName,
+		Nodes:                   nodes,
+		TransportStatsSupported: true,
+		TransportStats:          s.pipeline.TransportStats(),
+	})
 }
 
 // QueryRange performs a resolution-adaptive downsampled query over a historical range.
@@ -93,11 +96,11 @@ func (s *Server) QueryRange(ctx context.Context, req *madtomv1.RangeQueryRequest
 		}
 	}
 
-	return &madtomv1.RangeQueryResponse{
+	return encodeResponse(ctx, &madtomv1.RangeQueryResponse{
 		NodeId:     req.NodeId,
 		MetricName: req.MetricName,
 		Points:     protoPoints,
-	}, nil
+	})
 }
 
 // SubscribeLive streams 1Hz real-time events for an active node card or detail view.
@@ -114,7 +117,11 @@ func (s *Server) SubscribeLive(req *madtomv1.LiveSubscriptionRequest, stream mad
 			if !ok {
 				return nil
 			}
-			if err := stream.Send(event); err != nil {
+			encoded, err := encodeResponse(ctx, event)
+			if err != nil {
+				return err
+			}
+			if err := stream.Send(encoded); err != nil {
 				return err
 			}
 		}
@@ -123,7 +130,7 @@ func (s *Server) SubscribeLive(req *madtomv1.LiveSubscriptionRequest, stream mad
 
 // GetNodeConfig retrieves active opt-in settings for a node.
 func (s *Server) GetNodeConfig(ctx context.Context, req *madtomv1.GetNodeConfigRequest) (*madtomv1.NodeConfig, error) {
-	return s.reg.GetConfig(req.NodeId), nil
+	return encodeResponse(ctx, s.reg.GetConfig(req.NodeId))
 }
 
 // UpdateNodeConfig updates active opt-in settings for a node.
@@ -135,13 +142,18 @@ func (s *Server) UpdateNodeConfig(ctx context.Context, req *madtomv1.UpdateNodeC
 		req.Config.FastPollIntervalMs = 1000
 	}
 	if strings.TrimSpace(req.Config.TwampTarget) != "" {
-		if _, _, err := net.SplitHostPort(req.Config.TwampTarget); err != nil {
-			return nil, status.Error(codes.InvalidArgument, "TWAMP target must be host:port")
+		target := strings.TrimSpace(req.Config.TwampTarget)
+		if !strings.EqualFold(target, "collector") && !strings.EqualFold(target, "auto") {
+			if strings.Contains(target, ":") {
+				if _, _, err := net.SplitHostPort(target); err != nil {
+					return nil, status.Error(codes.InvalidArgument, "TWAMP target must be 'collector', 'auto', host, or host:port")
+				}
+			}
 		}
 	}
 	s.reg.SetConfig(req.NodeId, req.Config)
-	return &madtomv1.ConfigAck{
+	return encodeResponse(ctx, &madtomv1.ConfigAck{
 		Success: true,
 		Message: "Node configuration updated",
-	}, nil
+	})
 }

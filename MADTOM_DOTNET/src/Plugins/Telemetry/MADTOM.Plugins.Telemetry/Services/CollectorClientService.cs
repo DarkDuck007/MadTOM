@@ -18,6 +18,20 @@ public sealed class CollectorClientService : IAsyncDisposable
     private QueryService.QueryServiceClient _queryClient;
     private ConfigService.ConfigServiceClient _configClient;
 
+    // Negotiated zstd response envelopes; counters exclude gRPC framing/TLS.
+    private readonly ClientPayloadCounter _inventoryPayloads = new();
+    private readonly ClientPayloadCounter _historyPayloads = new();
+    private readonly ClientPayloadCounter _livePayloads = new();
+    private readonly ClientPayloadCounter _configPayloads = new();
+    public IReadOnlyList<(string Name, ClientPayloadCounter Counter)> ReceivedPayloads => new[]
+    {
+        ("inventory RX", _inventoryPayloads), ("history RX", _historyPayloads),
+        ("live RX", _livePayloads), ("configuration RX", _configPayloads)
+    };
+
+    private CompressionDiagnosticRow[] _transportDiagnostics = Array.Empty<CompressionDiagnosticRow>();
+    public IReadOnlyList<CompressionDiagnosticRow> TransportDiagnostics => Volatile.Read(ref _transportDiagnostics);
+
     public string Endpoint { get; }
     public string CollectorName { get; private set; }
 
@@ -80,7 +94,9 @@ public sealed class CollectorClientService : IAsyncDisposable
         try
         {
             var (queryClient, _) = GetClients();
-            var response = await queryClient.ListNodesAsync(new ListNodesRequest(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            var response = await queryClient.ListNodesAsync(new ListNodesRequest(), headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            response = ClientResponseCompression.Decode(response, _inventoryPayloads);
+            Volatile.Write(ref _transportDiagnostics, ClientCompressionSnapshot.TransportRows(Endpoint, response));
             if (!string.IsNullOrEmpty(response.CollectorName))
             {
                 CollectorName = response.CollectorName;
@@ -133,7 +149,8 @@ public sealed class CollectorClientService : IAsyncDisposable
         try
         {
             var (queryClient, _) = GetClients();
-            var response = await queryClient.QueryRangeAsync(req, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
+            var response = await queryClient.QueryRangeAsync(req, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
+            response = ClientResponseCompression.Decode(response, _historyPayloads);
             var points = new List<LODPoint>(response.Points.Count);
             foreach (var pt in response.Points)
             {
@@ -151,10 +168,10 @@ public sealed class CollectorClientService : IAsyncDisposable
     public async IAsyncEnumerable<LiveTelemetryEvent> SubscribeLiveAsync(string nodeId, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         var (queryClient, _) = GetClients();
-        using var call = queryClient.SubscribeLive(new LiveSubscriptionRequest { NodeId = nodeId }, cancellationToken: ct);
+        using var call = queryClient.SubscribeLive(new LiveSubscriptionRequest { NodeId = nodeId }, headers: ClientResponseCompression.AcceptHeaders(), cancellationToken: ct);
         while (await call.ResponseStream.MoveNext(ct))
         {
-            yield return call.ResponseStream.Current;
+            yield return ClientResponseCompression.Decode(call.ResponseStream.Current, _livePayloads);
         }
     }
 
@@ -163,7 +180,9 @@ public sealed class CollectorClientService : IAsyncDisposable
         try
         {
             var (_, configClient) = GetClients();
-            return await configClient.GetNodeConfigAsync(new GetNodeConfigRequest { NodeId = nodeId }, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            var response = await configClient.GetNodeConfigAsync(new GetNodeConfigRequest { NodeId = nodeId }, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            response = ClientResponseCompression.Decode(response, _configPayloads);
+            return response;
         }
         catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
         {
@@ -185,7 +204,8 @@ public sealed class CollectorClientService : IAsyncDisposable
             {
                 NodeId = nodeId,
                 Config = config
-            }, deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            }, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            res = ClientResponseCompression.Decode(res, _configPayloads);
             return res.Success;
         }
         catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)

@@ -141,6 +141,9 @@ public sealed class MultiCollectorManager : IAsyncDisposable
         return groups.SelectMany(nodes => nodes).ToArray();
     }
 
+    public ClientCompressionSnapshot GetCompressionDiagnostics(TelemetryHistoryCache cache)
+        => ClientCompressionSnapshot.Capture(cache, _clients.Values);
+
     public CollectorClientService? GetClientForNode(FleetNodeModel node)
     {
         if (string.IsNullOrEmpty(node.CollectorEndpoint)) return null;

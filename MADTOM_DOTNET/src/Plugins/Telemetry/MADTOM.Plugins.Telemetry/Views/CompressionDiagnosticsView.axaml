@@ -1,0 +1,93 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MadTOM.ViewModels"
+             xmlns:services="using:MadTOM.Services"
+             x:Class="MadTOM.Views.CompressionDiagnosticsView"
+             x:DataType="vm:SidebarViewModel">
+    <StackPanel Spacing="5" HorizontalAlignment="Stretch">
+        <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="ZSTD · CLIENT MEMORY" FontWeight="Bold" FontSize="12"/>
+            <TextBlock Grid.Column="1" Text="{Binding ZstdSummary}" FontWeight="Bold"/>
+        </Grid>
+        <TextBlock Text="Retained compressed payloads · excludes codec overhead."
+                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+
+            <ItemsControl ItemsSource="{Binding CompressionRows}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="services:CompressionDiagnosticRow">
+                        <StackPanel Margin="0,3" Spacing="2">
+                            <TextBlock Text="{Binding Scope}" TextWrapping="Wrap" FontWeight="Bold"/>
+                            <Grid ColumnDefinitions="1.6*,1.2*,*,0.8*,1.1*" RowDefinitions="Auto,Auto">
+                                <TextBlock Text="Status" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="1" Text="Decoded" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="2" Text="Zstd" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="3" Text="Ratio" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="4" Text="Items/RX" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="1" Text="{Binding State}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Raw}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Zstd}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding Ratio}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding Count}" TextWrapping="Wrap"/>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Retained (est.)" FontSize="10"/>
+                                <TextBlock Text="{Binding TotalPayload}" FontSize="10"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        <TextBlock Text="ZSTD · TRANSPORT" FontWeight="Bold" FontSize="12" Margin="0,12,0,2"/>
+        <TextBlock Text="Daemon → Collector: observed payloads since Collector startup. Decoded and ratio cover zstd frames only; counts show zstd/all messages and include retries. Client RX is since client startup." FontSize="10" TextWrapping="Wrap"/>
+            <ItemsControl ItemsSource="{Binding TransportCompressionRows}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="services:CompressionDiagnosticRow">
+                        <StackPanel Margin="0,3" Spacing="2">
+                            <TextBlock Text="{Binding Scope}" TextWrapping="Wrap" FontWeight="Bold"/>
+                            <Grid ColumnDefinitions="1.6*,1.2*,*,0.8*,1.1*" RowDefinitions="Auto,Auto">
+                                <TextBlock Text="Status" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="1" Text="Decoded" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="2" Text="Zstd" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="3" Text="Ratio" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="4" Text="Count" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="1" Text="{Binding State}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Raw}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Zstd}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding Ratio}" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding Count}" TextWrapping="Wrap"/>
+                            </Grid>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+        <TextBlock Text="RAW · UNCOMPRESSED TRAFFIC" FontWeight="Bold" FontSize="12" Margin="0,12,0,2"/>
+        <TextBlock Text="Bytes passed without zstd, plus total transferred payload (raw + compressed). These totals do not affect the zstd ratio above." FontSize="10" TextWrapping="Wrap"/>
+        <ItemsControl ItemsSource="{Binding TransportCompressionRows}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="services:CompressionDiagnosticRow">
+                    <StackPanel Spacing="2" Margin="0,3">
+                        <TextBlock Text="{Binding Scope}" TextWrapping="Wrap" FontWeight="Bold"/>
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                            <TextBlock Text="Raw passed" FontSize="9"/>
+                            <TextBlock Grid.Column="1" Text="Total payload" FontSize="9"/>
+                            <TextBlock Grid.Row="1" Text="{Binding RawPassed}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TotalPayload}"/>
+                        </Grid>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                   Text="~ Estimated memory. RX: session protobuf bytes/messages; excludes HTTP/2 and TLS. Reconnects retain counts."/>
+        <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"
+                   Text="Ratio: decoded ÷ compressed payload bytes; excludes framing/TLS. No zstd seen does not mean disabled: small batches may be sent raw. Remote stats refresh with node discovery; older Collectors show Not reported."/>
+    </StackPanel>
+    <UserControl.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource MonoFontFamily}"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+    </UserControl.Styles>
+</UserControl>

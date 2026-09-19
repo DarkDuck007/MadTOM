@@ -14,6 +14,9 @@ public sealed class AppSettings
     public bool IsConsoleSidebarCollapsed { get; set; } = false;
     public bool IsTelemetrySidebarCollapsed { get; set; } = false;
     public int UiScalePercent { get; set; } = 100;
+    public bool CloseToTray { get; set; } = true;
+    public bool MinimizeToTray { get; set; } = false;
+    public bool ShowTrayIcon { get; set; } = true;
 }
 
 /// <summary>

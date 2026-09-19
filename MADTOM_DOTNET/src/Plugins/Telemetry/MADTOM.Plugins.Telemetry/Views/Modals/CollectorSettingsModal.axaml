@@ -240,7 +240,7 @@
                                 <TextBlock Grid.Row="4" Text="Stored query results" FontSize="11" VerticalAlignment="Center"/>
                                 <NumericUpDown Grid.Row="4" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" Value="{Binding StoredCacheLimitMiB, Mode=TwoWay}"/>
                                 <Grid Grid.Row="4" Grid.Column="2" ColumnDefinitions="80,*">
-                                    <NumericUpDown Classes="performance-number" Minimum="1" Maximum="86400" Increment="30" FormatString="0" Value="{Binding StoredCacheRetentionSeconds, Mode=TwoWay}"/>
+                                    <NumericUpDown Classes="performance-number" Minimum="1" Maximum="86400" Increment="30" FormatString="0" Value="{Binding StoredCacheRetentionSeconds, Mode=TwoWay}" ToolTip.Tip="Maximum age since a result was fetched, even below the memory limit. Increase this to reuse stored queries longer; reused results may omit late-arriving data."/>
                                     <TextBlock Grid.Column="1" Text="sec" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
                                 </Grid>
                                 <Button Grid.Row="4" Grid.Column="3" Content="Clear" Padding="4,2" Command="{Binding ClearStoredCacheCommand}"/>
@@ -490,11 +490,11 @@
                                                         CornerRadius="8"
                                                         Padding="12,10">
                                                     <StackPanel Spacing="6">
-                                                        <TextBlock Text="TWAMP Light reflector (host:UDP port)"
+                                                        <TextBlock Text="TWAMP Light reflector (host:UDP port, or 'collector')"
                                                                    FontFamily="{StaticResource MonoFontFamily}"
                                                                    FontSize="11"
                                                                    FontWeight="SemiBold"/>
-                                                        <TextBox Text="{Binding TwampTarget}" PlaceholderText="Empty disables probing"
+                                                        <TextBox Text="{Binding TwampTarget}" PlaceholderText="e.g. collector, 10.0.0.1:862, or 10.0.0.1 (empty disables)"
                                                                  FontFamily="{StaticResource MonoFontFamily}"
                                                                  FontSize="11"/>
                                                         <CheckBox Content="Endpoint clocks are synchronized" IsChecked="{Binding TwampClocksSynchronized}"

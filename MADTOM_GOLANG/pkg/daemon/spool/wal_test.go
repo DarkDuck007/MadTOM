@@ -52,7 +52,7 @@ func TestWALManagerCycle(t *testing.T) {
 	}
 
 	// Acknowledge segment
-	if err := wal.AcknowledgeSegment(oldest.SegmentId); err != nil {
+	if err := wal.AcknowledgeSegment(oldest.SegmentId, oldest.SegmentOffset); err != nil {
 		t.Fatalf("failed to ack segment: %v", err)
 	}
 
@@ -114,8 +114,8 @@ func TestAcknowledgementPreservesLaterSamplesAcrossRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.SegmentId == second.SegmentId {
-		t.Fatal("independently acknowledged batches share a segment")
+	if first.SegmentId != second.SegmentId || first.SegmentOffset >= second.SegmentOffset {
+		t.Fatal("expected grouped records with increasing offsets")
 	}
 	wal.Close()
 	wal, err = NewWALManager(dir, "node", 1<<20, false)
@@ -123,7 +123,7 @@ func TestAcknowledgementPreservesLaterSamplesAcrossRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer wal.Close()
-	if err := wal.AcknowledgeSegment(first.SegmentId); err != nil {
+	if err := wal.AcknowledgeSegment(first.SegmentId, first.SegmentOffset); err != nil {
 		t.Fatal(err)
 	}
 	batch, err := wal.ReadOldestBatch()
@@ -133,7 +133,7 @@ func TestAcknowledgementPreservesLaterSamplesAcrossRestart(t *testing.T) {
 	if batch == nil || batch.Samples[0].TimestampUnixNano != 2 {
 		t.Fatal("unacknowledged sample lost")
 	}
-	if err := wal.AcknowledgeSegment("../outside.wal"); err == nil {
+	if err := wal.AcknowledgeSegment("../outside.wal", 1); err == nil {
 		t.Fatal("path traversal accepted")
 	}
 }
@@ -145,6 +145,7 @@ func TestLegacyMultiRecordSegmentIsFullyReplayed(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer wal.Close()
+	wal.maxSegmentSize = 1
 	first, err := wal.WriteMetrics([]*madtomv1.SystemMetrics{{NodeId: "node", TimestampUnixNano: 1}})
 	if err != nil {
 		t.Fatal(err)
@@ -166,6 +167,14 @@ func TestLegacyMultiRecordSegmentIsFullyReplayed(t *testing.T) {
 		t.Fatal(err)
 	}
 	file.Close()
+	if err := os.Remove(dir + "/" + second.SegmentId); err != nil {
+		t.Fatal(err)
+	}
+	wal, err = NewWALManager(dir, "node", 1<<20, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer wal.Close()
 	batch, err := wal.ReadOldestBatch()
 	if err != nil {
 		t.Fatal(err)
@@ -183,7 +192,8 @@ func TestReadBatchChunkAndRangeAck(t *testing.T) {
 	}
 	defer wal.Close()
 
-	// Write 50 separate segments
+	wal.maxSegmentSize = 1
+	// Force 50 separate segments to exercise range ACKs
 	for i := 1; i <= 50; i++ {
 		_, err := wal.WriteMetrics([]*madtomv1.SystemMetrics{
 			{NodeId: "node-chunk", TimestampUnixNano: int64(i)},
@@ -206,7 +216,7 @@ func TestReadBatchChunkAndRangeAck(t *testing.T) {
 	}
 
 	// Acknowledge range 1..20
-	if err := wal.AcknowledgeSegment(chunk1.SegmentId); err != nil {
+	if err := wal.AcknowledgeSegment(chunk1.SegmentId, chunk1.SegmentOffset); err != nil {
 		t.Fatalf("AcknowledgeSegment range failed: %v", err)
 	}
 
@@ -223,7 +233,7 @@ func TestReadBatchChunkAndRangeAck(t *testing.T) {
 	}
 
 	// Acknowledge range 21..50
-	if err := wal.AcknowledgeSegment(chunk2.SegmentId); err != nil {
+	if err := wal.AcknowledgeSegment(chunk2.SegmentId, chunk2.SegmentOffset); err != nil {
 		t.Fatalf("AcknowledgeSegment range failed: %v", err)
 	}
 

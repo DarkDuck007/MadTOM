@@ -46,9 +46,14 @@ Group=root
 #       TCP port daemon binds to when running in 'pull' or 'reverse-push' mode.
 #       Default: 50052
 #
-#   -twamp-target <host:port>
+#   -twamp-target <target>
 #       Target TWAMP Light UDP reflector endpoint for round-trip latency & jitter measurements.
+#       Can be "collector" / "auto" to target the connected collector, a bare IP/host, or host:port.
 #       Default: "" (Disabled if omitted)
+#
+#   -twamp-port <port>
+#       Default UDP port for TWAMP Light probing when target has no explicit port.
+#       Default: 862
 #
 #   -twamp-clocks-synchronized
 #       Assert that local node clock and reflector clock are synchronized (via PTP/NTP),

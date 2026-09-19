@@ -22,6 +22,7 @@ type Pipeline struct {
 	decoder       *zstd.Decoder
 	subscribers   map[string][]chan *madtomv1.LiveTelemetryEvent // key: nodeID
 	latest        map[string]*madtomv1.SystemMetrics
+	transport     map[string]*madtomv1.TransportCompressionStats
 	collectorName string
 }
 
@@ -35,6 +36,7 @@ func NewPipeline(tsdb *storage.TSDB, reg *registry.Registry, collectorName strin
 		subscribers:   make(map[string][]chan *madtomv1.LiveTelemetryEvent),
 		collectorName: collectorName,
 		latest:        make(map[string]*madtomv1.SystemMetrics),
+		transport:     make(map[string]*madtomv1.TransportCompressionStats),
 	}
 }
 
@@ -57,6 +59,7 @@ func (p *Pipeline) processBatch(batch *madtomv1.TelemetryBatch, mode string) (ba
 	}
 
 	samples := batch.Samples
+	decodedBytes := 0
 
 	// Decompress if payload was compressed
 	if batch.IsCompressed && len(batch.CompressedPayload) > 0 && p.decoder != nil {
@@ -69,8 +72,10 @@ func (p *Pipeline) processBatch(batch *madtomv1.TelemetryBatch, mode string) (ba
 			return batchSummary{}, err
 		}
 		samples = inner.Samples
+		decodedBytes = len(decompressed)
 	}
 
+	p.recordTransport(batch, mode, decodedBytes)
 	p.reg.RegisterOrTouch(batch.NodeId, mode, nil)
 
 	var records []storage.MetricRecord

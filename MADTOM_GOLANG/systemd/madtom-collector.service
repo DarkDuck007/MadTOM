@@ -24,6 +24,11 @@ Group=root
 #       and operator UI queries & live streams).
 #       Default: 50051
 #
+#   -twamp-port <port>
+#       UDP port for native RFC 5357 TWAMP Light reflector (bounces UDP latency test probes).
+#       Default: 862 (0 disables the reflector). Note: binding port 862 as non-root requires
+#       CAP_NET_BIND_SERVICE (e.g. AmbientCapabilities=CAP_NET_BIND_SERVICE or -twamp-port=8620).
+#
 #   -data-dir <path>
 #       Directory path for CockroachDB Pebble TSDB time-series storage.
 #       Stores historical metrics with big-endian timestamp prefix indexing.

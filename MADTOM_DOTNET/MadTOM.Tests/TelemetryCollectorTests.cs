@@ -158,13 +158,14 @@ public class TelemetryCollectorTests
         string daemonWal = System.IO.Path.Combine(tempDir, "wal");
 
         int testPort = 50065;
+        int twampPort = 50066;
 
         var collectorProc = new System.Diagnostics.Process
         {
             StartInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = collectorBin,
-                Arguments = $"-name \"Lab Gateway\" -port {testPort} -data-dir \"{collectorDb}\"",
+                Arguments = $"-name \"Lab Gateway\" -port {testPort} -twamp-port {twampPort} -data-dir \"{collectorDb}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false
@@ -177,7 +178,7 @@ public class TelemetryCollectorTests
             StartInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = daemonBin,
-                Arguments = $"-node-id test-e2e-node -mode push -collector 127.0.0.1:{testPort} -spool-dir \"{daemonWal}\"",
+                Arguments = $"-node-id test-e2e-node -mode push -collector 127.0.0.1:{testPort} -twamp-target collector -twamp-port {twampPort} -spool-dir \"{daemonWal}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false
@@ -210,16 +211,29 @@ public class TelemetryCollectorTests
             Assert.Equal("test-e2e-node", discovered.Id);
             Assert.Equal("Lab Gateway", discovered.CollectorName);
             await using var client = new CollectorClientService($"127.0.0.1:{testPort}");
-            using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(6));
+            bool gotProcesses = false;
+            bool gotTwamp = false;
             await foreach (var sample in client.SubscribeLiveAsync("test-e2e-node", timeout.Token))
             {
                 Assert.NotNull(sample.Metrics.Cpu);
                 Assert.NotEmpty(sample.Metrics.Cpu.PerCorePct);
                 Assert.NotEmpty(sample.Metrics.CpuModel);
-                Assert.True(sample.Metrics.ProcessesAvailable);
-                Assert.NotEmpty(sample.Metrics.Processes);
-                break;
+                if (sample.Metrics.ProcessesAvailable && sample.Metrics.Processes.Count > 0)
+                {
+                    gotProcesses = true;
+                }
+                if (sample.Metrics.Twamp != null && sample.Metrics.Twamp.Available)
+                {
+                    gotTwamp = true;
+                }
+                if (gotProcesses && gotTwamp)
+                {
+                    break;
+                }
             }
+            Assert.True(gotProcesses);
+            Assert.True(gotTwamp);
             var history = await client.QueryRangeAsync("test-e2e-node", "cpu.total", DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow, ct: timeout.Token);
             Assert.NotEmpty(history);
 
@@ -257,6 +271,56 @@ public class TelemetryCollectorTests
 
         bool updated = await client.UpdateNodeConfigAsync("node1", new MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig(), cts.Token);
         Assert.False(updated);
+    }
+
+    [Fact]
+    public async Task Daemon_PersistsNodeConfigAcrossRestarts_AndEmitsWarningOnCLIOverride()
+    {
+        var root = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !System.IO.Directory.Exists(System.IO.Path.Combine(root.FullName, "MADTOM_GOLANG"))) root = root.Parent;
+        Assert.NotNull(root);
+        string daemonBin = System.IO.Path.Combine(root.FullName, "MADTOM_GOLANG", "bin", "madtom-daemon");
+
+        string tempSpool = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "madtom_spool_persist_" + Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(tempSpool);
+        try
+        {
+            // Seed a persisted UI config
+            string initialConfig = "{\n  \"nodeId\": \"node-test-persist\",\n  \"twampTarget\": \"127.0.0.1:50066\",\n  \"twampMode\": 2\n}";
+            await System.IO.File.WriteAllTextAsync(System.IO.Path.Combine(tempSpool, "node-config.json"), initialConfig);
+
+            var daemonProc = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = daemonBin,
+                    Arguments = $"-node-id node-test-persist -spool-dir \"{tempSpool}\" -twamp-target 127.0.0.1:50077",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false
+                }
+            };
+            var stderrBuilder = new System.Text.StringBuilder();
+            daemonProc.ErrorDataReceived += (_, e) => { if (e.Data != null) stderrBuilder.AppendLine(e.Data); };
+            daemonProc.Start();
+            daemonProc.BeginErrorReadLine();
+
+            await Task.Delay(1000);
+
+            try { daemonProc.Kill(); } catch { }
+            await daemonProc.WaitForExitAsync();
+
+            string stderr = stderrBuilder.ToString();
+            Assert.Contains("[Config] WARNING: CLI argument -twamp-target=\"127.0.0.1:50077\" overrides UI-configured value \"127.0.0.1:50066\"", stderr);
+
+            // Verify disk was updated with the override
+            string updatedConfig = await System.IO.File.ReadAllTextAsync(System.IO.Path.Combine(tempSpool, "node-config.json"));
+            Assert.Contains("127.0.0.1:50077", updatedConfig);
+        }
+        finally
+        {
+            try { System.IO.Directory.Delete(tempSpool, true); } catch { }
+        }
     }
 }
 

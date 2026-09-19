@@ -28,5 +28,10 @@ public interface IPluginHostContext
     /// Prevents strong delegate references that would anchor plugins and prevent GC unloading.
     /// </summary>
     IMessenger Messenger { get; }
+
+    /// <summary>
+    /// Host system tray menu service allowing plugins to register dynamic status sections.
+    /// </summary>
+    ITrayMenuService Tray { get; }
 }
 

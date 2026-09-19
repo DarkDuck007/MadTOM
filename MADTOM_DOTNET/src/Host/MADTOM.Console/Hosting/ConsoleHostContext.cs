@@ -16,10 +16,13 @@ public sealed class ConsoleHostContext : IPluginHostContext, ILexiconHost, IThem
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, Dictionary<string, string>>> _pluginLexicons
         = new(StringComparer.OrdinalIgnoreCase);
 
+    public TrayMenuService TrayService { get; } = new();
+
     public IPluginNotificationService Notifications => this;
     public ILexiconHost Lexicons => this;
     public IThemeHost Themes => this;
     public IMessenger Messenger => WeakReferenceMessenger.Default;
+    public ITrayMenuService Tray => TrayService;
 
     // --- ILexiconHost Implementation ---
     public string CurrentLexicon { get; private set; } = "goose";

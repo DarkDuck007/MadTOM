@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Controls;
@@ -134,6 +135,85 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     [ObservableProperty]
     private string _toastIcon = "ℹ️";
 
+    public IReadOnlyList<TrayBehaviorOption> TrayBehaviorOptions { get; } = new[]
+    {
+        new TrayBehaviorOption("close", "Close Button (X)", "Minimizes to tray when X is clicked"),
+        new TrayBehaviorOption("minimize", "Minimize Button (_)", "Minimizes to tray when _ is clicked"),
+        new TrayBehaviorOption("disabled", "Disabled", "Standard window controls (X exits MADTOM)")
+    };
+
+    public TrayBehaviorOption? SelectedTrayBehavior
+    {
+        get
+        {
+            if (CloseToTray && !MinimizeToTray) return TrayBehaviorOptions[0];
+            if (MinimizeToTray && !CloseToTray) return TrayBehaviorOptions[1];
+            if (!CloseToTray && !MinimizeToTray) return TrayBehaviorOptions[2];
+            return TrayBehaviorOptions[0];
+        }
+        set
+        {
+            if (value == null) return;
+            switch (value.Key)
+            {
+                case "close":
+                    CloseToTray = true;
+                    MinimizeToTray = false;
+                    break;
+                case "minimize":
+                    CloseToTray = false;
+                    MinimizeToTray = true;
+                    break;
+                case "disabled":
+                    CloseToTray = false;
+                    MinimizeToTray = false;
+                    break;
+            }
+            OnPropertyChanged(nameof(SelectedTrayBehavior));
+        }
+    }
+
+    [ObservableProperty]
+    private bool _closeToTray = true;
+
+    partial void OnCloseToTrayChanged(bool value)
+    {
+        if (_appSettings != null)
+        {
+            _appSettings.CloseToTray = value;
+            AppSettingsStore.Save(_appSettings);
+        }
+        OnPropertyChanged(nameof(SelectedTrayBehavior));
+    }
+
+    [ObservableProperty]
+    private bool _minimizeToTray = false;
+
+    partial void OnMinimizeToTrayChanged(bool value)
+    {
+        if (_appSettings != null)
+        {
+            _appSettings.MinimizeToTray = value;
+            AppSettingsStore.Save(_appSettings);
+        }
+        OnPropertyChanged(nameof(SelectedTrayBehavior));
+    }
+
+    [ObservableProperty]
+    private bool _isSleeping;
+
+    public ThemeOption? SelectedThemeOption
+    {
+        get => AvailableThemes.FirstOrDefault(t => t.Key.Equals(ActiveTheme, StringComparison.OrdinalIgnoreCase));
+        set
+        {
+            if (value != null && !value.Key.Equals(ActiveTheme, StringComparison.OrdinalIgnoreCase))
+            {
+                SwitchTheme(value.Key);
+            }
+        }
+    }
+
     public ConsoleMainViewModel(ConsoleHostContext hostContext, PluginManager pluginManager)
     {
         _hostContext = hostContext;
@@ -145,6 +225,8 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         _isSidebarCollapsed = _appSettings.IsConsoleSidebarCollapsed;
         _uncollapsedSidebarWidth = 220;
         _uiScalePercent = _appSettings.UiScalePercent > 0 ? Math.Clamp(_appSettings.UiScalePercent, 10, 1000) : 100;
+        _closeToTray = _appSettings.CloseToTray;
+        _minimizeToTray = _appSettings.MinimizeToTray;
 
         _hostContext.SetTheme(_activeTheme);
         _hostContext.SetLexicon(_activeLexicon);
@@ -269,5 +351,33 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
             _toastTimer.Start();
         });
     }
+
+    public void EnterSleepMode()
+    {
+        IsSleeping = true;
+        _toastTimer?.Stop();
+        IsToastVisible = false;
+    }
+
+    public void WakeFromSleepMode()
+    {
+        IsSleeping = false;
+    }
+}
+
+public sealed class TrayBehaviorOption
+{
+    public string Key { get; }
+    public string DisplayName { get; }
+    public string Description { get; }
+
+    public TrayBehaviorOption(string key, string displayName, string description)
+    {
+        Key = key;
+        DisplayName = displayName;
+        Description = description;
+    }
+
+    public override string ToString() => DisplayName;
 }
 

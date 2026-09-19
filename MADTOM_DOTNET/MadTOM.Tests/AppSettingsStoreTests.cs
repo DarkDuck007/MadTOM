@@ -89,5 +89,48 @@ public class AppSettingsStoreTests : IDisposable
         Assert.Equal("feline", loaded.Language);
         Assert.True(loaded.IsConsoleSidebarCollapsed);
     }
+
+    [Fact]
+    public void Load_TraySettings_HaveSensibleDefaults()
+    {
+        var settings = AppSettingsStore.Load(_tempFile);
+        Assert.True(settings.CloseToTray);
+        Assert.False(settings.MinimizeToTray);
+        Assert.True(settings.ShowTrayIcon);
+    }
+
+    [Fact]
+    public void Save_TraySettings_PersistsSuccessfully()
+    {
+        var settings = new AppSettings
+        {
+            CloseToTray = false,
+            MinimizeToTray = true,
+            ShowTrayIcon = false
+        };
+        AppSettingsStore.Save(settings, _tempFile);
+
+        var loaded = AppSettingsStore.Load(_tempFile);
+        Assert.False(loaded.CloseToTray);
+        Assert.True(loaded.MinimizeToTray);
+        Assert.False(loaded.ShowTrayIcon);
+    }
+
+    [Fact]
+    public void InspectTrayIcon_Capabilities()
+    {
+        var trayIconType = typeof(Avalonia.Controls.TrayIcon);
+        var itemType = typeof(Avalonia.Controls.NativeMenuItem);
+        var menuType = typeof(Avalonia.Controls.NativeMenu);
+
+        var itemProps = string.Join(", ", itemType.GetProperties().Select(p => $"{p.PropertyType.Name} {p.Name}"));
+        var trayProps = string.Join(", ", trayIconType.GetProperties().Select(p => $"{p.PropertyType.Name} {p.Name}"));
+        var menuProps = string.Join(", ", menuType.GetProperties().Select(p => $"{p.PropertyType.Name} {p.Name}"));
+
+        Assert.Contains("Header", itemProps);
+        Assert.Contains("Menu", itemProps);
+        Assert.Contains("Icon", itemProps);
+        Assert.Contains("ToolTipText", trayProps);
+    }
 }
 

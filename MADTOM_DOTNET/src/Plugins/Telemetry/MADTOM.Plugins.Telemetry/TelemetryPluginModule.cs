@@ -25,6 +25,8 @@ public class TelemetryPluginModule : IPluginModule
     private MultiCollectorManager? _collectorManager;
     private MainViewModel? _mainViewModel;
     private TelemetryRootView? _rootView;
+    private TelemetryTrayMenuSection? _trayMenuSection;
+    private IDisposable? _traySectionRegistration;
 
     public string Id => "telemetry";
     public string DisplayName => "Telemetry";
@@ -52,7 +54,24 @@ public class TelemetryPluginModule : IPluginModule
             MadTOM.Theming.ThemeService.Instance.ApplyTheme(hostContext.Themes.CurrentTheme, fallback);
         }
 
+        // Register Tray Menu Section
+        EnsureTelemetryProvider();
+        if (hostContext.Tray != null && _telemetryProvider != null)
+        {
+            _trayMenuSection = new TelemetryTrayMenuSection(_telemetryProvider);
+            _traySectionRegistration = hostContext.Tray.RegisterSection(_trayMenuSection);
+        }
+
         return Task.CompletedTask;
+    }
+
+    private void EnsureTelemetryProvider()
+    {
+        if (_telemetryProvider == null)
+        {
+            _collectorManager = new MultiCollectorManager();
+            _telemetryProvider = new CollectorTelemetryDataProvider(_collectorManager);
+        }
     }
 
     private void RegisterBundledLexicons(ILexiconHost lexiconHost)
@@ -103,17 +122,13 @@ public class TelemetryPluginModule : IPluginModule
         if (_rootView != null)
             return _rootView;
 
-        if (_telemetryProvider == null)
-        {
-            _collectorManager = new MultiCollectorManager();
-            _telemetryProvider = new CollectorTelemetryDataProvider(_collectorManager);
-        }
+        EnsureTelemetryProvider();
 
         // Wire notification dispatch to host context
         var notifService = new HostNotificationBridge(_hostContext);
 
         _mainViewModel = new MainViewModel(
-            _telemetryProvider,
+            _telemetryProvider!,
             LexiconService.Instance,
             notifService);
 
@@ -146,6 +161,11 @@ public class TelemetryPluginModule : IPluginModule
 
     public async ValueTask DisposeAsync()
     {
+        _traySectionRegistration?.Dispose();
+        _traySectionRegistration = null;
+        _trayMenuSection?.Dispose();
+        _trayMenuSection = null;
+
         await StopAsync();
 
         if (_hostContext != null)

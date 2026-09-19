@@ -62,7 +62,9 @@ StyleCopReport.xml
 *.publishsettings
 *.pubxml.user
 secrets.json
-
+deploy.yaml
+deploy.yml
+deployinfo.yaml
 # Operating-system metadata
 .DS_Store
 Thumbs.db

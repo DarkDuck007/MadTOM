@@ -24,6 +24,8 @@ type Engine struct {
 	diskCollector    *DiskCollector
 	processCollector *ProcessCollector
 	cpuModel         string
+	collectorAddr    string
+	twampPort        int
 }
 
 // NewEngine creates and initializes all Linux collectors.
@@ -40,6 +42,23 @@ func NewEngine(nodeID string) *Engine {
 		diskCollector:    NewDiskCollector(),
 		processCollector: NewProcessCollector(),
 		cpuModel:         readCPUModel(),
+		twampPort:        twamp.DefaultPort,
+	}
+}
+
+// SetCollectorAddr configures the known collector address used to resolve 'collector'/'auto' TWAMP targets.
+func (e *Engine) SetCollectorAddr(addr string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.collectorAddr = addr
+}
+
+// SetTwampPort configures the default UDP port used for TWAMP probing.
+func (e *Engine) SetTwampPort(port int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if port > 0 {
+		e.twampPort = port
 	}
 }
 
@@ -136,7 +155,10 @@ func (e *Engine) Collect(cfg *madtomv1.NodeConfig) *madtomv1.SystemMetrics {
 
 	twampMode := optin.ResolveMode(cfg.TwampMode, cfg.TwampTarget != "")
 	if twampMode != madtomv1.TelemetryOptInMode_OPT_IN_OFF && cfg.TwampTarget != "" {
-		metrics.Twamp = twamp.Probe(cfg.TwampTarget, cfg.TwampClocksSynchronized, uint32(time.Now().UnixNano()))
+		target := twamp.ResolveTarget(cfg.TwampTarget, e.twampPort, e.collectorAddr)
+		if target != "" {
+			metrics.Twamp = twamp.Probe(target, cfg.TwampClocksSynchronized, uint32(time.Now().UnixNano()))
+		}
 	}
 	if cfg.ProcessMode != madtomv1.ProcessTelemetryMode_PROCESS_MODE_DISABLED {
 		metrics.Processes, metrics.ProcessesAvailable = e.processCollector.Collect()

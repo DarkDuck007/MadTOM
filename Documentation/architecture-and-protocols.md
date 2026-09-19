@@ -15,6 +15,7 @@ This document provides a technical brief on the internal architecture, transport
     - [Reverse-Push Mode](#reverse-push-mode)
     - [Live Subscriber Delivery](#live-subscriber-delivery)
   - [Durable Disk Spooling (WAL Engine)](#durable-disk-spooling-wal-engine)
+  - [Client Cache and Response Compression](#client-cache-and-response-compression)
     - [Write-Ahead Log Mechanics](#write-ahead-log-mechanics)
     - [Bounded Quotas \& Eviction](#bounded-quotas--eviction)
     - [Optional Zstandard Compression](#optional-zstandard-compression)
@@ -102,7 +103,7 @@ Desktop history RPCs are limited to four active requests per collector and eight
 
 ### Live Subscriber Delivery
 
-The desktop client has a session-owned numeric history cache, keyed by collector endpoint, node ID, and metric. Its default retention is 60 minutes (configurable from 1 to 1,440 minutes). Monotonic live points are retained in queues and aged out even when nodes stop reporting. Streamed history defaults to an estimated 64 MiB budget, evicting oldest samples under pressure and reclaiming queue capacity. Collector query results use a separate least-recently-used cache (default 32 MiB and 30 seconds, at most 128 ranges of at most 10,000 points each); local samples take precedence at identical timestamps. Clearing or shrinking the cache invalidates in-flight query results. Performance settings configure both size and age limits, display separate/combined estimates and counts, and clear each cache independently. Accounting includes allocated point capacity and estimated entry/key overhead, excluding chart arrays, transient results, and runtime overhead. Reducing budgets takes effect immediately; settings changes invalidate in-flight fills. No telemetry cache contents are written to disk.
+The desktop client has a session-owned numeric history cache, keyed by collector endpoint, node ID, and metric. Its default retention is 60 minutes (configurable from 1 to 1,440 minutes). Monotonic live points are retained in queues and aged out even when nodes stop reporting. Streamed history defaults to an estimated 64 MiB budget, evicting oldest samples under pressure and reclaiming queue capacity. Collector query results use a separate least-recently-used cache (default 32 MiB and 30 seconds, up to 65,536 points per result, with no independent range-count cap); local samples take precedence at identical timestamps. Stored-cache admission checks the compressed entry size before eviction, so an individually oversized result cannot flush the cache. Duplicate in-flight fills for identical intervals are deduplicated, preserving finer resolution. Rolling scopes reuse a sufficiently detailed cached prefix even when live samples do not cover the new end, fetching only the uncovered suffix. Successful suffix fetches replace the source entry at the same point budget and preserve its original expiry; empty responses establish coverage, while failed requests do not. The configured stored age remains absolute since the original fetch completion. Clearing or shrinking the cache invalidates in-flight query results. Performance settings configure both size and age limits, display separate/combined estimates and counts, and clear each cache independently. Accounting includes allocated point capacity and estimated entry/key overhead, excluding chart arrays, transient results, and runtime overhead. Reducing budgets takes effect immediately; settings changes invalidate in-flight fills. No telemetry cache contents are written to disk.
 
 Metric graphs pass a target point count of a configurable 1–10 times their plotting width (default 3) to collector history queries. Remote cache reuse checks both the requested count and points per unit of time, preventing a coarse cached range from satisfying a higher-resolution request. After merging history and deriving rates, the graph applies time-bucket sampling with endpoints and extrema retained. Client buckets are anchored to absolute timestamps rather than the moving window origin, with budget reserved for partial buckets and edge neighbours. Drawing uses those original timestamps for selection and retains the original mapped coordinates; completed interior buckets remain stable during scrolling at fixed scope/resolution. Duplicate or older single-node observations are ignored before rate calculation. The raw session cache stays unchanged; graph source windows are retained separately to avoid cumulative reduction during live updates. Single-node history keeps sub-second timestamps, while multi-node aggregation continues to align samples by second.
 
@@ -116,21 +117,31 @@ The chart renderer independently caps geometry at a configurable 0.1–2 points 
 
 ## Durable Disk Spooling (WAL Engine)
 
-To guarantee zero data loss during network outages, reboots, or collector downtime, `madtom-daemon` includes a built-in Write-Ahead Log:
+To retain telemetry across network outages and restarts, `madtom-daemon` includes a built-in Write-Ahead Log. Retention remains subject to the configured spool quota and successful filesystem writes:
 
 ### Write-Ahead Log Mechanics
-- Every metric sample collected is appended to a local WAL file (`segment-{seq}.wal`).
-- Segments remain safely on disk until an explicit `BatchAck` is received from the collector confirming persistent ingestion.
-- Upon reconnection, the daemon automatically replays pending segments in sequence order.
-- **In-Memory Segment Indexing**: Segment metadata and total spool capacity are maintained in-memory for $O(1)$ amortized append and eviction operations, avoiding filesystem directory scans and stat syscalls during collection ticks.
-- **Offline Efficiency**: When disconnected in `PROCESS_MODE_LIVE_ONLY`, bulky process snapshots are suppressed from offline disk spooling to prevent storage and memory exhaustion, preserving standard system telemetry metrics for backlog replay. Reconnection uses exponential backoff to minimize idle CPU and network strain.
+
+- Samples are written as length-prefixed protobuf records into `segment-{seq}.wal`. Each successful append still fsyncs before returning. Records share a segment until it reaches 10 MiB (or the smaller spool quota); this reduces file creation, not the durability of individual records.
+- Replay starts after each segment's acknowledged byte offset, preserving complete record boundaries. The default chunk target is 500 samples, with a 3 MiB serialized-sample budget and envelope allowance. A single atomic record may exceed the sample-count target, but new oversized records are rejected before append. Existing oversized records produce an explicit replay error rather than being silently skipped.
+- All three transport modes acknowledge the existing segment ID **and end offset**. A range ID acknowledges complete earlier segments and only the specified prefix of the final segment. Missing, out-of-range, and non-boundary offsets are rejected. Duplicate acknowledgements cannot consume later appends.
+- `wal-state.json` stores acknowledged prefixes and a sequence high-water mark. Updates use a synced temporary file, atomic rename, and directory sync before acknowledged sealed segments are deleted. Sequence numbers are not reused when old files disappear, preventing stale acknowledgements from matching a new segment.
+- An acknowledged active segment stays open for further appends; it is not pending backlog. Once sealed and fully acknowledged, it can be removed. Lost acknowledgements cause replay; collector timestamp-keyed writes tolerate duplicates.
+- Startup reads legacy single- and multi-record files and restores durable cursors. An incomplete final frame in the newest segment is truncated to the last complete frame before appending. Incomplete sealed segments, invalid framing, and complete corrupt protobuf/zstd records are errors, not silently discarded data.
+- Pull responses always return the pending WAL prefix, including records appended by the background sampler. WAL append failures are logged by background samplers, and pull append failures return an error instead of sending an unspooled sample.
+- Compressed WAL reads have a 64 MiB encoded-record/decoded-payload safety limit. This does not expand zstd usage or cap total process memory.
+- **Explicit migrations:** `--migrate` runs an ordered, append-only migration registry before collectors or transports start. `wal-state.json` records the last completed version; unversioned spools are version 0. Ordinary startup retains compatible legacy reads but never executes migration steps. Unsupported future versions fail startup.
+- Version 0 → 1 streams pending records into replay-sized replacement records, accepting raw and zstd legacy payloads. It excludes acknowledged prefixes and preserves pending sample order. All replacements receive sequence IDs above the old high-water mark, protecting them from stale acknowledgements. A single sample larger than the replay budget fails without dropping it.
+- Replacements are staged in `.migration` without quota eviction. A synced, atomically published `ready.json` records the cutover intent. After installing and syncing replacements, the state checkpoint commits the version and marks originals consumed; only then are original files deleted. An interruption requires explicit `--migrate` to resume; staging without a ready marker is discarded and rebuilt. Tests exercise cutover phases, not hardware power-loss behavior. Migration rejects incomplete frames rather than truncating originals.
+- The daemon holds `.daemon.lock` across migration and runtime. Stop older daemon binaries before migration because they do not participate in this lock. Staging requires extra disk capacity; ordinary quota enforcement resumes with normal writes.
+- **Offline efficiency:** live-only process snapshots are stripped from offline backlog as before; reconnect backoff and the existing sampling cadence are unchanged.
 
 ### Bounded Quotas & Eviction
-- Spool capacity is bounded by `-max-spool-mb` (default: 1024 MB = 1 GB).
-- If disk space exceeds the quota while offline, the oldest unacknowledged segments are evicted circular-style to protect endpoint storage without re-scanning the directory.
+
+- `-max-spool-mb` defaults to 1024 MiB and bounds logical segment bytes. Checkpoint metadata, filesystem allocation overhead, and transient writes are outside that accounting.
+- Under quota pressure, oldest segments can be evicted even if unacknowledged, preserving the existing bounded-storage policy. Records larger than the quota are rejected. Eviction/delete errors are surfaced rather than silently removed from bookkeeping.
 
 ### Optional Zstandard Compression
-- Passing `-zstd=true` on the daemon activates transparent Zstandard compression for on-disk WAL records and in-flight gRPC streams, cutting network bandwidth and disk usage by ~70%.
+- Passing `-zstd=true` on the daemon activates transparent Zstandard compression for on-disk WAL records and in-flight gRPC streams, with savings depending on the workload.
 
 ---
 
@@ -155,8 +166,17 @@ Because timestamps are encoded as big-endian integers, Pebble's byte-wise lexico
 
 MADTOM integrates native **TWAMP Light** (Two-Way Active Measurement Protocol) unauthenticated UDP probing:
 
+### Roles & Topology
+- **Sender (Prober)**: Built into `madtom-daemon`. Probes run at 1 Hz when TWAMP opt-in is enabled and a target is configured.
+  - `-twamp-target`: Can be `"collector"` / `"auto"` (automatically targets the connected collector's host with the configured TWAMP port), a bare IP/host (uses default TWAMP port), or an explicit `host:port`.
+  - `-twamp-port`: UDP port override (default: 862).
+- **Reflector (Responder)**: Built natively into `madtom-collector`.
+  - Embedded zero-dependency UDP listener replying to RFC 5357 test frames.
+  - `-twamp-port`: Configurable listening port (default: 862; `0` disables). Binding port 862 as non-root requires `CAP_NET_BIND_SERVICE`. Unprivileged environments can use high ports (e.g. `-twamp-port=8620`).
+  - Compatible with external hardware reflectors (Cisco, Juniper, MikroTik, Linux `twampy`).
+
 ### Packet Structure & Timestamping
-- Prober sends a 44-byte UDP test packet to a TWAMP Light reflector (default UDP port 862).
+- Prober sends a 41-byte UDP test packet to the reflector.
 - The reflector stamps its receive timestamp ($T_2$) and transmit timestamp ($T_3$) before sending the packet back to the daemon ($T_4$).
 
 ### One-Way vs. Round-Trip Calculation
@@ -198,3 +218,36 @@ To avoid redundant disk writes and eliminate counter drift:
 
 - Individual per-core metrics (`cpu.core.0`, `cpu.core.1`, ..., `cpu.core.N`) are available as dedicated chart series and can be individually configured for `Off`, `Monitor Only`, or `Monitor & Store`.
 - In the dashboard graph customization modal, attempting to add a metric that is currently set to `Off` on a node displays an inline opt-in prompt (`[Monitor Only]` vs. `[Monitor & Store]`), updating the node's remote daemon configuration via gRPC and adding the visual graph in a single seamless action.
+
+Transport compression diagnostics are included as additive fields in `ListNodesResponse`: a capability flag and per-node/per-mode counters from the Collector ingestion pipeline. Counters count successfully decoded incoming batches (including retries, before persistence), compressed payload bytes, and decoded bytes for compressed frames only. They reset on Collector restart, exclude framing/TLS and disk storage, and do not represent the daemon's configured compression flag. Snapshots are copied under the pipeline lock. Older Collectors omit the capability and appear as Not reported in updated clients. No daemon upgrade or migration is required. Raw-frame sample bytes are tracked separately with a capability flag; total transferred payload is raw-frame bytes plus compressed bytes. Ratios remain specific to compressed frames.
+
+---
+
+## Node Configuration Persistence & CLI Override Rules
+
+MADTOM synchronizes node configuration bidirectionally between the operator UI, the central collector, and distributed daemons:
+
+### Persistence Model
+- **Collector Hub**: Node configurations applied in the UI are committed to `<data-dir>/node_configs.json`. When the collector service restarts, all node settings remain intact and are immediately served to UI clients and connecting daemons.
+- **Node Daemon**: When the daemon receives a configuration update via gRPC (`BatchAck.Config`), it atomically writes the active configuration to `<spool-dir>/node-config.json`. Upon daemon restart, this configuration is restored so collection preferences (including TWAMP target and opt-in policies) survive reboots.
+
+### CLI Priority & Warning Rules
+When `madtom-daemon` starts up:
+1. It loads `<spool-dir>/node-config.json`.
+2. It detects any CLI flags explicitly supplied on the command line (e.g. via `systemd` unit `ExecStart` arguments like `-twamp-target`, `-twamp-clocks-synchronized`, `-zstd`, or `-max-spool-mb`).
+3. If an explicitly passed CLI argument conflicts with the persisted UI configuration:
+   - A warning is logged to `stderr` (captured by `journalctl -u madtom-daemon`):
+     ```text
+     [Config] WARNING: CLI argument -twamp-target="10.0.0.1:8620" overrides UI-configured value "192.168.1.1:862" (CLI takes priority)
+     ```
+   - The CLI argument overrides the configuration setting (**CLI takes priority**).
+4. If a CLI flag is omitted (not explicitly specified on the command line), the previously configured UI setting is preserved intact.
+
+## Client Cache and Response Compression
+
+- The client uses [ZstdSharp](https://github.com/oleg-st/ZstdSharp) (`ZstdSharp.Port` 0.8.7). One serialized, process-owned encoder/decoder pair avoids per-series codec workspaces. The encoder uses level 1 and a 1 MiB window. Codec workspace is outside cache byte estimates.
+- Numeric history stores lossless little-endian timestamp/value/min/max blocks. Live history seals at 256 points; the append tail and partially expired head remain raw. Stored results use one immutable block. Each block retains only one representation. Blocks under 1 KiB or failing a 10% savings threshold stay raw. Reads materialize matching live blocks, and coverage checks use timestamp/gap metadata instead of decoding the entire history.
+- Updated clients send `madtom-accept-zstd: 1` RPC metadata. Only those requests can receive `zstd_payload` (field 100) and `decoded_size` (101). Decoded bytes represent the original response type: `ListNodesResponse`, `RangeQueryResponse`, `LiveTelemetryEvent`, `NodeConfig` or `ConfigAck`. Compression never mutates shared registry/live objects. This is application-level protobuf compression, not a new gRPC content encoding.
+- The Collector uses one serialized encoder with concurrency one, fastest level and a 1 MiB window. Responses between 1 KiB and 16 MiB are candidates; an envelope is used only when compressed bytes plus overhead save at least 10%. Others stay raw. Existing gRPC receive limits still apply to raw fallback. The client checks encoded/decoded sizes and exact decoded length, limits decoded envelopes to 16 MiB and rejects nested envelopes.
+- Old clients omit negotiation and receive raw responses. New clients accept raw responses from old Collectors. Requests remain ordinary protobuf. No daemon changes, database migration, or Collector flag is required; upgrade Collector and client. Daemon `--zstd` retains its separate meaning for daemon WAL/transport.
+- Diagnostics separate compressed-byte ratios, raw bytes passed, and total payload bytes. UI counters survive channel reconnects; Collector counters reset on Collector restart. Totals exclude envelope/framing/TLS overhead; summing network hops does not measure unique telemetry volume.

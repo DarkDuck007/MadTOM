@@ -64,7 +64,7 @@ func TestListeningDaemonModes(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if next.SegmentId == batch.SegmentId {
+				if next.SegmentId == batch.SegmentId && next.SegmentOffset <= batch.SegmentOffset {
 					t.Fatal("acknowledged batch replayed")
 				}
 			} else {
@@ -156,5 +156,36 @@ func TestPushClientOfflineProcessSuppression(t *testing.T) {
 		if sample.Memory == nil {
 			t.Fatal("expected Memory metrics to be preserved in offline spool")
 		}
+	}
+}
+
+func TestPullOffsetAcknowledgementPreservesGroupedTail(t *testing.T) {
+	wal, err := spool.NewWALManager(t.TempDir(), "n", 1<<20, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer wal.Close()
+	for i := int64(1); i <= 4; i++ {
+		if _, err := wal.WriteMetrics([]*madtomv1.SystemMetrics{{NodeId: "n", TimestampUnixNano: i}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	server := NewPullServer(0, "n", wal, collector.NewEngine("n"), nil)
+	first, err := server.PollTelemetry(context.Background(), &madtomv1.PollRequest{NodeId: "n", MaxSamples: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Samples) != 2 {
+		t.Fatal("wrong initial prefix")
+	}
+	next, err := server.PollTelemetry(context.Background(), &madtomv1.PollRequest{NodeId: "n", MaxSamples: 2, LastAckedSegmentId: first.SegmentId, LastAckedOffset: first.SegmentOffset})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.SegmentId != first.SegmentId || next.SegmentOffset <= first.SegmentOffset || len(next.Samples) != 2 || next.Samples[0].TimestampUnixNano != 3 {
+		t.Fatal("partial acknowledgement lost grouped tail")
+	}
+	if _, err := server.PollTelemetry(context.Background(), &madtomv1.PollRequest{NodeId: "n", LastAckedSegmentId: next.SegmentId, LastAckedOffset: next.SegmentOffset - 1}); status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("invalid ACK accepted: %v", err)
 	}
 }

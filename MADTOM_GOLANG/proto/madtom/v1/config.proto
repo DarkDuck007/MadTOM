@@ -35,6 +35,9 @@ enum TelemetryOptInMode {
 
 // NodeConfig controls what the daemon measures and what the collector retains.
 message NodeConfig {
+  // Negotiated response envelope; decoded content is this same message type.
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
   string node_id = 1;
   
   // Legacy Opt-in Collection Switches (Daemon Level)
@@ -85,6 +88,9 @@ message NodeConfig {
 }
 
 message ConfigAck {
+  // Negotiated response envelope; decoded content is this same message type.
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
   bool success = 1;
   string message = 2;
 }

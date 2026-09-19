@@ -17,417 +17,358 @@ import (
 )
 
 const (
-	DefaultMaxSegmentSize = 10 * 1024 * 1024   // 10 MB per segment file
-	DefaultMaxTotalSpool  = 1024 * 1024 * 1024 // 1 GB bounded hard limit
-	WalFilePrefix         = "segment-"
-	WalFileSuffix         = ".wal"
+	DefaultMaxSegmentSize  = 10 * 1024 * 1024
+	DefaultMaxTotalSpool   = 1024 * 1024 * 1024
+	DefaultChunkMaxSamples = 500
+	// Leave space below the default 4 MiB gRPC receive limit for envelope metadata.
+	DefaultChunkMaxBytes = 3 * 1024 * 1024
+	MaxRecordBytes       = 64 * 1024 * 1024
+	WalFilePrefix        = "segment-"
+	WalFileSuffix        = ".wal"
 )
 
-// WALManager manages bounded on-disk write-ahead telemetry log segments.
-type WALManager struct {
-	mu             sync.Mutex
-	dir            string
-	nodeID         string
-	maxSegmentSize int64
-	maxTotalSpool  int64
-	enableZstd     bool
-
-	encoder *zstd.Encoder
-	decoder *zstd.Decoder
-
-	currentFile   *os.File
-	currentSeq    int64
-	currentBytes  int64
-	currentOffset int64
-
-	// In-memory segment tracking for O(1) writes and bounded memory/CPU
-	segments        []segmentMeta
-	totalSpoolBytes int64
+type segmentMeta struct {
+	path, name string
+	seq, size  int64
 }
 
-// NewWALManager initializes or recovers the WAL spool directory.
-func NewWALManager(dir string, nodeID string, maxTotalSpool int64, enableZstd bool) (*WALManager, error) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create spool directory: %w", err)
-	}
+// WALManager appends durable records and tracks a durable acknowledged prefix per segment.
+// Sampling retains its per-record fsync guarantee; rotation groups records, not commits.
+type WALManager struct {
+	mu                                      sync.Mutex
+	dir, nodeID                             string
+	maxSegmentSize, maxTotalSpool           int64
+	enableZstd                              bool
+	encoder                                 *zstd.Encoder
+	decoder                                 *zstd.Decoder
+	currentFile                             *os.File
+	currentSeq, currentBytes, currentOffset int64
+	segments                                []segmentMeta
+	totalSpoolBytes                         int64
+	state                                   walState
+	closed                                  bool
+	writeErr                                error
+}
 
+func NewWALManager(dir, nodeID string, maxTotalSpool int64, enableZstd bool) (*WALManager, error) {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, err
+	}
+	if _, err := os.Stat(filepath.Join(dir, migrationDir)); err == nil {
+		return nil, fmt.Errorf("unfinished WAL migration: restart with --migrate")
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
 	if maxTotalSpool <= 0 {
 		maxTotalSpool = DefaultMaxTotalSpool
 	}
-
-	w := &WALManager{
-		dir:            dir,
-		nodeID:         nodeID,
-		maxSegmentSize: DefaultMaxSegmentSize,
-		maxTotalSpool:  maxTotalSpool,
-		enableZstd:     enableZstd,
-	}
-
-	if enableZstd {
-		enc, err := zstd.NewWriter(nil)
-		if err != nil {
-			return nil, err
-		}
-		dec, err := zstd.NewReader(nil)
-		if err != nil {
-			return nil, err
-		}
-		w.encoder = enc
-		w.decoder = dec
-	}
-
-	// Recover existing segments and sequence once on initialization
-	segments, totalSize, err := w.scanDirectory()
-	if err != nil {
+	w := &WALManager{dir: dir, nodeID: nodeID, maxSegmentSize: DefaultMaxSegmentSize, maxTotalSpool: maxTotalSpool, enableZstd: enableZstd}
+	if err := w.recover(); err != nil {
 		return nil, err
 	}
-	w.segments = segments
-	w.totalSpoolBytes = totalSize
-
-	if len(segments) > 0 {
-		w.currentSeq = segments[len(segments)-1].seq
+	var err error
+	w.decoder, err = zstd.NewReader(nil, zstd.WithDecoderConcurrency(1), zstd.WithDecoderMaxMemory(MaxRecordBytes))
+	if err != nil {
+		w.Close()
+		return nil, err
 	}
-
+	if enableZstd {
+		w.encoder, err = zstd.NewWriter(nil)
+		if err != nil {
+			w.Close()
+			return nil, err
+		}
+	}
 	return w, nil
 }
 
-type segmentMeta struct {
-	path string
-	name string
-	seq  int64
-	size int64
-}
-
-// WriteMetrics appends a slice of SystemMetrics into the active WAL segment.
 func (w *WALManager) WriteMetrics(samples []*madtomv1.SystemMetrics) (*madtomv1.TelemetryBatch, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-
+	if w.closed {
+		return nil, fmt.Errorf("WAL is closed")
+	}
+	if w.writeErr != nil {
+		return nil, w.writeErr
+	}
 	if len(samples) == 0 {
 		return nil, nil
 	}
-
-	// Each batch is sealed independently because acknowledgements delete a segment.
-	{
+	batch := &madtomv1.TelemetryBatch{NodeId: w.nodeID, Samples: samples}
+	// New records must fit an uncompressed replay response. Legacy oversized records
+	// are reported explicitly during replay, never silently skipped or acknowledged.
+	if proto.Size(batch) > DefaultChunkMaxBytes-1024 {
+		return nil, fmt.Errorf("WAL batch exceeds replay byte limit")
+	}
+	if w.enableZstd {
+		raw, err := proto.Marshal(&madtomv1.TelemetryBatch{Samples: samples})
+		if err != nil {
+			return nil, err
+		}
+		batch.CompressedPayload = w.encoder.EncodeAll(raw, nil)
+		batch.IsCompressed = true
+		batch.Samples = nil
+	}
+	limit := w.maxSegmentSize
+	if w.maxTotalSpool < limit {
+		limit = w.maxTotalSpool
+	}
+	// Segment IDs have fixed overhead in the normal sequence range; marshal again after rotation.
+	batch.SegmentId = fmt.Sprintf("%s%08d%s", WalFilePrefix, w.currentSeq, WalFileSuffix)
+	if w.currentFile != nil {
+		batch.SegmentId = filepath.Base(w.currentFile.Name())
+	}
+	payload, err := proto.Marshal(batch)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(payload)+4) > w.maxTotalSpool {
+		return nil, fmt.Errorf("WAL record exceeds spool quota")
+	}
+	if w.currentFile == nil || (w.currentBytes > 0 && w.currentBytes+int64(len(payload)+4) > limit) {
 		if err := w.rotateLocked(); err != nil {
 			return nil, err
 		}
-	}
-
-	batch := &madtomv1.TelemetryBatch{
-		NodeId:    w.nodeID,
-		SegmentId: filepath.Base(w.currentFile.Name()),
-		IsBacklog: false,
-		Samples:   samples,
-	}
-
-	if w.enableZstd && w.encoder != nil {
-		rawBytes, err := proto.Marshal(&madtomv1.TelemetryBatch{Samples: samples})
-		if err == nil {
-			batch.IsCompressed = true
-			batch.CompressedPayload = w.encoder.EncodeAll(rawBytes, make([]byte, 0, len(rawBytes)))
-			batch.Samples = nil // Omit uncompressed samples
-		}
-	}
-
-	payload, err := proto.Marshal(batch)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal batch: %w", err)
-	}
-
-	// Length-prefixed write: [4 bytes length uint32 BE][payload]
-	lenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBuf, uint32(len(payload)))
-
-	if _, err := w.currentFile.Write(lenBuf); err != nil {
-		return nil, err
-	}
-	if _, err := w.currentFile.Write(payload); err != nil {
-		return nil, err
-	}
-	if err := w.currentFile.Sync(); err != nil {
-		return nil, err
-	}
-
-	totalWritten := int64(4 + len(payload))
-	w.currentBytes += totalWritten
-	w.currentOffset += totalWritten
-	batch.SegmentOffset = w.currentOffset
-
-	// Update size of current segment and total spool bytes in memory
-	if len(w.segments) > 0 {
-		w.segments[len(w.segments)-1].size += totalWritten
-	}
-	w.totalSpoolBytes += totalWritten
-
-	// Check total spool quota and purge oldest if exceeded
-	w.enforceQuotaLocked()
-
-	return batch, nil
-}
-
-const DefaultChunkMaxSamples = 500
-
-// ReadBatchChunk reads up to maxSamples from pending WAL segments.
-// If multiple segments are combined, batch.SegmentId contains the range "firstSegment:lastSegment".
-func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, error) {
-	if maxSamples <= 0 {
-		maxSamples = DefaultChunkMaxSamples
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if len(w.segments) == 0 {
-		return nil, nil
-	}
-
-	var allSamples []*madtomv1.SystemMetrics
-	var firstSeg, lastSeg segmentMeta
-	var lastOffset int64
-
-	for i, seg := range w.segments {
-		samples, offset, err := w.readSegmentFileLocked(seg)
+		batch.SegmentId = filepath.Base(w.currentFile.Name())
+		payload, err = proto.Marshal(batch)
 		if err != nil {
 			return nil, err
 		}
-		if len(samples) == 0 {
-			continue
-		}
-		if len(allSamples) == 0 {
-			firstSeg = seg
-		}
-		lastSeg = seg
-		lastOffset = offset
-		allSamples = append(allSamples, samples...)
-
-		if len(allSamples) >= maxSamples || i == len(w.segments)-1 {
-			break
-		}
 	}
-
-	if len(allSamples) == 0 {
-		return nil, nil
+	if int64(len(payload)+4) > w.maxTotalSpool {
+		return nil, fmt.Errorf("WAL record exceeds spool quota")
 	}
-
-	segID := firstSeg.name
-	if firstSeg.name != lastSeg.name {
-		segID = fmt.Sprintf("%s:%s", firstSeg.name, lastSeg.name)
+	frame := make([]byte, 4+len(payload))
+	binary.BigEndian.PutUint32(frame, uint32(len(payload)))
+	copy(frame[4:], payload)
+	before := w.currentOffset
+	n, err := w.currentFile.Write(frame)
+	if err == nil && n != len(frame) {
+		err = io.ErrShortWrite
 	}
-
-	batch := &madtomv1.TelemetryBatch{
-		NodeId:        w.nodeID,
-		SegmentId:     segID,
-		SegmentOffset: lastOffset,
-		IsBacklog:     len(w.segments) > 1 || len(allSamples) > 1,
-		Samples:       allSamples,
+	if err == nil {
+		err = w.currentFile.Sync()
 	}
-
-	if w.enableZstd && w.encoder != nil && len(allSamples) > 5 {
-		rawBytes, err := proto.Marshal(&madtomv1.TelemetryBatch{Samples: allSamples})
-		if err == nil {
-			batch.IsCompressed = true
-			batch.CompressedPayload = w.encoder.EncodeAll(rawBytes, make([]byte, 0, len(rawBytes)))
-			batch.Samples = nil
-		}
-	}
-
-	return batch, nil
-}
-
-// ReadOldestBatch reads the next pending un-acknowledged batch from the oldest segment.
-func (w *WALManager) ReadOldestBatch() (*madtomv1.TelemetryBatch, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if len(w.segments) == 0 {
-		return nil, nil
-	}
-
-	oldest := w.segments[0]
-	samples, offset, err := w.readSegmentFileLocked(oldest)
 	if err != nil {
+		// A failed append must not become a hole in front of subsequent valid records.
+		if rollback := w.currentFile.Truncate(before); rollback != nil {
+			w.writeErr = fmt.Errorf("WAL rollback failed: %w", rollback)
+		} else if syncErr := w.currentFile.Sync(); syncErr != nil {
+			w.writeErr = fmt.Errorf("WAL rollback sync failed: %w", syncErr)
+		}
 		return nil, err
 	}
-	if len(samples) == 0 {
-		return nil, nil
+	w.currentBytes += int64(len(frame))
+	w.currentOffset = w.currentBytes
+	w.segments[len(w.segments)-1].size = w.currentBytes
+	w.totalSpoolBytes += int64(len(frame))
+	batch.SegmentOffset = w.currentOffset
+	if err := w.enforceQuotaLocked(); err != nil {
+		return nil, err
 	}
-
-	batch := &madtomv1.TelemetryBatch{
-		NodeId:        w.nodeID,
-		SegmentId:     oldest.name,
-		SegmentOffset: offset,
-		IsBacklog:     true,
-		Samples:       samples,
-	}
-
 	return batch, nil
 }
 
-func (w *WALManager) readSegmentFileLocked(seg segmentMeta) ([]*madtomv1.SystemMetrics, int64, error) {
-	f, err := os.Open(seg.path)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, 0, err
-	}
-	fileSize := fi.Size()
-
-	var samples []*madtomv1.SystemMetrics
-	var offset int64
-	for {
-		var lenBuf [4]byte
-		_, err := io.ReadFull(f, lenBuf[:])
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, 0, fmt.Errorf("incomplete WAL header: %w", err)
-		}
-		length := int64(binary.BigEndian.Uint32(lenBuf[:]))
-		if length <= 0 || length > fileSize-offset-4 {
-			return nil, 0, fmt.Errorf("invalid WAL record length")
-		}
-		payload := make([]byte, length)
-		if _, err := io.ReadFull(f, payload); err != nil {
-			return nil, 0, err
-		}
-		record := &madtomv1.TelemetryBatch{}
-		if err := proto.Unmarshal(payload, record); err != nil {
-			return nil, 0, err
-		}
-		if record.IsCompressed {
-			decoder := w.decoder
-			if decoder == nil {
-				var err error
-				decoder, err = zstd.NewReader(nil)
-				if err != nil {
-					return nil, 0, err
-				}
-				defer decoder.Close()
-			}
-			raw, err := decoder.DecodeAll(record.CompressedPayload, nil)
-			if err != nil {
-				return nil, 0, err
-			}
-			inner := &madtomv1.TelemetryBatch{}
-			if err := proto.Unmarshal(raw, inner); err != nil {
-				return nil, 0, err
-			}
-			record.Samples = inner.Samples
-		}
-		samples = append(samples, record.Samples...)
-		offset += 4 + length
-	}
-	return samples, offset, nil
-}
-
-// AcknowledgeSegment removes or marks segment file(s) as acknowledged after collector confirmation.
-// Supports single segment "segment-00000001.wal" and range "segment-00000001.wal:segment-00000050.wal".
-func (w *WALManager) AcknowledgeSegment(segmentID string) error {
+// ReadBatchChunk advances only at record boundaries, and never mutates the replay cursor.
+// maxSamples is a target: a single atomic record may contain more samples.
+func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-
-	parts := strings.Split(segmentID, ":")
-	if len(parts) == 1 {
-		return w.acknowledgeSingleSegmentLocked(parts[0])
-	} else if len(parts) == 2 {
-		return w.acknowledgeRangeLocked(parts[0], parts[1])
+	if w.closed {
+		return nil, fmt.Errorf("WAL is closed")
 	}
-	return fmt.Errorf("invalid segment ID format: %q", segmentID)
-}
-
-func (w *WALManager) acknowledgeSingleSegmentLocked(seg string) error {
-	if filepath.Base(seg) != seg || !strings.HasPrefix(seg, WalFilePrefix) || !strings.HasSuffix(seg, WalFileSuffix) {
-		return fmt.Errorf("invalid segment ID")
+	if w.writeErr != nil {
+		return nil, w.writeErr
 	}
-	targetPath := filepath.Join(w.dir, seg)
-	if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == seg {
-		_ = w.currentFile.Sync()
-		_ = w.currentFile.Close()
-		w.currentFile = nil
-		w.currentBytes = 0
-		w.currentOffset = 0
+	if maxSamples <= 0 {
+		maxSamples = DefaultChunkMaxSamples
 	}
-
-	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove acknowledged segment %s: %w", seg, err)
-	}
-
-	for i, s := range w.segments {
-		if s.name == seg {
-			w.totalSpoolBytes -= s.size
-			if w.totalSpoolBytes < 0 {
-				w.totalSpoolBytes = 0
+	batch := &madtomv1.TelemetryBatch{NodeId: w.nodeID}
+	first, last := "", ""
+	used := proto.Size(batch) + 256
+	stop := false
+	for _, seg := range w.segments {
+		offset := w.state.Acked[seg.name]
+		if offset >= seg.size {
+			continue
+		}
+		f, err := os.Open(seg.path)
+		if err != nil {
+			return nil, err
+		}
+		if _, err = f.Seek(offset, io.SeekStart); err != nil {
+			f.Close()
+			return nil, err
+		}
+		for offset < seg.size {
+			record, next, err := w.readRecord(f, offset, seg.size)
+			if err != nil {
+				f.Close()
+				return nil, fmt.Errorf("read %s at %d: %w", seg.name, offset, err)
 			}
-			w.segments = append(w.segments[:i], w.segments[i+1:]...)
+			cost := proto.Size(&madtomv1.TelemetryBatch{Samples: record.Samples})
+			if used+cost > DefaultChunkMaxBytes || (len(batch.Samples) > 0 && len(batch.Samples)+len(record.Samples) > maxSamples) {
+				if first == "" {
+					f.Close()
+					return nil, fmt.Errorf("WAL record exceeds replay byte limit")
+				}
+				stop = true
+				break
+			}
+			if first == "" {
+				first = seg.name
+			}
+			last = seg.name
+			batch.SegmentOffset = next
+			used += cost
+			batch.Samples = append(batch.Samples, record.Samples...)
+			offset = next
+			if len(batch.Samples) >= maxSamples {
+				stop = true
+				break
+			}
+		}
+		if err := f.Close(); err != nil {
+			return nil, err
+		}
+		if stop {
 			break
 		}
 	}
-
-	return nil
+	if first == "" {
+		return nil, nil
+	}
+	batch.SegmentId = first
+	if last != first {
+		batch.SegmentId = first + ":" + last
+	}
+	batch.IsBacklog = stop || len(w.segments) > 1 || len(batch.Samples) > 1
+	if w.enableZstd && len(batch.Samples) > 5 {
+		raw, err := proto.Marshal(&madtomv1.TelemetryBatch{Samples: batch.Samples})
+		if err != nil {
+			return nil, err
+		}
+		batch.CompressedPayload = w.encoder.EncodeAll(raw, nil)
+		batch.IsCompressed = true
+		batch.Samples = nil
+	}
+	return batch, nil
 }
 
-func (w *WALManager) acknowledgeRangeLocked(startSeg, endSeg string) error {
-	if filepath.Base(startSeg) != startSeg || !strings.HasPrefix(startSeg, WalFilePrefix) || !strings.HasSuffix(startSeg, WalFileSuffix) {
-		return fmt.Errorf("invalid start segment ID: %q", startSeg)
-	}
-	if filepath.Base(endSeg) != endSeg || !strings.HasPrefix(endSeg, WalFilePrefix) || !strings.HasSuffix(endSeg, WalFileSuffix) {
-		return fmt.Errorf("invalid end segment ID: %q", endSeg)
-	}
+func (w *WALManager) ReadOldestBatch() (*madtomv1.TelemetryBatch, error) {
+	return w.ReadBatchChunk(DefaultChunkMaxSamples)
+}
 
-	startSeqStr := strings.TrimSuffix(strings.TrimPrefix(startSeg, WalFilePrefix), WalFileSuffix)
-	startSeq, err := strconv.ParseInt(startSeqStr, 10, 64)
+func (w *WALManager) readRecord(f *os.File, offset, size int64) (*madtomv1.TelemetryBatch, int64, error) {
+	var header [4]byte
+	if _, err := io.ReadFull(f, header[:]); err != nil {
+		return nil, offset, err
+	}
+	length := int64(binary.BigEndian.Uint32(header[:]))
+	if length <= 0 || length > MaxRecordBytes || length > size-offset-4 {
+		return nil, offset, fmt.Errorf("invalid WAL record length")
+	}
+	payload := make([]byte, int(length))
+	if _, err := io.ReadFull(f, payload); err != nil {
+		return nil, offset, err
+	}
+	record := &madtomv1.TelemetryBatch{}
+	if err := proto.Unmarshal(payload, record); err != nil {
+		return nil, offset, err
+	}
+	if record.IsCompressed {
+		if len(record.CompressedPayload) == 0 || len(record.Samples) != 0 {
+			return nil, offset, fmt.Errorf("invalid compressed WAL envelope")
+		}
+		raw, err := w.decoder.DecodeAll(record.CompressedPayload, nil)
+		if err != nil {
+			return nil, offset, err
+		}
+		inner := &madtomv1.TelemetryBatch{}
+		if err := proto.Unmarshal(raw, inner); err != nil {
+			return nil, offset, err
+		}
+		record.Samples = inner.Samples
+	}
+	return record, offset + 4 + length, nil
+}
+
+// AcknowledgeSegment commits only through the supplied end offset. Offsets are mandatory.
+// Existing collectors already echo this field for push, pull and reverse-push.
+func (w *WALManager) AcknowledgeSegment(segmentID string, offset int64) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return fmt.Errorf("WAL is closed")
+	}
+	if offset <= 0 {
+		return fmt.Errorf("acknowledgement requires a positive record end offset")
+	}
+	parts := strings.Split(segmentID, ":")
+	if len(parts) > 2 {
+		return fmt.Errorf("invalid segment range")
+	}
+	start, err := parseSegment(parts[0])
 	if err != nil {
-		return fmt.Errorf("invalid start segment sequence: %w", err)
+		return err
 	}
-
-	endSeqStr := strings.TrimSuffix(strings.TrimPrefix(endSeg, WalFilePrefix), WalFileSuffix)
-	endSeq, err := strconv.ParseInt(endSeqStr, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid end segment sequence: %w", err)
-	}
-
-	if startSeq > endSeq {
-		return fmt.Errorf("invalid segment sequence range: %d > %d", startSeq, endSeq)
-	}
-
-	newSegments := make([]segmentMeta, 0, len(w.segments))
-	for _, seg := range w.segments {
-		if seg.seq >= startSeq && seg.seq <= endSeq {
-			if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == seg.name {
-				_ = w.currentFile.Sync()
-				_ = w.currentFile.Close()
-				w.currentFile = nil
-				w.currentBytes = 0
-				w.currentOffset = 0
-			}
-			if err := os.Remove(seg.path); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("failed to remove acknowledged segment %s: %w", seg.name, err)
-			}
-			w.totalSpoolBytes -= seg.size
-		} else {
-			newSegments = append(newSegments, seg)
+	end := start
+	if len(parts) == 2 {
+		end, err = parseSegment(parts[1])
+		if err != nil {
+			return err
 		}
 	}
-	if w.totalSpoolBytes < 0 {
-		w.totalSpoolBytes = 0
+	if start > end || end > w.state.LastSequence {
+		return fmt.Errorf("invalid acknowledgement range")
 	}
-	w.segments = newSegments
-
-	return nil
+	// Validate the final boundary before acknowledging any earlier segment.
+	found := false
+	for _, seg := range w.segments {
+		if seg.seq == end {
+			found = true
+			if offset > w.state.Acked[seg.name] {
+				if offset > seg.size {
+					return fmt.Errorf("acknowledgement exceeds segment size")
+				}
+				boundary, err := recordBoundary(seg.path, w.state.Acked[seg.name], offset)
+				if err != nil {
+					return err
+				}
+				if !boundary {
+					return fmt.Errorf("acknowledgement is not a record boundary")
+				}
+			}
+		}
+	}
+	// Already deleted (acknowledged or quota-evicted); sequence IDs are never reused.
+	if !found {
+		return nil
+	}
+	next := w.state.clone()
+	for _, seg := range w.segments {
+		if seg.seq >= start && seg.seq <= end {
+			limit := seg.size
+			if seg.seq == end {
+				limit = offset
+			}
+			if limit > next.Acked[seg.name] {
+				next.Acked[seg.name] = limit
+			}
+		}
+	}
+	if err := w.persistState(next); err != nil {
+		return err
+	}
+	w.state = next
+	return w.removeAcknowledgedLocked()
 }
 
-// HasPendingBacklog returns true if there are offline segment files waiting to be flushed.
 func (w *WALManager) HasPendingBacklog() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-
-	for _, s := range w.segments {
-		if s.size > 0 {
+	for _, seg := range w.segments {
+		if seg.size > w.state.Acked[seg.name] {
 			return true
 		}
 	}
@@ -436,31 +377,91 @@ func (w *WALManager) HasPendingBacklog() bool {
 
 func (w *WALManager) rotateLocked() error {
 	if w.currentFile != nil {
-		_ = w.currentFile.Sync()
-		_ = w.currentFile.Close()
+		if err := w.currentFile.Close(); err != nil {
+			return err
+		}
 		w.currentFile = nil
 	}
-
-	w.currentSeq++
-	name := fmt.Sprintf("%s%08d%s", WalFilePrefix, w.currentSeq, WalFileSuffix)
-	filePath := filepath.Join(w.dir, name)
-
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to create new WAL segment %s: %w", name, err)
+	if err := w.removeAcknowledgedLocked(); err != nil {
+		return err
 	}
-
+	next := w.state.clone()
+	if next.LastSequence == 1<<63-1 {
+		return fmt.Errorf("WAL sequence exhausted")
+	}
+	next.LastSequence++
+	if err := w.persistState(next); err != nil {
+		return err
+	}
+	w.state = next
+	w.currentSeq = next.LastSequence
+	name := fmt.Sprintf("%s%08d%s", WalFilePrefix, w.currentSeq, WalFileSuffix)
+	path := filepath.Join(w.dir, name)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return err
+	}
+	if err := syncDirectory(w.dir); err != nil {
+		f.Close()
+		return err
+	}
 	w.currentFile = f
 	w.currentBytes = 0
 	w.currentOffset = 0
-
-	w.segments = append(w.segments, segmentMeta{
-		path: filePath,
-		name: name,
-		seq:  w.currentSeq,
-		size: 0,
-	})
+	w.segments = append(w.segments, segmentMeta{path: path, name: name, seq: w.currentSeq})
 	return nil
+}
+
+func (w *WALManager) removeAcknowledgedLocked() error {
+	for i := 0; i < len(w.segments); {
+		seg := w.segments[i]
+		if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == seg.name {
+			i++
+			continue
+		}
+		if w.state.Acked[seg.name] < seg.size {
+			i++
+			continue
+		}
+		if err := w.removeSegmentLocked(i); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *WALManager) removeSegmentLocked(i int) error {
+	seg := w.segments[i]
+	if err := os.Remove(seg.path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := syncDirectory(w.dir); err != nil {
+		return err
+	}
+	w.totalSpoolBytes -= seg.size
+	w.segments = append(w.segments[:i], w.segments[i+1:]...)
+	delete(w.state.Acked, seg.name)
+	return nil
+}
+
+func (w *WALManager) enforceQuotaLocked() error {
+	for w.totalSpoolBytes > w.maxTotalSpool && len(w.segments) > 1 {
+		if err := w.removeSegmentLocked(0); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseSegment(name string) (int64, error) {
+	if filepath.Base(name) != name || !strings.HasPrefix(name, WalFilePrefix) || !strings.HasSuffix(name, WalFileSuffix) {
+		return 0, fmt.Errorf("invalid segment ID")
+	}
+	seq, err := strconv.ParseInt(strings.TrimSuffix(strings.TrimPrefix(name, WalFilePrefix), WalFileSuffix), 10, 64)
+	if err != nil || seq <= 0 {
+		return 0, fmt.Errorf("invalid segment sequence")
+	}
+	return seq, nil
 }
 
 func (w *WALManager) scanDirectory() ([]segmentMeta, int64, error) {
@@ -468,71 +469,41 @@ func (w *WALManager) scanDirectory() ([]segmentMeta, int64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-
 	var segments []segmentMeta
-	var totalSize int64
+	var total int64
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
-		name := entry.Name()
-		if strings.HasPrefix(name, WalFilePrefix) && strings.HasSuffix(name, WalFileSuffix) {
-			seqStr := strings.TrimSuffix(strings.TrimPrefix(name, WalFilePrefix), WalFileSuffix)
-			seq, err := strconv.ParseInt(seqStr, 10, 64)
-			if err != nil {
-				continue
-			}
-			info, err := entry.Info()
-			if err != nil {
-				continue
-			}
-			sz := info.Size()
-			totalSize += sz
-			segments = append(segments, segmentMeta{
-				path: filepath.Join(w.dir, name),
-				name: name,
-				seq:  seq,
-				size: sz,
-			})
+		seq, err := parseSegment(entry.Name())
+		if err != nil {
+			continue
 		}
+		info, err := entry.Info()
+		if err != nil {
+			return nil, 0, err
+		}
+		segments = append(segments, segmentMeta{filepath.Join(w.dir, entry.Name()), entry.Name(), seq, info.Size()})
+		total += info.Size()
 	}
-
-	sort.Slice(segments, func(i, j int) bool {
-		return segments[i].seq < segments[j].seq
-	})
-
-	return segments, totalSize, nil
+	sort.Slice(segments, func(i, j int) bool { return segments[i].seq < segments[j].seq })
+	return segments, total, nil
 }
 
-func (w *WALManager) enforceQuotaLocked() {
-	if w.totalSpoolBytes <= w.maxTotalSpool || len(w.segments) <= 1 {
-		return
-	}
-
-	// Purge oldest segments until totalSpoolBytes is within maxTotalSpool
-	for w.totalSpoolBytes > w.maxTotalSpool && len(w.segments) > 1 {
-		oldest := w.segments[0]
-		// Don't remove the currently active write file
-		if w.currentFile != nil && filepath.Base(w.currentFile.Name()) == oldest.name {
-			break
-		}
-
-		_ = os.Remove(oldest.path)
-		w.totalSpoolBytes -= oldest.size
-		w.segments = w.segments[1:]
-	}
-	if w.totalSpoolBytes < 0 {
-		w.totalSpoolBytes = 0
-	}
-}
-
-// Close gracefully syncs and closes the active WAL file.
 func (w *WALManager) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-
+	if w.closed {
+		return nil
+	}
+	w.closed = true
+	if w.encoder != nil {
+		w.encoder.Close()
+	}
+	if w.decoder != nil {
+		w.decoder.Close()
+	}
 	if w.currentFile != nil {
-		_ = w.currentFile.Sync()
 		err := w.currentFile.Close()
 		w.currentFile = nil
 		return err
