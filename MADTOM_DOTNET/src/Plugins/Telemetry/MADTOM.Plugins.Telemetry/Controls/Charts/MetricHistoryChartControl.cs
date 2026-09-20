@@ -69,6 +69,13 @@ public sealed class MetricHistoryChartControl : Control
     private bool _touchCaptured;
 
     private bool _geometryCacheValid;
+    private long _dirtySince;
+    private void MarkGeometryDirty()
+    {
+        _geometryCacheValid = false;
+        if (UiPerformanceDiagnostics.Enabled && _dirtySince == 0)
+            _dirtySince = System.Diagnostics.Stopwatch.GetTimestamp();
+    }
     private double _cachedWidth;
     private double _cachedHeight;
     private double _cachedZoom;
@@ -129,7 +136,7 @@ public sealed class MetricHistoryChartControl : Control
             change.Property == PanOffsetProperty ||
             change.Property == SeriesListProperty)
         {
-            _geometryCacheValid = false;
+            MarkGeometryDirty();
         }
 
         if (change.Property == SeriesListProperty)
@@ -156,7 +163,7 @@ public sealed class MetricHistoryChartControl : Control
 
     private void OnSeriesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        _geometryCacheValid = false;
+        MarkGeometryDirty();
         if (e.OldItems != null)
         {
             foreach (var item in e.OldItems.OfType<ChartSeriesModel>())
@@ -177,18 +184,24 @@ public sealed class MetricHistoryChartControl : Control
                                nameof(ChartSeriesModel.IsVisible) or
                                nameof(ChartSeriesModel.ColorHex))
         {
-            _geometryCacheValid = false;
+            MarkGeometryDirty();
             InvalidateVisual();
         }
     }
 
     public override void Render(DrawingContext context)
     {
+        using var renderTiming = UiPerformanceDiagnostics.Measure("chart.render-cpu");
         base.Render(context);
 
         double w = Bounds.Width;
         double h = Bounds.Height;
         if (w < 40 || h < 40) return;
+        if (_dirtySince != 0)
+        {
+            UiPerformanceDiagnostics.Record("chart.dirty-to-render", System.Diagnostics.Stopwatch.GetElapsedTime(_dirtySince).TotalMilliseconds);
+            _dirtySince = 0;
+        }
 
         // 1. Transparent background across the entire control bounds ensures mouse events hit-test anywhere
         context.FillRectangle(Brushes.Transparent, new Rect(0, 0, w, h));
@@ -300,7 +313,8 @@ public sealed class MetricHistoryChartControl : Control
         {
             long visibleStart = wStart + (long)(pan / (plotW * zoom) * timeSpanNano);
             long visibleEnd = visibleStart + (long)(timeSpanNano / zoom);
-            RebuildGeometryCache(activeSeries, MapPoint, topPad + plotH, plotW, visibleStart, visibleEnd);
+            using (UiPerformanceDiagnostics.Measure("chart.geometry"))
+                RebuildGeometryCache(activeSeries, MapPoint, topPad + plotH, plotW, visibleStart, visibleEnd);
             _cachedWidth = w;
             _cachedHeight = h;
             _cachedZoom = zoom;
@@ -636,7 +650,7 @@ public sealed class MetricHistoryChartControl : Control
     {
         if (Bounds.Width > 68)
             SetCurrentValue(HistoryPointBudgetProperty, GraphHistoryResolution.PointBudget(Bounds.Width - 68, GraphPerformanceSettings.Current.HistoryPointsPerPixel));
-        _geometryCacheValid = false;
+        MarkGeometryDirty();
         InvalidateVisual();
     }
 
@@ -650,7 +664,7 @@ public sealed class MetricHistoryChartControl : Control
         {
             ZoomLevel = 1.0;
             PanOffset = 0.0;
-            _geometryCacheValid = false;
+            MarkGeometryDirty();
             e.Handled = true;
             InvalidateVisual();
             return;
@@ -721,7 +735,7 @@ public sealed class MetricHistoryChartControl : Control
 
                 PanOffset = Math.Clamp(newPan, 0.0, newMaxPan);
                 ZoomLevel = newZoom;
-                _geometryCacheValid = false;
+                MarkGeometryDirty();
                 InvalidateVisual();
                 e.Handled = true;
                 return;
@@ -755,7 +769,7 @@ public sealed class MetricHistoryChartControl : Control
                     e.PreventGestureRecognition();
                     double deltaX = cur.X - _dragStartPoint.X;
                     PanOffset = Math.Clamp(_dragStartPan - deltaX, 0.0, maxPan);
-                    _geometryCacheValid = false;
+                    MarkGeometryDirty();
                     InvalidateVisual();
                     e.Handled = true;
                     return;
@@ -767,7 +781,7 @@ public sealed class MetricHistoryChartControl : Control
         {
             double deltaX = _hoverPoint.Value.X - _dragStartPoint.X;
             PanOffset = Math.Clamp(_dragStartPan - deltaX, 0.0, maxPan);
-            _geometryCacheValid = false;
+            MarkGeometryDirty();
             Cursor = new Cursor(StandardCursorType.Hand);
         }
         else if (e.Pointer.Type != PointerType.Touch)
@@ -831,7 +845,7 @@ public sealed class MetricHistoryChartControl : Control
         if (Math.Abs(e.Delta.X) > 0.001 && maxPan > 0)
         {
             PanOffset = Math.Clamp(PanOffset - (e.Delta.X * 24.0), 0.0, maxPan);
-            _geometryCacheValid = false;
+            MarkGeometryDirty();
             InvalidateVisual();
             e.Handled = true;
             return;
@@ -852,7 +866,7 @@ public sealed class MetricHistoryChartControl : Control
         double frac = (mouseX + PanOffset) / (plotW * oldZoom);
         ZoomLevel = newZoom;
         PanOffset = Math.Clamp(frac * plotW * newZoom - mouseX, 0.0, (newZoom - 1.0) * plotW);
-        _geometryCacheValid = false;
+        MarkGeometryDirty();
 
         e.Handled = true;
         InvalidateVisual();

@@ -96,21 +96,59 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             _displaySources.Remove(series);
     }
 
+    public static (long[] DisplayTimestamps, double[] DisplayValues) SampleToDisplayBudget(long[] rawTimestamps, double[] rawValues, int budget, long start, long end)
+    {
+        if (rawValues.Length <= Math.Clamp(budget, 4, 100000)) return (rawTimestamps, rawValues);
+        var points = new LODPoint[rawValues.Length];
+        for (int i = 0; i < rawValues.Length; i++)
+        {
+            points[i] = new LODPoint(rawTimestamps[i], rawValues[i], rawValues[i], rawValues[i]);
+        }
+        var sampled = GraphHistoryResolution.Downsample(points, budget, start, end);
+        var ts = new long[sampled.Count];
+        var val = new double[sampled.Count];
+        for (int i = 0; i < sampled.Count; i++)
+        {
+            ts[i] = sampled[i].TimestampUnixNano;
+            val[i] = sampled[i].Value;
+        }
+        return (ts, val);
+    }
+
+    public sealed record SeriesDisplayData(
+        ChartSeriesModel Series,
+        long[] DisplayTimestamps,
+        double[] DisplayValues,
+        long[] SourceTimestamps,
+        double[] SourceValues,
+        double? LatestValue,
+        double? PrevRawValue,
+        long? PrevRawTimestamp);
+
+    public sealed record GraphDisplaySnapshot(
+        MetricGraphViewModel Graph,
+        List<SeriesDisplayData> SeriesData,
+        long[] Timestamps,
+        double[] Values,
+        string[] Labels,
+        string Status,
+        long WindowStart,
+        long WindowEnd);
+
     private void ApplyDisplayBudget(ChartSeriesModel series, int budget, long start, long end)
     {
         // Live appends must start from source data, never repeatedly reduce an already sampled curve.
         _displaySources[series] = (series.Timestamps, series.Values);
-        if (series.Values.Length <= Math.Clamp(budget, 4, 100000)) return;
-        var points = series.Values.Select((value, i) => new LODPoint(series.Timestamps[i], value, value, value)).ToArray();
-        var sampled = GraphHistoryResolution.Downsample(points, budget, start, end);
-        series.Timestamps = sampled.Select(p => p.TimestampUnixNano).ToArray();
-        series.Values = sampled.Select(p => p.Value).ToArray();
+        var (ts, vals) = SampleToDisplayBudget(series.Timestamps, series.Values, budget, start, end);
+        series.Timestamps = ts;
+        series.Values = vals;
     }
 
     private readonly ITelemetryDataProvider? _provider;
     private readonly GraphLayoutStore? _layoutStore;
     private readonly GraphPresetStore _presetStore;
     private CancellationTokenSource? _queryCts;
+    private long _refreshGeneration;
     private DateTime _lastRefresh;
     private volatile bool _isQueryRunning;
     private bool _hasLoadedHistory;
@@ -1156,6 +1194,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     private void PushLiveSampleToGraphs(long timestampNano, FleetNodeModel? node, IReadOnlyList<FleetNodeModel> allNodes)
     {
         if (timestampNano <= 0 || IsScopeCustom) return;
+        using var liveWork = UiPerformanceDiagnostics.Measure("graph.live-update");
 
         long windowSpanNano = SelectedScope switch
         {
@@ -1305,117 +1344,160 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         _pendingLiveTimingRefresh = null;
         _queryCts?.Cancel(); _queryCts?.Dispose();
         var cts = _queryCts = new CancellationTokenSource();
+        long generation = Interlocked.Increment(ref _refreshGeneration);
         _lastRefresh = DateTime.UtcNow;
         if (_provider == null || !TryRange(out var start, out var end)) return;
         using var timing = HistoryTiming.Begin("scope-refresh", TargetHostId, newRefresh: true);
         timing?.Mark("range", $"start={start:O}; end={end:O}; graphs={Graphs.Count}");
         _isQueryRunning = true;
         var ids = IsAggregatedMode ? ClusterNodes.Select(n => n.Id).ToArray() : new[] { TargetHostId };
+
+        foreach (var g in Graphs) g.Status = "Loading…";
+
         try
         {
-            await Task.WhenAll(Graphs.ToArray().Select(async graph =>
+            var graphTasks = Graphs.ToArray().Select(async graph =>
             {
                 using var graphTiming = HistoryTiming.Begin("graph", TargetHostId, graph.Title);
-                graph.Status = "Loading…";
                 long windowStartNano = new DateTimeOffset(start).ToUnixTimeMilliseconds() * 1_000_000L;
                 long windowEndNano = new DateTimeOffset(end).ToUnixTimeMilliseconds() * 1_000_000L;
-                graph.WindowStart = windowStartNano;
-                graph.WindowEnd = windowEndNano;
 
+                var seriesList = graph.Series.ToArray();
+                var seriesDisplayList = new List<SeriesDisplayData>(seriesList.Length);
                 int maxPoints = 0;
-                foreach (var series in graph.Series.ToArray())
+
+                foreach (var series in seriesList)
                 {
                     using var seriesTiming = HistoryTiming.Begin("series", TargetHostId, series.Metric);
                     var results = await Task.WhenAll(ids.Select(id => _provider.QueryHistoryWithResolutionAsync(id, series.Metric, start, end, graph.HistoryPointBudget, cts.Token)));
                     seriesTiming?.Mark("data-ready", $"points={results.Sum(r => r.Count)}");
-                    if (cts.IsCancellationRequested) { seriesTiming?.Mark("cancelled"); return; }
-
-                    long timestampUnit = IsAggregatedMode ? 1_000_000_000L : 1L;
-                    var points = results.SelectMany(s => s.GroupBy(p => p.TimestampUnixNano / timestampUnit).Select(g => g.OrderBy(p => p.TimestampUnixNano).Last()))
-                                        .GroupBy(p => p.TimestampUnixNano / timestampUnit)
-                                        .OrderBy(g => g.Key)
-                                        .ToArray();
-
-                    series.Timestamps = points.Select(g => g.Key * timestampUnit).ToArray();
-                    series.Values = points.Select(g => series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio") ? g.Average(p => p.Value) : g.Sum(p => p.Value)).ToArray();
-
-                    if (series.IsRateOfChange)
+                    if (cts.IsCancellationRequested || Volatile.Read(ref _refreshGeneration) != generation)
                     {
-                        var rawTs = series.Timestamps;
-                        var rawVals = series.Values;
-                        if (rawTs.Length >= 2)
-                        {
-                            var rateTs = new long[rawTs.Length - 1];
-                            var rateVals = new double[rawVals.Length - 1];
-                            for (int i = 1; i < rawTs.Length; i++)
-                            {
-                                double dt = (rawTs[i] - rawTs[i - 1]) / 1e9;
-                                if (dt <= 0.001) dt = 1.0;
-                                double delta = rawVals[i] - rawVals[i - 1];
-                                if (delta < 0 && series.Metric.Contains("bytes")) delta = 0;
-                                rateTs[i - 1] = rawTs[i];
-                                rateVals[i - 1] = delta / dt;
-                            }
-                            series.Timestamps = rateTs;
-                            series.Values = rateVals;
-                            series.PreviousRawSampleValue = rawVals[^1];
-                            series.PreviousRawSampleTimestampNano = rawTs[^1];
-                        }
-                        else
-                        {
-                            series.Timestamps = Array.Empty<long>();
-                            series.Values = Array.Empty<double>();
-                        }
+                        seriesTiming?.Mark("cancelled");
+                        return null;
                     }
 
-                    seriesTiming?.Mark("transformed");
-                    ApplyDisplayBudget(series, graph.HistoryPointBudget, windowStartNano, windowEndNano);
-                    seriesTiming?.Mark("sampled", $"points={series.Values.Length}");
-                    series.LatestValue = series.Values.LastOrDefault();
-                    maxPoints = Math.Max(maxPoints, series.Values.Length);
+                    var prepared = await Task.Run(() =>
+                    {
+                        using var seriesWork = UiPerformanceDiagnostics.Measure("graph.history-transform-publish");
+                        long timestampUnit = IsAggregatedMode ? 1_000_000_000L : 1L;
+                        var points = results.SelectMany(s => s.GroupBy(p => p.TimestampUnixNano / timestampUnit).Select(g => g.OrderBy(p => p.TimestampUnixNano).Last()))
+                                            .GroupBy(p => p.TimestampUnixNano / timestampUnit)
+                                            .OrderBy(g => g.Key)
+                                            .ToArray();
+
+                        var rawTs = points.Select(g => g.Key * timestampUnit).ToArray();
+                        var rawVals = points.Select(g => series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio") ? g.Average(p => p.Value) : g.Sum(p => p.Value)).ToArray();
+
+                        double? prevVal = null;
+                        long? prevTs = null;
+                        if (series.IsRateOfChange)
+                        {
+                            if (rawTs.Length >= 2)
+                            {
+                                var rateTs = new long[rawTs.Length - 1];
+                                var rateVals = new double[rawVals.Length - 1];
+                                for (int i = 1; i < rawTs.Length; i++)
+                                {
+                                    double dt = (rawTs[i] - rawTs[i - 1]) / 1e9;
+                                    if (dt <= 0.001) dt = 1.0;
+                                    double delta = rawVals[i] - rawVals[i - 1];
+                                    if (delta < 0 && series.Metric.Contains("bytes")) delta = 0;
+                                    rateTs[i - 1] = rawTs[i];
+                                    rateVals[i - 1] = delta / dt;
+                                }
+                                prevVal = rawVals[^1];
+                                prevTs = rawTs[^1];
+                                rawTs = rateTs;
+                                rawVals = rateVals;
+                            }
+                            else
+                            {
+                                rawTs = Array.Empty<long>();
+                                rawVals = Array.Empty<double>();
+                            }
+                        }
+
+                        seriesTiming?.Mark("transformed");
+                        var (dispTs, dispVals) = SampleToDisplayBudget(rawTs, rawVals, graph.HistoryPointBudget, windowStartNano, windowEndNano);
+                        seriesTiming?.Mark("sampled", $"points={dispVals.Length}");
+                        double? latestVal = dispVals.Length > 0 ? dispVals[^1] : null;
+
+                        return new SeriesDisplayData(series, dispTs, dispVals, rawTs, rawVals, latestVal, prevVal, prevTs);
+                    }, cts.Token);
+
+                    seriesDisplayList.Add(prepared);
+                    maxPoints = Math.Max(maxPoints, prepared.DisplayValues.Length);
                 }
 
-                var primary = graph.Series.FirstOrDefault();
-                if (primary != null)
-                {
-                    graph.Timestamps = primary.Timestamps;
-                    graph.Values = primary.Values;
-                    graph.Labels = primary.Timestamps.Select(t => DateTimeOffset.FromUnixTimeSeconds(t / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss")).ToArray();
-                }
-                else
-                {
-                    graph.Timestamps = Array.Empty<long>();
-                    graph.Values = Array.Empty<double>();
-                    graph.Labels = Array.Empty<string>();
-                }
+                var primary = seriesDisplayList.FirstOrDefault();
+                long[] primaryTimestamps = primary?.DisplayTimestamps ?? Array.Empty<long>();
+                double[] primaryValues = primary?.DisplayValues ?? Array.Empty<double>();
+                string[] labels = primaryTimestamps.Length > 0
+                    ? primaryTimestamps.Select(t => DateTimeOffset.FromUnixTimeSeconds(t / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss")).ToArray()
+                    : Array.Empty<string>();
 
+                string status;
                 if (maxPoints == 0)
                 {
-                    graph.Status = "No measurements in this time window";
+                    status = "No measurements in this time window";
                 }
                 else
                 {
-                    long latestNano = primary?.Timestamps.LastOrDefault() ?? 0;
+                    long latestNano = primaryTimestamps.LastOrDefault();
                     if (latestNano > 0 && (windowEndNano - latestNano) > 60_000_000_000L)
                     {
                         var latestDt = DateTimeOffset.FromUnixTimeMilliseconds(latestNano / 1_000_000L).ToLocalTime();
-                        graph.Status = $"{maxPoints} points · window {start.ToLocalTime():HH:mm:ss}–{end.ToLocalTime():HH:mm:ss} (data ends at {latestDt:HH:mm:ss})";
+                        status = $"{maxPoints} points · window {start.ToLocalTime():HH:mm:ss}–{end.ToLocalTime():HH:mm:ss} (data ends at {latestDt:HH:mm:ss})";
                     }
                     else
                     {
-                        graph.Status = $"{maxPoints} points · {start.ToLocalTime():HH:mm:ss} – {end.ToLocalTime():HH:mm:ss}";
+                        status = $"{maxPoints} points · {start.ToLocalTime():HH:mm:ss} – {end.ToLocalTime():HH:mm:ss}";
                     }
                 }
-            }));
+
+                return new GraphDisplaySnapshot(graph, seriesDisplayList, primaryTimestamps, primaryValues, labels, status, windowStartNano, windowEndNano);
+            });
+
+            var snapshots = await Task.WhenAll(graphTasks);
+            if (cts.IsCancellationRequested || Volatile.Read(ref _refreshGeneration) != generation) return;
+
+            void ApplySnapshots()
+            {
+                if (cts.IsCancellationRequested || Volatile.Read(ref _refreshGeneration) != generation) return;
+                using var publishTiming = UiPerformanceDiagnostics.Measure("graph.batch-publish");
+                foreach (var snap in snapshots)
+                {
+                    if (snap == null) continue;
+                    snap.Graph.WindowStart = snap.WindowStart;
+                    snap.Graph.WindowEnd = snap.WindowEnd;
+                    foreach (var s in snap.SeriesData)
+                    {
+                        _displaySources[s.Series] = (s.SourceTimestamps, s.SourceValues);
+                        s.Series.Timestamps = s.DisplayTimestamps;
+                        s.Series.Values = s.DisplayValues;
+                        if (s.LatestValue.HasValue) s.Series.LatestValue = s.LatestValue.Value;
+                        if (s.PrevRawValue.HasValue) s.Series.PreviousRawSampleValue = s.PrevRawValue.Value;
+                        if (s.PrevRawTimestamp.HasValue) s.Series.PreviousRawSampleTimestampNano = s.PrevRawTimestamp.Value;
+                    }
+                    snap.Graph.Timestamps = snap.Timestamps;
+                    snap.Graph.Values = snap.Values;
+                    snap.Graph.Labels = snap.Labels;
+                    snap.Graph.Status = snap.Status;
+                }
+            }
+
+            ApplySnapshots();
+
             timing?.Mark(cts.IsCancellationRequested ? "cancelled" : "complete");
-            if (!cts.IsCancellationRequested)
+            if (!cts.IsCancellationRequested && Volatile.Read(ref _refreshGeneration) == generation)
             {
                 _hasLoadedHistory = true;
                 _pendingLiveTimingRefresh = timing?.RefreshId;
             }
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { timing?.Mark("error", ex.GetType().Name); if (!cts.IsCancellationRequested) foreach (var graph in Graphs) graph.Status = $"Query failed: {ex.Message}"; }
+        catch (OperationCanceledException) { timing?.Mark("cancelled"); }
+        catch (Exception ex) { timing?.Mark("error", ex.GetType().Name); if (!cts.IsCancellationRequested && Volatile.Read(ref _refreshGeneration) == generation) foreach (var graph in Graphs) graph.Status = $"Query failed: {ex.Message}"; }
         finally
         {
             if (ReferenceEquals(_queryCts, cts)) _isQueryRunning = false;

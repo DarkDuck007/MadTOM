@@ -50,6 +50,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
 
         // Poll collectors every 3 seconds for new/updated nodes
         _refreshTimer = new Timer(OnPollCollectorsTick, null, 100, 3000);
+        UiPerformanceDiagnostics.CacheStatsProvider = () => HistoryCache.CompactStats;
     }
 
     private async void OnPollCollectorsTick(object? state)
@@ -166,9 +167,12 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
     private void UpdateNodeFromMetrics(FleetNodeModel node, SystemMetrics s)
     {
         var receivedUtc = DateTime.UtcNow;
+        long posted = UiPerformanceDiagnostics.Enabled ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
         _lastSampleReceived[node.Id] = receivedUtc;
         Dispatcher.UIThread.Post(() =>
         {
+            if (posted != 0) UiPerformanceDiagnostics.Record("live.dispatch-wait", System.Diagnostics.Stopwatch.GetElapsedTime(posted).TotalMilliseconds);
+            using var uiWork = UiPerformanceDiagnostics.Measure("live.project-cache-publish");
             if (_disposeCts.IsCancellationRequested || s.TimestampUnixNano <= node.TimestampUnixNano) return;
             node.Status = "online";
             double seconds = (s.TimestampUnixNano - node.TimestampUnixNano) / 1e9;

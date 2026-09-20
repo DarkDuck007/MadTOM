@@ -62,6 +62,8 @@ Comprehensive guides, manuals, and technical deep-dives are organized in the [`D
 ```
 *See [.NET Publishing Guide](Documentation/cli-and-scripts.md#2-publishsh--net-self-contained-linux-publishing) for RID aliases and project filters.*
 
+For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured stderr log with `python3 tools/summarize_ui_performance.py ui-performance.log`. See [capture instructions and metric definitions](Documentation/ui-and-config.md#ui-performance-baselining).
+
 ### 3. Deploy Go Backend Daemon via SSH
 ```bash
 # Deploys binary, auto-detects architecture (x86/ARM), installs with sudo, restarts service

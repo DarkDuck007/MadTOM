@@ -49,11 +49,13 @@ public sealed class HistoryTiming : IDisposable
         Action<Entry>? sink = null, bool newRefresh = false)
     {
         sink ??= Current.Value?._sink;
-        if (sink == null && !Enabled) return null;
+        if (sink == null && !Enabled && !UiPerformanceDiagnostics.Enabled) return null;
         return new(stage, node, metric, sink ?? Write, newRefresh);
     }
     private static void Write(Entry entry)
     {
+        UiPerformanceDiagnostics.Observe(entry);
+        if (!Enabled) return;
         if (!Output.Value.Writer.TryWrite(entry)) Interlocked.Increment(ref _dropped);
     }
     public void Mark(string name, string? detail = null)

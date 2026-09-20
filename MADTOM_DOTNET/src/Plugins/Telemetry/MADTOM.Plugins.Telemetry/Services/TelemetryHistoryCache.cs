@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,9 +35,116 @@ public sealed class TelemetryHistoryCache
     private long _liveLimitBytes = 64L * 1048576;
     private long _storedLimitBytes = 32L * 1048576;
     private int _storedRetentionSeconds = 30;
+
+    private long _liveStorageBytes;
+    private long _livePoints;
+    private int _liveBlocks;
+    private long _liveCompressedBytes;
+    private long _liveCompressedRawBytes;
+
+    private long _storedStorageBytes;
+    private long _storedPoints;
+    private int _storedBlocks;
+    private long _storedCompressedBytes;
+    private long _storedCompressedRawBytes;
+
     public long LiveLimitBytes { get { lock (_gate) return _liveLimitBytes; } }
     public long StoredLimitBytes { get { lock (_gate) return _storedLimitBytes; } }
     public int StoredRetentionSeconds { get { lock (_gate) return _storedRetentionSeconds; } }
+
+    public (long LiveBytes, long StoredBytes, long LivePoints, long StoredPoints, int SeriesCount, int LiveBlocks, int StoredBlocks) CompactStats
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return (_liveStorageBytes, _storedStorageBytes, _livePoints, _storedPoints, _live.Count, _liveBlocks, _storedBlocks);
+            }
+        }
+    }
+
+    private static long KeyBytes((string Collector, string Node, string Metric) key) =>
+        256L + 2L * (key.Collector.Length + key.Node.Length + key.Metric.Length);
+    private static long RangeBytes(RemoteRange range) => KeyBytes(range.Key) + range.Points.StorageBytes;
+
+    private void RemoveSeriesLocked((string Collector, string Node, string Metric) key, Series series)
+    {
+        _liveStorageBytes -= KeyBytes(key) + series.Points.StorageBytes;
+        _livePoints -= series.Points.Count;
+        _liveBlocks -= series.Points.BlocksCount;
+        _liveCompressedBytes -= series.Points.CompressedBytes;
+        _liveCompressedRawBytes -= series.Points.CompressedRawBytes;
+        _live.Remove(key);
+    }
+
+    private void UpdateSeriesDeltaLocked(Series series, Action action)
+    {
+        long oldStorage = series.Points.StorageBytes;
+        long oldCount = series.Points.Count;
+        int oldBlocks = series.Points.BlocksCount;
+        long oldComp = series.Points.CompressedBytes;
+        long oldCompRaw = series.Points.CompressedRawBytes;
+
+        action();
+
+        _liveStorageBytes += (series.Points.StorageBytes - oldStorage);
+        _livePoints += (series.Points.Count - oldCount);
+        _liveBlocks += (series.Points.BlocksCount - oldBlocks);
+        _liveCompressedBytes += (series.Points.CompressedBytes - oldComp);
+        _liveCompressedRawBytes += (series.Points.CompressedRawBytes - oldCompRaw);
+    }
+
+    private void AddRemoteRangeLocked(RemoteRange range)
+    {
+        _remote.Add(range);
+        _storedStorageBytes += RangeBytes(range);
+        _storedPoints += range.Points.Count;
+        _storedBlocks++;
+        _storedCompressedBytes += range.Points.CompressedBytes;
+        if (range.Points.IsCompressed) _storedCompressedRawBytes += range.Points.RawBytes;
+    }
+
+    private void RemoveRemoteRangeLocked(RemoteRange range)
+    {
+        _storedStorageBytes -= RangeBytes(range);
+        _storedPoints -= range.Points.Count;
+        _storedBlocks--;
+        _storedCompressedBytes -= range.Points.CompressedBytes;
+        if (range.Points.IsCompressed) _storedCompressedRawBytes -= range.Points.RawBytes;
+    }
+
+    private void ClearLiveLocked()
+    {
+        _live.Clear();
+        _liveStorageBytes = 0;
+        _livePoints = 0;
+        _liveBlocks = 0;
+        _liveCompressedBytes = 0;
+        _liveCompressedRawBytes = 0;
+    }
+
+    private void ClearRemoteRangesLocked()
+    {
+        _remote.Clear();
+        _storedStorageBytes = 0;
+        _storedPoints = 0;
+        _storedBlocks = 0;
+        _storedCompressedBytes = 0;
+        _storedCompressedRawBytes = 0;
+    }
+
+    private void PruneExpiredRemoteLocked(DateTime now)
+    {
+        for (int i = _remote.Count - 1; i >= 0; i--)
+        {
+            var r = _remote[i];
+            if (r.Expires <= now)
+            {
+                _remote.RemoveAt(i);
+                RemoveRemoteRangeLocked(r);
+            }
+        }
+    }
 
     public void Configure(int minutes, long liveBytes, long storedBytes, int storedSeconds)
     {
@@ -48,7 +156,7 @@ public sealed class TelemetryHistoryCache
             _retentionMinutes = minutes;
             _liveLimitBytes = liveBytes;
             _storedLimitBytes = storedBytes;
-            if (_storedRetentionSeconds != storedSeconds) _remote.Clear();
+            if (_storedRetentionSeconds != storedSeconds) ClearRemoteRangesLocked();
             _storedRetentionSeconds = storedSeconds;
             PruneLocked();
             EnforceLimitsLocked();
@@ -61,10 +169,7 @@ public sealed class TelemetryHistoryCache
     {
         public long TotalBytes => LiveBytes + StoredBytes;
     }
-    private static long KeyBytes((string Collector, string Node, string Metric) key) =>
-        256L + 2L * (key.Collector.Length + key.Node.Length + key.Metric.Length);
-    private long LiveBytesLocked() => _live.Sum(pair => KeyBytes(pair.Key) + pair.Value.Points.StorageBytes);
-    private static long RangeBytes(RemoteRange range) => KeyBytes(range.Key) + range.Points.StorageBytes;
+
     public Usage GetUsage(int minutes)
     {
         lock (_gate)
@@ -77,38 +182,54 @@ public sealed class TelemetryHistoryCache
                 double rate = seconds > 0 ? (series.Points.Count - 1) / seconds : 1;
                 projected += Math.Ceiling(minutes * 60 * rate) * series.Points.StorageBytes / Math.Max(1.0, series.Points.Count) + KeyBytes(key);
             }
-            return new(LiveBytesLocked(), _remote.Sum(RangeBytes), _live.Sum(p => (long)p.Value.Points.Count),
-                _live.Count, _remote.Count, _remote.Sum(r => (long)r.Points.Count), projected,
-                _live.Sum(p => p.Value.Points.CompressedBytes), _remote.Sum(r => r.Points.CompressedBytes),
-                _live.Sum(p => p.Value.Points.CompressedRawBytes), _remote.Where(r => r.Points.IsCompressed).Sum(r => r.Points.RawBytes));
+            return new(_liveStorageBytes, _storedStorageBytes, _livePoints,
+                _live.Count, _remote.Count, _storedPoints, projected,
+                _liveCompressedBytes, _storedCompressedBytes,
+                _liveCompressedRawBytes, _storedCompressedRawBytes);
         }
     }
-    public void ClearLive() { lock (_gate) { _generation++; _live.Clear(); } }
-    public void ClearStored() { lock (_gate) { _generation++; _remote.Clear(); } }
+
+    public (long LiveStorage, long StoredStorage, long LivePoints, long StoredPoints, long LiveComp, long StoredComp, long LiveCompRaw, long StoredCompRaw, int LiveBlocks, int StoredBlocks) RecalculateSlow()
+    {
+        lock (_gate)
+        {
+            long liveStorage = _live.Sum(pair => KeyBytes(pair.Key) + pair.Value.Points.StorageBytes);
+            long storedStorage = _remote.Sum(RangeBytes);
+            long livePoints = _live.Sum(p => (long)p.Value.Points.Count);
+            long storedPoints = _remote.Sum(r => (long)r.Points.Count);
+            long liveComp = _live.Sum(p => p.Value.Points.CompressedBytes);
+            long storedComp = _remote.Sum(r => r.Points.CompressedBytes);
+            long liveCompRaw = _live.Sum(p => p.Value.Points.CompressedRawBytes);
+            long storedCompRaw = _remote.Where(r => r.Points.IsCompressed).Sum(r => r.Points.RawBytes);
+            int liveBlocks = _live.Sum(p => p.Value.Points.BlocksCount);
+            int storedBlocks = _remote.Count;
+            return (liveStorage, storedStorage, livePoints, storedPoints, liveComp, storedComp, liveCompRaw, storedCompRaw, liveBlocks, storedBlocks);
+        }
+    }
+
+    public void ClearLive() { lock (_gate) { _generation++; ClearLiveLocked(); } }
+    public void ClearStored() { lock (_gate) { _generation++; ClearRemoteRangesLocked(); } }
 
     private void EnforceLimitsLocked()
     {
-        long bytes = LiveBytesLocked();
-        if (bytes > _liveLimitBytes)
+        if (_liveStorageBytes > _liveLimitBytes)
         {
             var oldest = new PriorityQueue<(string Collector, string Node, string Metric), long>();
             foreach (var (key, series) in _live)
                 if (series.Points.Count > 0) oldest.Enqueue(key, series.Points.FirstTimestamp);
-            while (bytes > _liveLimitBytes * 3 / 4 && oldest.TryDequeue(out var key, out _))
+            while (_liveStorageBytes > _liveLimitBytes * 3 / 4 && oldest.TryDequeue(out var key, out _))
             {
-                var series = _live[key];
-                bytes -= series.Points.StorageBytes;
-                series.Points.DropOldestBlock();
-                bytes += series.Points.StorageBytes;
-                if (series.Points.Count == 0) { bytes -= KeyBytes(key); _live.Remove(key); }
+                if (!_live.TryGetValue(key, out var series)) continue;
+                UpdateSeriesDeltaLocked(series, () => series.Points.DropOldestBlock());
+                if (series.Points.Count == 0) RemoveSeriesLocked(key, series);
                 else oldest.Enqueue(key, series.Points.FirstTimestamp);
             }
         }
-        long remoteBytes = _remote.Sum(RangeBytes);
-        while (_remote.Count > 0 && remoteBytes > _storedLimitBytes)
+        while (_remote.Count > 0 && _storedStorageBytes > _storedLimitBytes)
         {
-            remoteBytes -= RangeBytes(_remote[0]);
+            var r = _remote[0];
             _remote.RemoveAt(0);
+            RemoveRemoteRangeLocked(r);
         }
     }
 
@@ -118,7 +239,7 @@ public sealed class TelemetryHistoryCache
         set
         {
             if (value is < 1 or > 1440) throw new ArgumentOutOfRangeException(nameof(value));
-            lock (_gate) { _retentionMinutes = value; _generation++; _remote.Clear(); PruneLocked(); }
+            lock (_gate) { _retentionMinutes = value; _generation++; ClearRemoteRangesLocked(); PruneLocked(); }
         }
     }
 
@@ -132,20 +253,26 @@ public sealed class TelemetryHistoryCache
             {
                 if (!double.IsFinite(value)) continue;
                 var key = Key(collector, node, metric);
-                if (!_live.TryGetValue(key, out var series)) _live[key] = series = new();
+                if (!_live.TryGetValue(key, out var series))
+                {
+                    _live[key] = series = new();
+                    _liveStorageBytes += KeyBytes(key) + series.Points.StorageBytes;
+                }
                 var points = series.Points;
-                // Live streams are monotonic. Ignore replay/duplicates without retaining extra objects.
                 if (points.Count > 0 && series.Latest >= timestamp) continue;
-                points.Enqueue(new(timestamp, value, value, value));
-                series.Latest = timestamp;
-                points.RemoveBefore(cutoff);
+                UpdateSeriesDeltaLocked(series, () =>
+                {
+                    points.Enqueue(new(timestamp, value, value, value));
+                    series.Latest = timestamp;
+                    points.RemoveBefore(cutoff);
+                });
             }
             EnforceLimitsLocked();
         }
     }
 
     public void Prune() { lock (_gate) PruneLocked(); }
-    public void Clear() { lock (_gate) { _generation++; _live.Clear(); _remote.Clear(); } }
+    public void Clear() { lock (_gate) { _generation++; ClearLiveLocked(); ClearRemoteRangesLocked(); } }
 
     public string Estimate(int minutes)
     {
@@ -153,7 +280,7 @@ public sealed class TelemetryHistoryCache
         {
             PruneLocked();
             double projected = 0;
-            long current = _remote.Sum(RangeBytes);
+            long current = _storedStorageBytes;
             foreach (var series in _live.Values)
             {
                 var points = series.Points;
@@ -177,109 +304,214 @@ public sealed class TelemetryHistoryCache
         long from = Nano(start), to = Nano(end);
         if (from > to) return Array.Empty<LODPoint>();
         var key = Key(collector, node, metric);
-        LODPoint[] local;
-        RemoteRange? prefix = null;
-        LODPoint[] prefixPoints = Array.Empty<LODPoint>();
+
+        CompressedPointHistory.HistorySnapshot liveSnapshot;
+        CompressedPointBlock? cachedBlock = null;
+        CompressedPointBlock? prefixBlock = null;
+        DateTime prefixExpires = default;
+        long cachedEndNano = 0;
+        long prefixEnd = 0;
+        int prefixBudget = 0;
         long generation;
+        bool isLocalOnlyOrCovered = false;
+
+        long lockWaitStart = Stopwatch.GetTimestamp();
         lock (_gate)
         {
-            timing?.Mark("lock-acquired");
-            PruneLocked();
-            timing?.Mark("pruned");
+            double lockWaitMs = Stopwatch.GetElapsedTime(lockWaitStart).TotalMilliseconds;
+            long lockHoldStart = Stopwatch.GetTimestamp();
+            timing?.Mark("lock-acquired", $"waitMs={lockWaitMs:F2}");
+
+            long cutoff = Cutoff();
+            if (_live.TryGetValue(key, out var series))
+            {
+                if (series.Points.Count > 0 && series.Points.FirstTimestamp < cutoff)
+                {
+                    UpdateSeriesDeltaLocked(series, () => series.Points.RemoveBefore(cutoff));
+                    if (series.Points.Count == 0)
+                    {
+                        RemoveSeriesLocked(key, series);
+                        series = null;
+                    }
+                }
+            }
+
             generation = _generation;
-            local = ReadLocked(key, from, to);
-            timing?.Mark("live-decoded", $"points={local.Length}");
+            liveSnapshot = series != null ? series.Points.Snapshot(from, to) : default;
+
             if (timing != null)
             {
-                _live.TryGetValue(key, out var live);
-                timing.Mark("live-timestamps", $"requestedStartNano={from}; requestedEndNano={to}; firstLiveNano={(live?.Points.Count > 0 ? live.Points.FirstTimestamp : 0)}; latestLiveNano={live?.Latest ?? 0}; newestInRangeNano={(local.Length > 0 ? local[^1].TimestampUnixNano : 0)}");
-                LogCoverage(timing, live?.Points, from, to, "full");
+                timing.Mark("live-timestamps", $"requestedStartNano={from}; requestedEndNano={to}; firstLiveNano={(series?.Points.Count > 0 ? series.Points.FirstTimestamp : 0)}; latestLiveNano={series?.Latest ?? 0}");
+                LogCoverage(timing, series?.Points, from, to, "full");
             }
-            if (localOnly || (_live.TryGetValue(key, out var series) && series.Points.Covers(from, to)))
-            { timing?.Mark(localOnly ? "local-only" : "live-hit"); return local; }
-            var cached = _remote.LastOrDefault(r => r.Key == key && HasResolution(r, from, to, targetPoints) &&
-                r.Start <= from && (r.End >= to || (_live.TryGetValue(key, out var tail) && tail.Points.Covers(r.End, to))));
-            if (cached != null)
+
+            if (localOnly || (series != null && series.Points.Covers(from, to)))
             {
-                _remote.Remove(cached); _remote.Add(cached);
-                var decoded = cached.Points.Decode();
-                timing?.Mark("stored-hit-decoded", $"points={decoded.Length}");
-                timing?.Mark("stored-timestamps", $"cachedEndNano={cached.End}; newestStoredNano={(decoded.Length > 0 ? decoded[^1].TimestampUnixNano : 0)}");
-                var merged = Merge(decoded, local, from, to);
-                timing?.Mark("merged", $"points={merged.Length}");
-                return merged;
+                isLocalOnlyOrCovered = true;
+                double lockHoldMs = Stopwatch.GetElapsedTime(lockHoldStart).TotalMilliseconds;
+                timing?.Mark("lock-released", $"holdMs={lockHoldMs:F2}");
             }
-            // A rolling scope has a later end on every visit. A slow/missing live
-            // stream must not force a refetch of the already cached historical prefix.
-            prefix = _remote.Where(r => r.Key == key && HasResolution(r, from, to, targetPoints) &&
-                r.Start <= from && r.End >= from && r.End < to).MaxBy(r => r.End);
-            if (prefix != null)
+            else
             {
-                if (timing != null)
+                var nowUtc = _utcNow();
+                for (int i = _remote.Count - 1; i >= 0; i--)
                 {
-                    _live.TryGetValue(key, out var liveTail);
-                    LogCoverage(timing, liveTail?.Points, prefix.End, to, "tail");
+                    var r = _remote[i];
+                    if (r.Expires <= nowUtc) continue;
+                    if (r.Key == key && HasResolution(r, from, to, targetPoints) && r.Start <= from &&
+                        (r.End >= to || (series != null && series.Points.Covers(r.End, to))))
+                    {
+                        _remote.RemoveAt(i);
+                        _remote.Add(r);
+                        cachedBlock = r.Points;
+                        cachedEndNano = r.End;
+                        break;
+                    }
                 }
-                prefixPoints = prefix.Points.Decode();
-                timing?.Mark("stored-timestamps", $"cachedEndNano={prefix.End}; newestStoredNano={(prefixPoints.Length > 0 ? prefixPoints[^1].TimestampUnixNano : 0)}");
-                timing?.Mark("prefix-decoded", $"points={prefixPoints.Length}");
-                _remote.Remove(prefix); _remote.Add(prefix);
+
+                if (cachedBlock == null)
+                {
+                    RemoteRange? prefixRange = null;
+                    for (int i = 0; i < _remote.Count; i++)
+                    {
+                        var r = _remote[i];
+                        if (r.Expires <= nowUtc) continue;
+                        if (r.Key == key && HasResolution(r, from, to, targetPoints) &&
+                            r.Start <= from && r.End >= from && r.End < to)
+                        {
+                            if (prefixRange == null || r.End > prefixRange.End) prefixRange = r;
+                        }
+                    }
+                    if (prefixRange != null)
+                    {
+                        _remote.Remove(prefixRange);
+                        _remote.Add(prefixRange);
+                        prefixBlock = prefixRange.Points;
+                        prefixExpires = prefixRange.Expires;
+                        prefixEnd = prefixRange.End;
+                        prefixBudget = prefixRange.PointBudget;
+                        if (timing != null)
+                        {
+                            LogCoverage(timing, series?.Points, prefixRange.End, to, "tail");
+                        }
+                    }
+                }
+
+                double lockHoldMs = Stopwatch.GetElapsedTime(lockHoldStart).TotalMilliseconds;
+                timing?.Mark("lock-released", $"holdMs={lockHoldMs:F2}");
             }
         }
 
-        // Broader minute-aligned starts allow nearby navigation requests to reuse historical results.
+        var local = liveSnapshot.Decode(from, to);
+        timing?.Mark("live-decoded", $"points={local.Length}");
+
+        if (isLocalOnlyOrCovered)
+        {
+            timing?.Mark(localOnly ? "local-only" : "live-hit");
+            return local;
+        }
+
+        if (cachedBlock != null)
+        {
+            var decoded = cachedBlock.Decode();
+            timing?.Mark("stored-hit-decoded", $"points={decoded.Length}");
+            timing?.Mark("stored-timestamps", $"cachedEndNano={cachedEndNano}; newestStoredNano={(decoded.Length > 0 ? decoded[^1].TimestampUnixNano : 0)}");
+            var merged = Merge(decoded, local, from, to);
+            timing?.Mark("merged", $"points={merged.Length}");
+            return merged;
+        }
+
+        LODPoint[] prefixPoints = Array.Empty<LODPoint>();
+        if (prefixBlock != null)
+        {
+            prefixPoints = prefixBlock.Decode();
+            timing?.Mark("stored-timestamps", $"cachedEndNano={prefixEnd}; newestStoredNano={(prefixPoints.Length > 0 ? prefixPoints[^1].TimestampUnixNano : 0)}");
+            timing?.Mark("prefix-decoded", $"points={prefixPoints.Length}");
+        }
+
         DateTime fetchStart = targetPoints > 0 ? start : new DateTime(start.ToUniversalTime().Ticks / TimeSpan.TicksPerMinute * TimeSpan.TicksPerMinute, DateTimeKind.Utc);
-        if (prefix != null) fetchStart = DateTime.UnixEpoch.AddTicks(prefix.End / 100);
-        timing?.Mark(prefix == null ? "miss" : "partial-hit", $"fetchStart={fetchStart:O}; fetchEnd={end:O}");
+        if (prefixBlock != null) fetchStart = DateTime.UnixEpoch.AddTicks(prefixEnd / 100);
+        timing?.Mark(prefixBlock == null ? "miss" : "partial-hit", $"fetchStart={fetchStart:O}; fetchEnd={end:O}");
+
         IReadOnlyList<LODPoint> remote;
         bool fetchSucceeded = true;
         try { remote = await fetch(fetchStart, end, ct).ConfigureAwait(false); }
         catch (OperationCanceledException) { timing?.Mark("cancelled"); throw; }
         catch when (local.Length > 0 || prefixPoints.Length > 0) { timing?.Mark("fetch-failed-fallback"); fetchSucceeded = false; remote = Array.Empty<LODPoint>(); }
         timing?.Mark("fetch-finished", $"points={remote.Count}");
-        if (prefix != null) remote = Merge(prefixPoints, remote, from, to);
+
+        if (prefixBlock != null) remote = Merge(prefixPoints, remote, from, to);
         timing?.Mark("prefix-merged", $"points={remote.Count}");
         ct.ThrowIfCancellationRequested();
-        // The per-result admission ceiling is 64K points; total retention follows
-        // the configured compressed-byte budget. Compression must not hold _gate.
+
         CompressedPointBlock? candidate = fetchSucceeded && remote.Count <= MaxStoredQueryPoints
             ? new CompressedPointBlock(remote.ToArray()) : null;
         timing?.Mark("encoded", candidate == null ? "not-admitted" : $"bytes={candidate.StorageBytes}");
         ct.ThrowIfCancellationRequested();
+
+        CompressedPointHistory.HistorySnapshot latestLiveSnapshot;
+        bool genMatch;
+        long postLockWaitStart = Stopwatch.GetTimestamp();
         lock (_gate)
         {
-            // Clear/shrink wins over an older in-flight query, including what it returns to a view.
-            if (generation != _generation) return ReadLocked(key, from, to);
-            if (candidate != null)
+            double postLockWaitMs = Stopwatch.GetElapsedTime(postLockWaitStart).TotalMilliseconds;
+            long postLockHoldStart = Stopwatch.GetTimestamp();
+            timing?.Mark("lock-acquired-publication", $"waitMs={postLockWaitMs:F2}");
+            genMatch = (generation == _generation);
+            if (genMatch)
             {
-                // Refreshing a tail does not renew the freshness of the older prefix.
-                var expires = prefix?.Expires ?? _utcNow().AddSeconds(_storedRetentionSeconds);
-                var range = new RemoteRange(key, prefix != null ? from : Nano(fetchStart), to,
-                    expires, candidate, targetPoints);
-                // A result that cannot fit by itself must not evict the entire cache.
-                if (range.Expires > _utcNow() && RangeBytes(range) <= _storedLimitBytes)
+                if (candidate != null)
                 {
-                    _remote.RemoveAll(r => r.Expires <= _utcNow());
-                    // Coalesced fetches have multiple callers: retain one result for
-                    // an identical interval and never replace a finer result with a
-                    // later-finishing coarser request.
-                    bool alreadyCovered = _remote.Any(r => r.Key == key && r.Start == range.Start &&
-                        r.End == range.End && r.PointBudget >= range.PointBudget);
-                    if (!alreadyCovered)
+                    var expires = prefixBlock != null ? prefixExpires : _utcNow().AddSeconds(_storedRetentionSeconds);
+                    var range = new RemoteRange(key, prefixBlock != null ? from : Nano(fetchStart), to,
+                        expires, candidate, targetPoints);
+                    if (range.Expires > _utcNow() && RangeBytes(range) <= _storedLimitBytes)
                     {
-                        _remote.RemoveAll(r => r.Key == key && r.Start == range.Start && r.End == range.End);
-                        // Extend the same rolling entry instead of accumulating a
-                        // near-duplicate on every visit. Preserve a finer source entry.
-                        if (prefix != null && prefix.PointBudget == targetPoints) _remote.Remove(prefix);
-                        _remote.Add(range);
-                        EnforceLimitsLocked();
+                        PruneExpiredRemoteLocked(_utcNow());
+                        bool alreadyCovered = _remote.Any(r => r.Key == key && r.Start == range.Start &&
+                            r.End == range.End && r.PointBudget >= range.PointBudget);
+                        if (!alreadyCovered)
+                        {
+                            for (int i = _remote.Count - 1; i >= 0; i--)
+                            {
+                                if (_remote[i].Key == key && _remote[i].Start == range.Start && _remote[i].End == range.End)
+                                {
+                                    var r = _remote[i];
+                                    _remote.RemoveAt(i);
+                                    RemoveRemoteRangeLocked(r);
+                                }
+                            }
+                            if (prefixBlock != null && prefixBudget == targetPoints)
+                            {
+                                for (int i = _remote.Count - 1; i >= 0; i--)
+                                {
+                                    if (ReferenceEquals(_remote[i].Points, prefixBlock))
+                                    {
+                                        var r = _remote[i];
+                                        _remote.RemoveAt(i);
+                                        RemoveRemoteRangeLocked(r);
+                                        break;
+                                    }
+                                }
+                            }
+                            AddRemoteRangeLocked(range);
+                            EnforceLimitsLocked();
+                        }
                     }
                 }
             }
-            var result = Merge(remote, ReadLocked(key, from, to), from, to);
-            timing?.Mark("published", $"points={result.Length}");
-            return result;
+            _live.TryGetValue(key, out var finalLiveSeries);
+            latestLiveSnapshot = finalLiveSeries != null ? finalLiveSeries.Points.Snapshot(from, to) : default;
+            double postLockHoldMs = Stopwatch.GetElapsedTime(postLockHoldStart).TotalMilliseconds;
+            timing?.Mark("lock-released-publication", $"holdMs={postLockHoldMs:F2}");
         }
+
+        var finalLocal = latestLiveSnapshot.Decode(from, to);
+        if (!genMatch) return finalLocal;
+
+        var result = Merge(remote, finalLocal, from, to);
+        timing?.Mark("published", $"points={result.Length}");
+        return result;
     }
 
     private static void LogCoverage(HistoryTiming timing, CompressedPointHistory? points, long start, long end, string interval)
@@ -309,12 +541,10 @@ public sealed class TelemetryHistoryCache
         long cutoff = Cutoff();
         foreach (var (key, series) in _live.ToArray())
         {
-            var points = series.Points;
-            points.RemoveBefore(cutoff);
-            if (points.Count == 0) _live.Remove(key);
-
+            UpdateSeriesDeltaLocked(series, () => series.Points.RemoveBefore(cutoff));
+            if (series.Points.Count == 0) RemoveSeriesLocked(key, series);
         }
-        _remote.RemoveAll(r => r.Expires <= _utcNow());
+        PruneExpiredRemoteLocked(_utcNow());
         // Expiring part of a sealed block can materialize a raw head. Recheck budgets.
         EnforceLimitsLocked();
     }

@@ -2,6 +2,107 @@
 
 Research date: 2026-09-15. Scope: Go daemon, collector, WAL, gRPC transport, Pebble storage, and .NET/Avalonia telemetry UI.
 
+## Active roadmap — integrated review, 2026-09-20
+
+This section is the authoritative order for **future work**. It integrates [the architecture/documentation review](madtom_improvement_roadmap_documentation_review.md), completed work recorded below, current source inspection, and the operator's latest reports. Older numbered sections retain useful design research but contain historical findings and superseded proposals; they are not an unchecked backlog. No feature in this active roadmap is implemented by this documentation update.
+
+### Current evidence and revised priorities
+
+- **Storage:** the operator reports approximately **600 MB for one week across three nodes**. The directory composition and actual stored point count have not been measured here. A naive constant-growth extrapolation is about 2.6 GB per 30 days / 31 GB per year for that fleet, not a capacity forecast: series churn, WALs, compaction and retention change the result. Establish a physical-byte baseline before claiming a reduction percentage.
+- **Compression:** [OpenTSDB](MADTOM_GOLANG/pkg/collector/storage/tsdb.go) passes empty Pebble options. The pinned **v1.1.5 defaults to Snappy SST block compression**, verified in the installed dependency's `LevelOptions.EnsureDefaults` and [versioned upstream options](https://github.com/cockroachdb/pebble/blob/v1.1.5/options.go). Daemon/client zstd does not imply zstd TSDB files: ingestion decompresses messages and stores individual numeric values under node/metric/time keys. Filesystem size includes more than compressed data blocks. No application retention/reaper or persistent rollup path was found. Compaction reorganizes storage; it does not implement a telemetry retention policy.
+- **UI:** the operator reports near-second delays during node/scope switches and small live-update jitters. Existing timings stop at view-model publication, so they do not establish dispatcher responsiveness or presented-frame latency. The earlier Sakura1 empty-tail issue was separately explained by a **6.869379-second clock correction**; do not use it to dismiss the remaining UI report or loosen freshness checks.
+- **Verified hot paths:** [CollectorTelemetryDataProvider](MADTOM_DOTNET/src/Plugins/Telemetry/MADTOM.Plugins.Telemetry/Services/CollectorTelemetryDataProvider.cs) posts incoming metrics to the UI dispatcher and builds process rows, metric dictionaries, and compressed cache history there. [HostMetricsTabViewModel](MADTOM_DOTNET/src/Plugins/Telemetry/MADTOM.Plugins.Telemetry/ViewModels/HostMetricsTabViewModel.cs) performs grouping, sorting, rate conversion, sampling, array replacement, and per-point label formatting during refresh/live updates. Cache hits can complete synchronously; `async` and `Task.WhenAll` do not move this CPU work off the UI thread. Series within a graph currently load sequentially. Cache decode/merge work and shared codec/cache locks also warrant measurement.
+- **Already delivered:** hybrid live/stored caching, drawing/history density controls, stable timestamp buckets, bounded history RPC coordination, selective client-memory/transport zstd, grouped daemon WAL with explicit migration, diagnostics, and configurable process snapshot size. Preserve these rather than reimplementing them. **NFLOG remains unimplemented and deferred.** No additional Collector ingestion limits are proposed as the solution to either reported bottleneck.
+
+See the [conversation recap and first UI capture findings](#conversation-recap-long-runtime-cache-and-ui-capture--2026-09-20) for the latest evidence and immediate next steps.
+
+### Next stages and completion gates
+
+| Order | Deliverable | Completion evidence |
+|---|---|---|
+| 1 — UI baseline and first fixes | Measure dispatcher/frame stalls; move numeric history/cache work off UI thread; publish coherent graph snapshots with cancellation | Comparable node/scope traces, UI-thread checks, lower warm-switch p95 and frame stalls without losing live samples |
+| 2 — Storage baseline and rollup schema | Measure bytes/point, series cardinality and scan cost; define gauge/counter semantics and versioned tier keys | Golden-data tests and a checkpoint-based size/query benchmark; explicit retention choices |
+| 3 — Rollup writer and tier-aware reads | Build durable minute/hour summaries with raw fallback, late-data policy and resumable backfill | Raw-versus-rollup correctness, crash/replay tests, reduced scans; **no raw deletion yet** |
+| 4 — Retention and reclamation | Enable selected tier lifetimes only after coverage verification; bounded range deletion and paced compaction | Recovery tests prove rollups survive raw expiry; measured reclaimed bytes and foreground latency under maintenance |
+| 5 — Remaining UI allocation work | Coalesced display publication, ring/incremental buffers, tick-only labels, visibility-aware projection; benchmark bounded series prefetch | Sustained live frame pacing, stable allocations/RSS and fast touch/navigation during ingest |
+| 6 — Operations and protocol follow-ups | Security implementation, clock/freshness health and WAL backlog visibility; collector service hardening | Interoperability, failure/recovery and deployment tests, accurate operational docs |
+| 7 — Optional UX and further encoding | Crosshairs, exports, alerts; Pebble zstd and compact chunks only where measurements justify them | Explicit resource budgets and measured benefit, with regression gates below |
+
+Documentation corrections and accurate deployment/security guidance accompany each stage. Stages 1 and 2 are independent tracks; the default implementation order starts with UI responsiveness, then rollups. This is not a request to deploy or perform live-database migration.
+
+### UI responsiveness: implementation design
+
+1. **Measure actual interaction latency.** Extend the existing opt-in trace with dispatcher enqueue/dequeue time, graph compute time, property-publication time, render/geometry work and frame/presentation timing where supported. Record allocations, GC pauses, LOH activity, codec-lock wait and cache-lock duration. Separate cold network loads, warm full hits and partial-tail hits. Produce a compact per-refresh summary so diagnosis does not require reading thousands of events. Use release builds without the debugger for the acceptance baseline; compare diagnostics enabled/disabled overhead.
+2. **Separate data ingestion from display updates.** Capture immutable numeric/process projections in an ordered per-node worker; record every accepted numeric sample in session history before coalescing UI notifications. Keep Avalonia observable/model mutations on the dispatcher. Use one latest display slot and at most one pending display drain per node or bounded fleet cycle. Coalescing presentation must not silently drop monitor-only history, fabricate samples for slower probes, or change durable Collector ingest/ACK behavior. Monitor backlog/age and define explicit overflow behavior; do not replace the UI queue with an unbounded worker queue.
+3. **Prepare historical graphs in bounded background workers.** Snapshot node IDs, scope, metric list, resolution and immutable source data before scheduling work. Move cache decompression/merge, deduplication, grouping, counter rates and display sampling off the dispatcher. Take immutable block references under short cache locks and decode outside them where safe. Respect clear/settings generation invalidation and cancellation. Do not use one unbounded `Task.Run` per metric or mutate shared UI collections on workers.
+4. **Publish coherently and cheaply.** Apply a completed graph snapshot in one short dispatcher action rather than exposing intermediate timestamps/values and repeatedly invalidating geometry. Retain the old graph while a new scope loads, with a loading state; cancel obsolete jobs and prevent old node/scope completions overwriting new views. Merge live samples that arrived during computation, so a history completion cannot roll the display backward. Measure whether bounded concurrent preparation of a graph's series removes serial wait chains while retaining current RPC coordination.
+5. **Reduce live allocation and geometry churn.** Use rings or owned reusable buffers for active windows/sparklines; update only the changed boundary buckets. Avoid full-history LINQ pipelines and string labels per point per tick. Generate axis labels/tooltips on demand, cache text/geometry by viewport/data revision, and draw only the current pixel budget. Skip projection/render work for hidden views while preserving cache retention. Make diagnostics refresh and process-row formatting visibility-aware. Retain exact original sample timestamps, extrema and stable interior buckets.
+6. **Define one graph time-axis policy.** History currently ends relative windows at client time (or a newer known sample); live updates use the arriving sample time. Choose and document one policy for both paths, displaying sample age separately. Test delayed samples, small clock offsets, large corrected offsets, reconnects, fixed custom ranges and missing metrics. Do not conceal clock drift by treating arbitrarily old samples as current.
+
+**Initial acceptance targets, to calibrate on named reference hardware:** warm cached node/scope switch p95 under 100 ms; dispatcher publication p95 under 8 ms; no routine interaction stalls over 50 ms; steady 60 Hz interaction with p95 frame work within 16.7 ms on that reference display, also reporting missed-frame counts and p99. These are proposed targets, not achieved results. Test 1m/30m/12h/24h scopes, multiple merged graphs, 1 Hz/10 Hz streams, process limits 25/100/1,000, cold/warm caches and a two-hour live soak. Report actual ingest rates, CPU, allocation rate and RSS; UI smoothness must not come from silently reducing recorded history.
+
+### Persistent rollup tables and retention
+
+The review's rollup proposal is promoted from a later experiment to a **near-term storage feature**. It reduces the number of points scanned and retained; changing the compression codec alone cannot do that. “Tables” can be separate key namespaces in the same Pebble database, not separate databases or literal relational tables.
+
+#### Proposed tier policy, pending benchmark and operator selection
+
+| Tier | Resolution | Proposed maximum sample age | Use |
+|---|---|---|---|
+| Raw | Original incoming cadence | 48 hours | Recent zoom, exact samples, rollup repair |
+| Minute | 60-second UTC-aligned buckets | 30 days | Older detailed trends and long-range queries |
+| Hour | 3,600-second UTC-aligned buckets | 365 days | Multi-month trends |
+
+Ages are measured from event time, not added together. Build coarser tiers while source data still exists; do not wait for raw expiry to start summarizing. Keep durations configurable and **do not silently apply this destructive retention policy to existing installations**. Rollups lose within-bucket detail even with extrema retained. If 48 hours of raw data is too short, let operators retain more raw history or select a raw archive policy. Evaluate an intermediate 5–10-second tier only if measured zoom requirements justify its cost.
+
+At 1 Hz, a minute bucket replaces up to 60 raw entries, but its value is larger than an 8-byte float; an hour bucket can combine 60 minute summaries. These are entry-count reductions, **not promised 60× disk savings**. Sparse metrics, key/index overhead, process-name churn, retained raw overlap and compaction temporary space materially affect results.
+
+#### Schema and aggregation semantics
+
+- Introduce versioned tier/series/bucket keys and a series catalogue with metric type, unit and available resolutions. Existing raw keys are `node/metric/<big-endian timestamp>`; timestamps are ordered **within each series**, not globally. Reserve a collision-safe namespace or use an explicit schema migration. Extend the database merge tool and backup/read tooling before enabling new keys.
+- **Gauges:** retain count, sum, first/last values and timestamps, minimum/maximum values with their timestamps, and coverage/gap metadata. Compute means as sum/count; never average bucket means without weighting by counts. If time-weighted averages are wanted for irregular sampling, define/integrate durations separately. Merge extrema and endpoints deterministically. Missing data is not zero, and a displayed mean is an aggregate value, not an original observation.
+- **Counters:** preserve first/last timestamps and values, reset-aware accumulated increase, interval coverage and reset count; carry the preceding boundary sample when computing deltas. Define aggregation of rates and rate extrema before discarding raw input. Averaging cumulative counters and differentiating those averages produces wrong rates. Address current float64 precision limits for large uint64 counters in the schema decision rather than claiming rollups recover lost precision.
+- **Process metrics:** summaries apply to existing per-name numeric series, not full process snapshots. A process outside stored top-N is missing, not necessarily zero; preserve that distinction across buckets. Track series churn/cardinality separately from bytes per point.
+- Update query/protobuf/UI handling to distinguish raw samples, extrema envelopes and aggregates, including resolution and coverage. Do not invent a continuous high-resolution series from minute/hour averages. Current plotting/rate code must understand rolled-up counters and must not differentiate an already computed rate a second time.
+
+#### Writer, late data, and migration safety
+
+1. A bounded maintenance worker reads consistent raw snapshots for closed UTC buckets, writes summaries and durable coverage/checkpoint metadata, then advances its cursor. Pace disk reads/CPU by measured foreground load; pause/resume maintenance under pressure. Preserve sync-before-ACK for foreground ingestion.
+2. Replays and duplicate timestamps must be idempotent. Initially rebuild dirty buckets from authoritative raw records instead of incrementing sum/count for every replay; an overwrite of an existing raw timestamp must replace its contribution. Serialize dirty markers/finalization with ingestion, or use generations so a write arriving during aggregation cannot be omitted and then deleted. Hour-tier repair must propagate changed minute summaries using counts/sums, not means-of-means.
+3. Define an event-time lateness/replay horizon. Before source deletion, support raw-backed correction and reset finalization on dirty buckets. After raw expiry, keep a bounded correction/raw side store with explicit repair/dedup semantics, or explicitly report data outside the accepted correction horizon. Do not acknowledge late data as retained and silently discard it, and do not indefinitely recreate already-expired raw ranges. Select this policy against real daemon spool/replay durations before enabling expiry.
+4. Introduce versioned Collector migrations through the explicit startup **`--migrate` convention**, with dry-run estimates, resume checkpoints and compatibility checks. This is a new Collector migration capability, not something the current daemon migration already does. Existing installations require explicit migration for schema/backfill; ordinary startup must not launch an unrequested destructive conversion. Once enabled and configured, ongoing rollup/retention maintenance runs normally without requiring `--migrate` each time.
+5. Backfill and verify rollups while retaining raw data. Require durable coverage, completed lateness policy, query-path validation and sufficient disk headroom before deleting source ranges. Document backups, forward compatibility and rollback boundaries: raw detail cannot be restored from a rollup after deletion. New empty databases can initialize the schema directly without legacy backfill.
+
+#### Tier-aware queries and safe expiry
+
+- Select the coarsest **available tier whose bucket width satisfies the requested time resolution/point budget**, not simply a tier by “12h” or “24h” scope name. A wide graph or deep zoom may still need raw data. If only coarser data survives, return that resolution explicitly; do not pretend the requested detail exists.
+- Split ranges at retention/coverage boundaries, merge raw/minute/hour results without overlap or duplicate endpoints, and handle partial edge buckets using finer data where available. Do not use a whole-bucket average/extremum for an arbitrary subrange without reporting the coarse coverage. Preserve stable UTC boundaries and gaps.
+- Include tier, schema/aggregation version and available resolution in query-cache validity rules. Corrections and changed resolution must invalidate affected client results; a coarse cached response must not satisfy a finer request merely because its point count is high enough.
+- Implement a reaper using **per-series, per-tier `DeleteRange` intervals** or time-partitioned namespaces designed for expiry. One global timestamp range is unsafe with the existing node/metric/time key order. Publish durable summary coverage before deleting raw sources; use atomic batches where appropriate and resumable coverage checks across batches.
+- Distinguish logical expiry from physical reclamation. Range tombstones and compacted tables do not immediately shrink directory size; old iterators/snapshots may pin files. Pace compaction and measure reclaimed bytes, temporary disk amplification, write stalls and query tails. Do not schedule one giant forced compaction on the active database.
+
+**Rollup completion gates:** compare raw and tiered results for constant/spiky gauges, irregular timestamps, empty buckets, counter resets/wrap policy, duplicates/overwrites, late WAL replay, process churn and mixed-tier boundaries. Kill/restart during backfill, summary commit and deletion; test concurrent ingestion and migration resume. Verify min/max timestamps, weighted means and reset-aware deltas against a golden reference. Measure bytes/day, bytes/point, raw/minute/hour bytes, scan counts, query p50/p95/p99, compaction CPU/write amplification and foreground ACK latency on a copied/checkpointed 3-node week fixture plus synthetic 30-day/365-day data. Preserve the live database and its lock; do not open it in a second process for benchmarking.
+
+### Integrated review items and corrections
+
+| Review topic | Decision in this plan |
+|---|---|
+| Documentation TOC/duplicate heading | Fix the detached timing-diagnostics TOC link and group diagnostics near graph performance guidance. The inspected guide has one actual top-level UI title; the claimed duplicate title is **not reproduced**. Do not delete a TOC title entry or a heading inside a YAML example as a duplicate document title. |
+| Retention and rollups | Promote as stages 2–4 above. The review's 48h/30d/1y schedule is a configurable proposal, not an implemented/default retention guarantee. Current range queries use absolute-time endpoint/extrema sampling, not LTTB. |
+| Public transport security | Document actual current plaintext gRPC/insecure credentials and deployment assumptions; do not advertise nonexistent TLS/auth flags as available. Plan TLS/mTLS and authenticated node identity plus authorization for ingest/query/config across push, pull, reverse-push and desktop clients. A bearer token alone does not encrypt transport; use TLS or an explicitly managed private tunnel. Stage identity/certificate rotation and mixed-version compatibility tests. |
+| Collector systemd privileges | Template currently runs as root and mentions the privileged TWAMP port in comments. Plan a dedicated service user with owned state directories and tested `AmbientCapabilities=CAP_NET_BIND_SERVICE` / matching bounding set when port 862 is used, or an unprivileged port. Validate writable paths, upgrades and selected hardening options before changing deployments. |
+| Clock health / TWAMP | Preserve timestamp/coverage diagnostics and expose synchronization state, offset uncertainty and sample age. Support chrony/systemd-timesyncd/platform sources with an explicit unknown state; do not assume a portable `/run/chrony-dhcp` endpoint or infer remote clock offset from one-way arrival delay. One-way TWAMP validity needs both endpoints' synchronization/uncertainty, not only an operator checkbox. |
+| WAL backlog progress | Expose pending records/bytes, oldest event age, durable ACK progress and current replay rate. A percent requires a defined backlog snapshot denominator while new data continues arriving; do not show invented precision. Keep live freshness distinct from replayed history. |
+| Synchronized crosshairs | Follow the UI work: share a timestamp across visible graphs, throttle pointer/touch notifications to the render cadence, and reuse existing geometry without history fetches or full-series rebuilds. |
+| PNG and CSV/JSON export | Export asynchronously from an immutable selected view; label node, scope, units and actual raw/rollup/display resolution. PNG rendering may need the UI/render thread, so bound its work. Do not label downsampled export as raw data. |
+| Threshold indicators / webhooks | Later Collector-side sustained-window rules with missing-data/replay semantics, deduplication/cooldowns and bounded retry queues. Keep secrets out of logs; require explicit configured destinations and expose failures. UI badges consume alert state rather than reevaluating all historical data every frame. |
+| Further zstd expansion | Benchmark Pebble Snappy versus cold-level zstd independently after rollup/retention measurements. Do not recompress hot chart buffers as a substitute for removing UI-thread work. Compact chunks/dictionaries remain conditional later work. |
+
+### Documentation and verification for this integration
+
+Use the project-doc-sync workflow when implementing each stage: architecture/protocol/schema semantics in [architecture](Documentation/architecture-and-protocols.md), controls and diagnostics in [UI configuration](Documentation/ui-and-config.md), new flags/migrations in [CLI](Documentation/cli-and-scripts.md), and service/security operations in [deployment](Documentation/deployment-and-services.md). Update README only for new top-level workflows. Each stage ends with its relevant tests, measured before/after results, documentation updates, and link checks. This integration changes the plan only; it does not enable expiry, alter services, run migrations, or claim benchmark gains.
+
+
 ## Implementation progress — 2026-09-16
 
 The research findings below remain a dated baseline. Two portions have now been implemented after rereading the current sources:
@@ -73,9 +174,11 @@ Validation: `go test -race -timeout 90s ./...` passed across the backend, includ
 
 ## 1. Recommendation
 
+**Historical research baseline (2026-09-15).** The [active roadmap](#active-roadmap--integrated-review-2026-09-20) supersedes the ordering and unimplemented-status assumptions in sections 1–10. Retain these sections as design rationale; consult dated progress entries for completed work.
+
 **Use zstd selectively for serialized, sufficiently large, relatively cold data. First bound resource growth and eliminate unnecessary collection, copying, serialization, and disk operations.** These changes address costs that compression cannot remove.
 
-The proposed order is:
+The original research order was:
 
 1. Establish resource budgets and measurements; fix compression-dependent pull behavior and enforce byte limits.
 2. Skip unnecessary probes, bound UI histories and pending updates, and make historical queries use bounded memory.
@@ -83,7 +186,7 @@ The proposed order is:
 4. Benchmark tuned zstd for WAL/ingest and collector-to-UI responses; benchmark Pebble compression separately.
 5. Add retention and persistent rollups; consider compact time-series chunks and cold compressed caches if still needed.
 
-This is a research and implementation plan, not a performance benchmark. Expected benefits below are hypotheses grounded in source inspection. No builds, tests, benchmarks, database opens, dependency installations, or running-service changes were performed. Existing workspace files were treated as read-only; this document is the only intended write. The workspace was already being modified, including the WAL, transport, opt-in logic, protocols, and merge utility. Findings describe files as read during this review, not an atomic revision; recheck named functions before implementation.
+The original research pass was not a performance benchmark; expected benefits were hypotheses grounded in source inspection. During that initial pass no builds, tests, benchmarks, database opens, dependency installations, or running-service changes were performed, and this document was the only intended write. Subsequent implementation and validation are recorded in dated progress entries. The workspace was already being modified, including the WAL, transport, opt-in logic, protocols, and merge utility. Findings describe files as read during this review, not an atomic revision; recheck named functions before implementation.
 
 ### Why “zstd across everything” needs refinement
 
@@ -225,7 +328,7 @@ At 1 Hz, one metric over 30 days contains 2,592,000 points. The current Go `Poin
 
 Propagate cancellation/deadlines into the iterator loop. Add per-query time/scan/byte limits and a collector-wide admission budget. For display queries, scan into bounded time buckets retaining count/sum/min/max/first/last and select a bounded display result. This still scans raw storage, but avoids retaining it all. It changes exact LTTB behavior and must be documented and tested; do not describe arbitrary streaming bucketing as identical LTTB.
 
-Persist rollups for frequently used long ranges to reduce scan I/O as well as memory. Retain raw data for a separately chosen period, then retain coarser buckets longer. Retention durations are product decisions; a trial such as 7 days raw / 90 days minute / 1 year hour is illustrative only. If all raw data must remain available, archive it in queryable chunks rather than silently discarding it.
+Persist rollups for frequently used long ranges to reduce scan I/O as well as memory. Retain raw data for a separately chosen period, then retain coarser buckets longer. Retention durations are product decisions; the original 7-day/90-day illustration is superseded by the active roadmap’s proposed configurable 48-hour raw / 30-day minute / 365-day hour policy and its explicit migration/deletion gates. If all raw data must remain available, archive it in queryable chunks rather than silently discarding it.
 
 Preserve data semantics:
 
@@ -314,6 +417,8 @@ These are proposed acceptance criteria to agree against actual deployment budget
 
 ## 9. Implementation sequence
 
+**Archived original sequence.** Use the [active stages and completion gates](#next-stages-and-completion-gates) for new work; rollups and UI-thread responsiveness now precede optional compression/UX expansion.
+
 | Phase | Deliverable | Dependencies / exit criterion |
 |---|---|---|
 | P0: establish trustworthy limits | Baseline fixtures and metrics; compression-independent pull termination; byte/decode/query bounds; visible WAL errors | Demonstrate bounded failure behavior and unchanged successful ingestion |
@@ -328,7 +433,7 @@ Features that change durability, retention, data resolution, or deployment depen
 
 ## 10. Documentation follow-up for the implementation phase
 
-Leave existing documentation untouched during this research task. Once changes are implemented, synchronize CLI/config/UI/architecture documentation with verified behavior. In particular, recheck existing claims about fixed compression savings, universally compressed streams, prefix Bloom filters, segment sizing, and zero data loss: quotas and durability boundaries qualify those claims. Document the final per-layer policy and actual measured workload results instead of promising a blanket percentage.
+The initial research task left other documentation untouched. Ongoing implementation must synchronize CLI/config/UI/architecture documentation with verified behavior. In particular, recheck existing claims about fixed compression savings, universally compressed streams, prefix Bloom filters, segment sizing, and zero data loss: quotas and durability boundaries qualify those claims. Document the final per-layer policy and actual measured workload results instead of promising a blanket percentage.
 
 **Final direction:** pursue broad resource efficiency with selective compression. Zstd is a strong candidate for larger serialized batches, cold history, and archives. Hot in-memory collections benefit first from bounded representations, less duplication, and less work; the storage engine and transport each need their own measured compression policy.
 
@@ -402,3 +507,84 @@ Added a compact Live snapshot processes control (1–1,000 PIDs; default 1,000) 
 The storage audit confirmed Collector TSDB writes only the selected top name groups plus other, while client graph queries merge all available live process-name CPU history. The ranking changes per sample, allowing low-CPU names to qualify when other processes are idle and allowing more than N distinct names over time. Updated UI help and documentation to distinguish this from persisting every live process. Existing history is not deleted or migrated.
 
 Validation: .NET build and all 228 tests passed; full Go race-test suite passed. Tests cover snapshot selection/default/bounds and detail-read counts, configuration RPC validation/round-trip, persistence across restart, UI change tracking/revert, and exclusion of low-ranked processes from TSDB. Documentation links and whitespace checks passed. Upgrade client, Collector, and daemons to use the new limit; no data migration is required.
+
+
+### UI baselining tools — 2026-09-20
+
+Implemented the first measurement portion of active stage 1. `MADTOM_UI_TIMING=1` enables compact per-refresh summaries and five-second interval records independently of verbose history logs. Instrumentation covers actual live dispatcher waits, a bounded Normal-priority dispatcher probe, live projection/cache/publication, historical series transformation/publication, metric-chart render CPU, geometry rebuilding, invalidation-to-render delay, allocations, GC collection deltas, managed heap and working set. Output and sample/refresh tracking are bounded. Added `tools/summarize_ui_performance.py` to compare node/scope wall times, cache/RPC outcomes and interval metrics, keeping cancelled runs separate and avoiding sums of overlapping stages.
+
+Validation: build succeeded; all 234 .NET tests passed with diagnostics disabled and again with UI timing enabled. Two Python summarizer tests passed. Tests cover bounded timing reservoirs/cardinality, concurrent recording, percentile/count semantics, cancelled/error refreshes, overlapping stages, refresh eviction, moving-scope grouping, weighted interval means and malformed lines. README, UI and CLI guides now document repeatable Release-build captures; link and whitespace checks passed.
+
+No production baseline or performance improvement is claimed yet. Actual compositor/presented-frame timing, per-lock waits and GC pause profiling remain outside this first tool; render CPU and dirty-to-render delays are explicitly labelled proxies. The active stage's background-processing and coherent-publication changes remain pending evidence from operator captures. Graph/cache behavior is unchanged.
+
+
+### Conversation recap: long-runtime cache and UI capture — 2026-09-20
+
+#### Operator observations and established context
+
+- Severe UI slowdown becomes apparent after **long runtimes with millions of live-cache points**. Node/scope switching becomes slow and live updates develop small jitters. The operator suspects synchronous cache reads; reducing retention/size may mitigate the symptom but should not replace fixing its scaling behavior.
+- The earlier Sakura1-specific problem was distinct: installing chrony corrected a **6.869379-second server clock offset**, confirmed by the service journal. Previously, each repeated load made 14 empty tail requests and took roughly 377–412 ms; subsequent captures showed full stored-cache reuse and no partial-tail fetches. A post-installation `chronyc tracking` reading could not rule out pre-installation drift. Preserve synchronization and freshness checks.
+- Live and stored-query caches already cooperate: fully covered live windows avoid Collector queries, stored prefixes combine with live tails, and identical timestamps are deduplicated in returned results with live values taking precedence. The caches can retain overlapping physical points because they expire/clear independently; deleting either copy requires shared-ownership or coverage-aware handling.
+- Live history retains numeric metrics across nodes, including CPU grouped by process name, rather than full historical process-list snapshots. Snapshot PIDs are now configurable (1–1,000); Collector TSDB storage independently selects 1–10 process-name groups per sample. A graph for a low-ranked process can come from live history, and stored leaders can change over time. Omitted metric names are cleared from the incoming dictionary before new recording; old points remain until normal expiry.
+- Collector disk growth (reported ~600 MB/week for three nodes) remains a separate priority. Pebble uses default Snappy SST compression; transport/client zstd does not imply zstd storage. The active rollup/retention design above remains pending implementation.
+
+#### First compact UI capture: measured findings
+
+Analyzed the operator's `ui-performance.log` under `MADTOM_DOTNET/src/Host/MADTOM.Console/bin/Debug/net10.0/`. The recorded interval summaries span approximately 45 seconds (2026-09-20 09:50:37–09:51:22 UTC). This is an initial operator capture, **not a controlled Release-build long-session benchmark**, and it does not record cache occupancy/series/block counts. It cannot by itself confirm the million-point hypothesis.
+
+| Observation | Result | Interpretation |
+|---|---|---|
+| Completed zero-RPC refreshes, excluding aggregated view | 10 refreshes; **3.6–23.9 ms**, median **10.2 ms** | Full-cache navigation was fast in this capture |
+| Scope-group summary medians/p95 | Mix of cold/network and warm loads | Separate by RPC/cache outcome before attributing the combined numbers to UI CPU |
+| Chart render CPU | Mean **0.49 ms**, maximum **8.52 ms** | Rendering itself was not the observed near-second operation |
+| Geometry rebuild CPU | Mean **0.22 ms**, maximum **7.39 ms** | Geometry work was small in this run |
+| History transform/publication | Mean **0.52 ms**, maximum **33.48 ms** per measured series operation | Individual measured transformations do not explain the largest stall |
+| Normal-priority dispatcher wait | Maximum **939.18 ms** | A real delayed dispatcher callback, not a measured 939 ms render |
+| Live dispatcher wait | Maximum **818.72 ms** | Incoming samples also waited before UI processing |
+| Live projection/cache/publication | Mean **2.19 ms**, maximum **35.70 ms** | Largest measured individual live update was far shorter than the dispatcher stall |
+| Allocation rate | **11.29 MiB/s**, process-wide | Allocation churn warrants attention; this is not retained cache growth |
+| Output quality | Zero reported dropped records or malformed lines | Capture was not visibly truncated by output saturation |
+
+The 939 ms stall falls in the **first reporting interval**, which also records GC collection deltas `[10, 6, 1]` for generations 0/1/2. This is correlation only: collection counts do not give pause lengths or prove GC caused the stall. The cause may lie in uninstrumented UI work, blocking, scheduling or runtime pauses. Managed heap readings of roughly 21–34 MiB and working set around 250–314 MiB do not establish cache point counts or retained-cache size. Nested/parallel stage totals must not be added to estimate refresh wall time, and render CPU is not compositor/presentation latency.
+
+#### Source findings that support a long-runtime scaling problem
+
+1. `TelemetryHistoryCache.QueryAsync` calls `PruneLocked` for each metric query. That maintenance visits **all live series**, so a 16-metric refresh can repeat a global pass 16 times.
+2. `EnforceLimitsLocked` recomputes live storage totals across all series. `CompressedPointHistory.StorageBytes`, `CompressedBytes`, and `CompressedRawBytes` traverse sealed block lists. Budget enforcement during recording and periodic usage diagnostics therefore perform work that grows with retained series/block count, even when the incoming update concerns only one node.
+3. Live history reads decode relevant blocks and materialize arrays under the shared cache lock; stored-hit decode/merge also executes in that lock. Final output is reduced later to graph resolution. More requested live points increase work and allocations; background pruning/diagnostics holding the same lock can delay a synchronous UI-side reader.
+4. Live sample processing records the cache from the dispatcher path. Historical cache hits can complete synchronously there too. `async` alone does not isolate these operations from the UI thread.
+
+These are verified algorithmic costs, **not proof of which operation caused this capture's 939 ms stall**. The next measurement must correlate cache occupancy, maintenance work and lock wait with the observed interaction delay.
+
+#### Immediate next implementation steps within active stage 1
+
+1. Maintain **incremental byte/point/block totals** on append, block sealing, partial expiry, eviction and clear. Test accounting against a full recomputation, including queue-capacity changes and compressed-to-raw partial heads. Avoid replacing repeated scans with inaccurate budget enforcement.
+2. Decouple global pruning from each metric query. Schedule paced maintenance; ensure reads still exclude expired samples and inserts enforce configured memory bounds. Preserve clear/settings generations and absolute stored-result expiry.
+3. Snapshot immutable block references under short locks, then decode/merge/sample in bounded background workers. Preserve sample ordering, local precedence, cancellation, cache invalidation, and live samples arriving during a history load. Publish coherent graph state with brief dispatcher work.
+4. Extend compact diagnostics with **live/stored bytes and points, series/block counts, cache-lock wait/hold time, pruning duration, decoded blocks/points, and cache hit classification**. Collect these counters cheaply; instrumentation must not itself scan the entire cache every event. Classify summaries as zero-RPC versus network-backed, rather than merging them solely by node and scope.
+5. Repeat the same node/scope workload at startup and after a long soak or deterministic multi-million-point fixture, holding graph density, visible metrics, sample cadence and cache limits constant. Capture external CPU/GC/blocking profiles if a dispatcher stall remains unexplained. Compare warm-query p95, dispatcher tail latency, allocations and retained memory without sacrificing monitor-only history.
+
+Status: the diagnostics, summarizer, incremental cache accounting, maintenance decoupling, off-lock background query preparation, and coherent graph publication are fully implemented and validated (all 238 .NET tests passed with diagnostics disabled and enabled; three Python summarizer tests passed).
+
+### Incremental cache accounting, off-lock background processing and coherent graph publication — 2026-09-20
+
+Implemented the core algorithmic and concurrency optimizations for active stage 1:
+1. **$O(1)$ Incremental Cache Accounting**:
+   - `CompressedPointHistory` maintains running totals for sealed block storage bytes, compressed bytes, compressed raw bytes, and block counts (`BlocksCount`). Enqueue, partial expiry via `RemoveBefore`, block dropping via `DropOldestBlock`, and `Clear` adjust running totals in $O(1)$, eliminating sealed block LINQ scans.
+   - `TelemetryHistoryCache` maintains running totals across all live series and stored remote query ranges (`_liveStorageBytes`, `_livePoints`, `_liveBlocks`, `_storedStorageBytes`, etc.). Budget checks in `EnforceLimitsLocked` and usage diagnostics in `GetUsage` now execute in $O(1)$ without dictionary or list traversals.
+2. **Decoupled Global Maintenance**:
+   - Removed whole-cache `PruneLocked()` scans from `QueryAsync`. Series reads now execute $O(1)$ maintenance solely on the single queried metric's series head if expired.
+   - Paced global pruning runs periodically every 3 seconds via the provider timer and on limit enforcement. Expired remote ranges are checked lazily and pruned during periodic maintenance.
+3. **Off-Lock Block Decompression and Snapshot Reads**:
+   - `CompressedPointHistory.Snapshot` captures an immutable tuple of overlapping block references and uncompressed point arrays under brief lock acquisition.
+   - Decompression of Zstd blocks (`b.Decode()`), sorting, and array merging execute outside the cache lock. Incoming live telemetry samples in `Record()` are never delayed behind query decompression.
+4. **Off-UI Background Preparation and Coherent Graph Publication**:
+   - In `HostMetricsTabViewModel.RefreshHistoryAsync()`, metric grouping, rate-of-change delta computation, LTTB downsampling (`SampleToDisplayBudget`), and time-label generation are offloaded to background worker tasks (`Task.Run`).
+   - Added an atomic `_refreshGeneration` guard and cancellation checks to discard stale query completions when nodes or scopes are switched rapidly.
+   - Finished graph snapshots are applied to view models in a single cohesive batch update (`graph.batch-publish`), eliminating layout thrashing and intermediate property-change storms on the UI thread.
+5. **Enriched Diagnostics and Summarizer**:
+   - Added `IsZeroRpc`, lock wait/hold durations (`LockWaitMs`, `LockHoldMs`), and decoded points/blocks to `UiRefreshSummaryCollector.Summary`.
+   - Connected `UiPerformanceDiagnostics.CacheStatsProvider` to export $O(1)$ live and stored cache occupancy bytes and point counts in 5-second interval records without scanning.
+   - Updated `tools/summarize_ui_performance.py` and its test suite to categorize refreshes as `zero-rpc` vs `network`, report lock wait/hold averages, and display peak cache occupancy.
+
+Validation: .NET build succeeded; all 238 tests passed with timing disabled and again with `MADTOM_UI_TIMING=1`. All 3 Python summarizer tests passed. New tests in `CacheAccountingAndConcurrencyTests` verify incremental totals against full scans across all mutations, multi-threaded record/query concurrency without deadlocks, and coherent display downsampling.

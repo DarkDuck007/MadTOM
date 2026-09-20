@@ -7,6 +7,7 @@ This guide covers the MADTOM Desktop Operator UI, its features, telemetry visual
 ## Table of Contents
 
 - [History timing diagnostics](#history-timing-diagnostics)
+- [UI performance baselining](#ui-performance-baselining)
 
 - [UI Guide \& Configuration Reference](#ui-guide--configuration-reference)
   - [Table of Contents](#table-of-contents)
@@ -870,3 +871,49 @@ Output uses a bounded 4,096-entry background queue. Saturation drops diagnostic 
 Timestamp diagnostics use Unix nanoseconds for fields ending in `Nano`; zero means no available sample for newest/first sample fields. UTC receipt/response fields use ISO timestamps. `receivedUtc` is captured at the client metrics callback before posting to the UI dispatcher, and is blank for providers without receipt metadata; it is not a socket-level arrival timestamp. Compare it with `uiObservedUtc` to detect UI queue delay. The first-live events are limited to one graph-update notification after each successful history refresh, and are skipped for fixed custom scopes.
 
 Coverage reasons are `empty`, `missing-start`, `sample-gap`, `block-max-gap`, `stale-end`, or `covered`. Gap values are nanoseconds. For `block-max-gap`, the boundaries describe the sealed block, and the maximum gap may lie outside the requested portion: this records the existing conservative decision without decompressing the block or changing cache behavior. Other reasons report the first failed check; additional failures may coexist. Compare a **1m → 12h → 1m** sequence on the slow and healthy nodes, allowing a live update after each load. The current history path ends relative windows at client time (or a newer known sample); the live path ends them at the sample timestamp. The before/after events quantify that difference without changing it.
+
+## UI performance baselining
+
+Use `MADTOM_UI_TIMING=1` for compact performance output from either desktop client. It is independent of `MADTOM_HISTORY_TIMING=1`: enable UI timing alone for normal baseline captures, and enable both only when detailed cache/request traces are needed. Restart without the variable to disable. Capture from the published executable directory:
+
+```bash
+MADTOM_UI_TIMING=1 ./MADTOM.Console 2>>ui-performance.log
+```
+
+From the repository root in a development checkout:
+
+```bash
+MADTOM_UI_TIMING=1 dotnet run -c Release --project MADTOM_DOTNET/src/Host/MADTOM.Console/MADTOM.Console.csproj 2>>ui-performance.log
+python3 tools/summarize_ui_performance.py ui-performance.log
+```
+
+`[ui-performance]` JSON records have two kinds:
+
+- **refresh**: one record per completed/cancelled/failed history-load operation, with node, scope bounds, graph count, correlation ID, wall time, cache outcomes, RPC count, and stage-work totals. `StageWorkMs` includes nested and parallel work and must **not** be summed into wall time. `transformed` and `sampled` isolate the existing series processing checkpoints; UI property publication is currently interleaved with those operations. Refresh completion is view-model publication, not screen presentation.
+- **interval**: approximately every five seconds, aggregated timing samples, process-wide allocated bytes during the interval, GC collection-count deltas (generations 0/1/2), current estimated managed heap and process working set, dispatcher-probe pending state, and dropped output records.
+
+| Interval metric | What it measures |
+|---|---|
+| `dispatcher.normal-wait` | Delay from a background timer posting a Normal-priority probe until the UI thread runs it; at most one probe is queued, every 250 ms |
+| `live.dispatch-wait` | Delay between the actual incoming metrics callback and its UI dispatcher action |
+| `live.project-cache-publish` | Synchronous live model projection, cache recording and subscriber notification, including nested graph work |
+| `graph.live-update` | Synchronous live graph update work |
+| `graph.history-transform-publish` | Synchronous history transformation, sampling and per-series property updates after data arrives |
+| `chart.render-cpu` | Time spent inside the metric chart's `Render` method |
+| `chart.geometry` | Geometry rebuilding within `Render`; overlaps render time |
+| `chart.dirty-to-render` | Delay from the first geometry invalidation to the next usable render; hidden/occluded periods can inflate this and must be interpreted separately |
+
+Each metric reports count, mean, maximum, counts exceeding 16.7 ms and 50 ms, and p95 from at most the most recent 512 observations in that interval. Counts/totals cover the entire interval; percentile sample counts are explicit. Per-operation allocated bytes use the current thread for synchronous scopes, include nested work, and must not be added together. Process-wide allocation includes diagnostic overhead and other plugins. GC counts do not measure pause duration; heap and working-set values are not cache byte counts.
+
+The summarizer combines refreshes by node/scope duration/graph count/outcome, computes refresh median/p95, and displays weighted interval means and **maximum interval p95**, not a fabricated whole-run percentile. It skips unrelated stderr lines and reports malformed records. Logs do not contain telemetry values, but do include identifiers and time ranges.
+
+### Repeatable baseline capture
+
+1. Use the same Release build, hardware, display scaling/refresh rate, graph layout, history/drawing density, process snapshot count and connected nodes for each comparison. Record those settings and actual sampling cadence with the results. Run outside a debugger; use separate log files for each capture.
+2. Let discovery settle. Clear stored cache once to measure a cold request sequence. Record the distinction between cold stored cache and already-populated live history. Switch each node through 1m/30m/12h/24h, then repeat within the configured stored-cache lifetime for warm measurements. Wait for each load and at least one live update before the next; test rapid cancellation separately.
+3. Leave merged graphs visible for at least 60 seconds while interacting with hover/pan/zoom. Capture both normal and high process counts. Leave the app running for over five seconds after the final interaction to emit the last interval, then process the log with the script. Avoid mixing minimized-window captures with interactive ones.
+4. Compare warm/cold refresh p95, RPC/cache counts, dispatcher waits, render/geometry costs, allocation rate and GC counts. Repeat without diagnostics to assess instrumentation overhead using external profiling if needed. A 250 ms probe can miss short stalls; a pending probe during a freeze may only report its full delay after recovery.
+
+This first baseline tool does **not** measure compositor/GPU completion, actual presented FPS, input-to-photon latency, GC pause durations, or individual cache/codec lock waits. Render CPU and invalidation-to-render timings are not equivalent to presented-frame duration. Use runtime/OS profilers for those questions; do not infer missed frames merely from multiple charts' render calls. No forced continuous rendering is introduced.
+
+The logger starts lazily on the first measured operation and lives for the client process. It retains at most 64 metric categories, 512 timing samples per category, 128 unfinished refresh summaries, 64 pending output records, and one pending dispatcher probe. Overloaded output is dropped, not allowed to block the UI; output-drop counts and refresh-eviction counts are reported. Tail records may be lost on exit and redirected files are not rotated automatically. Normal disabled runs create no diagnostic timers/output workers.
