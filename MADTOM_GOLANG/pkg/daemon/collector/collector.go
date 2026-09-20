@@ -161,7 +161,7 @@ func (e *Engine) Collect(cfg *madtomv1.NodeConfig) *madtomv1.SystemMetrics {
 		}
 	}
 	if cfg.ProcessMode != madtomv1.ProcessTelemetryMode_PROCESS_MODE_DISABLED {
-		metrics.Processes, metrics.ProcessesAvailable = e.processCollector.Collect()
+		metrics.Processes, metrics.ProcessesAvailable = e.processCollector.CollectTop(cfg.ProcessSnapshotLimit)
 	} else {
 		metrics.Processes = nil
 		metrics.ProcessesAvailable = false

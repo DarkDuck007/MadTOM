@@ -6,6 +6,8 @@ This guide covers the MADTOM Desktop Operator UI, its features, telemetry visual
 
 ## Table of Contents
 
+- [History timing diagnostics](#history-timing-diagnostics)
+
 - [UI Guide \& Configuration Reference](#ui-guide--configuration-reference)
   - [Table of Contents](#table-of-contents)
   - [Desktop UI Overview](#desktop-ui-overview)
@@ -629,16 +631,25 @@ Process telemetry policies are configured per-node in the **Collector Endpoints 
 | Mode | Daemon `/proc` Probing | gRPC Streaming | Pebble TSDB Storage | Description |
 |---|---|---|---|---|
 | **`Disabled (Off)`** | ❌ Stopped | ❌ Zero bytes | ❌ None | Completely halts process scanning on the host daemon. Conserves CPU cycles and network bandwidth. The UI Processes tab displays an informative disabled banner. |
-| **`Live Only (Probed)`** | ✅ 1Hz Snapshot | ✅ Ephemeral | ❌ None (0 bytes) | Probes system processes once per second for interactive inspection in the Processes tab. Data is kept in memory and discarded upon arrival, generating zero disk writes in TSDB. **(Default)** |
+| **`Live Only (Probed)`** | ✅ 1Hz Snapshot | ✅ Ephemeral | ❌ None (0 bytes) | Probes system processes once per second for interactive inspection in the Processes tab. The current process list is replaced by each snapshot; numeric process CPU history remains in the client cache, with no process CPU writes to TSDB. **(Default)** |
 | **`Probed & Stored (TSDB)`** | ✅ 1Hz Snapshot | ✅ Streamed | ✅ Top $N$ + Other | Scrapes 1Hz process snapshots, calculates Top $N$ CPU consumers, and commits them as historical time-series metrics into Pebble TSDB for scoped charting. |
 
 ### Top-N Process Count Configuration
 
-When **`Probed & Stored`** is selected, operators can configure the exact number of top processes saved to TSDB using an interactive slider:
-- **Range**: **1 to 10 processes** (default: `5`).
-- **Granularity**: Snap-to-integer slider with real-time numeric readout (`Top 5 processes`).
-- **Dynamic Aggregation**: Processes are grouped and aggregated by sanitized executable name (e.g. `postgres`, `mysqld`, `dotnet`) rather than volatile OS PIDs to avoid unbounded TSDB key cardinality.
-- **Remainder Metric (`proc.cpu.other`)**: Any CPU consumption from processes outside the configured Top $N$ is automatically aggregated into `proc.cpu.other = total_cpu - sum(top_N)`, guaranteeing that the sum of process breakdown metrics always accounts for 100% of host CPU usage.
+The process section has two independent limits:
+
+- **Live snapshot processes**: compact numeric control, **1–1,000 individual PIDs**, default **1,000**. The daemon selects by CPU, then resident memory, then PID. This limits the live process table and the process-name CPU samples entering client history. It still reads all process counters to identify leaders; fewer retained processes reduce status/detail reads, payload size, and client work. Changing the limit affects new snapshots; existing history expires normally.
+- **Stored process names**: **1–10 name groups**, default **5**, applied by the Collector only in **Probed & Stored** mode. Names are ranked anew for each sample within the received snapshot, so the set of names stored over time can exceed N. A near-idle process can qualify when it ranks among the leaders. A smaller live snapshot also reduces the candidate set available for storage; same-name totals include only the selected PIDs.
+
+The client merges live numeric history with Collector query results. It retains CPU history for **all names in received snapshots**, even those outside the Collector's stored top-N. Seeing a full graph in the current session therefore does not prove the Collector persisted that process. The current process list itself is separate from the numeric history cache.
+
+Upgrade the client, Collector, and daemon to configure and enforce the live snapshot limit. The additive `process_snapshot_limit` field defaults to 1,000 when omitted/zero, preserving older configurations; older daemons ignore it. No historical-data migration is needed.
+
+The stored-name slider uses:
+- **Range**: **1 to 10 names** (default: `5`).
+- **Granularity**: Snap-to-integer slider with real-time numeric readout (`Top 5 names`).
+- **Dynamic Aggregation**: The Collector groups by reported process name and sums CPU, selects the top groups, then sanitizes names for metric keys (e.g. `postgres`, `mysqld`, `dotnet`). This avoids per-PID series, but name churn can still grow historical cardinality.
+- **Remainder Metric (`proc.cpu.other`)**: The residual is `proc.cpu.other = max(0, total_cpu - sum(top_N))`; it is not an individually measured total for excluded processes.
 
 ### Historical TSDB Metric Storage & Breakdown Charting
 
@@ -818,3 +829,44 @@ colors:
 
 > [!TIP]
 > If `displayName` is omitted, MADTOM automatically derives a title-cased display name from `themeName` or the filename (e.g. `synthwave-84` becomes `Synthwave 84`). Missing colors automatically fall back to dark-theme defaults.
+
+## History timing diagnostics
+
+Start either desktop client with `MADTOM_HISTORY_TIMING=1` to enable history-load timing diagnostics. The setting is read once per process; restart without it to disable. For a published console client, append stderr to a file:
+
+```bash
+MADTOM_HISTORY_TIMING=1 ./MADTOM.Console 2>>history-timing.log
+```
+
+For development:
+
+```bash
+MADTOM_HISTORY_TIMING=1 dotnet run --project MADTOM_DOTNET/src/Host/MADTOM.Console/MADTOM.Console.csproj 2>>history-timing.log
+```
+
+Lines prefixed `[history-timing]` contain JSON. `Refresh` groups one scope refresh, `Span` identifies an operation, and `Parent` links nested operations. `Stage`, `Node`, and `Metric` identify the work. `ElapsedMs` is cumulative time within that span; `StepMs` is time since its preceding event. Nested timings overlap and must not be added together. `end` means a span was disposed, not necessarily that it succeeded; consult cancellation/error events and the refresh `complete` event.
+
+| Stage / event | Interpretation |
+|---|---|
+| `configuration` / `gate-acquired` | Time waiting for the shared configuration lock |
+| `configuration` / `cache-hit`, `rpc-complete` | Configuration reuse or RPC completion; `unavailable` identifies failed lookups |
+| `cache` / `lock-acquired`, `pruned`, `live-decoded` | Cache lock wait, pruning, and live-history decoding |
+| `cache` / `local-only`, `live-hit`, `stored-hit-decoded`, `partial-hit`, `miss` | Which history source was used; partial hits include the requested tail interval |
+| `cache` / `merged`, `prefix-merged`, `encoded`, `published` | Merge, compression, and final cache work with point/byte counts |
+| `coordinator` / `new-request`, `shared-request` | New RPC versus joining an existing request; the RPC belongs to its originating refresh |
+| `request` / `collector-slot`, `global-slot` | Wait for per-collector and global request capacity |
+| `range-rpc` / `response`, `decoded`, `materialized` | RPC latency, response decompression, and point conversion |
+| `cache` / `live-timestamps`, `stored-timestamps` | Requested bounds, newest cached live sample (including outside the requested window), newest in-range live sample, and newest retained stored sample |
+| `cache` / `coverage` | Full-window or missing-tail coverage result, reason, gap duration and boundaries, and latest live timestamp |
+| `range-rpc` / `history-timestamps` | Requested end, newest returned historical sample after decompression, and client response time |
+| `first-live-after-history` / `arrival`, `window-before`, `window-after` | First live graph update after a completed load: sample timestamp, receipt/UI observation times, and each visible graph's window before/after; `historyRefresh` links to the completed load |
+| `series` / `data-ready`, `transformed`, `sampled` | Data wait, grouping/rates/property updates, and display sampling |
+| `graph`, `scope-refresh` / `end` | Total graph or refresh duration, including scheduling and nested work |
+
+Compare the slow node with a healthy node using the same fixed start/end time and graph layout. Repeat within the configured stored-cache age, then compare relative scopes. Long configuration times suggest configuration retries; long request-slot times indicate queueing; long RPC times with few bytes indicate latency; long cache or series steps indicate client processing. These measurements end at view-model publication, not completion of painting on screen.
+
+Output uses a bounded 4,096-entry background queue. Saturation drops diagnostic entries rather than blocking graph work; `end` details report the cumulative `droppedEntries`. Pending lines may be lost on process exit, so leave the application running briefly after reproduction. Redirected log files are not automatically rotated; enable this only while investigating. Logs contain node/collector identifiers, metric names, time ranges and counts, but no telemetry sample values.
+
+Timestamp diagnostics use Unix nanoseconds for fields ending in `Nano`; zero means no available sample for newest/first sample fields. UTC receipt/response fields use ISO timestamps. `receivedUtc` is captured at the client metrics callback before posting to the UI dispatcher, and is blank for providers without receipt metadata; it is not a socket-level arrival timestamp. Compare it with `uiObservedUtc` to detect UI queue delay. The first-live events are limited to one graph-update notification after each successful history refresh, and are skipped for fixed custom scopes.
+
+Coverage reasons are `empty`, `missing-start`, `sample-gap`, `block-max-gap`, `stale-end`, or `covered`. Gap values are nanoseconds. For `block-max-gap`, the boundaries describe the sealed block, and the maximum gap may lie outside the requested portion: this records the existing conservative decision without decompressing the block or changing cache behavior. Other reasons report the first failed check; additional failures may coexist. Compare a **1m → 12h → 1m** sequence on the slow and healthy nodes, allowing a live update after each load. The current history path ends relative windows at client time (or a newer known sample); the live path ends them at the sample timestamp. The before/after events quantify that difference without changing it.

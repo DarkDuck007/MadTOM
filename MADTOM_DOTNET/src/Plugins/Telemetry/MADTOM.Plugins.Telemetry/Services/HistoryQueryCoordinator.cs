@@ -32,6 +32,7 @@ public sealed class HistoryQueryCoordinator : IDisposable
     public async Task<IReadOnlyList<LODPoint>> QueryAsync(Key key,
         Func<CancellationToken, Task<IReadOnlyList<LODPoint>>> fetch, CancellationToken ct = default)
     {
+        using var timing = HistoryTiming.Begin("coordinator", key.Node, key.Metric);
         ct.ThrowIfCancellationRequested();
         key = key with { Endpoint = key.Endpoint.Trim().ToLowerInvariant(), Metric = key.Metric.ToLowerInvariant() };
         Request request;
@@ -49,6 +50,7 @@ public sealed class HistoryQueryCoordinator : IDisposable
             }
             request.Readers++;
         }
+        timing?.Mark(start ? "new-request" : "shared-request");
         if (start) _ = RunAsync(key, request, slots, fetch);
         try { return await request.Completion.Task.WaitAsync(ct).ConfigureAwait(false); }
         finally
@@ -68,16 +70,19 @@ public sealed class HistoryQueryCoordinator : IDisposable
     private async Task RunAsync(Key key, Request request, SemaphoreSlim slots,
         Func<CancellationToken, Task<IReadOnlyList<LODPoint>>> fetch)
     {
+        using var timing = HistoryTiming.Begin("request", key.Node, key.Metric);
         bool localHeld = false, globalHeld = false;
         try
         {
             var ct = request.Cancellation.Token;
             await slots.WaitAsync(ct).ConfigureAwait(false); localHeld = true;
+            timing?.Mark("collector-slot");
             await _global.WaitAsync(ct).ConfigureAwait(false); globalHeld = true;
+            timing?.Mark("global-slot");
             request.Completion.TrySetResult(await fetch(ct).ConfigureAwait(false));
         }
-        catch (OperationCanceledException) { request.Completion.TrySetCanceled(); }
-        catch (Exception ex) { request.Completion.TrySetException(ex); }
+        catch (OperationCanceledException) { timing?.Mark("cancelled"); request.Completion.TrySetCanceled(); }
+        catch (Exception ex) { timing?.Mark("error", ex.GetType().Name); request.Completion.TrySetException(ex); }
         finally
         {
             if (globalHeld) _global.Release();

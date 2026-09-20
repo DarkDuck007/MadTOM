@@ -329,6 +329,8 @@ The collector aggregates telemetry from all daemons, persists metrics into an em
 
 ### 3. `MADTOM.Console` — Avalonia Desktop Application
 
+Both desktop clients accept the environment variable `MADTOM_HISTORY_TIMING=1` for opt-in scope-load timing logs on stderr. See [capture commands and timing fields](ui-and-config.md#history-timing-diagnostics). Omit it to disable.
+
 The primary desktop user interface for monitoring nodes, fleet topology, downsampled graphs, and process lists.
 
 - **Technology**: Avalonia UI (.NET 10)

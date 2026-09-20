@@ -172,6 +172,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasUnappliedChanges))]
     private int _topNProcesses = 5;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedChanges))]
+    private int _processSnapshotLimit = 1000;
+
     public bool IsProcessDisabled
     {
         get => ProcessMode == ProcessTelemetryMode.ProcessModeDisabled;
@@ -226,6 +230,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         bool TwampClocksSynchronized,
         ProcessTelemetryMode ProcessMode,
         int TopNProcesses,
+        int ProcessSnapshotLimit,
         bool IsViewingEnabled,
         bool ViewCpuMatrix,
         bool ViewSwapZram,
@@ -312,6 +317,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         TwampClocksSynchronized,
         ProcessMode,
         TopNProcesses,
+        ProcessSnapshotLimit,
         IsViewingEnabled,
         ViewCpuMatrix,
         ViewSwapZram,
@@ -342,6 +348,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
             TwampClocksSynchronized = b.TwampClocksSynchronized;
             ProcessMode = b.ProcessMode;
             TopNProcesses = b.TopNProcesses;
+            ProcessSnapshotLimit = b.ProcessSnapshotLimit;
             IsViewingEnabled = b.IsViewingEnabled;
             ViewCpuMatrix = b.ViewCpuMatrix;
             ViewSwapZram = b.ViewSwapZram;
@@ -549,6 +556,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
                     CollectNetworkConnections = config.CollectNetworkConnections;
                     ProcessMode = config.ProcessMode;
                     TopNProcesses = (int)(config.TopNProcesses > 0 ? config.TopNProcesses : 5);
+                    ProcessSnapshotLimit = (int)(config.ProcessSnapshotLimit == 0 ? 1000 : Math.Clamp(config.ProcessSnapshotLimit, 1u, 1000u));
 
                     BuildMetricGroups();
                 }
@@ -606,6 +614,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
             cfg.ProcessMode = ProcessMode;
             cfg.TopNProcesses = (uint)Math.Clamp(TopNProcesses, 1, 10);
+            cfg.ProcessSnapshotLimit = (uint)Math.Clamp(ProcessSnapshotLimit, 1, 1000);
             cfg.TwampTarget = TwampTarget.Trim();
             cfg.TwampClocksSynchronized = TwampClocksSynchronized;
 

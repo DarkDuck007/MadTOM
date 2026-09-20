@@ -17,7 +17,7 @@ public class PluginLifecycleTests
         public ILexiconHost Lexicons => this;
         public IThemeHost Themes => this;
         public IMessenger Messenger => WeakReferenceMessenger.Default;
-        public ITrayMenuService Tray { get; } = new TrayMenuService();
+        public ITrayMenuService? Tray { get; set; } = new TrayMenuService();
 
         public string CurrentLexicon { get; private set; } = "goose";
         public event EventHandler<string>? CurrentLexiconChanged;
@@ -132,6 +132,20 @@ public class PluginLifecycleTests
 
         host.SetTheme("anti-bleed-grey");
         Assert.Equal("anti-bleed-grey", MadTOM.Theming.ThemeService.Instance.CurrentTheme);
+
+        await module.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task TelemetryPluginModule_WhenTrayIsNull_InitializesWithoutTrayRegistration()
+    {
+        var host = new TestHostContext { Tray = null };
+        var module = new TelemetryPluginModule();
+
+        await module.InitializeAsync(host);
+        await module.StartAsync();
+
+        Assert.Equal("telemetry", module.Id);
 
         await module.DisposeAsync();
     }

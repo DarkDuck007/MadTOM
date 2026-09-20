@@ -522,14 +522,22 @@
                                                         <RadioButton Content="Live Only (Probed)"
                                                                      GroupName="ProcessModeGroup"
                                                                      IsChecked="{Binding IsProcessLiveOnly, Mode=TwoWay}"
-                                                                     ToolTip.Tip="Probes 1Hz snapshot for live Processes tab; ephemeral, no TSDB storage"/>
+                                                                     ToolTip.Tip="Streams the configured snapshot and retains numeric history in this client; no process CPU history in Collector TSDB"/>
                                                         <RadioButton Content="Probed &amp; Stored (TSDB)"
                                                                      GroupName="ProcessModeGroup"
                                                                      IsChecked="{Binding IsProcessStored, Mode=TwoWay}"
-                                                                     ToolTip.Tip="Probes 1Hz snapshot AND records top processes into TSDB for graphing"/>
+                                                                     ToolTip.Tip="Streams the configured snapshot and stores the top CPU name groups from it in Collector TSDB"/>
                                                     </StackPanel>
 
-                                                    <!-- Top N processes slider -->
+                                                    <Grid ColumnDefinitions="*,110" Margin="0,4,0,0">
+                                                        <TextBlock Text="Live snapshot processes" FontSize="11" VerticalAlignment="Center"
+                                                                   ToolTip.Tip="Top individual PIDs by CPU, then memory. Limits the live process table and process CPU samples retained in client history. Default: 1000."/>
+                                                        <NumericUpDown Grid.Column="1" Classes="performance-number" Minimum="1" Maximum="1000" Increment="1" FormatString="0"
+                                                                       Value="{Binding ProcessSnapshotLimit, Mode=TwoWay}"/>
+                                                    </Grid>
+                                                    <TextBlock Text="Client history retains all snapshot names. Collector storage keeps only the top names below; live history can still appear in stored-mode graphs."
+                                                               TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    <!-- Stored name groups, independent of the live PID limit -->
                                                     <Border Background="{DynamicResource CardBgBrush}"
                                                             BorderBrush="{DynamicResource BorderBrush}"
                                                             BorderThickness="1"
@@ -537,7 +545,7 @@
                                                             Padding="12,8"
                                                             Margin="0,4,0,0">
                                                         <Grid ColumnDefinitions="Auto,*,Auto">
-                                                            <TextBlock Text="Top Process Count:"
+                                                            <TextBlock Text="Stored process names:"
                                                                        FontFamily="{StaticResource MonoFontFamily}"
                                                                        FontSize="11"
                                                                        Foreground="{DynamicResource TextSecondaryBrush}"
@@ -551,7 +559,7 @@
                                                                     Value="{Binding TopNProcesses, Mode=TwoWay}"
                                                                     VerticalAlignment="Center"/>
                                                             <TextBlock Grid.Column="2"
-                                                                       Text="{Binding TopNProcesses, StringFormat='Top {0} processes'}"
+                                                                       Text="{Binding TopNProcesses, StringFormat='Top {0} names'}"
                                                                        FontFamily="{StaticResource MonoFontFamily}"
                                                                        FontSize="11"
                                                                        FontWeight="Bold"

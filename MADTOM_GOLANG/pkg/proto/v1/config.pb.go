@@ -259,8 +259,10 @@ type NodeConfig struct {
 	PowerMode        TelemetryOptInMode            `protobuf:"varint,30,opt,name=power_mode,json=powerMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"power_mode,omitempty"`
 	PowerMetricModes map[string]TelemetryOptInMode `protobuf:"bytes,31,rep,name=power_metric_modes,json=powerMetricModes,proto3" json:"power_metric_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value,enum=madtom.v1.TelemetryOptInMode"`
 	TwampMode        TelemetryOptInMode            `protobuf:"varint,32,opt,name=twamp_mode,json=twampMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"twamp_mode,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Individual PIDs in live snapshots; 0 preserves the legacy default of 1000.
+	ProcessSnapshotLimit uint32 `protobuf:"varint,33,opt,name=process_snapshot_limit,json=processSnapshotLimit,proto3" json:"process_snapshot_limit,omitempty"` // 1..1000; independent of stored top_n_processes
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *NodeConfig) Reset() {
@@ -531,6 +533,13 @@ func (x *NodeConfig) GetTwampMode() TelemetryOptInMode {
 	return TelemetryOptInMode_OPT_IN_OFF
 }
 
+func (x *NodeConfig) GetProcessSnapshotLimit() uint32 {
+	if x != nil {
+		return x.ProcessSnapshotLimit
+	}
+	return 0
+}
+
 type ConfigAck struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Negotiated response envelope; decoded content is this same message type.
@@ -609,7 +618,7 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"a\n" +
 	"\x17UpdateNodeConfigRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12-\n" +
-	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xc3\x14\n" +
+	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xf9\x14\n" +
 	"\n" +
 	"NodeConfig\x12!\n" +
 	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
@@ -650,7 +659,8 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"power_mode\x18\x1e \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\tpowerMode\x12Y\n" +
 	"\x12power_metric_modes\x18\x1f \x03(\v2+.madtom.v1.NodeConfig.PowerMetricModesEntryR\x10powerMetricModes\x12<\n" +
 	"\n" +
-	"twamp_mode\x18  \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\ttwampMode\x1a[\n" +
+	"twamp_mode\x18  \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\ttwampMode\x124\n" +
+	"\x16process_snapshot_limit\x18! \x01(\rR\x14processSnapshotLimit\x1a[\n" +
 	"\x0eCoreModesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
 	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1aa\n" +

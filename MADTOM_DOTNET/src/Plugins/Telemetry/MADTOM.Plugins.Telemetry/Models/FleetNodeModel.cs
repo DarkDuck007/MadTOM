@@ -39,6 +39,8 @@ public sealed partial class FleetNodeModel : ObservableObject
     [ObservableProperty] private bool _viewPowerBattery = true;
     [ObservableProperty] private bool _viewNetworkCounters = true;
     public long TimestampUnixNano { get; set; }
+    // Client receipt time before posting this sample to the UI dispatcher.
+    public DateTime? TelemetryReceivedUtc { get; set; }
     public ulong MemoryTotalBytes { get; set; }
     public double TxBytesPerSecond { get; set; }
     public double RxBytesPerSecond { get; set; }

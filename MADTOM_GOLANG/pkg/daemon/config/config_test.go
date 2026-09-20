@@ -34,6 +34,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	orig, _, _ := LoadConfig(tempDir, "test-node-2")
+	orig.ProcessSnapshotLimit = 25
 	orig.TwampTarget = "10.0.0.5:862"
 	orig.TwampMode = madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE
 	orig.TwampClocksSynchronized = true
@@ -49,6 +50,9 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	}
 	if !isFromDisk {
 		t.Fatalf("expected isFromDisk to be true")
+	}
+	if loaded.ProcessSnapshotLimit != 25 {
+		t.Fatalf("snapshot limit did not survive restart: %d", loaded.ProcessSnapshotLimit)
 	}
 	if loaded.TwampTarget != "10.0.0.5:862" {
 		t.Fatalf("expected TwampTarget to match, got %s", loaded.TwampTarget)

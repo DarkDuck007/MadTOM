@@ -1319,6 +1319,7 @@ public class TelemetryAndMetricsTests
         // Modify multiple settings
         vm.CollectMemoryBasic = false;
         vm.TopNProcesses = 9;
+        vm.ProcessSnapshotLimit = 25;
         vm.TwampTarget = "127.0.0.1:862";
         Assert.True(vm.HasUnappliedChanges);
 
@@ -1327,6 +1328,7 @@ public class TelemetryAndMetricsTests
         Assert.False(vm.HasUnappliedChanges);
         Assert.True(vm.CollectMemoryBasic);
         Assert.Equal(5, vm.TopNProcesses);
+        Assert.Equal(1000, vm.ProcessSnapshotLimit);
         Assert.Equal(string.Empty, vm.TwampTarget);
     }
 

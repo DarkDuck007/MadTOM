@@ -37,6 +37,7 @@ public partial class MainWindow : Window
         public ILexiconHost Lexicons => this;
         public IThemeHost Themes => this;
         public IMessenger Messenger => WeakReferenceMessenger.Default;
+        public ITrayMenuService? Tray => null;
 
         // ILexiconHost
         public string CurrentLexicon => "goose";

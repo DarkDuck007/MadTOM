@@ -127,22 +127,34 @@ public sealed class CompressedPointHistory : IEnumerable<LODPoint>
         foreach (var p in _tail) if (p.TimestampUnixNano >= start && p.TimestampUnixNano <= end) yield return p;
     }
     // Coverage uses block metadata, so scrolling does not decompress unrelated history.
-    public bool Covers(long start, long end)
+    public long LastTimestamp => _tail.Count > 0 ? _tail.Last().TimestampUnixNano :
+        _blocks.Last != null ? _blocks.Last.Value.Last : _head.Count > 0 ? _head.Last().TimestampUnixNano : 0;
+
+    public readonly record struct Coverage(bool Covered, string Reason, long GapNano, long GapStartNano, long GapEndNano);
+    public bool Covers(long start, long end) => InspectCoverage(start, end).Covered;
+
+    // Shares the exact decision path with Covers; sealed-block gaps are conservative
+    // metadata checks and may fall outside the requested part of that block.
+    public Coverage InspectCoverage(long start, long end)
     {
         const long gap = 5_000_000_000;
-        if (Count == 0 || FirstTimestamp > start) return false;
+        if (Count == 0) return new(false, "empty", 0, 0, 0);
+        if (FirstTimestamp > start) return new(false, "missing-start", FirstTimestamp - start, start, FirstTimestamp);
         long previous = FirstTimestamp;
-        bool valid = true;
+        var result = new Coverage(true, "covered", 0, 0, 0);
         void Visit(long first, long last, long maxGap)
         {
-            if (first >= start && previous <= end && first - previous > gap) valid = false;
-            if (last >= start && first <= end && maxGap > gap) valid = false;
+            if (result.Covered && first >= start && previous <= end && first - previous > gap)
+                result = new(false, "sample-gap", first - previous, previous, first);
+            if (result.Covered && last >= start && first <= end && maxGap > gap)
+                result = new(false, "block-max-gap", maxGap, first, last);
             previous = last;
         }
         foreach (var p in _head) Visit(p.TimestampUnixNano, p.TimestampUnixNano, 0);
         foreach (var b in _blocks) Visit(b.First, b.Last, b.MaxGap);
         foreach (var p in _tail) Visit(p.TimestampUnixNano, p.TimestampUnixNano, 0);
-        return valid && end - previous <= gap;
+        if (!result.Covered) return result;
+        return end - previous <= gap ? result : new(false, "stale-end", end - previous, previous, end);
     }
     public IEnumerator<LODPoint> GetEnumerator() => Read(long.MinValue, long.MaxValue).GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

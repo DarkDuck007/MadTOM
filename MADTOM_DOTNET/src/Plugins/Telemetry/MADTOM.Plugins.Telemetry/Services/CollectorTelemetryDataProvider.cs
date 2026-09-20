@@ -165,7 +165,8 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
 
     private void UpdateNodeFromMetrics(FleetNodeModel node, SystemMetrics s)
     {
-        _lastSampleReceived[node.Id] = DateTime.UtcNow;
+        var receivedUtc = DateTime.UtcNow;
+        _lastSampleReceived[node.Id] = receivedUtc;
         Dispatcher.UIThread.Post(() =>
         {
             if (_disposeCts.IsCancellationRequested || s.TimestampUnixNano <= node.TimestampUnixNano) return;
@@ -174,6 +175,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
             var previousInterfaces = node.Interfaces.ToDictionary(i => i.Name);
             bool hadSample = node.TimestampUnixNano > 0;
             node.TimestampUnixNano = s.TimestampUnixNano;
+            node.TelemetryReceivedUtc = receivedUtc;
             node.Twamp.Available = s.Twamp?.Available ?? false;
             node.Twamp.OneWayAvailable = s.Twamp?.OneWayAvailable ?? false;
             node.Twamp.RttMs = s.Twamp?.RttMs ?? 0;
@@ -430,7 +432,10 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
         var node = GetNode(hostId);
         var client = node == null ? null : _collectorManager.GetClientForNode(node);
         if (node == null) return Array.Empty<LODPoint>();
+        using var timing = HistoryTiming.Begin("history", hostId, metric);
+        timing?.Mark("request", $"collector={node.CollectorEndpoint}; start={start:O}; end={end:O}; budget={targetPoints}");
         var cfg = await GetNodeConfigAsync(hostId, ct);
+        timing?.Mark("configuration-ready", cfg == null ? "unavailable" : "available");
         bool localOnly = client == null || (cfg != null && TelemetryOptInResolver.GetMetricOptInMode(cfg, metric) != TelemetryOptInMode.OptInMonitorAndStore);
         return await HistoryCache.QueryAsync(node.CollectorEndpoint, hostId, metric, start, end, localOnly,
             (from, to, token) => _historyQueries.QueryAsync(
@@ -444,11 +449,15 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
         var client = node == null ? null : _collectorManager.GetClientForNode(node);
         if (client == null || node == null) return null;
         var key = (node.CollectorEndpoint, hostId);
+        using var timing = HistoryTiming.Begin("configuration", hostId);
         await _configGate.WaitAsync(ct);
+        timing?.Mark("gate-acquired");
         try
         {
-            if (_configs.TryGetValue(key, out var entry) && entry.Expires > DateTime.UtcNow) return entry.Config.Clone();
+            if (_configs.TryGetValue(key, out var entry) && entry.Expires > DateTime.UtcNow)
+            { timing?.Mark("cache-hit"); return entry.Config.Clone(); }
             var config = await client.GetNodeConfigAsync(hostId, ct);
+            timing?.Mark("rpc-complete", config == null ? "unavailable" : "success");
             ct.ThrowIfCancellationRequested();
             if (config != null) _configs[key] = (config.Clone(), DateTime.UtcNow.AddSeconds(30));
             return config;

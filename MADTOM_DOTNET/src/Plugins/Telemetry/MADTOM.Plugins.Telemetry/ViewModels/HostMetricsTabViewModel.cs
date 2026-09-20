@@ -1169,6 +1169,10 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             _     => 300L * 1_000_000_000L
         };
 
+        using var liveTiming = _pendingLiveTimingRefresh != null
+            ? HistoryTiming.Begin("first-live-after-history", TargetHostId) : null;
+        liveTiming?.Mark("arrival", $"historyRefresh={_pendingLiveTimingRefresh}; sampleNano={timestampNano}; receivedUtc={node?.TelemetryReceivedUtc:O}; uiObservedUtc={DateTime.UtcNow:O}");
+        _pendingLiveTimingRefresh = null;
         long windowEndNano = timestampNano;
         long windowStartNano = windowEndNano - windowSpanNano;
 
@@ -1176,8 +1180,10 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         {
             if (!graph.IsVisible) continue;
 
+            liveTiming?.Mark("window-before", $"graph={graph.Title}; startNano={graph.WindowStart}; endNano={graph.WindowEnd}; newestDisplayedNano={graph.Timestamps.LastOrDefault()}");
             graph.WindowStart = windowStartNano;
             graph.WindowEnd = windowEndNano;
+            liveTiming?.Mark("window-after", $"graph={graph.Title}; startNano={graph.WindowStart}; endNano={graph.WindowEnd}");
 
             int maxPoints = 0;
             foreach (var series in graph.Series)
@@ -1292,18 +1298,24 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         }
     }
 
+    private string? _pendingLiveTimingRefresh;
+
     public async Task RefreshHistoryAsync()
     {
+        _pendingLiveTimingRefresh = null;
         _queryCts?.Cancel(); _queryCts?.Dispose();
         var cts = _queryCts = new CancellationTokenSource();
         _lastRefresh = DateTime.UtcNow;
         if (_provider == null || !TryRange(out var start, out var end)) return;
+        using var timing = HistoryTiming.Begin("scope-refresh", TargetHostId, newRefresh: true);
+        timing?.Mark("range", $"start={start:O}; end={end:O}; graphs={Graphs.Count}");
         _isQueryRunning = true;
         var ids = IsAggregatedMode ? ClusterNodes.Select(n => n.Id).ToArray() : new[] { TargetHostId };
         try
         {
             await Task.WhenAll(Graphs.ToArray().Select(async graph =>
             {
+                using var graphTiming = HistoryTiming.Begin("graph", TargetHostId, graph.Title);
                 graph.Status = "Loading…";
                 long windowStartNano = new DateTimeOffset(start).ToUnixTimeMilliseconds() * 1_000_000L;
                 long windowEndNano = new DateTimeOffset(end).ToUnixTimeMilliseconds() * 1_000_000L;
@@ -1313,8 +1325,10 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 int maxPoints = 0;
                 foreach (var series in graph.Series.ToArray())
                 {
+                    using var seriesTiming = HistoryTiming.Begin("series", TargetHostId, series.Metric);
                     var results = await Task.WhenAll(ids.Select(id => _provider.QueryHistoryWithResolutionAsync(id, series.Metric, start, end, graph.HistoryPointBudget, cts.Token)));
-                    if (cts.IsCancellationRequested) return;
+                    seriesTiming?.Mark("data-ready", $"points={results.Sum(r => r.Count)}");
+                    if (cts.IsCancellationRequested) { seriesTiming?.Mark("cancelled"); return; }
 
                     long timestampUnit = IsAggregatedMode ? 1_000_000_000L : 1L;
                     var points = results.SelectMany(s => s.GroupBy(p => p.TimestampUnixNano / timestampUnit).Select(g => g.OrderBy(p => p.TimestampUnixNano).Last()))
@@ -1354,7 +1368,9 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         }
                     }
 
+                    seriesTiming?.Mark("transformed");
                     ApplyDisplayBudget(series, graph.HistoryPointBudget, windowStartNano, windowEndNano);
+                    seriesTiming?.Mark("sampled", $"points={series.Values.Length}");
                     series.LatestValue = series.Values.LastOrDefault();
                     maxPoints = Math.Max(maxPoints, series.Values.Length);
                 }
@@ -1391,13 +1407,15 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     }
                 }
             }));
+            timing?.Mark(cts.IsCancellationRequested ? "cancelled" : "complete");
             if (!cts.IsCancellationRequested)
             {
                 _hasLoadedHistory = true;
+                _pendingLiveTimingRefresh = timing?.RefreshId;
             }
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!cts.IsCancellationRequested) foreach (var graph in Graphs) graph.Status = $"Query failed: {ex.Message}"; }
+        catch (Exception ex) { timing?.Mark("error", ex.GetType().Name); if (!cts.IsCancellationRequested) foreach (var graph in Graphs) graph.Status = $"Query failed: {ex.Message}"; }
         finally
         {
             if (ReferenceEquals(_queryCts, cts)) _isQueryRunning = false;

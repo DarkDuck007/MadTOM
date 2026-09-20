@@ -31,7 +31,8 @@ public interface IPluginHostContext
 
     /// <summary>
     /// Host system tray menu service allowing plugins to register dynamic status sections.
+    /// Returns null if running in standalone mode or if the host does not provide system tray integration.
     /// </summary>
-    ITrayMenuService Tray { get; }
+    ITrayMenuService? Tray { get; }
 }
 

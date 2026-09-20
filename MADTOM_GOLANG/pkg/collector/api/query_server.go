@@ -138,6 +138,9 @@ func (s *Server) UpdateNodeConfig(ctx context.Context, req *madtomv1.UpdateNodeC
 	if req.Config == nil || req.NodeId == "" || req.Config.NodeId != req.NodeId {
 		return nil, status.Error(codes.InvalidArgument, "node config must match node ID")
 	}
+	if req.Config.ProcessSnapshotLimit > 1000 {
+		return nil, status.Error(codes.InvalidArgument, "process snapshot limit must be 0 (default) or 1..1000")
+	}
 	if req.Config.FastPollIntervalMs < 100 {
 		req.Config.FastPollIntervalMs = 1000
 	}

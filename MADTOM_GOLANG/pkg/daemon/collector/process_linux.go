@@ -51,6 +51,14 @@ func NewProcessCollector() *ProcessCollector {
 	return &ProcessCollector{previous: map[int32]uint64{}, procRoot: "/proc", readFile: os.ReadFile}
 }
 func (p *ProcessCollector) Collect() ([]*madtomv1.ProcessMetric, bool) {
+	return p.CollectTop(0)
+}
+
+func (p *ProcessCollector) CollectTop(configuredLimit uint32) ([]*madtomv1.ProcessMetric, bool) {
+	limit := processSnapshotLimit
+	if configuredLimit > 0 && configuredLimit < uint32(limit) {
+		limit = int(configuredLimit)
+	}
 	entries, err := os.ReadDir(p.procRoot)
 	if err != nil {
 		return nil, false
@@ -65,7 +73,7 @@ func (p *ProcessCollector) Collect() ([]*madtomv1.ProcessMetric, bool) {
 		total += n
 	}
 	next := map[int32]uint64{}
-	candidates := make(processHeap, 0, processSnapshotLimit)
+	candidates := make(processHeap, 0, limit)
 	for _, entry := range entries {
 		pid, err := strconv.ParseInt(entry.Name(), 10, 32)
 		if err != nil {
@@ -95,7 +103,7 @@ func (p *ProcessCollector) Collect() ([]*madtomv1.ProcessMetric, bool) {
 		threads, _ := strconv.ParseUint(fields[17], 10, 32)
 		rss, _ := strconv.ParseUint(fields[21], 10, 64)
 		candidate := processCandidate{int32(pid), strings.Clone(line[left+1 : right]), uint32(threads), cpu, rss * uint64(os.Getpagesize())}
-		if len(candidates) < processSnapshotLimit {
+		if len(candidates) < limit {
 			heap.Push(&candidates, candidate)
 		} else if betterProcess(candidate, candidates[0]) {
 			candidates[0] = candidate

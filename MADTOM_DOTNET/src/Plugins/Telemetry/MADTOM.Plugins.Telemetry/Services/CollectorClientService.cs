@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -137,6 +138,7 @@ public sealed class CollectorClientService : IAsyncDisposable
         int targetPoints = 1200,
         CancellationToken ct = default)
     {
+        using var timing = HistoryTiming.Begin("range-rpc", nodeId, metricName);
         var req = new RangeQueryRequest
         {
             NodeId = nodeId,
@@ -150,12 +152,16 @@ public sealed class CollectorClientService : IAsyncDisposable
         {
             var (queryClient, _) = GetClients();
             var response = await queryClient.QueryRangeAsync(req, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
+            timing?.Mark("response", $"points={response.Points.Count}; zstdBytes={response.ZstdPayload.Length}; decodedBytes={response.DecodedSize}");
             response = ClientResponseCompression.Decode(response, _historyPayloads);
+            timing?.Mark("decoded", $"points={response.Points.Count}");
+            timing?.Mark("history-timestamps", $"requestedEndNano={req.EndTimeUnixNano}; newestReturnedNano={(response.Points.Count > 0 ? response.Points.Max(p => p.TimestampUnixNano) : 0)}; responseUtc={DateTime.UtcNow:O}");
             var points = new List<LODPoint>(response.Points.Count);
             foreach (var pt in response.Points)
             {
                 points.Add(new LODPoint(pt.TimestampUnixNano, pt.Value, pt.MinValue, pt.MaxValue));
             }
+            timing?.Mark("materialized", $"points={points.Count}");
             return points;
         }
         catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)

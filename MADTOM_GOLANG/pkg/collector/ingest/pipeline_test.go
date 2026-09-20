@@ -120,6 +120,11 @@ func TestPipeline_ProcessTelemetryStorageModes(t *testing.T) {
 		t.Fatalf("expected madtom-daemon to be excluded when top_n=3, got %+v", ptsMadtom)
 	}
 
+	ptsLow, err := db.QueryRange("node-1", "proc.cpu.systemd", ts2-1000, ts2+1000)
+	if err != nil || len(ptsLow) != 0 {
+		t.Fatalf("low-ranked process must not be persisted: points=%v err=%v", ptsLow, err)
+	}
+
 	// proc.cpu.other = 50.0 (total) - (25 + 10 + 5) = 10.0
 	ptsOther, err := db.QueryRange("node-1", "proc.cpu.other", ts2-1000, ts2+1000)
 	if err != nil {

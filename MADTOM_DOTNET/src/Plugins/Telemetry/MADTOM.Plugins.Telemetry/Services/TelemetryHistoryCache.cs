@@ -172,6 +172,7 @@ public sealed class TelemetryHistoryCache
         DateTime start, DateTime end, bool localOnly,
         Func<DateTime, DateTime, CancellationToken, Task<IReadOnlyList<LODPoint>>> fetch, CancellationToken ct = default, int targetPoints = 0)
     {
+        using var timing = HistoryTiming.Begin("cache", node, metric);
         ct.ThrowIfCancellationRequested();
         long from = Nano(start), to = Nano(end);
         if (from > to) return Array.Empty<LODPoint>();
@@ -182,20 +183,46 @@ public sealed class TelemetryHistoryCache
         long generation;
         lock (_gate)
         {
+            timing?.Mark("lock-acquired");
             PruneLocked();
+            timing?.Mark("pruned");
             generation = _generation;
             local = ReadLocked(key, from, to);
-            if (localOnly || (_live.TryGetValue(key, out var series) && series.Points.Covers(from, to))) return local;
+            timing?.Mark("live-decoded", $"points={local.Length}");
+            if (timing != null)
+            {
+                _live.TryGetValue(key, out var live);
+                timing.Mark("live-timestamps", $"requestedStartNano={from}; requestedEndNano={to}; firstLiveNano={(live?.Points.Count > 0 ? live.Points.FirstTimestamp : 0)}; latestLiveNano={live?.Latest ?? 0}; newestInRangeNano={(local.Length > 0 ? local[^1].TimestampUnixNano : 0)}");
+                LogCoverage(timing, live?.Points, from, to, "full");
+            }
+            if (localOnly || (_live.TryGetValue(key, out var series) && series.Points.Covers(from, to)))
+            { timing?.Mark(localOnly ? "local-only" : "live-hit"); return local; }
             var cached = _remote.LastOrDefault(r => r.Key == key && HasResolution(r, from, to, targetPoints) &&
                 r.Start <= from && (r.End >= to || (_live.TryGetValue(key, out var tail) && tail.Points.Covers(r.End, to))));
-            if (cached != null) { _remote.Remove(cached); _remote.Add(cached); return Merge(cached.Points.Decode(), local, from, to); }
+            if (cached != null)
+            {
+                _remote.Remove(cached); _remote.Add(cached);
+                var decoded = cached.Points.Decode();
+                timing?.Mark("stored-hit-decoded", $"points={decoded.Length}");
+                timing?.Mark("stored-timestamps", $"cachedEndNano={cached.End}; newestStoredNano={(decoded.Length > 0 ? decoded[^1].TimestampUnixNano : 0)}");
+                var merged = Merge(decoded, local, from, to);
+                timing?.Mark("merged", $"points={merged.Length}");
+                return merged;
+            }
             // A rolling scope has a later end on every visit. A slow/missing live
             // stream must not force a refetch of the already cached historical prefix.
             prefix = _remote.Where(r => r.Key == key && HasResolution(r, from, to, targetPoints) &&
                 r.Start <= from && r.End >= from && r.End < to).MaxBy(r => r.End);
             if (prefix != null)
             {
+                if (timing != null)
+                {
+                    _live.TryGetValue(key, out var liveTail);
+                    LogCoverage(timing, liveTail?.Points, prefix.End, to, "tail");
+                }
                 prefixPoints = prefix.Points.Decode();
+                timing?.Mark("stored-timestamps", $"cachedEndNano={prefix.End}; newestStoredNano={(prefixPoints.Length > 0 ? prefixPoints[^1].TimestampUnixNano : 0)}");
+                timing?.Mark("prefix-decoded", $"points={prefixPoints.Length}");
                 _remote.Remove(prefix); _remote.Add(prefix);
             }
         }
@@ -203,17 +230,21 @@ public sealed class TelemetryHistoryCache
         // Broader minute-aligned starts allow nearby navigation requests to reuse historical results.
         DateTime fetchStart = targetPoints > 0 ? start : new DateTime(start.ToUniversalTime().Ticks / TimeSpan.TicksPerMinute * TimeSpan.TicksPerMinute, DateTimeKind.Utc);
         if (prefix != null) fetchStart = DateTime.UnixEpoch.AddTicks(prefix.End / 100);
+        timing?.Mark(prefix == null ? "miss" : "partial-hit", $"fetchStart={fetchStart:O}; fetchEnd={end:O}");
         IReadOnlyList<LODPoint> remote;
         bool fetchSucceeded = true;
         try { remote = await fetch(fetchStart, end, ct).ConfigureAwait(false); }
-        catch (OperationCanceledException) { throw; }
-        catch when (local.Length > 0 || prefixPoints.Length > 0) { fetchSucceeded = false; remote = Array.Empty<LODPoint>(); }
+        catch (OperationCanceledException) { timing?.Mark("cancelled"); throw; }
+        catch when (local.Length > 0 || prefixPoints.Length > 0) { timing?.Mark("fetch-failed-fallback"); fetchSucceeded = false; remote = Array.Empty<LODPoint>(); }
+        timing?.Mark("fetch-finished", $"points={remote.Count}");
         if (prefix != null) remote = Merge(prefixPoints, remote, from, to);
+        timing?.Mark("prefix-merged", $"points={remote.Count}");
         ct.ThrowIfCancellationRequested();
         // The per-result admission ceiling is 64K points; total retention follows
         // the configured compressed-byte budget. Compression must not hold _gate.
         CompressedPointBlock? candidate = fetchSucceeded && remote.Count <= MaxStoredQueryPoints
             ? new CompressedPointBlock(remote.ToArray()) : null;
+        timing?.Mark("encoded", candidate == null ? "not-admitted" : $"bytes={candidate.StorageBytes}");
         ct.ThrowIfCancellationRequested();
         lock (_gate)
         {
@@ -245,8 +276,16 @@ public sealed class TelemetryHistoryCache
                     }
                 }
             }
-            return Merge(remote, ReadLocked(key, from, to), from, to);
+            var result = Merge(remote, ReadLocked(key, from, to), from, to);
+            timing?.Mark("published", $"points={result.Length}");
+            return result;
         }
+    }
+
+    private static void LogCoverage(HistoryTiming timing, CompressedPointHistory? points, long start, long end, string interval)
+    {
+        var result = points?.InspectCoverage(start, end) ?? new CompressedPointHistory.Coverage(false, "empty", 0, 0, 0);
+        timing.Mark("coverage", $"interval={interval}; startNano={start}; endNano={end}; covered={result.Covered}; reason={result.Reason}; gapNano={result.GapNano}; gapStartNano={result.GapStartNano}; gapEndNano={result.GapEndNano}; latestLiveNano={points?.LastTimestamp ?? 0}");
     }
 
     private static bool HasResolution(RemoteRange range, long start, long end, int targetPoints) =>

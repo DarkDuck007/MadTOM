@@ -54,6 +54,20 @@ func TestProcessDetailsOnlyReadForRetainedLeaders(t *testing.T) {
 			t.Fatal("lost process details")
 		}
 	}
+	for _, test := range []struct {
+		configured uint32
+		want       int
+	}{{0, 1000}, {1, 1}, {7, 7}, {1000, 1000}, {1001, 1000}} {
+		statusReads, statReads = 0, 0
+		got, available := p.CollectTop(test.configured)
+		if !available || len(got) != test.want || statusReads != test.want || statReads != 1050 {
+			t.Fatalf("limit %d: available=%v points=%d details=%d counters=%d", test.configured, available, len(got), statusReads, statReads)
+		}
+		if got[0].Pid != 1050 || got[len(got)-1].Pid != int32(1051-test.want) {
+			t.Fatalf("limit %d lost ranked leaders", test.configured)
+		}
+	}
+
 }
 
 func TestIndependentSwapZramProbes(t *testing.T) {
