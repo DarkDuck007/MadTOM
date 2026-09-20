@@ -144,12 +144,18 @@ public sealed class ThemeService : IThemeService, IDisposable
         {
             try
             {
+                System.Reflection.Assembly.Load("MADTOM.Studio");
+            }
+            catch { }
+            try
+            {
                 System.Reflection.Assembly.Load("MADTOM.Console");
             }
             catch { }
 
             var baseUris = new[]
             {
+                new Uri("avares://MADTOM.Studio/Assets/Themes/"),
                 new Uri("avares://MADTOM.Console/Assets/Themes/"),
                 new Uri("avares://MADTOM.Plugins.Telemetry/Assets/Themes/"),
                 new Uri("avares://MadTOM/Assets/Themes/")
@@ -197,6 +203,12 @@ public sealed class ThemeService : IThemeService, IDisposable
                 var parent = Directory.GetParent(cur);
                 if (parent == null) break;
                 cur = parent.FullName;
+
+                string studioThemes = Path.Combine(cur, "src", "Host", "MADTOM.Studio", "Assets", "Themes");
+                if (Directory.Exists(studioThemes))
+                {
+                    ScanDirectoryForPalettes(studioThemes, _fallbackPalettes);
+                }
 
                 string consoleThemes = Path.Combine(cur, "src", "Host", "MADTOM.Console", "Assets", "Themes");
                 if (Directory.Exists(consoleThemes))

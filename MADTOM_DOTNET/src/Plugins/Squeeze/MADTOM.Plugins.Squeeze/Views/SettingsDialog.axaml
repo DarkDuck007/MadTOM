@@ -9,71 +9,71 @@
              x:DataType="vm:SettingsViewModel"
              Background="{DynamicResource CardBgBrush}"
              Foreground="{DynamicResource TextPrimaryBrush}"
-             FontFamily="JetBrains Mono, Consolas, monospace">
+             FontFamily="Inter, Segoe UI, sans-serif">
 
     <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" BoxShadow="0 8 32 #80000000">
-        <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16">
-            
+        <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12">
+
             <!-- Header -->
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,14">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <TextBlock Text="⚙" FontSize="16" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="SERVER CONNECTION &amp; DISCOVERY" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <TextBlock Text="Server connection" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap" />
                 </StackPanel>
-                <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding CloseCommand}" Content="✕" Padding="8,4" Margin="8,0,0,0" />
+                <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding CloseCommand}" Content="×" ToolTip.Tip="Close (Esc)" AutomationProperties.Name="Close connection settings" Padding="8,4" Margin="8,0,0,0" />
             </Grid>
 
             <!-- Status Banner -->
-            <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,14">
+            <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,8">
                 <Grid ColumnDefinitions="Auto,*">
-                    <TextBlock Grid.Column="0" Text="STATUS: " Foreground="{DynamicResource TextMutedBrush}" FontSize="11" FontWeight="Bold" />
-                    <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Foreground="{Binding StatusColor}" FontSize="11" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="0" Text="STATUS: " Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
+                    <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Foreground="{Binding StatusColor}" FontSize="12" FontWeight="Bold" TextWrapping="Wrap" />
                 </Grid>
             </Border>
 
             <!-- Content Area (Manual Settings + Discovery) -->
             <ScrollViewer Grid.Row="2">
-                <StackPanel Spacing="14">
-                    
+                <StackPanel Spacing="8">
+
                     <!-- Section: Manual Connection -->
-                    <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="MANUAL CONNECTION" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" />
+                    <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="MANUAL CONNECTION" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" />
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="SERVER URL / IP:PORT" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
-                                <TextBox Text="{Binding ServerUrl}" 
+                                <TextBlock Text="SERVER URL / IP:PORT" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBox Text="{Binding ServerUrl}"
                                          PlaceholderText="http://127.0.0.1:8080"
                                          Background="{DynamicResource CardBgBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderBrush}" FontSize="12" Padding="8,6" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="AUTH TOKEN (OPTIONAL)" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
-                                <TextBox Text="{Binding AuthToken}" 
+                                <TextBlock Text="AUTH TOKEN (OPTIONAL)" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBox Text="{Binding AuthToken}"
                                          PasswordChar="•"
                                          PlaceholderText="Leave empty for unauthenticated LAN mode"
                                          Background="{DynamicResource CardBgBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderBrush}" FontSize="12" Padding="8,6" />
                             </StackPanel>
 
-                            <CheckBox IsChecked="{Binding AutoConnect}" Content="Auto-reconnect to this server on startup" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                            <CheckBox IsChecked="{Binding AutoConnect}" Content="Auto-reconnect to this server on startup" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" />
 
                             <!-- Buttons -->
                             <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                                <Button Classes="cyber-btn" Command="{Binding TestConnectionCommand}" Content="TEST" Margin="0,0,8,4" />
-                                <Button Classes="cyber-btn-start" Command="{Binding ConnectCommand}" Content="CONNECT" Margin="0,0,0,4" />
+                                <Button Classes="cyber-btn" Command="{Binding TestConnectionCommand}" Content="✓ Test" Margin="0,0,8,4" />
+                                <Button Classes="cyber-btn-start" Command="{Binding ConnectCommand}" Content="↗ Connect" Margin="0,0,0,4" />
                             </WrapPanel>
                         </StackPanel>
                     </Border>
 
                     <!-- Section: LAN Server Discovery -->
-                    <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                        <StackPanel Spacing="10">
+                    <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <StackPanel Spacing="8">
                             <Grid ColumnDefinitions="*,Auto">
                                 <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="LAN NODES (mDNS)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                    <TextBlock Text="• _squeeze._tcp.local" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="LAN NODES (mDNS)" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                    <TextBlock Text="• _squeeze._tcp.local" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
                                 </WrapPanel>
-                                <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding ScanNetworkCommand}" Content="SCAN" FontSize="10" Padding="8,4" Margin="6,0,0,0" />
+                                <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding ScanNetworkCommand}" Content="⟳ Scan" FontSize="12" Padding="8,4" Margin="6,0,0,0" />
                             </Grid>
 
                             <!-- Discovered Nodes List -->
@@ -85,14 +85,14 @@
                                                 <StackPanel Grid.Column="0" Spacing="2">
                                                     <WrapPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding NodeId}" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}" FontSize="12" Margin="0,0,8,0" />
-                                                        <TextBlock Text="{Binding BaseUrl}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" />
+                                                        <TextBlock Text="{Binding BaseUrl}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                                                     </WrapPanel>
-                                                    <TextBlock Text="{Binding HardwareGpu, StringFormat='Capabilities: {0}'}" Foreground="{DynamicResource AccentTextBrush}" FontSize="10" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding HardwareGpu, StringFormat='Capabilities: {0}'}" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" TextWrapping="Wrap" />
                                                 </StackPanel>
-                                                <Button Grid.Column="1" Classes="cyber-btn" 
-                                                        Command="{Binding $parent[ItemsControl].((vm:SettingsViewModel)DataContext).SelectAndConnectCommand}" 
+                                                <Button Grid.Column="1" Classes="cyber-btn"
+                                                        Command="{Binding $parent[ItemsControl].((vm:SettingsViewModel)DataContext).SelectAndConnectCommand}"
                                                         CommandParameter="{Binding}"
-                                                        Content="CONNECT" 
+                                                        Content="↗ Connect"
                                                         VerticalAlignment="Center" Margin="8,0,0,0" />
                                             </Grid>
                                         </Border>
@@ -107,8 +107,8 @@
             </ScrollViewer>
 
             <!-- Footer Close -->
-            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-                <Button Classes="cyber-btn" Command="{Binding CloseCommand}" Content="CLOSE" />
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                <Button Classes="cyber-btn" Command="{Binding CloseCommand}" Content="Close" />
             </StackPanel>
 
         </Grid>

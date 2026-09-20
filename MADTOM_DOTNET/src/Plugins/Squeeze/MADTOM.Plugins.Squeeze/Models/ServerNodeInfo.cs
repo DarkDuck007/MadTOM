@@ -6,6 +6,8 @@ namespace SQUEEZE.Models;
 
 public class ServerNodeInfo
 {
+    public string ConnectionLabel => IsOnline ? "● Connected" : "● Offline";
+
     public string NodeName { get; set; } = "DISCONNECTED";
     public bool IsOnline { get; set; } = false;
     public string LanAddress { get; set; } = "NOT CONNECTED";

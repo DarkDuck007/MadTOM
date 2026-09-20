@@ -8,5 +8,5 @@ The **MediaCenter** plugin (`MADTOM.Plugins.MediaCenter`) provides a modern home
 
 - **NAS & Local Indexing**: Automatic format probing (AV1, HEVC, HDR10+, Dolby Vision).
 - **Network Streaming**: Low-latency direct playback and background remuxing.
-- **Renderer Control**: Status monitoring and casting control in MADTOM Console and system tray.
+- **Renderer Control**: Status monitoring and casting control in MADTOM Studio and system tray.
 

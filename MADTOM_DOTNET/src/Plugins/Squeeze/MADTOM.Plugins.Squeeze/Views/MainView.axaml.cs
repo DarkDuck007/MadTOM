@@ -20,6 +20,7 @@ public partial class MainView : UserControl
     public MainView()
     {
         InitializeComponent();
+        InitializeResponsiveLayout();
 
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
@@ -34,6 +35,7 @@ public partial class MainView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+        AttachLayoutViewModel();
         AttachFilePickerToViewModel();
     }
 

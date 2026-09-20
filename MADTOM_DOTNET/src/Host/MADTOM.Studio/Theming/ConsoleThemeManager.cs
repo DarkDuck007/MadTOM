@@ -82,6 +82,7 @@ public sealed class ConsoleThemeManager : IDisposable
         {
             var baseUris = new[]
             {
+                new Uri("avares://MADTOM.Studio/Assets/Themes/"),
                 new Uri("avares://MADTOM.Console/Assets/Themes/"),
                 new Uri("avares://MADTOM.Plugins.Telemetry/Assets/Themes/"),
                 new Uri("avares://MadTOM/Assets/Themes/")
@@ -129,6 +130,12 @@ public sealed class ConsoleThemeManager : IDisposable
                 var parent = Directory.GetParent(cur);
                 if (parent == null) break;
                 cur = parent.FullName;
+                string studioThemes = Path.Combine(cur, "src", "Host", "MADTOM.Studio", "Assets", "Themes");
+                if (Directory.Exists(studioThemes))
+                {
+                    ScanDirectoryForThemes(studioThemes);
+                    break;
+                }
                 string consoleThemes = Path.Combine(cur, "src", "Host", "MADTOM.Console", "Assets", "Themes");
                 if (Directory.Exists(consoleThemes))
                 {

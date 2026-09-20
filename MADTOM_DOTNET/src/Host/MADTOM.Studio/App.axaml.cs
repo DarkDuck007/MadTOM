@@ -41,6 +41,8 @@ public partial class App : Application
             _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.MediaCenter.MediaCenterPluginModule()).GetAwaiter().GetResult();
             _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.NoxAI.NoxAIPluginModule()).GetAwaiter().GetResult();
             _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AudioSync.AudioSyncPluginModule()).GetAwaiter().GetResult();
+            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.VNA.VNAPluginModule()).GetAwaiter().GetResult();
+            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.ConnectionToolkit.ConnectionToolkitPluginModule()).GetAwaiter().GetResult();
 
             // Register placeholder plugins at bottom of rail
             _pluginManager.RegisterModuleAsync(new SysadminPlaceholderPluginModule()).GetAwaiter().GetResult();
@@ -77,7 +79,7 @@ public partial class App : Application
     {
         _trayIcon = new TrayIcon
         {
-            ToolTipText = "MADTOM Console",
+            ToolTipText = "MADTOM Studio",
             IsVisible = true,
             Menu = _trayMenu
         };
@@ -100,7 +102,7 @@ public partial class App : Application
         // Try loading application icon
         try
         {
-            var iconUri = new Uri("avares://MADTOM.Console/Assets/madtom-icon.ico");
+            var iconUri = new Uri("avares://MADTOM.Studio/Assets/madtom-icon.ico");
             if (AssetLoader.Exists(iconUri))
             {
                 using var stream = AssetLoader.Open(iconUri);
@@ -134,8 +136,8 @@ public partial class App : Application
 
         var desiredItems = new List<NativeMenuItemBase>();
 
-        // Top Section: Console Owned
-        desiredItems.Add(new NativeMenuItem("🖥️ Open MADTOM Console")
+        // Top Section: Studio Owned
+        desiredItems.Add(new NativeMenuItem("🖥️ Open MADTOM Studio")
         {
             Command = new RelayCommand(() => mainWindow.RestoreFromTray())
         });

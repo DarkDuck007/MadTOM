@@ -1,6 +1,6 @@
-# MADTOM Console: Plugin Architecture Guide
+# MADTOM Studio: Plugin Architecture Guide
 
-This document defines the architecture, service contracts, and lifecycle patterns for building and hosting plugins in **MADTOM Console**.
+This document defines the architecture, service contracts, and lifecycle patterns for building and hosting plugins in **MADTOM Studio**.
 
 ---
 
@@ -26,14 +26,14 @@ This document defines the architecture, service contracts, and lifecycle pattern
 
 ## Architectural Overview
 
-MADTOM Console is designed as a modular host application. The core console shell provides the desktop window, layout scaling, application-level system tray integration, theme management, and lexicon dialect switching.
+MADTOM Studio is designed as a modular host application. The core studio shell provides the desktop window, layout scaling, application-level system tray integration, theme management, and lexicon dialect switching.
 
-Specific features (such as distributed telemetry, container monitoring, network diagnostics, or log aggregation) live entirely within separate, decoupled plugin assemblies.
+Specific features (such as distributed telemetry, container monitoring, media transcoding, network diagnostics, or log aggregation) live entirely within separate, decoupled plugin assemblies.
 
 ```mermaid
 graph TD
     subgraph Host Application
-        C["MADTOM.Console<br/>(Avalonia Desktop Shell)"]
+        C["MADTOM.Studio<br/>(Avalonia Desktop Shell)"]
         TM["TrayHost & TrayMenuService"]
         TH["ThemeManager"]
         LH["LexiconService"]
@@ -45,14 +45,17 @@ graph TD
 
     subgraph Plugins
         P1["MADTOM.Plugins.Telemetry<br/>(Telemetry & TSDB Visualization)"]
-        P2["MADTOM.Plugins.CustomPlugin<br/>(Future Extension)"]
+        P2["MADTOM.Plugins.Squeeze<br/>(Media Transcoding Toolkit)"]
+        P3["MADTOM.Plugins.VNA<br/>(Visual Network Analyzer)"]
     end
 
     C --> PC
     P1 --> PC
     P2 --> PC
+    P3 --> PC
     C -.->|"Loads via IPluginModule"| P1
     C -.->|"Loads via IPluginModule"| P2
+    C -.->|"Loads via IPluginModule"| P3
     P1 -->|"Registers Section"| TM
     P2 -->|"Registers Section"| TM
     TH -.->|"ThemeChanged Event"| P1
@@ -63,7 +66,7 @@ graph TD
 
 ## The Plugin Contract Layer (`MADTOM.PluginContracts`)
 
-The `MADTOM.PluginContracts` assembly contains lightweight, zero-dependency interfaces that define the communication boundary between the host console and plugins.
+The `MADTOM.PluginContracts` assembly contains lightweight, zero-dependency interfaces that define the communication boundary between the host studio and plugins.
 
 ### `IPluginModule`
 
@@ -107,7 +110,7 @@ public interface IPluginHostContext
 
 - **`Theme`**: Provides current theme palette resources and raises events when the user changes themes.
 - **`Lexicon`**: Resolves localized dialect strings for UI text.
-- **`Tray`**: Allows the plugin to add dynamic items to the console's system tray menu (null in headless or standalone runner contexts).
+- **`Tray`**: Allows the plugin to add dynamic items to the studio's system tray menu (null in headless or standalone runner contexts).
 - **`Notifications`**: Dispatches toast and system notifications to the operator.
 - **`StorageDirectory`**: Safe directory (`~/.local/share/MADTOM/plugins/{PluginId}/`) for isolated plugin persistence.
 
@@ -117,7 +120,7 @@ public interface IPluginHostContext
 
 ### System Tray Integration (`ITrayMenuService`)
 
-Plugins should never instantiate their own OS tray icons when running inside MADTOM Console. Instead, they register dynamic sections with the host's tray menu:
+Plugins should never instantiate their own OS tray icons when running inside MADTOM Studio. Instead, they register dynamic sections with the host's tray menu:
 
 ```csharp
 if (context.Tray != null)
@@ -127,12 +130,12 @@ if (context.Tray != null)
 }
 ```
 
-- **Automatic Section Headers**: The console automatically inserts a compact, non-intrusive header (`— {PluginName} —`) rendered in native muted color above the plugin's items.
+- **Automatic Section Headers**: The studio automatically inserts a compact, non-intrusive header (`— {PluginName} —`) rendered in native muted color above the plugin's items.
 - **Standalone Mode Resilience**: Standalone runner applications (such as `MADTOM.Plugins.Telemetry.App`) can provide a null or dummy `ITrayMenuService` without breaking plugin code.
 
 ### Dynamic Theming (`IThemeHost`)
 
-Plugins inherit the console's active color palette:
+Plugins inherit the studio's active color palette:
 - Plugin controls subscribe to theme resource keys (e.g., `DynamicResource Background`, `DynamicResource SurfaceElevated`).
 - Plugins can subscribe to `context.Theme.ThemeChanged` to update non-XAML canvas drawing brushes or custom render loops.
 
@@ -160,8 +163,8 @@ context.Notifications.ShowNotification(
 
 ```mermaid
 sequenceDiagram
-    participant Host as MADTOM.Console
-    participant Ctx as ConsoleHostContext
+    participant Host as MADTOM.Studio
+    participant Ctx as StudioHostContext
     participant Plugin as IPluginModule
 
     Host->>Ctx: Create host context with Tray, Theme, Lexicon
@@ -178,7 +181,7 @@ sequenceDiagram
 
 1. **`InitializeAsync`**: Construct services, subscribe to host events, register tray menu sections, and load local configurations.
 2. **`StartAsync`**: Launch background workers, network listeners, or gRPC telemetry subscriptions.
-3. **`CreateMainView`**: Instantiate the primary Avalonia `UserControl` or view model to be hosted in the console's navigation rail.
+3. **`CreateMainView`**: Instantiate the primary Avalonia `UserControl` or view model to be hosted in the studio's navigation rail.
 4. **`StopAsync`**: Gracefully terminate background threads and flush pending writes before application exit.
 
 ---
@@ -272,7 +275,7 @@ if (context.Tray != null)
 
 1. Add the project to `MADTOM_DOTNET/MADTOM.sln` and `MADTOM.slnx` under `/src/Plugins/NetworkTools/`.
 2. Add corresponding tests under `MADTOM_DOTNET/MadTOM.Tests/Plugins/NetworkTools/`.
-3. Add a project reference from `MADTOM.Console.csproj` (or configure dynamic assembly loading).
+3. Add a project reference from `MADTOM.Studio.csproj` (or configure dynamic assembly loading).
 4. Add documentation under `Documentation/Plugins/NetworkTools/`.
 
 This ensures that MADTOM remains completely modular and organized as the ecosystem of plugins grows.

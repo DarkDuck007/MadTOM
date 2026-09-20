@@ -23,9 +23,9 @@ The MADTOM documentation follows a strict two-tier architecture:
 
 | Documentation File | Scope & Content |
 |---|---|
-| [`Documentation/cli-and-scripts.md`](Documentation/cli-and-scripts.md) | Exhaustive parameter tables, syntax, options, and execution examples for all build/publish/deploy scripts and compiled binaries (`madtom-daemon`, `madtom-collector`, `MADTOM.Console`, `MADTOM.Plugins.Telemetry.App`). |
-| [`Documentation/Console/overview-and-ui.md`](Documentation/Console/overview-and-ui.md) | Desktop Operator UI walkthrough, UI layout scaling multiplier, system tray host, theming engine & custom YAML/JSON themes, lexicon dialect system, and `settings.json`. |
-| [`Documentation/Console/plugin-architecture.md`](Documentation/Console/plugin-architecture.md) | Plugin contracts (`MADTOM.PluginContracts`), `IPluginModule` lifecycle, tray menu sections, host context services, and guide to creating new plugins. |
+| [`Documentation/cli-and-scripts.md`](Documentation/cli-and-scripts.md) | Exhaustive parameter tables, syntax, options, and execution examples for all build/publish/deploy scripts and compiled binaries (`madtom-daemon`, `madtom-collector`, `MADTOM.Studio`, `MADTOM.Plugins.Telemetry.App`). |
+| [`Documentation/Studio/overview-and-ui.md`](Documentation/Studio/overview-and-ui.md) | Desktop Operator UI walkthrough, UI layout scaling multiplier, system tray host, theming engine & custom YAML/JSON themes, lexicon dialect system, and `settings.json`. |
+| [`Documentation/Studio/plugin-architecture.md`](Documentation/Studio/plugin-architecture.md) | Plugin contracts (`MADTOM.PluginContracts`), `IPluginModule` lifecycle, tray menu sections, host context services, and guide to creating new plugins. |
 | [`Documentation/Plugins/Telemetry/ui-and-visualization.md`](Documentation/Plugins/Telemetry/ui-and-visualization.md) | Telemetry UI, fleet dashboard, graph scopes (1m to 24h + custom time picker), LTTB downsampling, process manager, TWAMP latency radar, and telemetry config files (`graphs.json`, `collectors.json`). |
 | [`Documentation/Plugins/Telemetry/deployment-and-services.md`](Documentation/Plugins/Telemetry/deployment-and-services.md) | Remote server deployments via SSH (`deploy.sh`), architecture auto-detection, production systemd unit templates, security sandboxing, and service journal troubleshooting. |
 | [`Documentation/Plugins/Telemetry/architecture-and-protocols.md`](Documentation/Plugins/Telemetry/architecture-and-protocols.md) | Transport modes (Push, Pull, Reverse-Push), WAL spooling and crash-resilient buffer management, Pebble TSDB key schema and query paths, and TWAMP Light (RFC 5357) network latency probing. |
@@ -50,8 +50,8 @@ flowchart TD
 ### Step 1: Classify the Impact Area
 Identify which subsystem is affected by the changes:
 - **CLI flag, script option, or binary argument change**: Target `Documentation/cli-and-scripts.md`.
-- **Console UI shell, theming, system tray, or host settings**: Target `Documentation/Console/overview-and-ui.md`.
-- **Plugin contract or host service interface**: Target `Documentation/Console/plugin-architecture.md`.
+- **Studio UI shell, theming, system tray, or host settings**: Target `Documentation/Studio/overview-and-ui.md`.
+- **Plugin contract or host service interface**: Target `Documentation/Studio/plugin-architecture.md`.
 - **Telemetry UI, graph scopes, downsampling, or telemetry configs**: Target `Documentation/Plugins/Telemetry/ui-and-visualization.md`.
 - **Deployment workflow, SSH script, or systemd service unit**: Target `Documentation/Plugins/Telemetry/deployment-and-services.md`.
 - **gRPC protocol, WAL buffer, TSDB storage schema, or network probe**: Target `Documentation/Plugins/Telemetry/architecture-and-protocols.md`.

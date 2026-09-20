@@ -70,18 +70,30 @@ adb shell am start -n com.squeeze.transcoder/crc6420f27725dc9c1856.MainActivity
 
 ## 4. UI Architecture & Responsive Features
 
-### Responsive Layout & Breakpoints
-The UI automatically adapts across form factors (from 4K desktop monitors to narrow mobile screens):
-- **Collapsible Batch Job Queue**: The left panel can be collapsed via a toggle button, granting full screen focus to the active encode deck on mobile screens.
-- **Server Discovery Modal**: The Connection & Discovery dialog is sized dynamically with bounded dimensions and internal scrolling to remain fully visible on narrow mobile displays.
-- **Touch-Optimized Scrollbars**: Scrollbar widths and margins are adjusted to prevent obscuring header buttons and navigation controls.
+The maintained MADTOM plugin lives in `MADTOM_DOTNET/src/Plugins/Squeeze/`. See its [UI guide](../../../MADTOM_DOTNET/src/Plugins/Squeeze/README.md) for current build commands and verification instructions. The earlier standalone `SQUEEZE_UI` paths above describe the legacy client.
 
-### Streamlined Transcoding Workflow
-- **Browse File**: Opens system file picker (`*/*`, `video/*`) and stages media into local app cache on mobile.
-- **Unified `[▶ START]` Button**: Single action initiates file upload and automatically queues the transcode on the remote server.
-- **Per-Job Controls**: In the batch queue, each item provides individual **Pause** and **Cancel** buttons.
-- **Preset Catalog**: Categorized into *General*, *Web*, *Hardware*, and *Production*. The currently active preset title is clearly displayed and rotatable.
-- **Expandable FFmpeg Preview**: The generated FFmpeg command line preview is multiline and expandable, allowing users to inspect exact encoder flags before processing.
+### Responsive Layout & Breakpoints
+
+- **Desktop (760 logical pixels and wider)**: A resizable, collapsible batch queue sits beside the encoding editor. Sidebar width and collapse state survive switching to a narrow viewport and back.
+- **Mobile / narrow windows**: **Encode settings** and the job-count button switch between full-width panes. Toolbar actions and parameter tabs wrap, form labels stack above inputs, and controls have a minimum 40-pixel height; desktop buttons use compact 30-pixel minimum heights with centered icons and labels.
+- **Dialogs**: Settings, hardware, preset catalog, and save-preset dialogs all support desktop edge/corner resizing with visible grips, bounded dimensions, and scrolling. Escape closes the active dialog and restores keyboard focus. Background workspace controls are disabled while a dialog is open.
+
+### Preset Catalog
+
+- Search names, descriptions, codecs, containers, resolution labels, categories, and tags. Search is case-insensitive; every space-separated word must match somewhere in a preset.
+- The catalog displays separate expandable groups, initially collapsed. Filtering expands matching groups; clearing filters restores the previous expansion choices. Filter by category, including **Custom** and categories received from the server. **Reset** clears the query and category; an empty-results message explains how to recover.
+- On desktop, drag any edge or corner to resize the centered catalog, following Telemetry's dialog interaction. The catalog stays within the plugin viewport and remembers its size for the lifetime of the view. **Reset size** restores its initial dimensions.
+- On narrow screens, the catalog fills the available viewport; grouped lists scroll internally. Opening the catalog focuses search.
+- **Save preset** captures current settings as a named user profile in a selected group. User profiles survive server catalog refreshes regardless of their group. **Set default** uses a saved profile as the startup default; modified settings must be saved first. Existing persistence semantics remain unchanged.
+
+### Transcoding Workflow
+
+1. Open **Settings** and connect to a server or discover a LAN node.
+2. Click or tap the **source media bar** to choose a video, or drop a media file onto the workspace. Mobile storage selections retain stream staging support.
+3. Choose a preset and adjust parameters, then select **Start encode** to upload and enqueue.
+4. Use per-job pause, resume, cancel, and download actions in the queue.
+
+The expandable, read-only FFmpeg preview remains available. The quality slider correctly labels higher quality at the low-value end and smaller files at the high-value end. Dynamic MADTOM theme brushes continue to update existing views without recreating the plugin.
 
 ---
 

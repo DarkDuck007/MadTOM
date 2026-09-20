@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.VNA.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.VNA.Views.MainView"
+             x:DataType="vm:MainViewModel"
+             Background="{DynamicResource AppBgBrush}">
+
+    <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32">
+        <Border Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="40,36"
+                MaxWidth="560"
+                BoxShadow="0 8 32 #30000000">
+            <StackPanel Spacing="20" HorizontalAlignment="Center">
+                <!-- Big Icon -->
+                <Border Background="{DynamicResource DarkBaseBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16"
+                        Width="72" Height="72"
+                        HorizontalAlignment="Center">
+                    <TextBlock Text="🌐" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+
+                <!-- Title & Status Badge -->
+                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding ModuleTitle}"
+                               FontSize="18"
+                               FontWeight="Bold"
+                               LetterSpacing="1.5"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center" />
+
+                    <!-- Coming Soon Badge -->
+                    <Border Background="{DynamicResource WarningSubtleBrush}"
+                            BorderBrush="{DynamicResource WarningBrush}"
+                            BorderThickness="1"
+                            CornerRadius="12"
+                            Padding="12,3"
+                            HorizontalAlignment="Center">
+                        <TextBlock Text="• COMING SOON"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   LetterSpacing="1.2"
+                                   Foreground="{DynamicResource WarningBrush}" />
+                    </Border>
+                </StackPanel>
+
+                <!-- Description -->
+                <TextBlock Text="{Binding ModuleSubtitle}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           MaxWidth="460"
+                           LineHeight="18" />
+
+                <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,4" />
+
+                <!-- Note -->
+                <Border Background="{DynamicResource DarkBaseBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="14,10">
+                    <TextBlock Text="{Binding ComingSoonMessage}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                </Border>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
+

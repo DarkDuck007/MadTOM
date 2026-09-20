@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core\MADTOM.PluginContracts\MADTOM.PluginContracts.csproj" />
-    <ProjectReference Include="..\..\src\Host\MADTOM.Console\MADTOM.Console.csproj" />
+    <ProjectReference Include="..\..\src\Host\MADTOM.Studio\MADTOM.Studio.csproj" />
     <ProjectReference Include="..\..\src\Plugins\Telemetry\MADTOM.Plugins.Telemetry\MADTOM.Plugins.Telemetry.csproj" />
   </ItemGroup>
 

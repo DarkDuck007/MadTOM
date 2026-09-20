@@ -9,7 +9,7 @@ The **Android Toolkit** (`MADTOM.Plugins.AndroidToolkit`) is a modular tool for 
 - **Device Discovery**: Real-time USB and Wi-Fi ADB device scanning.
 - **Backup Suite**: Single-click full device backups and per-app `.tar` archiving.
 - **Media Dump**: High-speed DCIM and storage synchronization.
-- **System Tray**: Live device connection status in the MADTOM Console tray.
+- **System Tray**: Live device connection status in the MADTOM Studio tray.
 
 ## Project Structure
 

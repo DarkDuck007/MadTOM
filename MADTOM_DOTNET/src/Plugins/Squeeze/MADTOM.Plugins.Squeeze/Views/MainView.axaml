@@ -10,7 +10,7 @@
              x:DataType="vm:MainViewModel"
              Background="{DynamicResource AppBgBrush}"
              Foreground="{DynamicResource TextPrimaryBrush}"
-             FontFamily="JetBrains Mono, Consolas, monospace"
+             FontFamily="Inter, Segoe UI, sans-serif"
              DragDrop.AllowDrop="True">
 
     <UserControl.Styles>
@@ -22,7 +22,7 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="8,4" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style Selector="Button.cyber-btn:pointerover">
@@ -32,8 +32,8 @@
 
         <!-- Green Enqueue & Start Button -->
         <Style Selector="Button.cyber-btn-start">
-            <Setter Property="Background" Value="{DynamicResource HealthyBrush}" />
-            <Setter Property="Foreground" Value="#021A0B" />
+            <Setter Property="Background" Value="{DynamicResource HealthySubtleBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="12,6" />
@@ -53,7 +53,7 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="10,5" />
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="Bold" />
         </Style>
         <Style Selector="Button.cyber-btn-presets:pointerover">
@@ -63,7 +63,7 @@
 
         <!-- Cyber TabItem -->
         <Style Selector="TabItem">
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
             <Setter Property="Padding" Value="12,6" />
@@ -74,6 +74,24 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="0,0,0,2" />
         </Style>
+        <Style Selector="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="MinWidth" Value="30" />
+        </Style>
+        <Style Selector="TextBox, ComboBox, NumericUpDown">
+            <Setter Property="Background" Value="{DynamicResource DarkBaseBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="MinHeight" Value="30" />
+        </Style>
+        <Style Selector=":is(UserControl).compact Button, :is(UserControl).compact ComboBox, :is(UserControl).compact TextBox, :is(UserControl).compact NumericUpDown">
+            <Setter Property="MinHeight" Value="40" />
+        </Style>
+        <Style Selector="PathIcon.resize-grip">
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,Auto,*">
@@ -81,36 +99,34 @@
         <!-- ==================================================================== -->
         <!-- ROW 0: TOP HUD STATUS STRIP -->
         <!-- ==================================================================== -->
-        <Border Grid.Row="0" Background="{DynamicResource HeaderBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,4">
+        <Border Grid.Row="0" IsEnabled="{Binding !IsAnyDialogOpen}" Background="{DynamicResource HeaderBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,4">
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <!-- Left: Brand & Node Status -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="SQUEEZE //" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}" FontSize="13" VerticalAlignment="Center" />
                     <Button Classes="cyber-btn" Command="{Binding OpenRigInfoCommand}" ToolTip.Tip="Click to view detailed Rig &amp; Node Hardware Specs" Padding="2,0" Background="Transparent" BorderThickness="0">
-                        <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{Binding NodeInfo.StatusBadgeColor}" BorderThickness="1" CornerRadius="4" Padding="6,3">
-                            <TextBlock Text="{Binding NodeInfo.StatusBadgeText}" Foreground="{Binding NodeInfo.StatusBadgeColor}" FontSize="10" FontWeight="Bold" />
-                        </Border>
+                        <Border Background="Transparent" HorizontalAlignment="Left"><TextBlock TextTrimming="CharacterEllipsis" MaxWidth="130" Text="{Binding NodeInfo.ConnectionLabel}" Foreground="{Binding NodeInfo.StatusBadgeColor}" FontSize="12" FontWeight="Bold" /></Border>
                     </Button>
                 </StackPanel>
 
                 <!-- Center: Queue, CPU, Memory & GPU Telemetry (swipe-scrollable, hidden scrollbar) -->
-                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Margin="6,0">
+                <ScrollViewer x:Name="HeaderTelemetry" Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Margin="6,0">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="3">
-                            <TextBlock Text="QUEUE:" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                            <TextBlock Text="{Binding JobQueue.QueueCountText}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="10" />
+                            <TextBlock Text="QUEUE:" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                            <TextBlock Text="{Binding JobQueue.QueueCountText}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="12" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="3">
-                            <TextBlock Text="CPU:" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                            <TextBlock Text="{Binding NodeInfo.CpuUsageText}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="10" />
+                            <TextBlock Text="CPU:" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                            <TextBlock Text="{Binding NodeInfo.CpuUsageText}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="3">
-                            <TextBlock Text="MEM:" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                            <TextBlock Text="{Binding NodeInfo.MemoryUsage}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="10" />
+                            <TextBlock Text="MEM:" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                            <TextBlock Text="{Binding NodeInfo.MemoryUsage}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="3">
-                            <TextBlock Text="GPU:" Foreground="{DynamicResource AccentTextBrush}" FontSize="10" />
-                            <TextBlock Text="{Binding NodeInfo.GpuStatus}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="10" />
+                            <TextBlock Text="GPU:" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" />
+                            <TextBlock TextWrapping="Wrap" Text="{Binding NodeInfo.GpuStatus}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -118,71 +134,38 @@
                 <!-- Right: Settings Trigger (Always pinned, easily accessible) -->
                 <Button Grid.Column="2" Classes="cyber-btn" Command="{Binding OpenSettingsCommand}" Padding="8,5" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                        <TextBlock Text="⚙" FontSize="11" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" />
-                        <TextBlock Text="SETTINGS" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" />
+                        <TextBlock Text="⚙" FontSize="12" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="SETTINGS" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
             </Grid>
         </Border>
 
-        <!-- ==================================================================== -->
-        <!-- ROW 1: TOOLBAR (REORDERED PER USER SPECIFICATION) -->
-        <!-- ==================================================================== -->
-        <Border Grid.Row="1" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
-            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    
-                    <!-- LEFT SIDE: START ACTION -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <Button Classes="cyber-btn-start" Command="{Binding StartCommand}" IsEnabled="{Binding !IsSubmitting}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="▶" FontSize="11" />
-                                <TextBlock Text="START" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-
-                    <!-- RIGHT SIDE: PRESETS & ACTIONS -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <!-- PRESETS BUTTON (STREAMLINED) -->
-                        <Button Classes="cyber-btn-presets" Command="{Binding ToggleMegaMenuCommand}">
-                            <TextBlock Text="PRESETS" />
-                        </Button>
-
-                        <!-- ACTIVE PRESET TITLE ONLY (WRAPPED) -->
-                        <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" MaxWidth="180">
-                            <TextBlock Text="{Binding ActivePresetTitle}" 
-                                       Foreground="{Binding ActivePresetForeground}" 
-                                       FontWeight="Bold" FontSize="11" VerticalAlignment="Center"
-                                       TextWrapping="Wrap" />
-                        </Border>
-
-                        <!-- SET DEFAULT BUTTON -->
-                        <Button Classes="cyber-btn" Command="{Binding SetDefaultPresetCommand}" 
-                                ToolTip.Tip="Designate current preset profile as application startup default">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="📌" FontSize="10" />
-                                <TextBlock Text="Set Default" />
-                            </StackPanel>
-                        </Button>
-
-                        <!-- ADD PRESET -->
-                        <Button Classes="cyber-btn" Command="{Binding OpenAddPresetModalCommand}"
-                                ToolTip.Tip="Save current parameter specifications as a new named preset">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="➕" FontSize="10" />
-                                <TextBlock Text="Add Preset" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
+        <Border Grid.Row="1" IsEnabled="{Binding !IsAnyDialogOpen}" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,6">
+            <StackPanel Spacing="6">
+                <WrapPanel>
+                    <Button Classes="cyber-btn-start" Command="{Binding StartCommand}" IsEnabled="{Binding !IsSubmitting}" Margin="0,0,8,6" ><StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"><PathIcon Data="M 3,1 L 13,8 3,15 Z" Width="13" Height="13" /><TextBlock Text="Start encode" VerticalAlignment="Center" /></StackPanel></Button>
+                    <Button x:Name="PresetsButton" Classes="cyber-btn-presets" Command="{Binding ToggleMegaMenuCommand}" Margin="0,0,8,6" ><StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"><PathIcon Data="M 1,1 L 6,1 6,6 1,6 Z M 9,1 L 14,1 14,6 9,6 Z M 1,9 L 6,9 6,14 1,14 Z M 9,9 L 14,9 14,14 9,14 Z" Width="13" Height="13" /><TextBlock Text="Presets" VerticalAlignment="Center" /></StackPanel></Button>
+                    <Button Classes="cyber-btn" Command="{Binding OpenAddPresetModalCommand}" Margin="0,0,8,6" ><StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"><PathIcon Data="M 1,1 L 12,1 15,4 15,15 1,15 Z M 4,1 L 4,6 11,6 11,1 M 4,10 L 12,10 12,15 4,15 Z" Width="13" Height="13" /><TextBlock Text="Save preset" VerticalAlignment="Center" /></StackPanel></Button>
+                    <Button Classes="cyber-btn" Command="{Binding SetDefaultPresetCommand}" IsEnabled="{Binding !IsCustomPreset}" Margin="0,0,8,6" ToolTip.Tip="Use this preset at startup" ><StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"><PathIcon Data="M 8,0 L 10,5 16,6 12,10 13,16 8,13 3,16 4,10 0,6 6,5 Z" Width="13" Height="13" /><TextBlock Text="Set default" VerticalAlignment="Center" /></StackPanel></Button>
+                </WrapPanel>
+                <TextBlock Text="{Binding ActivePresetTitle, StringFormat='Preset: {0}'}" Foreground="{DynamicResource AccentTextBrush}" TextWrapping="Wrap" />
+                <TextBlock Text="Unsaved changes — save a preset to reuse these settings." IsVisible="{Binding IsCustomPreset}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding DownloadNotificationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding DownloadNotificationMessage}" TextWrapping="Wrap" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding ClearDownloadNotificationCommand}" Content="Dismiss" />
                 </Grid>
-            </ScrollViewer>
+                <Grid x:Name="MobileNavigation" ColumnDefinitions="*,*" IsVisible="False">
+                    <Button Classes="cyber-btn" Content="Encode settings" Click="ShowEditor" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,4,0" />
+                    <Button Grid.Column="1" Classes="cyber-btn" Content="{Binding JobQueue.QueueCountText}" Click="ShowQueue" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="4,0,0,0" />
+                </Grid>
+            </StackPanel>
         </Border>
 
         <!-- ==================================================================== -->
         <!-- ROW 2: MAIN 2-COLUMN WORKSPACE (WITH MOBILE ADAPTIVE SCROLLING) -->
         <!-- ==================================================================== -->
-        <Grid Grid.Row="2" Margin="8">
+        <Grid x:Name="Workspace" Grid.Row="2" Margin="8" IsEnabled="{Binding !IsAnyDialogOpen}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="{Binding SidebarColumnWidth, Mode=TwoWay}" MinWidth="38" MaxWidth="600" />
                 <ColumnDefinition Width="Auto" />
@@ -192,79 +175,85 @@
             <!-- ============================================================ -->
             <!-- COLUMN 0: BATCH JOB QUEUE (EXPANDED OR COLLAPSED)            -->
             <!-- ============================================================ -->
-            <Grid Grid.Column="0">
+            <Grid x:Name="QueuePanel" Grid.Column="0">
                 <!-- EXPANDED JOB QUEUE -->
                 <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,4,0"
                         IsVisible="{Binding !IsJobQueueCollapsed}">
                     <Grid RowDefinitions="Auto,*,Auto">
                         <!-- Queue Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                            <TextBlock Grid.Column="0" Text="BATCH JOB QUEUE" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding ToggleJobQueueCollapseCommand}" Padding="5,2" ToolTip.Tip="Collapse Queue Panel">
-                                <TextBlock Text="◀" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
+                            <TextBlock Grid.Column="0" Text="BATCH JOB QUEUE" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                            <Button x:Name="CollapseQueueButton" Grid.Column="1" Classes="cyber-btn" Command="{Binding ToggleJobQueueCollapseCommand}" Padding="5,2" ToolTip.Tip="Collapse Queue Panel">
+                                <TextBlock Text="◀" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                             </Button>
                         </Grid>
 
                         <!-- Job List Scroll Area -->
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,6">
+                            <StackPanel>
+                            <TextBlock Text="Your queue is empty. Browse a file, choose a preset, then start encoding." TextWrapping="Wrap" Margin="8" IsVisible="{Binding !JobQueue.Jobs.Count}" Foreground="{DynamicResource TextMutedBrush}" />
                             <ItemsControl ItemsSource="{Binding JobQueue.Jobs}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="m:TranscodeJob">
                                         <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                             <StackPanel Spacing="4">
                                                 <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
-                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="0" Classes="cyber-btn" Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                            Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).JobQueue.SelectJobCommand}" CommandParameter="{Binding .}" ToolTip.Tip="Load this job's settings in the editor">
+                                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+                                                    </Button>
                                                     <Border Grid.Column="1" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock ToolTip.Tip="{Binding Error}" Text="{Binding Status}" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" />
+                                                        <TextBlock ToolTip.Tip="{Binding Error}" Text="{Binding Status}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                                                     </Border>
                                                     <Button Grid.Column="2" Classes="cyber-btn"
                                                             Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).JobQueue.PauseJobCommand}"
                                                             CommandParameter="{Binding .}"
                                                             IsVisible="{Binding CanPause}"
                                                             Padding="5,1" Margin="4,0,0,0" ToolTip.Tip="Pause this job">
-                                                        <TextBlock Text="⏸" Foreground="{DynamicResource WarningBrush}" FontSize="9" FontWeight="Bold" />
+                                                        <TextBlock Text="⏸" Foreground="{DynamicResource WarningBrush}" FontSize="12" FontWeight="Bold" />
                                                     </Button>
                                                     <Button Grid.Column="3" Classes="cyber-btn"
                                                             Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).JobQueue.ResumeJobCommand}"
                                                             CommandParameter="{Binding .}"
                                                             IsVisible="{Binding CanResume}"
                                                             Padding="5,1" Margin="4,0,0,0" ToolTip.Tip="Resume this job">
-                                                        <TextBlock Text="▶" Foreground="{DynamicResource HealthyBrush}" FontSize="9" FontWeight="Bold" />
+                                                        <TextBlock Text="▶" Foreground="{DynamicResource HealthyBrush}" FontSize="12" FontWeight="Bold" />
                                                     </Button>
                                                     <Button Grid.Column="4" Classes="cyber-btn"
                                                             Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).JobQueue.CancelJobCommand}"
                                                             CommandParameter="{Binding .}"
                                                             IsVisible="{Binding CanCancel}"
                                                             Padding="5,1" Margin="4,0,0,0" ToolTip.Tip="Cancel this job">
-                                                        <TextBlock Text="✕" Foreground="{DynamicResource CriticalBrush}" FontSize="9" FontWeight="Bold" />
+                                                        <TextBlock Text="✕" Foreground="{DynamicResource CriticalBrush}" FontSize="12" FontWeight="Bold" />
                                                     </Button>
                                                 </Grid>
 
                                                 <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="{Binding PresetKey}" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding ProgressLabel}" Foreground="{DynamicResource AccentTextBrush}" FontSize="9" FontWeight="Bold" />
+                                                    <TextBlock Grid.Column="0" Text="{Binding PresetKey}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding ProgressLabel}" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" FontWeight="Bold" />
                                                 </Grid>
 
+                                                <TextBlock Text="{Binding Error}" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" Foreground="{DynamicResource CriticalBrush}" />
                                                 <!-- Mini Progress Bar -->
                                                 <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Height="4" Background="{DynamicResource AppBgBrush}" Foreground="{DynamicResource AccentBrush}" />
 
                                                 <!-- Inline Live Telemetry Stats (Active when encoding or stats present) -->
                                                 <Border Background="{DynamicResource AppBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,2,0,0"
                                                         IsVisible="{Binding HasLiveStats}">
-                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                                                            <TextBlock Text="⚡" FontSize="8" Foreground="{DynamicResource HealthyBrush}" VerticalAlignment="Center" />
-                                                            <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1} fps'}" Foreground="{DynamicResource HealthyBrush}" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" />
+                                                    <WrapPanel>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" Margin="0,0,8,4">
+                                                            <TextBlock Text="⚡" FontSize="12" Foreground="{DynamicResource HealthyBrush}" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding Fps, StringFormat='{}{0:F1} fps'}" Foreground="{DynamicResource HealthyBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
                                                         </StackPanel>
                                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                                                            <TextBlock Text="{Binding Speed, StringFormat='{}{0:F1}x'}" Foreground="{DynamicResource WarningBrush}" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" />
-                                                            <TextBlock Text="{Binding BitrateKbps, StringFormat='{}{0} kbps'}" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding Speed, StringFormat='{}{0:F1}x'}" Foreground="{DynamicResource WarningBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding BitrateKbps, StringFormat='{}{0} kbps'}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                                         </StackPanel>
                                                         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0" IsVisible="{Binding EtaText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="ETA" Foreground="{DynamicResource TextMutedBrush}" FontSize="8" VerticalAlignment="Center" />
-                                                            <TextBlock Text="{Binding EtaText}" Foreground="{DynamicResource AccentTextBrush}" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" />
+                                                            <TextBlock Text="ETA" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding EtaText}" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
                                                         </StackPanel>
-                                                    </Grid>
+                                                    </WrapPanel>
                                                 </Border>
 
                                                 <!-- Download Button if Completed -->
@@ -273,8 +262,8 @@
                                                         Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).JobQueue.DownloadJobCommand}"
                                                         CommandParameter="{Binding .}">
                                                     <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
-                                                        <TextBlock Text="⬇" Foreground="{DynamicResource HealthyBrush}" FontSize="10" />
-                                                        <TextBlock Text="DOWNLOAD OUTPUT" Foreground="{DynamicResource HealthyBrush}" FontSize="9" FontWeight="Bold" />
+                                                        <TextBlock Text="⬇" Foreground="{DynamicResource HealthyBrush}" FontSize="12" />
+                                                        <TextBlock Text="DOWNLOAD OUTPUT" Foreground="{DynamicResource HealthyBrush}" FontSize="12" FontWeight="Bold" />
                                                     </StackPanel>
                                                 </Button>
                                             </StackPanel>
@@ -282,12 +271,13 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            </StackPanel>
                         </ScrollViewer>
 
                         <!-- Queue Summary Footer -->
                         <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,4,0,0">
-                            <TextBlock Grid.Column="0" Text="Auto-advance: ENABLED" Foreground="{DynamicResource HealthyBrush}" FontSize="9" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding JobQueue.ClearCompletedCommand}" Padding="4,1" FontSize="9">
+                            <TextBlock Grid.Column="0" Text="{Binding JobQueue.QueueCountText}" Foreground="{DynamicResource HealthyBrush}" FontSize="12" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding JobQueue.ClearCompletedCommand}" Padding="4,1" FontSize="12">
                                 <TextBlock Text="[CLEAR DONE]" Foreground="{DynamicResource TextMutedBrush}" />
                             </Button>
                         </Grid>
@@ -298,18 +288,18 @@
                 <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="2,8" Margin="0,0,2,0"
                         IsVisible="{Binding IsJobQueueCollapsed}" HorizontalAlignment="Stretch">
                     <Grid RowDefinitions="Auto,Auto,*">
-                        <Button Grid.Row="0" Classes="cyber-btn" Command="{Binding ToggleJobQueueCollapseCommand}" 
+                        <Button Grid.Row="0" Classes="cyber-btn" Command="{Binding ToggleJobQueueCollapseCommand}"
                                 HorizontalAlignment="Center" Padding="4,4" ToolTip.Tip="Expand Queue Panel">
-                            <TextBlock Text="▶" Foreground="{DynamicResource WarningBrush}" FontSize="10" />
+                            <TextBlock Text="▶" Foreground="{DynamicResource WarningBrush}" FontSize="12" />
                         </Button>
                         <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3" Margin="0,8,0,0" Padding="2,3" HorizontalAlignment="Center">
-                            <TextBlock Text="{Binding JobQueue.Jobs.Count}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="10" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding JobQueue.Jobs.Count}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" />
                         </Border>
                         <LayoutTransformControl Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <LayoutTransformControl.LayoutTransform>
                                 <RotateTransform Angle="90" />
                             </LayoutTransformControl.LayoutTransform>
-                            <TextBlock Text="JOBS" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" FontWeight="Bold" />
+                            <TextBlock Text="JOBS" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
                         </LayoutTransformControl>
                     </Grid>
                 </Border>
@@ -318,43 +308,38 @@
             <!-- ============================================================ -->
             <!-- COLUMN 1: RESIZING SPLITTER                                  -->
             <!-- ============================================================ -->
-            <GridSplitter Grid.Column="1" Width="6" Background="{DynamicResource CardHoverBgBrush}" ResizeDirection="Columns" 
+            <GridSplitter x:Name="QueueSplitter" Grid.Column="1" Width="6" Background="{DynamicResource CardHoverBgBrush}" ResizeDirection="Columns"
                           IsVisible="{Binding !IsJobQueueCollapsed}" Margin="2,0" />
 
             <!-- ============================================================ -->
             <!-- COLUMN 2: CENTER INSPECTOR & PARAMETER TABS                  -->
             <!-- ============================================================ -->
-            <Border Grid.Column="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="4,0,0,0">
+            <Border x:Name="EditorPanel" Grid.Column="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="4,0,0,0">
+                <ScrollViewer x:Name="EditorScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
                 <Grid RowDefinitions="Auto,Auto,*,Auto">
-                    
+
                     <!-- 1. Active Source Payload Display -->
-                    <Border Grid.Row="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8"
-                            DragDrop.AllowDrop="True">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0" Spacing="2">
-                                <TextBlock Text="ACTIVE SOURCE PAYLOAD" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" FontWeight="Bold" />
-                                <TextBlock Text="{Binding ActivePayloadTitle}" 
-                                           Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" FontSize="11" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding ActivePayloadMeta}" 
-                                           Foreground="{DynamicResource AccentTextBrush}" FontSize="10" />
-                                <TextBlock Text="{Binding ActivePayloadTargetOutput}" 
-                                           Foreground="{DynamicResource TextMutedBrush}" FontSize="9" Margin="0,2,0,0" />
+                    <Button x:Name="SourcePicker" Classes="cyber-btn" Grid.Row="0" Command="{Binding BrowseFilesCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="10,8" Margin="0,0,0,8" ToolTip.Tip="Choose a media file, or drop one here" AutomationProperties.Name="Choose source media">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <PathIcon Data="M 2,2 L 12,2 18,8 18,22 2,22 Z M 12,2 L 12,8 18,8 M 6,12 L 13,16 6,20 Z" Width="20" Height="24" Foreground="{DynamicResource AccentTextBrush}" Margin="0,0,10,0" />
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock Text="{Binding ActivePayloadTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding ActivePayloadMeta}" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ActivePayloadTargetOutput}" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" TextWrapping="Wrap" />
                             </StackPanel>
-                            <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding BrowseFilesCommand}" VerticalAlignment="Top" Padding="6,3" FontSize="10">
-                                <TextBlock Text="[BROWSE FILE]" Foreground="{DynamicResource AccentTextBrush}" />
-                            </Button>
+                            <PathIcon Grid.Column="2" Data="M 4,2 L 10,8 4,14" Width="7" Height="12" Margin="8,0,0,0" Foreground="{DynamicResource TextMutedBrush}" />
                         </Grid>
-                    </Border>
+                    </Button>
 
                     <!-- Notice / Warning Banner -->
                     <Border Grid.Row="1" Background="{DynamicResource WarningSubtleBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,0,8"
                             IsVisible="{Binding SourceWarningMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                <TextBlock Text="⚠" Foreground="{DynamicResource WarningBrush}" FontSize="11" FontWeight="Bold" />
-                                <TextBlock Text="{Binding SourceWarningMessage}" Foreground="{DynamicResource WarningBrush}" FontSize="10" FontWeight="Bold" />
+                            <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="⚠" Foreground="{DynamicResource WarningBrush}" FontSize="12" FontWeight="Bold" />
+                                <TextBlock TextWrapping="Wrap" Text="{Binding SourceWarningMessage}" Foreground="{DynamicResource WarningBrush}" FontSize="12" FontWeight="Bold" />
                             </StackPanel>
-                            <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding DismissSourceWarningCommand}" Padding="4,1" FontSize="9">
+                            <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding DismissSourceWarningCommand}" Padding="4,1" FontSize="12">
                                 <TextBlock Text="✕" Foreground="{DynamicResource TextMutedBrush}" />
                             </Button>
                         </Grid>
@@ -362,35 +347,36 @@
 
                     <!-- 2. Parameter Tabs -->
                     <TabControl Grid.Row="2" Margin="0,0,0,8">
+                        <TabControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></TabControl.ItemsPanel>
                         <!-- TAB: VIDEO -->
                         <TabItem Header="VIDEO">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Spacing="10" Margin="4,8">
                                     <!-- Video Encoder -->
-                                    <Grid ColumnDefinitions="120,*">
-                                        <TextBlock Grid.Column="0" Text="Video Encoder" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.CodecOptions}" 
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Video Encoder" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.CodecOptions}"
                                                   SelectedItem="{Binding TranscodeParams.Codec}" HorizontalAlignment="Stretch" />
                                     </Grid>
 
                                     <!-- Framerate -->
-                                    <Grid ColumnDefinitions="120,*">
-                                        <TextBlock Grid.Column="0" Text="Framerate (FPS)" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.FramerateOptions}" 
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Framerate (FPS)" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.FramerateOptions}"
                                                   SelectedItem="{Binding TranscodeParams.Framerate}" HorizontalAlignment="Stretch" />
                                     </Grid>
 
                                     <!-- Tune -->
-                                    <Grid ColumnDefinitions="120,*">
-                                        <TextBlock Grid.Column="0" Text="Tune" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.TuneOptions}" 
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Tune" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.TuneOptions}"
                                                   SelectedItem="{Binding TranscodeParams.Tune}" HorizontalAlignment="Stretch" />
                                     </Grid>
 
                                     <!-- Pixel Format -->
-                                    <Grid ColumnDefinitions="120,*">
-                                        <TextBlock Grid.Column="0" Text="Pixel Format" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.PixelFormatOptions}" 
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Pixel Format" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.PixelFormatOptions}"
                                                   SelectedItem="{Binding TranscodeParams.PixelFormat}" HorizontalAlignment="Stretch" />
                                     </Grid>
 
@@ -398,13 +384,13 @@
                                     <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                                         <StackPanel Spacing="4">
                                             <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Grid.Column="0" Text="Rate Control: Constant Quality (CRF)" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" FontSize="11" />
+                                                <TextBlock Grid.Column="0" Text="Rate Control: Constant Quality (CRF)" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" FontSize="12" />
                                                 <TextBlock Grid.Column="1" Text="{Binding TranscodeParams.CrfBadgeText}" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold" FontSize="12" />
                                             </Grid>
                                             <Slider Minimum="0" Maximum="51" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding TranscodeParams.Crf}" Foreground="{DynamicResource AccentBrush}" />
                                             <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Grid.Column="0" Text="Lower Quality (51)" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" />
-                                                <TextBlock Grid.Column="1" Text="Lossless (0)" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" />
+                                                <TextBlock Grid.Column="0" Text="Higher quality (0)" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                                <TextBlock Grid.Column="1" Text="Smaller file (51)" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                                             </Grid>
                                         </StackPanel>
                                     </Border>
@@ -413,14 +399,14 @@
                                     <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                                         <StackPanel Spacing="4">
                                             <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Grid.Column="0" Text="Encoder Speed Preset" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" />
-                                                <TextBlock Grid.Column="1" Text="{Binding TranscodeParams.SpeedName}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="11" />
+                                                <TextBlock Grid.Column="0" Text="Encoder Speed Preset" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                                <TextBlock Grid.Column="1" Text="{Binding TranscodeParams.SpeedName}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="12" />
                                             </Grid>
                                             <Slider Minimum="0" Maximum="7" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding TranscodeParams.SpeedIndex}" Foreground="{DynamicResource WarningBrush}" />
                                             <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <TextBlock Grid.Column="0" Text="ultrafast" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" />
-                                                <TextBlock Grid.Column="1" Text="medium" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" />
-                                                <TextBlock Grid.Column="2" Text="veryslow" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" />
+                                                <TextBlock Grid.Column="0" Text="ultrafast" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                                <TextBlock Grid.Column="1" Text="medium" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                                <TextBlock Grid.Column="2" Text="veryslow" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                                             </Grid>
                                         </StackPanel>
                                     </Border>
@@ -433,28 +419,33 @@
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Spacing="10" Margin="4,8">
                                     <!-- Resolution Limit -->
-                                    <Grid ColumnDefinitions="120,*">
-                                        <TextBlock Grid.Column="0" Text="Resolution Limit" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.ResolutionOptions}" 
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Resolution Limit" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.ResolutionOptions}"
                                                   SelectedItem="{Binding TranscodeParams.ResolutionLimit}" HorizontalAlignment="Stretch" />
                                     </Grid>
 
                                     <!-- Custom Dimensions (W x H) -->
                                     <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                                         <StackPanel Spacing="6">
-                                            <TextBlock Text="Custom Dimensions (0 = auto-scale / aspect ratio)" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" FontWeight="Bold" />
-                                            <Grid ColumnDefinitions="*,16,*">
-                                                <NumericUpDown Grid.Column="0" Value="{Binding TranscodeParams.Width}" Minimum="0" Maximum="7680" Increment="2" FormatString="Width: {0}" />
-                                                <TextBlock Grid.Column="1" Text="×" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="14" />
-                                                <NumericUpDown Grid.Column="2" Value="{Binding TranscodeParams.Height}" Minimum="0" Maximum="4320" Increment="2" FormatString="Height: {0}" />
-                                            </Grid>
+                                            <TextBlock TextWrapping="Wrap" Text="Custom dimensions (0 = automatic)" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
+                                            <StackPanel Spacing="8">
+                                                <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                    <TextBlock Text="Width" VerticalAlignment="Center" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.Width}" Minimum="0" Maximum="7680" Increment="2" FormatString="0" AutomationProperties.Name="Output width" />
+                                                </Grid>
+                                                <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                    <TextBlock Text="Height" VerticalAlignment="Center" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.Height}" Minimum="0" Maximum="4320" Increment="2" FormatString="0" AutomationProperties.Name="Output height" />
+                                                </Grid>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
 
                                     <!-- Cropping -->
-                                    <Grid ColumnDefinitions="120,*">
-                                        <TextBlock Grid.Column="0" Text="Cropping" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.CropModeOptions}" 
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Cropping" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.CropModeOptions}"
                                                   SelectedItem="{Binding TranscodeParams.CropMode}" HorizontalAlignment="Stretch" />
                                     </Grid>
 
@@ -462,13 +453,25 @@
                                     <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8"
                                             IsVisible="{Binding TranscodeParams.IsCustomCrop}">
                                         <StackPanel Spacing="6">
-                                            <TextBlock Text="Crop Margins (Pixels)" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" FontWeight="Bold" />
-                                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,*" Margin="0,4,0,0">
-                                                <NumericUpDown Grid.Row="0" Grid.Column="0" Value="{Binding TranscodeParams.CropTop}" Minimum="0" Maximum="4096" FormatString="Top: {0}" Margin="0,0,4,4" />
-                                                <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding TranscodeParams.CropBottom}" Minimum="0" Maximum="4096" FormatString="Bottom: {0}" Margin="4,0,0,4" />
-                                                <NumericUpDown Grid.Row="1" Grid.Column="0" Value="{Binding TranscodeParams.CropLeft}" Minimum="0" Maximum="4096" FormatString="Left: {0}" Margin="0,4,4,0" />
-                                                <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding TranscodeParams.CropRight}" Minimum="0" Maximum="4096" FormatString="Right: {0}" Margin="4,4,0,0" />
-                                            </Grid>
+                                            <TextBlock Text="Crop Margins (Pixels)" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
+                                            <StackPanel Spacing="8">
+                                                <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                    <TextBlock Text="Top" VerticalAlignment="Center" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropTop}" Minimum="0" Maximum="4096" FormatString="0" AutomationProperties.Name="Crop top" />
+                                                </Grid>
+                                                <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                    <TextBlock Text="Bottom" VerticalAlignment="Center" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropBottom}" Minimum="0" Maximum="4096" FormatString="0" AutomationProperties.Name="Crop bottom" />
+                                                </Grid>
+                                                <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                    <TextBlock Text="Left" VerticalAlignment="Center" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropLeft}" Minimum="0" Maximum="4096" FormatString="0" AutomationProperties.Name="Crop left" />
+                                                </Grid>
+                                                <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                    <TextBlock Text="Right" VerticalAlignment="Center" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropRight}" Minimum="0" Maximum="4096" FormatString="0" AutomationProperties.Name="Crop right" />
+                                                </Grid>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -480,13 +483,13 @@
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Spacing="10" Margin="4,8">
                                     <CheckBox IsChecked="{Binding TranscodeParams.Deinterlace}" Foreground="{DynamicResource TextPrimaryBrush}" Content="Deinterlace (Yadif mode)" />
-                                    
+
                                     <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                                         <StackPanel Spacing="6">
                                             <CheckBox IsChecked="{Binding TranscodeParams.Denoise}" Foreground="{DynamicResource TextPrimaryBrush}" Content="Denoise Filter (HQDN3D)" />
-                                            <Grid ColumnDefinitions="120,*" IsVisible="{Binding TranscodeParams.Denoise}">
-                                                <TextBlock Grid.Column="0" Text="Denoise Strength" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
-                                                <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.DenoisePresetOptions}" 
+                                            <Grid Classes="form-row" ColumnDefinitions="120,*" IsVisible="{Binding TranscodeParams.Denoise}">
+                                                <TextBlock Grid.Column="0" Text="Denoise Strength" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                                                <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.DenoisePresetOptions}"
                                                           SelectedItem="{Binding TranscodeParams.DenoiseFilter}" HorizontalAlignment="Stretch" />
                                             </Grid>
                                         </StackPanel>
@@ -500,8 +503,8 @@
                         <!-- TAB: OUTPUT -->
                         <TabItem Header="OUTPUT">
                             <StackPanel Spacing="8" Margin="4,8">
-                                <Grid ColumnDefinitions="120,*">
-                                    <TextBlock Grid.Column="0" Text="Container Format" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
+                                <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                    <TextBlock Grid.Column="0" Text="Container Format" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                     <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.ContainerOptions}" SelectedItem="{Binding TranscodeParams.Container}" HorizontalAlignment="Stretch" />
                                 </Grid>
                             </StackPanel>
@@ -513,20 +516,20 @@
                                 <StackPanel Spacing="10" Margin="4,8">
                                     <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                                         <StackPanel Spacing="8">
-                                            <TextBlock Text="{Binding TranscodeParams.AudioTrack}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" FontWeight="Bold" />
-                                            
-                                            <Grid ColumnDefinitions="120,*">
-                                                <TextBlock Grid.Column="0" Text="Audio Codec" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding TranscodeParams.AudioTrack}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" FontWeight="Bold" />
+
+                                            <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                <TextBlock Grid.Column="0" Text="Audio Codec" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                                 <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.AudioCodecOptions}" SelectedItem="{Binding TranscodeParams.AudioCodec}" HorizontalAlignment="Stretch" />
                                             </Grid>
 
-                                            <Grid ColumnDefinitions="120,*">
-                                                <TextBlock Grid.Column="0" Text="Bitrate" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
+                                            <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                <TextBlock Grid.Column="0" Text="Bitrate" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                                 <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.AudioBitrateOptions}" SelectedItem="{Binding TranscodeParams.AudioBitrate}" HorizontalAlignment="Stretch" />
                                             </Grid>
 
-                                            <Grid ColumnDefinitions="120,*">
-                                                <TextBlock Grid.Column="0" Text="Channels" Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" />
+                                            <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                                <TextBlock Grid.Column="0" Text="Channels" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                                 <ComboBox Grid.Column="1" ItemsSource="{Binding TranscodeParams.AudioChannelStringOptions}" SelectedItem="{Binding TranscodeParams.AudioChannelsString}" HorizontalAlignment="Stretch" />
                                             </Grid>
                                         </StackPanel>
@@ -540,170 +543,124 @@
                     <Border Grid.Row="3" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                         <StackPanel Spacing="4">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="&gt;_ ENCODER SUMMARY" Foreground="{DynamicResource WarningBrush}" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="0" Text="FFmpeg preview" Foreground="{DynamicResource WarningBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                    <TextBlock Text="READ ONLY" Foreground="{DynamicResource HealthyBrush}" FontSize="9" VerticalAlignment="Center" />
+
+                                    <Button x:Name="CopyPreviewButton" Classes="cyber-btn" Click="CopyEncoderSummary" ToolTip.Tip="Copy the FFmpeg preview" ><StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"><PathIcon Data="M 5,1 L 14,1 14,11 11,11 M 1,5 L 10,5 10,15 1,15 Z" Width="13" Height="13" /><TextBlock Text="Copy" VerticalAlignment="Center" /></StackPanel></Button>
                                     <Button Classes="cyber-btn" Command="{Binding ToggleEncoderSummaryExpandedCommand}" Padding="6,2" IsVisible="{Binding !IsEncoderSummaryExpanded}" ToolTip.Tip="Expand multiline CLI preview">
-                                        <TextBlock Text="▲ EXPAND" Foreground="{DynamicResource AccentTextBrush}" FontSize="9" FontWeight="Bold" />
+                                        <TextBlock Text="Expand" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" FontWeight="Bold" />
                                     </Button>
                                     <Button Classes="cyber-btn" Command="{Binding ToggleEncoderSummaryExpandedCommand}" Padding="6,2" IsVisible="{Binding IsEncoderSummaryExpanded}" ToolTip.Tip="Collapse CLI preview">
-                                        <TextBlock Text="▼ COLLAPSE" Foreground="{DynamicResource AccentTextBrush}" FontSize="9" FontWeight="Bold" />
+                                        <TextBlock Text="Collapse" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" FontWeight="Bold" />
                                     </Button>
                                 </StackPanel>
                             </Grid>
                             <!-- Collapsed single-line view -->
-                            <TextBox IsReadOnly="True" Text="{Binding TranscodeParams.RawCliInput}" Background="{DynamicResource AppBgBrush}" Foreground="{DynamicResource AccentTextBrush}" 
-                                     BorderThickness="0" FontSize="10" FontFamily="Consolas, monospace" Padding="4"
+                            <TextBox IsReadOnly="True" Text="{Binding TranscodeParams.RawCliInput}" Background="{DynamicResource AppBgBrush}" Foreground="{DynamicResource AccentTextBrush}"
+                                     BorderThickness="0" FontSize="12" FontFamily="Consolas, monospace" Padding="4"
                                      IsVisible="{Binding !IsEncoderSummaryExpanded}" TextWrapping="NoWrap" />
                             <!-- Expanded multiline view -->
-                            <TextBox IsReadOnly="True" Text="{Binding TranscodeParams.RawCliInput}" Background="{DynamicResource AppBgBrush}" Foreground="{DynamicResource AccentTextBrush}" 
-                                     BorderThickness="0" FontSize="10" FontFamily="Consolas, monospace" Padding="4"
+                            <TextBox IsReadOnly="True" Text="{Binding TranscodeParams.RawCliInput}" Background="{DynamicResource AppBgBrush}" Foreground="{DynamicResource AccentTextBrush}"
+                                     BorderThickness="0" FontSize="12" FontFamily="Consolas, monospace" Padding="4"
                                      IsVisible="{Binding IsEncoderSummaryExpanded}" TextWrapping="Wrap" AcceptsReturn="True"
                                      MaxHeight="180" ScrollViewer.VerticalScrollBarVisibility="Auto" />
                         </StackPanel>
                     </Border>
                 </Grid>
+                </ScrollViewer>
             </Border>
         </Grid>
 
-        <!-- ==================================================================== -->
-        <!-- ROW 2 OVERLAY: AUTHENTIC 4-COLUMN PRESET MEGA MENU -->
-        <!-- ==================================================================== -->
-        <Border Grid.Row="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="2" CornerRadius="6" Padding="12" Margin="10,0,10,10"
-                IsVisible="{Binding IsMegaMenuOpen}" VerticalAlignment="Top" ZIndex="50" BoxShadow="0 10 30 0 #000000">
-            <StackPanel Spacing="10">
-                <!-- Mega Menu Header -->
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <TextBlock Grid.Column="0" Text="■ HANDBRAKE &amp; SQUEEZE PRESET CATALOG" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="12" VerticalAlignment="Center" />
-                    <TextBox Grid.Column="1" Text="{Binding SearchQuery}" PlaceholderText="Search presets (e.g., 1080p, HEVC, Discord, NVENC)..." 
-                             Background="{DynamicResource DarkBaseBrush}" Foreground="{DynamicResource AccentTextBrush}" BorderBrush="{DynamicResource BorderBrush}" Margin="20,0" Padding="8,4" FontSize="11" />
-                    <Button Grid.Column="2" Classes="cyber-btn" Command="{Binding CloseMegaMenuCommand}">
-                        <TextBlock Text="✕ CLOSE MENU" Foreground="{DynamicResource TextMutedBrush}" />
-                    </Button>
-                </Grid>
-
-                <!-- 4-Column Grid inside ScrollViewer -->
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" MaxHeight="520">
-                    <Grid ColumnDefinitions="220,220,220,220" Margin="0,4">
-                        <!-- Column 1: General & Standard -->
-                        <Border Grid.Column="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="2">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="🚀 GENERAL &amp; STANDARD" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="10" />
-                                <ItemsControl ItemsSource="{Binding GeneralPresets}">
+        <!-- Centered, viewport-bounded catalog; handles follow Telemetry's centered resizing. -->
+        <Border Grid.RowSpan="3" Background="#99000000" IsVisible="{Binding IsMegaMenuOpen}" ZIndex="90">
+            <Grid x:Name="PresetDialog" Width="800" Height="520" HorizontalAlignment="Center" VerticalAlignment="Center" KeyboardNavigation.TabNavigation="Cycle">
+                <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Preset catalog" FontSize="16" FontWeight="SemiBold" />
+                                <TextBlock Text="Filter profiles, then expand a group to choose a preset." TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding CloseMegaMenuCommand}" Content="×" ToolTip.Tip="Close (Esc)" AutomationProperties.Name="Close presets" VerticalAlignment="Top" Margin="8,0,0,0" />
+                        </Grid>
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                            <TextBox x:Name="PresetSearch" Text="{Binding SearchQuery}" PlaceholderText="Search name, codec, resolution or description" AutomationProperties.Name="Search presets" />
+                            <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding ClearPresetFiltersCommand}" Content="Reset" Margin="8,0,0,0" />
+                        </Grid>
+                        <ComboBox Grid.Row="2" ItemsSource="{Binding PresetCategories}" SelectedItem="{Binding SelectedPresetCategory}" HorizontalAlignment="Stretch" Margin="0,0,0,12" AutomationProperties.Name="Preset category" />
+                        <Grid Grid.Row="3">
+                            <ScrollViewer x:Name="PresetScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding PresetGroups}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="m:TranscodePreset">
-                                            <Button Classes="cyber-btn" HorizontalAlignment="Stretch" Margin="0,0,0,4" Padding="6,4"
-                                                    Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).SelectPresetCommand}"
-                                                    CommandParameter="{Binding .}">
-                                                <StackPanel Spacing="2">
+                                        <DataTemplate x:DataType="vm:PresetGroupViewModel">
+                                            <Expander Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" Padding="0" IsExpanded="{Binding IsExpanded}" IsVisible="{Binding Presets.Count}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,0,0,6">
+                                                <Expander.Header>
                                                     <Grid ColumnDefinitions="*,Auto">
-                                                        <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" FontSize="10" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Tag}" Foreground="{DynamicResource WarningBrush}" FontSize="8" IsVisible="{Binding Tag, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Presets.Count}" Foreground="{DynamicResource TextMutedBrush}" Margin="12,0,0,0" />
                                                     </Grid>
-                                                    <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextMutedBrush}" FontSize="8" TextWrapping="Wrap" />
-                                                </StackPanel>
-                                            </Button>
+                                                </Expander.Header>
+                                                <ItemsControl ItemsSource="{Binding Presets}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="m:TranscodePreset">
+                                                            <Button Classes="cyber-btn" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,6" Margin="0,2" Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).SelectPresetCommand}" CommandParameter="{Binding .}">
+                                                                <Grid ColumnDefinitions="*,Auto">
+                                                                    <StackPanel Spacing="2">
+                                                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                        <TextBlock Text="{Binding Description}" FontWeight="Normal" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                                                                        <TextBlock Text="{Binding Codec}" FontWeight="Normal" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                                                    </StackPanel>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Tag}" FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}" />
+                                                                </Grid>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Expander>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Column 2: Web & Social -->
-                        <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="2">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="🌐 WEB &amp; SOCIAL" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold" FontSize="10" />
-                                <ItemsControl ItemsSource="{Binding WebPresets}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="m:TranscodePreset">
-                                            <Button Classes="cyber-btn" HorizontalAlignment="Stretch" Margin="0,0,0,4" Padding="6,4"
-                                                    Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).SelectPresetCommand}"
-                                                    CommandParameter="{Binding .}">
-                                                <StackPanel Spacing="2">
-                                                    <Grid ColumnDefinitions="*,Auto">
-                                                        <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" FontSize="10" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Tag}" Foreground="{DynamicResource AccentTextBrush}" FontSize="8" IsVisible="{Binding Tag, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextMutedBrush}" FontSize="8" TextWrapping="Wrap" />
-                                                </StackPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Column 3: Hardware Accelerated -->
-                        <Border Grid.Column="2" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="2">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="⚡ HARDWARE ACCELERATED" Foreground="{DynamicResource HealthyBrush}" FontWeight="Bold" FontSize="10" />
-                                <ItemsControl ItemsSource="{Binding HardwarePresets}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="m:TranscodePreset">
-                                            <Button Classes="cyber-btn" HorizontalAlignment="Stretch" Margin="0,0,0,4" Padding="6,4"
-                                                    Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).SelectPresetCommand}"
-                                                    CommandParameter="{Binding .}">
-                                                <StackPanel Spacing="2">
-                                                    <Grid ColumnDefinitions="*,Auto">
-                                                        <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" FontSize="10" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Tag}" Foreground="{DynamicResource HealthyBrush}" FontSize="8" IsVisible="{Binding Tag, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextMutedBrush}" FontSize="8" TextWrapping="Wrap" />
-                                                </StackPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Column 4: Production & Archival -->
-                        <Border Grid.Column="3" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="2">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="💎 PRODUCTION &amp; ARCHIVAL" Foreground="{DynamicResource PurpleBrush}" FontWeight="Bold" FontSize="10" />
-                                <ItemsControl ItemsSource="{Binding ProductionPresets}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="m:TranscodePreset">
-                                            <Button Classes="cyber-btn" HorizontalAlignment="Stretch" Margin="0,0,0,4" Padding="6,4"
-                                                    Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).SelectPresetCommand}"
-                                                    CommandParameter="{Binding .}">
-                                                <StackPanel Spacing="2">
-                                                    <Grid ColumnDefinitions="*,Auto">
-                                                        <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Bold" FontSize="10" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding Tag}" Foreground="{DynamicResource PurpleBrush}" FontSize="8" IsVisible="{Binding Tag, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                    </Grid>
-                                                    <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextMutedBrush}" FontSize="8" TextWrapping="Wrap" />
-                                                </StackPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
+                            </ScrollViewer>
+                            <TextBlock Text="No presets match. Try another search or reset the filters." IsVisible="{Binding !FilteredPresets.Count}" TextWrapping="Wrap" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" />
+                        </Grid>
+                        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                            <TextBlock Text="{Binding FilteredPresets.Count, StringFormat='{}{0} presets'}" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}" />
+                            <Button x:Name="ResetSizeButton" Grid.Column="1" Classes="cyber-btn" Content="Reset size" Click="ResetPresetSize" />
+                        </Grid>
                     </Grid>
-                </ScrollViewer>
-            </StackPanel>
+                </Border>
+                <Grid x:Name="ResizeHandles">
+                    <PathIcon Classes="resize-grip" Data="M1,10 L10,1 10,3 3,10 Z M6,10 L10,6 10,8 8,10 Z" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="3" IsHitTestVisible="False" />
+                    <Border Name="ResizeLeft" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Stretch" Width="8" Margin="0,8" Cursor="SizeWestEast" />
+                    <Border Name="ResizeRight" Background="Transparent" HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="8" Margin="0,8" Cursor="SizeWestEast" />
+                    <Border Name="ResizeTop" Background="Transparent" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="8,0" Height="8" Cursor="SizeNorthSouth" />
+                    <Border Name="ResizeBottom" Background="Transparent" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Margin="8,0" Height="8" Cursor="SizeNorthSouth" />
+                    <Border Name="ResizeTopLeft" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top" Width="8" Height="8" Cursor="TopLeftCorner" />
+                    <Border Name="ResizeTopRight" Background="Transparent" HorizontalAlignment="Right" VerticalAlignment="Top" Width="8" Height="8" Cursor="TopRightCorner" />
+                    <Border Name="ResizeBottomLeft" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="8" Height="8" Cursor="BottomLeftCorner" />
+                    <Border Name="ResizeBottomRight" Background="Transparent" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="8" Height="8" Cursor="BottomRightCorner" />
+                </Grid>
+            </Grid>
         </Border>
 
         <!-- ==================================================================== -->
         <!-- RIG INFO MODAL DIALOG OVERLAY -->
         <!-- ==================================================================== -->
-        <Border Grid.Row="0" Grid.RowSpan="3" Background="#CC000000" IsVisible="{Binding IsRigInfoOpen}" ZIndex="110">
-            <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" CornerRadius="6" 
-                    Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560" MaxHeight="650" Margin="16">
+        <Border Grid.Row="0" Grid.RowSpan="3" Background="#CC000000" KeyboardNavigation.TabNavigation="Cycle" IsVisible="{Binding IsRigInfoOpen}" ZIndex="110">
+            <Grid x:Name="HardwareDialog" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" CornerRadius="6"
+                    Padding="12">
                 <Grid RowDefinitions="Auto,*,Auto">
                     <!-- Title Header -->
-                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,14">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <TextBlock Text="🖥 RIG &amp; HARDWARE TELEMETRY" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold" FontSize="13" />
-                            <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{Binding NodeInfo.StatusBadgeColor}" BorderThickness="1" CornerRadius="3" Padding="6,2">
-                                <TextBlock Text="{Binding NodeInfo.StatusBadgeText}" Foreground="{Binding NodeInfo.StatusBadgeColor}" FontSize="10" FontWeight="Bold" />
-                            </Border>
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+                        <StackPanel Grid.Column="0" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="Hardware" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold" FontSize="13" />
+                            <Border Background="Transparent" HorizontalAlignment="Left"><TextBlock TextTrimming="CharacterEllipsis" MaxWidth="130" Text="{Binding NodeInfo.ConnectionLabel}" Foreground="{Binding NodeInfo.StatusBadgeColor}" FontSize="12" FontWeight="Bold" /></Border>
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="cyber-btn" Command="{Binding RescanHardwareCommand}" IsEnabled="{Binding !IsRescanningHardware}" Padding="8,3" Margin="0,0,8,0" ToolTip.Tip="Probe host hardware encoders and refresh cache">
+                        <Button x:Name="RescanButton" Grid.Column="1" Classes="cyber-btn" Command="{Binding RescanHardwareCommand}" IsEnabled="{Binding !IsRescanningHardware}" Padding="8,3" Margin="0,0,8,0" ToolTip.Tip="Probe host hardware encoders and refresh cache">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="🔄" FontSize="10" VerticalAlignment="Center" />
-                                <TextBlock Text="RESCAN HARDWARE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="🔄" FontSize="12" VerticalAlignment="Center" />
+                                <TextBlock Text="Rescan" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Grid.Column="2" Classes="cyber-btn" Command="{Binding CloseRigInfoCommand}" Padding="6,2">
@@ -715,50 +672,50 @@
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                         <StackPanel Spacing="14">
                             <!-- System Metrics Cards -->
-                            <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,4">
+                            <UniformGrid x:Name="HardwareMetrics" Columns="3" Margin="0,0,0,4">
                                 <Border Grid.Column="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,4,0">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Text="CPU LOAD" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" FontWeight="Bold" />
+                                        <TextBlock Text="CPU LOAD" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
                                         <TextBlock Text="{Binding NodeInfo.CpuUsageText}" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" FontWeight="Bold" />
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="2,0">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Text="MEMORY USAGE" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" FontWeight="Bold" />
+                                        <TextBlock Text="MEMORY USAGE" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
                                         <TextBlock Text="{Binding NodeInfo.MemoryUsage}" Foreground="{DynamicResource HealthyBrush}" FontSize="12" FontWeight="Bold" />
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="2" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="4,0,0,0">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Text="MAX CONCURRENCY" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" FontWeight="Bold" />
+                                        <TextBlock Text="MAX CONCURRENCY" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
                                         <TextBlock Text="{Binding NodeInfo.MaxConcurrent, StringFormat='{}{0} Jobs'}" Foreground="{DynamicResource WarningBrush}" FontSize="12" FontWeight="Bold" />
                                     </StackPanel>
                                 </Border>
-                            </Grid>
+                            </UniformGrid>
 
                             <!-- Node & Endpoint Details -->
                             <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10">
                                 <StackPanel Spacing="6">
-                                    <TextBlock Text="ENDPOINT SPECIFICATIONS" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" FontWeight="Bold" />
-                                    <Grid ColumnDefinitions="140,*">
-                                        <TextBlock Grid.Column="0" Text="Node Name:" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                                        <TextBlock Grid.Column="1" Text="{Binding NodeInfo.NodeName}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="10" FontWeight="Bold" />
+                                    <TextBlock Text="ENDPOINT SPECIFICATIONS" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Node Name:" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                        <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding NodeInfo.NodeName}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" FontWeight="Bold" />
                                     </Grid>
-                                    <Grid ColumnDefinitions="140,*">
-                                        <TextBlock Grid.Column="0" Text="LAN Address:" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                                        <TextBlock Grid.Column="1" Text="{Binding NodeInfo.LanAddress}" Foreground="{DynamicResource AccentTextBrush}" FontSize="10" />
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="LAN Address:" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                        <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding NodeInfo.LanAddress}" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" />
                                     </Grid>
-                                    <Grid ColumnDefinitions="140,*">
-                                        <TextBlock Grid.Column="0" Text="Daemon Version:" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                                        <TextBlock Grid.Column="1" Text="{Binding NodeInfo.Version}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="10" />
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Daemon Version:" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                        <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding NodeInfo.Version}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" />
                                     </Grid>
-                                    <Grid ColumnDefinitions="140,*">
-                                        <TextBlock Grid.Column="0" Text="GPU / Acceleration:" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                                        <TextBlock Grid.Column="1" Text="{Binding NodeInfo.GpuStatus}" Foreground="{DynamicResource HealthyBrush}" FontSize="10" FontWeight="Bold" />
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="GPU / Acceleration:" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                        <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding NodeInfo.GpuStatus}" Foreground="{DynamicResource HealthyBrush}" FontSize="12" FontWeight="Bold" />
                                     </Grid>
-                                    <Grid ColumnDefinitions="140,*">
-                                        <TextBlock Grid.Column="0" Text="Probe Status:" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                                        <TextBlock Grid.Column="1" Text="{Binding NodeInfo.HardwareStatus}" Foreground="{DynamicResource AccentTextBrush}" FontSize="10" />
+                                    <Grid Classes="form-row" ColumnDefinitions="120,*">
+                                        <TextBlock Grid.Column="0" Text="Probe Status:" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                                        <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding NodeInfo.HardwareStatus}" Foreground="{DynamicResource AccentTextBrush}" FontSize="12" />
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -766,7 +723,7 @@
                             <!-- Hardware Encoders -->
                             <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10">
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="HARDWARE ENCODERS" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" FontWeight="Bold" />
+                                    <TextBlock Text="HARDWARE ENCODERS" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" />
                                     <ItemsControl ItemsSource="{Binding NodeInfo.HardwareEncoders}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -776,13 +733,13 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource HealthyBrush}" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="2,2">
-                                                    <TextBlock Text="{Binding}" Foreground="{DynamicResource HealthyBrush}" FontSize="10" FontWeight="Bold" />
+                                                    <TextBlock Text="{Binding}" Foreground="{DynamicResource HealthyBrush}" FontSize="12" FontWeight="Bold" />
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                     <TextBlock Text="No dedicated hardware encoders detected (Software transcode fallback active)."
-                                               Foreground="{DynamicResource TextMutedBrush}" FontSize="10"
+                                               Foreground="{DynamicResource TextMutedBrush}" FontSize="12"
                                                IsVisible="{Binding !NodeInfo.HasHardwareEncoders}" />
                                 </StackPanel>
                             </Border>
@@ -791,19 +748,19 @@
                             <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10">
                                 <StackPanel Spacing="8">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Column="0" Text="ALL DETECTED ENCODERS" Foreground="{DynamicResource TextMutedBrush}" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="0" Text="ALL DETECTED ENCODERS" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                 <Border Width="6" Height="6" CornerRadius="3" Background="{DynamicResource HealthyBrush}" VerticalAlignment="Center" />
-                                                <TextBlock Text="HW Ready" Foreground="{DynamicResource TextMutedBrush}" FontSize="8" />
+                                                <TextBlock Text="HW Ready" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                 <Border Width="6" Height="6" CornerRadius="3" Background="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                                                <TextBlock Text="CPU / SW" Foreground="{DynamicResource TextMutedBrush}" FontSize="8" />
+                                                <TextBlock Text="CPU / SW" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                 <Border Width="6" Height="6" CornerRadius="3" Background="{DynamicResource TextMutedBrush}" Opacity="0.5" VerticalAlignment="Center" />
-                                                <TextBlock Text="HW Missing" Foreground="{DynamicResource TextMutedBrush}" FontSize="8" />
+                                                <TextBlock Text="HW Missing" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>
@@ -815,12 +772,12 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="m:EncoderInfo">
-                                                <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{Binding BorderColor}" BorderThickness="1" 
+                                                <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{Binding BorderColor}" BorderThickness="1"
                                                         CornerRadius="3" Padding="5,2" Margin="2,2" Opacity="{Binding Opacity}"
                                                         ToolTip.Tip="{Binding ToolTip}">
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <TextBlock Text="{Binding Name}" Foreground="{Binding TextColor}" FontSize="9" />
-                                                        <TextBlock Text="{Binding BadgeText}" Foreground="{Binding TextColor}" FontSize="8" FontWeight="Bold" />
+                                                        <TextBlock Text="{Binding Name}" Foreground="{Binding TextColor}" FontSize="12" />
+                                                        <TextBlock Text="{Binding BadgeText}" Foreground="{Binding TextColor}" FontSize="12" FontWeight="Bold" />
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>
@@ -837,30 +794,37 @@
                     </Button>
                 </Grid>
             </Border>
+            </Grid>
         </Border>
 
         <!-- ==================================================================== -->
         <!-- ADD PRESET MODAL DIALOG OVERLAY -->
         <!-- ==================================================================== -->
-        <Border Grid.Row="0" Grid.RowSpan="3" Background="#AA000000" IsVisible="{Binding IsAddPresetModalOpen}" ZIndex="100">
-            <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="2" CornerRadius="6" 
-                    Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420" Margin="16">
-                <StackPanel Spacing="12">
+        <Border Grid.Row="0" Grid.RowSpan="3" Background="#AA000000" KeyboardNavigation.TabNavigation="Cycle" IsVisible="{Binding IsAddPresetModalOpen}" ZIndex="100">
+            <Grid x:Name="SavePresetDialog" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="2" CornerRadius="6"
+                    Padding="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="8">
                     <TextBlock Text="ADD CUSTOM PRESET PROFILE" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" FontSize="13" />
-                    
+
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Preset Name" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
-                        <TextBox Text="{Binding AddPresetModal.PresetName}" PlaceholderText="Enter preset name (e.g. My 1080p Stream)..."
+                        <TextBlock Text="Preset Name" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                        <TextBox x:Name="PresetNameInput" Text="{Binding AddPresetModal.PresetName}" PlaceholderText="Enter preset name (e.g. My 1080p Stream)..."
                                  Background="{DynamicResource DarkBaseBrush}" Foreground="{DynamicResource AccentTextBrush}" BorderBrush="{DynamicResource BorderBrush}" />
                     </StackPanel>
 
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Description" Foreground="{DynamicResource TextMutedBrush}" FontSize="10" />
+                        <TextBlock Text="Description" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
                         <TextBox Text="{Binding AddPresetModal.Description}" PlaceholderText="Optional description..."
                                  Background="{DynamicResource DarkBaseBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderBrush}" />
                     </StackPanel>
 
-                    <TextBlock Text="{Binding AddPresetModal.ErrorMessage}" Foreground="{DynamicResource CriticalBrush}" FontSize="10" 
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Group" Foreground="{DynamicResource TextMutedBrush}" FontSize="12" />
+                        <ComboBox ItemsSource="{Binding AddPresetModal.Categories}" SelectedItem="{Binding AddPresetModal.SelectedCategory}" HorizontalAlignment="Stretch" AutomationProperties.Name="Save preset group" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding AddPresetModal.ErrorMessage}" Foreground="{DynamicResource CriticalBrush}" FontSize="12"
                                IsVisible="{Binding AddPresetModal.ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
                     <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
@@ -874,19 +838,20 @@
                         </Button>
                     </Grid>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
+            </Grid>
         </Border>
 
         <!-- ==================================================================== -->
         <!-- SETTINGS / DISCOVERY MODAL OVERLAY -->
         <!-- ==================================================================== -->
-        <Border Grid.RowSpan="3" Background="#CC000000" 
-                IsVisible="{Binding IsSettingsOpen}"
+        <Border Grid.RowSpan="3" Background="#CC000000"
+                IsVisible="{Binding IsSettingsOpen}" ZIndex="120" KeyboardNavigation.TabNavigation="Cycle"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <views:SettingsDialog DataContext="{Binding Settings}" 
-                                  MaxWidth="560" MaxHeight="620"
-                                  Margin="12"
-                                  HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+            <Grid x:Name="SettingsWindow" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <views:SettingsDialog x:Name="ConnectionDialog" DataContext="{Binding Settings}" />
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

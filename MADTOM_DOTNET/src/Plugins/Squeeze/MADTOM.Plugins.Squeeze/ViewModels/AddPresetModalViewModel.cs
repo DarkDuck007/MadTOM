@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -14,6 +15,11 @@ public partial class AddPresetModalViewModel : ViewModelBase
 
     [ObservableProperty]
     private string? _errorMessage;
+
+    public IReadOnlyList<string> Categories { get; set; } = new[] { "Custom" };
+
+    [ObservableProperty]
+    private string _selectedCategory = "Custom";
 
     public Action<string, string>? OnSaveRequested { get; set; }
     public Action? OnCancelRequested { get; set; }

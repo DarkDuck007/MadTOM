@@ -293,7 +293,7 @@ public class PresetService : IPresetService
         if (incoming.Count == 0) return;
 
         // Preserve existing user custom presets
-        var customList = _presets.Where(p => p.Category == "Custom").ToList();
+        var customList = _presets.Where(p => p.Category == "Custom" || p.Key.StartsWith("custom_", StringComparison.Ordinal)).ToList();
         _presets.Clear();
         _presets.AddRange(incoming);
         _presets.AddRange(customList);

@@ -8,5 +8,5 @@ The **NOX AI** plugin (`MADTOM.Plugins.NoxAI`) provides a dedicated control plan
 
 - **Local Inference Management**: Monitor daemon state, warm model caches, and context memory limits.
 - **Hardware Telemetry**: Real-time GPU temperature, VRAM allocation, and token generation throughput metrics.
-- **Dynamic Tray Status**: Exposes active inference state and GPU load directly in the MADTOM Console tray menu.
+- **Dynamic Tray Status**: Exposes active inference state and GPU load directly in the MADTOM Studio tray menu.
 

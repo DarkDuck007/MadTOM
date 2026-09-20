@@ -51,13 +51,16 @@ ${BOLD}Options:${NC}
                               (default: $DEFAULT_RID)
 
   -p, --project NAME          Project to publish:
-                              - console         (MADTOM.Console - Avalonia Desktop App)
+                              - studio          (MADTOM.Studio - Avalonia Desktop App)
+                              - console         (Alias for studio)
                               - telemetry-app   (MADTOM.Plugins.Telemetry.App)
                               - squeeze-app     (MADTOM.Plugins.Squeeze.App)
                               - android-app     (MADTOM.Plugins.AndroidToolkit.App)
                               - mediacenter-app (MADTOM.Plugins.MediaCenter.App)
                               - noxai-app       (MADTOM.Plugins.NoxAI.App)
                               - audiosync-app   (MADTOM.Plugins.AudioSync.App)
+                              - vna-app         (MADTOM.Plugins.VNA.App)
+                              - connection-app  (MADTOM.Plugins.ConnectionToolkit.App)
                               - all             (all runnable projects, default)
 
   -c, --config CONFIG         Build configuration: Release | Debug (default: Release)
@@ -126,19 +129,21 @@ fi
 
 # Define projects
 declare -A PROJECTS
-PROJECTS["MADTOM.Console"]="$SCRIPT_DIR/src/Host/MADTOM.Console/MADTOM.Console.csproj"
+PROJECTS["MADTOM.Studio"]="$SCRIPT_DIR/src/Host/MADTOM.Studio/MADTOM.Studio.csproj"
 PROJECTS["MADTOM.Plugins.Telemetry.App"]="$SCRIPT_DIR/src/Plugins/Telemetry/MADTOM.Plugins.Telemetry.App/MADTOM.Plugins.Telemetry.App.csproj"
 PROJECTS["MADTOM.Plugins.Squeeze.App"]="$SCRIPT_DIR/src/Plugins/Squeeze/MADTOM.Plugins.Squeeze.App/MADTOM.Plugins.Squeeze.App.csproj"
 PROJECTS["MADTOM.Plugins.AndroidToolkit.App"]="$SCRIPT_DIR/src/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit.App/MADTOM.Plugins.AndroidToolkit.App.csproj"
 PROJECTS["MADTOM.Plugins.MediaCenter.App"]="$SCRIPT_DIR/src/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter.App/MADTOM.Plugins.MediaCenter.App.csproj"
 PROJECTS["MADTOM.Plugins.NoxAI.App"]="$SCRIPT_DIR/src/Plugins/NoxAI/MADTOM.Plugins.NoxAI.App/MADTOM.Plugins.NoxAI.App.csproj"
 PROJECTS["MADTOM.Plugins.AudioSync.App"]="$SCRIPT_DIR/src/Plugins/AudioSync/MADTOM.Plugins.AudioSync.App/MADTOM.Plugins.AudioSync.App.csproj"
+PROJECTS["MADTOM.Plugins.VNA.App"]="$SCRIPT_DIR/src/Plugins/VNA/MADTOM.Plugins.VNA.App/MADTOM.Plugins.VNA.App.csproj"
+PROJECTS["MADTOM.Plugins.ConnectionToolkit.App"]="$SCRIPT_DIR/src/Plugins/ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit.App/MADTOM.Plugins.ConnectionToolkit.App.csproj"
 
 # Filter projects to build
 declare -A SELECTED_PROJECTS
 case "$PROJECT_SEL" in
-    console)
-        SELECTED_PROJECTS["MADTOM.Console"]="${PROJECTS["MADTOM.Console"]}"
+    studio|console)
+        SELECTED_PROJECTS["MADTOM.Studio"]="${PROJECTS["MADTOM.Studio"]}"
         ;;
     telemetry-app)
         SELECTED_PROJECTS["MADTOM.Plugins.Telemetry.App"]="${PROJECTS["MADTOM.Plugins.Telemetry.App"]}"
@@ -158,13 +163,19 @@ case "$PROJECT_SEL" in
     audiosync-app)
         SELECTED_PROJECTS["MADTOM.Plugins.AudioSync.App"]="${PROJECTS["MADTOM.Plugins.AudioSync.App"]}"
         ;;
+    vna-app)
+        SELECTED_PROJECTS["MADTOM.Plugins.VNA.App"]="${PROJECTS["MADTOM.Plugins.VNA.App"]}"
+        ;;
+    connection-app)
+        SELECTED_PROJECTS["MADTOM.Plugins.ConnectionToolkit.App"]="${PROJECTS["MADTOM.Plugins.ConnectionToolkit.App"]}"
+        ;;
     all)
         for p in "${!PROJECTS[@]}"; do
             SELECTED_PROJECTS["$p"]="${PROJECTS["$p"]}"
         done
         ;;
     *)
-        echo -e "${RED}Error: Unknown project '$PROJECT_SEL'. Choose 'console', 'telemetry-app', 'squeeze-app', 'android-app', 'mediacenter-app', 'noxai-app', 'audiosync-app', or 'all'.${NC}" >&2
+        echo -e "${RED}Error: Unknown project '$PROJECT_SEL'. Choose 'studio', 'telemetry-app', 'squeeze-app', 'android-app', 'mediacenter-app', 'noxai-app', 'audiosync-app', 'vna-app', 'connection-app', or 'all'.${NC}" >&2
         exit 1
         ;;
 esac

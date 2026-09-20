@@ -41,21 +41,25 @@ public partial class MainViewModel : ViewModelBase
     public string ActivePresetForeground => IsCustomPreset ? "#F5A623" : "#00F0FF";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAnyDialogOpen))]
     private bool _isMegaMenuOpen = false;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAnyDialogOpen))]
     private bool _isSettingsOpen = false;
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAnyDialogOpen))]
     private bool _isAddPresetModalOpen = false;
 
     [ObservableProperty]
     private bool _isJobQueueCollapsed = false;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAnyDialogOpen))]
     private bool _isRigInfoOpen = false;
 
     [ObservableProperty]
@@ -143,6 +147,25 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     private ObservableCollection<TranscodePreset> _customPresets = new();
+
+    public bool IsAnyDialogOpen => IsMegaMenuOpen || IsSettingsOpen || IsAddPresetModalOpen || IsRigInfoOpen;
+
+    public ObservableCollection<PresetGroupViewModel> PresetGroups { get; } = new();
+
+    public ObservableCollection<TranscodePreset> FilteredPresets { get; } = new();
+    public ObservableCollection<string> PresetCategories { get; } = new() { "All categories" };
+
+    [ObservableProperty]
+    private string _selectedPresetCategory = "All categories";
+
+    partial void OnSelectedPresetCategoryChanged(string value) => FilterPresets(SearchQuery);
+
+    [RelayCommand]
+    private void ClearPresetFilters()
+    {
+        SearchQuery = string.Empty;
+        SelectedPresetCategory = "All categories";
+    }
 
     public MainViewModel() : this(new PresetService(), new HttpTranscoderBackendService(), new MdnsServerDiscoveryService())
     {
@@ -570,11 +593,16 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     public void OpenAddPresetModal()
     {
-        AddPresetModal = new AddPresetModalViewModel();
+        AddPresetModal = new AddPresetModalViewModel
+        {
+            Categories = PresetCategories.Where(c => c != "All categories").Append("Custom").Distinct().ToArray(),
+            SelectedCategory = SelectedPresetCategory != "All categories" ? SelectedPresetCategory : "Custom"
+        };
         AddPresetModal.OnSaveRequested = (title, desc) =>
         {
             var snapshot = TranscodeParams.CreatePresetSnapshot();
             var newPreset = _presetService.AddCustomPreset(title, desc, snapshot);
+            newPreset.Category = AddPresetModal.SelectedCategory;
             RefreshPresetCollections();
             SelectPreset(newPreset);
             IsAddPresetModalOpen = false;
@@ -648,18 +676,33 @@ public partial class MainViewModel : ViewModelBase
 
     private void RefreshPresetCollections()
     {
+        var selectedCategory = SelectedPresetCategory;
+        var categories = _presetService.GetAllPresets().Select(p => p.Category).Distinct().OrderBy(c => c).ToList();
+        PresetCategories.Clear();
+        PresetCategories.Add("All categories");
+        foreach (var category in categories) PresetCategories.Add(category);
+        SelectedPresetCategory = PresetCategories.Contains(selectedCategory) ? selectedCategory : "All categories";
         FilterPresets(SearchQuery);
     }
 
     private void FilterPresets(string query)
     {
         var all = _presetService.GetAllPresets();
-        if (!string.IsNullOrWhiteSpace(query))
+        var terms = (query ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        all = all.Where(p => terms.All(term =>
+            $"{p.Title} {p.Codec} {p.Description} {p.Category} {p.ResolutionLimit} {p.Container} {p.Tag}"
+                .Contains(term, StringComparison.OrdinalIgnoreCase))).ToList();
+
+        UpdateObservableCollection(FilteredPresets, all.Where(p =>
+            SelectedPresetCategory == "All categories" || p.Category == SelectedPresetCategory));
+
+        // Keep existing group instances so collapsing a group survives filtering and reopening.
+        foreach (var category in PresetCategories.Where(c => c != "All categories"))
+            if (!PresetGroups.Any(g => g.Name == category)) PresetGroups.Add(new PresetGroupViewModel(category));
+        foreach (var group in PresetGroups)
         {
-            all = all.Where(p =>
-                p.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                p.Codec.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                p.Description.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+            UpdateObservableCollection(group.Presets, FilteredPresets.Where(p => p.Category == group.Name));
+            group.UpdateSearch(terms.Length > 0 || SelectedPresetCategory != "All categories");
         }
 
         UpdateObservableCollection(GeneralPresets, all.Where(p => p.Category == "General"));

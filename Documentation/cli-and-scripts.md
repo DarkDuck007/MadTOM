@@ -15,7 +15,7 @@ This guide provides an exhaustive reference for all executables, build scripts, 
    - [`madtom-daemon` — Node Telemetry Agent](#1-madtom-daemon--node-telemetry-agent)
    - [`madtom-collector` — Central Telemetry Hub](#2-madtom-collector--central-telemetry-hub)
    - [`squeeze-server` — SQUEEZE Media Transcoding Daemon](#3-squeeze-server--squeeze-media-transcoding-daemon)
-   - [`MADTOM.Console` — Avalonia Desktop Application](#4-madtomconsole--avalonia-desktop-application)
+   - [`MADTOM.Studio` — Modular Operations Host Shell](#4-madtomstudio--modular-operations-host-shell)
    - [`MADTOM.Plugins.Telemetry.App` — Standalone Telemetry Client](#5-madtompluginstelemetryapp--standalone-telemetry-client)
    - [`MADTOM.Plugins.Squeeze.App` — Standalone SQUEEZE Client](#6-madtompluginssqueezeapp--standalone-squeeze-client)
 
@@ -39,7 +39,7 @@ Located at the repository root. Compiles the Go backend daemons (`madtom-collect
 | `--release` | *(none)* | Build Go and .NET with release optimizations (strips Go debug symbols) |
 | `--debug` | *(none)* | Build projects in Debug configuration (default) |
 | `--test` | *(none)* | Run full Go test suite (`go test ./...`) and all decoupled .NET test projects |
-| `--test-plugin` | `NAME` | Run targeted tests for a plugin (`telemetry`, `squeeze`, `android`, `mediacenter`, `noxai`, `audiosync`, `console`) |
+| `--test-plugin` | `NAME` | Run targeted tests for a plugin (`telemetry`, `squeeze`, `android`, `mediacenter`, `noxai`, `audiosync`, `vna`, `connection`, `studio`) |
 | `--clean` | *(none)* | Remove previous build artifacts prior to compiling |
 | `-h`, `--help` | *(none)* | Display help message and exit |
 
@@ -56,6 +56,9 @@ Located at the repository root. Compiles the Go backend daemons (`madtom-collect
 
 # Run targeted build and tests for Telemetry only
 ./build.sh --test-plugin telemetry
+
+# Run targeted build and tests for MADTOM Studio host only
+./build.sh --test-plugin studio
 
 # Build Go daemons specifically for ARM64 and build .NET solution
 ./build.sh --arch arm64
@@ -81,7 +84,7 @@ Located at `MADTOM_DOTNET/publish.sh` and symlinked to root `./publish.sh`. Prod
 | Option | Argument | Description |
 |---|---|---|
 | `-a`, `--arch`, `-r`, `--rid` | `linux-x64` \| `linux-arm64` \| `linux-arm` \| `all` | Target Linux RID/architecture (default: host RID). Aliases: `x64`, `amd64`, `arm64`, `aarch64`, `arm`, `armv7` |
-| `-p`, `--project` | `console` \| `telemetry-app` \| `all` | Project to publish (default: `all`) |
+| `-p`, `--project` | `studio` \| `telemetry-app` \| `squeeze-app` \| `android-app` \| `mediacenter-app` \| `noxai-app` \| `audiosync-app` \| `vna-app` \| `connection-app` \| `all` | Project to publish (default: `all`). `console` accepted as legacy alias for `studio`. |
 | `-c`, `--config` | `Release` \| `Debug` | Build configuration (default: `Release`) |
 | `--single-file` | *(none)* | Package into single-file executable (default: enabled) |
 | `--no-single-file` | *(none)* | Output loose directory of assemblies and native shared libraries |
@@ -99,8 +102,8 @@ Located at `MADTOM_DOTNET/publish.sh` and symlinked to root `./publish.sh`. Prod
 # Cross-publish for all supported Linux architectures (x64, arm64, armv7)
 ./publish.sh --arch all
 
-# Publish only the main desktop console application for ARM64
-./publish.sh -p console -a linux-arm64
+# Publish only the main desktop studio application for ARM64
+./publish.sh -p studio -a linux-arm64
 ```
 
 ---
@@ -138,8 +141,10 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 | `--ssh-pass` | `PASS` | *(none)* | Remote SSH login password |
 | `--sudo-pass` | `PASS` | `--ssh-pass` | Remote sudo elevation password |
 | `--build` | *(none)* | Disabled | Force local Go compilation before deployment |
+| `--daemon` | *(none)* | Active | Deploy node telemetry agent |
+| `--collector` | *(none)* | Inactive | Deploy collector service |
 | `--dry-run` | *(none)* | Disabled | Validate deployment configuration without connecting |
-| `--help` | *(none)* | *(none)* | Show usage help and exit |
+| `-h`, `--help` | *(none)* | *(none)* | Show usage help and exit |
 
 #### Examples
 ```bash
@@ -381,31 +386,31 @@ sudo systemctl enable --now squeeze-server
 
 ---
 
-### 4. `MADTOM.Console` — Avalonia Desktop Application
+### 4. `MADTOM.Studio` — Modular Operations Host Shell
 
 Both desktop clients also accept `MADTOM_UI_TIMING=1` for compact refresh summaries and five-second UI performance intervals. See [UI baselining commands and metrics](Plugins/Telemetry/ui-and-visualization.md#ui-performance-baselining), including the `tools/Telemetry/summarize_ui_performance.py` log summarizer.
 
 Both desktop clients accept the environment variable `MADTOM_HISTORY_TIMING=1` for opt-in scope-load timing logs on stderr. See [capture commands and timing fields](Plugins/Telemetry/ui-and-visualization.md#history-timing-diagnostics). Omit it to disable.
 
-The primary desktop user interface hosting plugins (Telemetry, SQUEEZE, Android Toolkit, AudioSync, MediaCenter, Nox AI), fleet topology, downsampled graphs, and process lists.
+The primary desktop user interface hosting plugins (Telemetry, SQUEEZE, Android Toolkit, AudioSync, MediaCenter, Nox AI, VNA, Connection Toolkit), fleet topology, downsampled graphs, and process lists.
 
 - **Technology**: Avalonia UI (.NET 10)
-- **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Console/MADTOM.Console`
+- **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Studio/MADTOM.Studio`
 
 #### Running
 ```bash
 # Direct execution (self-contained executable)
-./MADTOM_DOTNET/publish/linux-x64/MADTOM.Console/MADTOM.Console
+./MADTOM_DOTNET/publish/linux-x64/MADTOM.Studio/MADTOM.Studio
 
 # Or running from source
-dotnet run --project MADTOM_DOTNET/src/Host/MADTOM.Console/MADTOM.Console.csproj
+dotnet run --project MADTOM_DOTNET/src/Host/MADTOM.Studio/MADTOM.Studio.csproj
 ```
 
 ---
 
 ### 5. `MADTOM.Plugins.Telemetry.App` — Standalone Telemetry Client
 
-A standalone, focused telemetry viewer packaging the telemetry plugin directly without the full MADTOM Console shell.
+A standalone, focused telemetry viewer packaging the telemetry plugin directly without the full MADTOM Studio shell.
 
 - **Technology**: Avalonia UI (.NET 10)
 - **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Plugins.Telemetry.App/MADTOM.Plugins.Telemetry.App`

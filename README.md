@@ -1,22 +1,24 @@
-# MADTOM Telemetry & Node Management System
+# MADTOM: Modular Engineering & Operations Studio
 
-MADTOM is a high-performance, real-time distributed telemetry and node monitoring platform designed for Linux environments across x86_64, ARM64 (aarch64), and ARMv7 (32-bit).
+MADTOM is an extensible operations and systems engineering workspace built around **MADTOM Studio**—a high-performance, modular desktop host shell that manages and unifies specialized plugins across telemetry, media transcoding, network analysis, device automation, and AI operations.
 
 ```mermaid
 graph LR
-    subgraph Monitored Nodes
+    subgraph Monitored & Managed Infrastructure
         D1["madtom-daemon<br/>(Push Mode)"]
         D2["madtom-daemon<br/>(Pull Mode)"]
         D3["madtom-daemon<br/>(Reverse-Push Mode)"]
+        SQD["squeeze-daemon<br/>(Transcode Engine)"]
     end
 
     subgraph Central Telemetry Hub
         C["madtom-collector<br/>(gRPC Port 50051)<br/>Pebble TSDB Storage"]
     end
 
-    subgraph Operator Clients
-        UI["MADTOM.Console<br/>(Avalonia C# UI)"]
-        APP["MADTOM.Plugins.Telemetry.App<br/>(Standalone UI)"]
+    subgraph Host Shell & Operator Clients
+        UI["MADTOM.Studio<br/>(Unified Avalonia Desktop Shell)"]
+        APP1["MADTOM.Plugins.Telemetry.App<br/>(Standalone Telemetry)"]
+        APP2["MADTOM.Plugins.Squeeze.App<br/>(Standalone SQUEEZE)"]
     end
 
     D1 -->|"gRPC Push Stream"| C
@@ -24,7 +26,9 @@ graph LR
     C -->|"Reverse Connection"| D3
     D3 -.->|"Streams Over Channel"| C
     C -->|"1Hz Live Stream & Queries"| UI
-    C -->|"1Hz Live Stream & Queries"| APP
+    C -->|"1Hz Live Stream & Queries"| APP1
+    SQD -->|"Transcode RPC / API"| UI
+    SQD -->|"Transcode RPC / API"| APP2
 ```
 
 ---
@@ -33,9 +37,9 @@ graph LR
 
 Comprehensive guides, manuals, and technical deep-dives are organized into modular subsystems under the [`Documentation/`](Documentation/) directory:
 
-### MADTOM Console (Host Application)
-- 🖥️ **[Console UI & Theming Guide](Documentation/Console/overview-and-ui.md)**: Desktop Operator UI walkthrough, layout scaling multiplier (10% to 1000%), system tray host & menu, runtime theming engine (14 palettes, hot-reload, YAML/JSON schemas), lexicon dialect system, and `settings.json`.
-- 🔌 **[Plugin Architecture Reference](Documentation/Console/plugin-architecture.md)**: Extensible plugin system contracts (`MADTOM.PluginContracts`), `IPluginModule`, `ITrayMenuService`, host context, and step-by-step guide for creating new plugins in `src/Plugins/`.
+### MADTOM Studio (Host Application)
+- 🖥️ **[Studio UI & Theming Guide](Documentation/Studio/overview-and-ui.md)**: Desktop Operator UI walkthrough, layout scaling multiplier (10% to 1000%), system tray host & menu, runtime theming engine (14 palettes, hot-reload, YAML/JSON schemas), lexicon dialect system, and `settings.json`.
+- 🔌 **[Plugin Architecture Reference](Documentation/Studio/plugin-architecture.md)**: Extensible plugin system contracts (`MADTOM.PluginContracts`), `IPluginModule`, `ITrayMenuService`, host context, and step-by-step guide for creating new plugins in `src/Plugins/`.
 
 ### MADTOM Telemetry Plugin
 - 📊 **[Telemetry UI & Visualization Guide](Documentation/Plugins/Telemetry/ui-and-visualization.md)**: Fleet dashboard, live 1Hz sparklines, node detail, graph scopes, LTTB downsampling, process monitoring & breakdown charts, TWAMP latency radar, cache diagnostics, and configs (`graphs.json`, `collectors.json`).
@@ -48,6 +52,8 @@ Comprehensive guides, manuals, and technical deep-dives are organized into modul
 - 📺 **[MADTOM: MediaCenter](Documentation/Plugins/MediaCenter/README.md)**: Local & network NAS streaming, direct play library indexer, and DLNA/UPnP playback control.
 - 🧠 **[MADTOM: NOX AI Control Center](Documentation/Plugins/NoxAI/README.md)**: Local LLM orchestrator, GPU inference daemon monitor (Ollama/vLLM), and context memory pipeline.
 - 🔊 **[MADTOM: AUDIOSYNC](Documentation/Plugins/AudioSync/README.md)**: Precision multi-room audio synchronization, PTP master clock disciplining, and latency buffer calibration.
+- 🌐 **[MADTOM: VNA](Documentation/Plugins/VNA/README.md)**: Visual Network Analyzer for real-time topology mapping, latency graphs, interface load metrics, and packet flow diagnostics.
+- 🔌 **[MADTOM: Connection Toolkit](Documentation/Plugins/ConnectionToolkit/README.md)**: Unified connection manager and proxy utility for tunneling, SSH key management, port forwarding, and protocol bridges.
 
 ### Scripts & CLI Tools
 - 📖 **[CLI & Scripts Reference](Documentation/cli-and-scripts.md)**: Exhaustive reference of all CLI arguments, flags, scripts (`build.sh`, `publish.sh`, `deploy.sh`), and binary execution commands.
@@ -92,8 +98,8 @@ For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured st
 ### Scripts Cheat Sheet
 | Script | Primary Usage | Full Reference |
 |---|---|---|
-| [`./build.sh`](build.sh) | Build Go daemons & .NET solution (`--release`, `--test`, `--arch`) | [Documentation](Documentation/cli-and-scripts.md#1-buildsh--unified-project-build) |
-| [`./publish.sh`](publish.sh) | Self-contained single-file Linux publisher (`--arch arm64`, `--clean`) | [Documentation](Documentation/cli-and-scripts.md#2-publishsh--net-self-contained-linux-publishing) |
+| [`./build.sh`](build.sh) | Build Go daemons & .NET solution (`--release`, `--test`, `--arch`, `--test-plugin`) | [Documentation](Documentation/cli-and-scripts.md#1-buildsh--unified-project-build) |
+| [`./publish.sh`](publish.sh) | Self-contained single-file Linux publisher (`--arch arm64`, `-p studio`, `--clean`) | [Documentation](Documentation/cli-and-scripts.md#2-publishsh--net-self-contained-linux-publishing) |
 | [`./deploy.sh`](deploy.sh) | Remote SSH/sudo installer with auto-arch probe (`-a auto`, `--build`) | [Documentation](Documentation/Plugins/Telemetry/deployment-and-services.md#remote-ssh-deployment-deploysh) |
 | [`MADTOM_GOLANG/build.sh`](MADTOM_GOLANG/build.sh) | Standalone Go compiler for `amd64`, `arm64`, and `armv7` | [Documentation](Documentation/cli-and-scripts.md#4-madtom_golangbuildsh--go-multi-architecture-compiler) |
 
@@ -102,13 +108,15 @@ For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured st
 |---|---|---|
 | `madtom-daemon` | Lightweight endpoint agent (CPU, memory, disk, network, TWAMP) | [Documentation](Documentation/cli-and-scripts.md#1-madtom-daemon--node-telemetry-agent) |
 | `madtom-collector` | Central gRPC telemetry hub, Pebble TSDB storage, LTTB queries | [Documentation](Documentation/cli-and-scripts.md#2-madtom-collector--central-telemetry-hub) |
-| `MADTOM.Console` | Full-featured Avalonia desktop operator interface | [Documentation](Documentation/Console/overview-and-ui.md) |
-| `MADTOM.Plugins.Telemetry.App` | Standalone telemetry client without console shell | [Documentation](Documentation/Plugins/Telemetry/ui-and-visualization.md#overview--standalone-mode) |
+| `MADTOM.Studio` | Modular desktop operator workspace & plugin host shell | [Documentation](Documentation/Studio/overview-and-ui.md) |
+| `MADTOM.Plugins.Telemetry.App` | Standalone telemetry client without studio shell | [Documentation](Documentation/Plugins/Telemetry/ui-and-visualization.md#overview--standalone-mode) |
 | `MADTOM.Plugins.Squeeze.App` | Standalone SQUEEZE media transcode client | [Documentation](Documentation/Plugins/Squeeze/README.md) |
 | `MADTOM.Plugins.AndroidToolkit.App` | Standalone Android toolkit runner | [Documentation](Documentation/Plugins/AndroidToolkit/README.md) |
 | `MADTOM.Plugins.MediaCenter.App` | Standalone MediaCenter runner | [Documentation](Documentation/Plugins/MediaCenter/README.md) |
 | `MADTOM.Plugins.NoxAI.App` | Standalone NOX AI control center runner | [Documentation](Documentation/Plugins/NoxAI/README.md) |
 | `MADTOM.Plugins.AudioSync.App` | Standalone AUDIOSYNC runner | [Documentation](Documentation/Plugins/AudioSync/README.md) |
+| `MADTOM.Plugins.VNA.App` | Standalone Visual Network Analyzer runner | [Documentation](Documentation/Plugins/VNA/README.md) |
+| `MADTOM.Plugins.ConnectionToolkit.App` | Standalone Connection Toolkit runner | [Documentation](Documentation/Plugins/ConnectionToolkit/README.md) |
 
 ---
 
@@ -124,7 +132,7 @@ All UI settings and layouts persist across application launches:
 - **Node Groups**: `~/.local/share/MADTOM/node-groups.json` (stores environment and custom fleet groupings).
 - **Time-Series Database**: `/var/lib/madtom/collector_data` (embedded CockroachDB Pebble TSDB).
 
-*For a complete walkthrough of configuration formats, see the [Console UI Guide](Documentation/Console/overview-and-ui.md#host-configuration--persistent-storage) and [Telemetry UI Guide](Documentation/Plugins/Telemetry/ui-and-visualization.md).*
+*For a complete walkthrough of configuration formats, see the [Studio UI Guide](Documentation/Studio/overview-and-ui.md#host-configuration--persistent-storage) and [Telemetry UI Guide](Documentation/Plugins/Telemetry/ui-and-visualization.md).*
 
 ---
 
@@ -138,7 +146,7 @@ MADTOM/
 ├── README.md                     # High-level entry point & documentation index
 ├── Documentation/                # In-depth technical guides & manuals
 │   ├── cli-and-scripts.md        # CLI flags, parameters, and executable usages
-│   ├── Console/                  # MADTOM Console (Host Application)
+│   ├── Studio/                   # MADTOM Studio (Host Application)
 │   │   ├── overview-and-ui.md    # UI scaling, theming engine, tray host, settings
 │   │   └── plugin-architecture.md# Plugin contracts, IPluginModule, ITrayMenuService
 │   └── Plugins/                  # Modular Plugin Documentation
@@ -147,7 +155,9 @@ MADTOM/
 │       ├── AndroidToolkit/       # Android Toolkit guide
 │       ├── MediaCenter/          # MediaCenter guide
 │       ├── NoxAI/                # NOX AI Control Center guide
-│       └── AudioSync/            # AUDIOSYNC guide
+│       ├── AudioSync/            # AUDIOSYNC guide
+│       ├── VNA/                  # Visual Network Analyzer guide
+│       └── ConnectionToolkit/    # Connection Toolkit guide
 │
 ├── MADTOM_GOLANG/                # Go Backend Services
 │   ├── cmd/                      # Daemon & collector main entrypoints
@@ -161,21 +171,25 @@ MADTOM/
     ├── publish.sh                # Linux self-contained publishing script
     ├── src/
     │   ├── Core/                 # Plugin contracts & interfaces (MADTOM.PluginContracts)
-    │   ├── Host/MADTOM.Console/  # Main Avalonia desktop UI executable & tray host
+    │   ├── Host/MADTOM.Studio/   # Main Avalonia desktop UI executable & tray host
     │   └── Plugins/              # Modular plugins & standalone runners
     │       ├── Telemetry/        # Telemetry views, charts, and standalone app
     │       ├── Squeeze/          # SQUEEZE transcode engine, views, and app
     │       ├── AndroidToolkit/   # Android toolkit views and standalone app
     │       ├── MediaCenter/      # MediaCenter views and standalone app
     │       ├── NoxAI/            # NOX AI control center views and standalone app
-    │       └── AudioSync/        # AUDIOSYNC views and standalone app
+    │       ├── AudioSync/        # AUDIOSYNC views and standalone app
+    │       ├── VNA/              # Visual Network Analyzer views and standalone app
+    │       └── ConnectionToolkit/# Connection Toolkit views and standalone app
     └── MadTOM.Tests/             # Decoupled targeted test suites
-        ├── Console/              # Host settings, theming, lexicon, tray menu tests
+        ├── Studio/               # Host settings, theming, lexicon, tray menu tests
         └── Plugins/              # Targeted per-plugin test projects
             ├── Telemetry/        # Telemetry cache, LTTB, Zstd, metrics tests
             ├── Squeeze/          # Transcode queue, preset, stager, transfer tests
             ├── AndroidToolkit/   # Lifecycle & ADB model tests
             ├── MediaCenter/      # Lifecycle & streaming model tests
             ├── NoxAI/            # Lifecycle & LLM inference model tests
-            └── AudioSync/        # Lifecycle & PTP clock sync tests
+            ├── AudioSync/        # Lifecycle & PTP clock sync tests
+            ├── VNA/              # Lifecycle & network model tests
+            └── ConnectionToolkit/# Lifecycle & proxy model tests
 ```
