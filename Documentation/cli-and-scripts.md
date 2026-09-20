@@ -14,8 +14,10 @@ This guide provides an exhaustive reference for all executables, build scripts, 
 2. [Executables Reference](#executables-reference)
    - [`madtom-daemon` — Node Telemetry Agent](#1-madtom-daemon--node-telemetry-agent)
    - [`madtom-collector` — Central Telemetry Hub](#2-madtom-collector--central-telemetry-hub)
-   - [`MADTOM.Console` — Avalonia Desktop Application](#3-madtomconsole--avalonia-desktop-application)
-   - [`MADTOM.Plugins.Telemetry.App` — Standalone Telemetry Client](#4-madtompluginstelemetryapp--standalone-telemetry-client)
+   - [`squeeze-server` — SQUEEZE Media Transcoding Daemon](#3-squeeze-server--squeeze-media-transcoding-daemon)
+   - [`MADTOM.Console` — Avalonia Desktop Application](#4-madtomconsole--avalonia-desktop-application)
+   - [`MADTOM.Plugins.Telemetry.App` — Standalone Telemetry Client](#5-madtompluginstelemetryapp--standalone-telemetry-client)
+   - [`MADTOM.Plugins.Squeeze.App` — Standalone SQUEEZE Client](#6-madtompluginssqueezeapp--standalone-squeeze-client)
 
 ---
 
@@ -23,7 +25,7 @@ This guide provides an exhaustive reference for all executables, build scripts, 
 
 ### 1. `./build.sh` — Unified Project Build
 
-Located at the repository root. Compiles the Go backend daemons (`madtom-collector`, `madtom-daemon`) and builds the C# .NET solution (`MADTOM.sln`).
+Located at the repository root. Compiles the Go backend daemons (`madtom-collector`, `madtom-daemon`, `squeeze-server`) and builds the C# .NET solution (`MADTOM.sln`).
 
 #### Syntax
 ```bash
@@ -36,7 +38,8 @@ Located at the repository root. Compiles the Go backend daemons (`madtom-collect
 | `-a`, `--arch` | `amd64` \| `arm64` \| `arm` \| `all` | Target architecture for Go backend (default: host architecture) |
 | `--release` | *(none)* | Build Go and .NET with release optimizations (strips Go debug symbols) |
 | `--debug` | *(none)* | Build projects in Debug configuration (default) |
-| `--test` | *(none)* | Run Go tests (`go test ./...`) and .NET test suite (`dotnet test`) |
+| `--test` | *(none)* | Run full Go test suite (`go test ./...`) and all decoupled .NET test projects |
+| `--test-plugin` | `NAME` | Run targeted tests for a plugin (`telemetry`, `squeeze`, `android`, `mediacenter`, `noxai`, `audiosync`, `console`) |
 | `--clean` | *(none)* | Remove previous build artifacts prior to compiling |
 | `-h`, `--help` | *(none)* | Display help message and exit |
 
@@ -47,6 +50,12 @@ Located at the repository root. Compiles the Go backend daemons (`madtom-collect
 
 # Build release binaries and run full automated test suites
 ./build.sh --release --test
+
+# Run targeted build and tests for SQUEEZE only
+./build.sh --test-plugin squeeze
+
+# Run targeted build and tests for Telemetry only
+./build.sh --test-plugin telemetry
 
 # Build Go daemons specifically for ARM64 and build .NET solution
 ./build.sh --arch arm64
@@ -160,7 +169,7 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 
 ### 4. `MADTOM_GOLANG/build.sh` — Go Multi-Architecture Compiler
 
-Dedicated compilation script for Go backend binaries (`madtom-daemon` and `madtom-collector`).
+Dedicated compilation script for Go backend binaries (`madtom-daemon`, `madtom-collector`, `squeeze-server`).
 
 **Output directory**: `MADTOM_GOLANG/bin/` and `MADTOM_GOLANG/bin/linux_{arch}/`
 
@@ -173,7 +182,7 @@ Dedicated compilation script for Go backend binaries (`madtom-daemon` and `madto
 | Option | Argument | Default | Description |
 |---|---|---|---|
 | `-a`, `--arch` | `amd64` \| `arm64` \| `arm` \| `all` | Host arch | Architecture to compile for |
-| `-p`, `--package` | `daemon` \| `collector` \| `all` | `all` | Package(s) to compile |
+| `-p`, `--package` | `daemon` \| `collector` \| `squeeze` \| `telemetry` \| `all` | `all` | Package(s) to compile |
 | `-c`, `--clean` | *(none)* | Disabled | Clean `bin/` directory prior to compiling |
 | `--release` | *(none)* | Enabled | Strip debug symbols (`-ldflags="-s -w"`) |
 | `--debug` | *(none)* | Disabled | Retain debug symbols |
@@ -181,16 +190,19 @@ Dedicated compilation script for Go backend binaries (`madtom-daemon` and `madto
 
 #### Examples
 ```bash
-# Compile both daemons for host architecture
+# Compile all Go services for host architecture
 ./MADTOM_GOLANG/build.sh
 
-# Compile both daemons for ARM64
+# Compile SQUEEZE transcoding daemon only
+./MADTOM_GOLANG/build.sh -p squeeze
+
+# Compile all daemons for ARM64
 ./MADTOM_GOLANG/build.sh --arch arm64
 
 # Compile only madtom-daemon for 32-bit ARM (ARMv7)
 ./MADTOM_GOLANG/build.sh -p daemon -a arm
 
-# Compile both daemons across all architectures (amd64, arm64, arm)
+# Compile all Go services across all architectures (amd64, arm64, arm)
 ./MADTOM_GOLANG/build.sh --arch all
 ```
 
@@ -327,13 +339,55 @@ The collector aggregates telemetry from all daemons, persists metrics into an em
 
 ---
 
-### 3. `MADTOM.Console` — Avalonia Desktop Application
+### 3. `squeeze-server` — SQUEEZE Media Transcoding Daemon
 
-Both desktop clients also accept `MADTOM_UI_TIMING=1` for compact refresh summaries and five-second UI performance intervals. See [UI baselining commands and metrics](Plugins/Telemetry/ui-and-visualization.md#ui-performance-baselining), including the `tools/summarize_ui_performance.py` log summarizer.
+The SQUEEZE backend daemon orchestrates local or remote FFmpeg encoding pipelines, hardware acceleration probes (NVENC, VAAPI, QSV), priority job queue management, and chunked media streaming.
+
+- **Technology**: Go
+- **Executable**: `MADTOM_GOLANG/bin/squeeze-server` (aliased as `madtom-squeeze`)
+- **Configuration**: `MADTOM_GOLANG/configs/squeeze/squeeze.yaml`
+- **Systemd Unit**: `MADTOM_GOLANG/systemd/squeeze-server.service`
+
+#### Command Arguments
+| Argument | Type | Default | Description |
+|---|---|---|---|
+| `-config`, `-c` | `string` | `""` | Path to YAML configuration file |
+| `-host` | `string` | `0.0.0.0` | HTTP bind network address |
+| `-port` | `int` | `8080` | HTTP listening port (1-65535) |
+| `-workers` | `int` | `1` | Maximum concurrent FFmpeg encoding jobs |
+| `-queue-size` | `int` | `128` | Maximum number of waiting jobs in the queue |
+| `-scratch` | `path` | `/tmp/squeeze/scratch` | Dedicated temporary directory for active uploads and chunked processing |
+| `-output` | `path` | `/tmp/squeeze/output` | Dedicated storage directory for finished transcode outputs |
+| `-retention` | `duration` | `24h` | Retention duration for finished outputs before cleanup |
+| `-node-id` | `string` | Hostname | Human-readable node identifier advertised across LAN and mDNS |
+| `-ffmpeg` | `string` | `ffmpeg` | Path or binary name for the FFmpeg executable |
+| `-ffprobe` | `string` | `ffprobe` | Path or binary name for the FFprobe executable |
+| `-mdns` | `bool` | `true` | Enable zero-configuration LAN discovery advertisement via mDNS |
+| `-token` | `string` | `""` | Optional bearer token for API authentication (`Authorization: Bearer <token>`) |
+
+#### Execution Examples
+```bash
+# Basic standalone transcoding server
+./squeeze-server -port=8080 -workers=2 -node-id="TRANSCODE-01"
+
+# Running with YAML configuration file
+./squeeze-server -config=/etc/squeeze/squeeze.yaml
+
+# Systemd service deployment
+sudo cp MADTOM_GOLANG/systemd/squeeze-server.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now squeeze-server
+```
+
+---
+
+### 4. `MADTOM.Console` — Avalonia Desktop Application
+
+Both desktop clients also accept `MADTOM_UI_TIMING=1` for compact refresh summaries and five-second UI performance intervals. See [UI baselining commands and metrics](Plugins/Telemetry/ui-and-visualization.md#ui-performance-baselining), including the `tools/Telemetry/summarize_ui_performance.py` log summarizer.
 
 Both desktop clients accept the environment variable `MADTOM_HISTORY_TIMING=1` for opt-in scope-load timing logs on stderr. See [capture commands and timing fields](Plugins/Telemetry/ui-and-visualization.md#history-timing-diagnostics). Omit it to disable.
 
-The primary desktop user interface for monitoring nodes, fleet topology, downsampled graphs, and process lists.
+The primary desktop user interface hosting plugins (Telemetry, SQUEEZE, Android Toolkit, AudioSync, MediaCenter, Nox AI), fleet topology, downsampled graphs, and process lists.
 
 - **Technology**: Avalonia UI (.NET 10)
 - **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Console/MADTOM.Console`
@@ -349,15 +403,29 @@ dotnet run --project MADTOM_DOTNET/src/Host/MADTOM.Console/MADTOM.Console.csproj
 
 ---
 
-### 4. `MADTOM.Plugins.Telemetry.App` — Standalone Telemetry Client
+### 5. `MADTOM.Plugins.Telemetry.App` — Standalone Telemetry Client
 
-A standalone, focused telemetry viewer packaging the telemetry plugin directly.
+A standalone, focused telemetry viewer packaging the telemetry plugin directly without the full MADTOM Console shell.
 
 - **Technology**: Avalonia UI (.NET 10)
 - **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Plugins.Telemetry.App/MADTOM.Plugins.Telemetry.App`
 
 #### Running
 ```bash
-./MADTOM_DOTNET/publish/linux-x64/MADTOM.Plugins.Telemetry.App/MADTOM.Plugins.Telemetry.App
+dotnet run --project MADTOM_DOTNET/src/Plugins/Telemetry/MADTOM.Plugins.Telemetry.App/MADTOM.Plugins.Telemetry.App.csproj
+```
+
+---
+
+### 6. `MADTOM.Plugins.Squeeze.App` — Standalone SQUEEZE Client
+
+A standalone, focused media transcoding client packaging the SQUEEZE plugin directly, allowing dedicated queue monitoring, media job submission, hardware probing, and transcode control.
+
+- **Technology**: Avalonia UI (.NET 10)
+- **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Plugins.Squeeze.App/MADTOM.Plugins.Squeeze.App`
+
+#### Running
+```bash
+dotnet run --project MADTOM_DOTNET/src/Plugins/Squeeze/MADTOM.Plugins.Squeeze.App/MADTOM.Plugins.Squeeze.App.csproj
 ```
 

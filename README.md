@@ -42,6 +42,13 @@ Comprehensive guides, manuals, and technical deep-dives are organized into modul
 - ⚙️ **[Architecture & Protocols Reference](Documentation/Plugins/Telemetry/architecture-and-protocols.md)**: Ingestion topologies (Push, Pull, Reverse-Push), Write-Ahead Log (WAL) disk spooling, CockroachDB Pebble TSDB layout, and TWAMP Light probing (RFC 5357).
 - 🚀 **[Deployment & Services Guide](Documentation/Plugins/Telemetry/deployment-and-services.md)**: Remote SSH deployment automation (`deploy.sh`), architecture auto-detection, systemd units, and security sandboxing (`CAP_NET_BIND_SERVICE`).
 
+### Modular Plugins
+- 🗜️ **[MADTOM: SQUEEZE](Documentation/Plugins/Squeeze/README.md)**: Hardware-accelerated media transcode toolkit, remote daemon distribution, queue prioritization, and transcode telemetry.
+- 📱 **[MADTOM: Android Toolkit](Documentation/Plugins/AndroidToolkit/README.md)**: Device backup, ADB command dispatching, package deployment, and battery/storage health telemetry.
+- 📺 **[MADTOM: MediaCenter](Documentation/Plugins/MediaCenter/README.md)**: Local & network NAS streaming, direct play library indexer, and DLNA/UPnP playback control.
+- 🧠 **[MADTOM: NOX AI Control Center](Documentation/Plugins/NoxAI/README.md)**: Local LLM orchestrator, GPU inference daemon monitor (Ollama/vLLM), and context memory pipeline.
+- 🔊 **[MADTOM: AUDIOSYNC](Documentation/Plugins/AudioSync/README.md)**: Precision multi-room audio synchronization, PTP master clock disciplining, and latency buffer calibration.
+
 ### Scripts & CLI Tools
 - 📖 **[CLI & Scripts Reference](Documentation/cli-and-scripts.md)**: Exhaustive reference of all CLI arguments, flags, scripts (`build.sh`, `publish.sh`, `deploy.sh`), and binary execution commands.
 
@@ -69,7 +76,7 @@ Comprehensive guides, manuals, and technical deep-dives are organized into modul
 ```
 *See [.NET Publishing Guide](Documentation/cli-and-scripts.md#2-publishsh--net-self-contained-linux-publishing) for RID aliases and project filters.*
 
-For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured stderr log with `python3 tools/summarize_ui_performance.py ui-performance.log`. See [capture instructions and metric definitions](Documentation/Plugins/Telemetry/ui-and-visualization.md#ui-performance-baselining).
+For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured stderr log with `python3 tools/Telemetry/summarize_ui_performance.py ui-performance.log`. See [capture instructions and metric definitions](Documentation/Plugins/Telemetry/ui-and-visualization.md#ui-performance-baselining).
 
 ### 3. Deploy Go Backend Daemon via SSH
 ```bash
@@ -97,6 +104,11 @@ For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured st
 | `madtom-collector` | Central gRPC telemetry hub, Pebble TSDB storage, LTTB queries | [Documentation](Documentation/cli-and-scripts.md#2-madtom-collector--central-telemetry-hub) |
 | `MADTOM.Console` | Full-featured Avalonia desktop operator interface | [Documentation](Documentation/Console/overview-and-ui.md) |
 | `MADTOM.Plugins.Telemetry.App` | Standalone telemetry client without console shell | [Documentation](Documentation/Plugins/Telemetry/ui-and-visualization.md#overview--standalone-mode) |
+| `MADTOM.Plugins.Squeeze.App` | Standalone SQUEEZE media transcode client | [Documentation](Documentation/Plugins/Squeeze/README.md) |
+| `MADTOM.Plugins.AndroidToolkit.App` | Standalone Android toolkit runner | [Documentation](Documentation/Plugins/AndroidToolkit/README.md) |
+| `MADTOM.Plugins.MediaCenter.App` | Standalone MediaCenter runner | [Documentation](Documentation/Plugins/MediaCenter/README.md) |
+| `MADTOM.Plugins.NoxAI.App` | Standalone NOX AI control center runner | [Documentation](Documentation/Plugins/NoxAI/README.md) |
+| `MADTOM.Plugins.AudioSync.App` | Standalone AUDIOSYNC runner | [Documentation](Documentation/Plugins/AudioSync/README.md) |
 
 ---
 
@@ -120,7 +132,7 @@ All UI settings and layouts persist across application launches:
 
 ```text
 MADTOM/
-├── build.sh                      # Root unified build script (Go + .NET)
+├── build.sh                      # Root unified build script (Go + .NET, with --test-plugin)
 ├── publish.sh                    # Symlink to MADTOM_DOTNET/publish.sh
 ├── deploy.sh                     # Symlink to MADTOM_GOLANG/deploy.sh
 ├── README.md                     # High-level entry point & documentation index
@@ -130,10 +142,12 @@ MADTOM/
 │   │   ├── overview-and-ui.md    # UI scaling, theming engine, tray host, settings
 │   │   └── plugin-architecture.md# Plugin contracts, IPluginModule, ITrayMenuService
 │   └── Plugins/                  # Modular Plugin Documentation
-│       └── Telemetry/            # Telemetry Plugin
-│           ├── ui-and-visualization.md       # Fleet, graphs, scopes, downsampling, radar
-│           ├── architecture-and-protocols.md # Topologies, WAL spooling, TSDB, TWAMP
-│           └── deployment-and-services.md    # SSH deployment, staging, systemd units
+│       ├── Telemetry/            # Telemetry Plugin guides
+│       ├── Squeeze/              # SQUEEZE transcode toolkit guides & architecture
+│       ├── AndroidToolkit/       # Android Toolkit guide
+│       ├── MediaCenter/          # MediaCenter guide
+│       ├── NoxAI/                # NOX AI Control Center guide
+│       └── AudioSync/            # AUDIOSYNC guide
 │
 ├── MADTOM_GOLANG/                # Go Backend Services
 │   ├── cmd/                      # Daemon & collector main entrypoints
@@ -143,13 +157,25 @@ MADTOM/
 │   └── deploy.sh                 # Remote SSH deployment script
 │
 └── MADTOM_DOTNET/                # .NET C# Avalonia Solution
-    ├── MADTOM.sln                # Visual Studio / .NET Solution
+    ├── MADTOM.sln / MADTOM.slnx  # Visual Studio / .NET Solution files
     ├── publish.sh                # Linux self-contained publishing script
     ├── src/
     │   ├── Core/                 # Plugin contracts & interfaces (MADTOM.PluginContracts)
-    │   ├── Host/MADTOM.Console/  # Main Avalonia desktop UI executable
-    │   └── Plugins/Telemetry/    # Telemetry views, charts, and standalone app
-    └── MadTOM.Tests/             # Unit and integration test suite
+    │   ├── Host/MADTOM.Console/  # Main Avalonia desktop UI executable & tray host
+    │   └── Plugins/              # Modular plugins & standalone runners
+    │       ├── Telemetry/        # Telemetry views, charts, and standalone app
+    │       ├── Squeeze/          # SQUEEZE transcode engine, views, and app
+    │       ├── AndroidToolkit/   # Android toolkit views and standalone app
+    │       ├── MediaCenter/      # MediaCenter views and standalone app
+    │       ├── NoxAI/            # NOX AI control center views and standalone app
+    │       └── AudioSync/        # AUDIOSYNC views and standalone app
+    └── MadTOM.Tests/             # Decoupled targeted test suites
         ├── Console/              # Host settings, theming, lexicon, tray menu tests
-        └── Plugins/Telemetry/    # Telemetry cache, LTTB, Zstd, metrics tests
+        └── Plugins/              # Targeted per-plugin test projects
+            ├── Telemetry/        # Telemetry cache, LTTB, Zstd, metrics tests
+            ├── Squeeze/          # Transcode queue, preset, stager, transfer tests
+            ├── AndroidToolkit/   # Lifecycle & ADB model tests
+            ├── MediaCenter/      # Lifecycle & streaming model tests
+            ├── NoxAI/            # Lifecycle & LLM inference model tests
+            └── AudioSync/        # Lifecycle & PTP clock sync tests
 ```

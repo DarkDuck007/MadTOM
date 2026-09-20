@@ -1,0 +1,52 @@
+# ==============================================================================
+# MADTOM Multi-Host Deployment Configuration Template
+# ==============================================================================
+# Copy this file to `deploy.yaml` (which is git-ignored) and fill in your
+# actual SSH credentials and host parameters:
+#
+#   cp deploy.example.yaml deploy.yaml
+#   ./deploy.sh -c deploy.yaml
+#
+# Or deploy with a custom config path:
+#   ./deploy.sh --config /path/to/my-deploy.yaml
+# ==============================================================================
+
+# Global defaults applied to all servers unless overridden per-host
+defaults:
+  # Default SSH user
+  user: danial
+
+  # Default SSH port
+  port: 22
+
+  # Default systemd service name to restart on remote systems
+  service: madtomd.service
+
+  # Remote installation path (e.g. /opt/madtomd or /opt/madtom/madtom-daemon)
+  dest: /opt/madtomd
+
+  # Local binary path to deploy (relative to repo root or absolute)
+  binary: bin/madtom-daemon
+
+  # Target architecture: auto, amd64, arm64, arm
+  # When set to 'auto', deploy.sh detects architecture via remote SSH probe
+  arch: auto
+
+  # Whether to build the binary locally before deploying (true / false)
+  build: true
+
+  # Optional global default SSH password (leave empty if per-server or key-based)
+  ssh_pass: ""
+
+  # Optional global default sudo password (defaults to ssh_pass if not set)
+  sudo_pass: ""
+
+# Target server list
+servers:
+  - host: ssh.example.com
+    # user: danial              # Optional override
+    # port: 22                  # Optional override
+    # service: madtomd.service  # Optional systemd service override
+    # dest: /opt/madtomd        # Optional destination override
+    ssh_pass: "YOUR_SSH_PASSWORD"
+    sudo_pass: "YOUR_SUDO_PASSWORD" # Optional: defaults to ssh_pass if omitted

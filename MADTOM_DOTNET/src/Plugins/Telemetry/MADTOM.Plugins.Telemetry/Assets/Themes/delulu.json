@@ -1,0 +1,30 @@
+{
+  "themeName": "lavender",
+  "displayName": "Lavender",
+  "colors": {
+    "Background": "#000229",
+    "HeaderBackground": "#080A35",
+    "SidebarBackground": "#05072D",
+    "CardBackground": "#10123D",
+    "CardHoverBackground": "#19184B",
+    "DarkBase": "#000229",
+    "Border": "#3A3670",
+    "BorderSubtle": "#252653",
+    "TextPrimary": "#E2EBF3",
+    "TextSecondary": "#A4A6E3",
+    "TextMuted": "#7779B5",
+    "Accent": "#6A4CD4",
+    "AccentSubtle": "#21164D",
+    "AccentText": "#E2EBF3",
+    "Healthy": "#6FD6A3",
+    "HealthySubtle": "#123A35",
+    "Warning": "#D6B86A",
+    "WarningSubtle": "#3B3219",
+    "Critical": "#D96B87",
+    "CriticalSubtle": "#421C31",
+    "Indigo": "#A4A6E3",
+    "IndigoSubtle": "#292852",
+    "Purple": "#6E3477",
+    "PurpleSubtle": "#30183B"
+  }
+}

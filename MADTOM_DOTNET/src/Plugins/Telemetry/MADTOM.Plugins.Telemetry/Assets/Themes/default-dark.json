@@ -1,0 +1,31 @@
+{
+  "themeName": "default-dark",
+  "displayName": "Default Dark",
+  "colors": {
+    "Background": "#070a12",
+    "HeaderBackground": "#0b111e",
+    "SidebarBackground": "#0c1220",
+    "CardBackground": "#0c1220",
+    "CardHoverBackground": "#0f172a",
+    "DarkBase": "#04060b",
+    "Border": "#1e293b",
+    "BorderSubtle": "#0f172a",
+    "TextPrimary": "#f8fafc",
+    "TextSecondary": "#94a3b8",
+    "TextMuted": "#64748b",
+    "Accent": "#06b6d4",
+    "AccentSubtle": "#083344",
+    "AccentText": "#22d3ee",
+    "Healthy": "#10b981",
+    "HealthySubtle": "#064e3b",
+    "Warning": "#f59e0b",
+    "WarningSubtle": "#451a03",
+    "Critical": "#f43f5e",
+    "CriticalSubtle": "#4c0519",
+    "Indigo": "#6366f1",
+    "IndigoSubtle": "#1e1b4b",
+    "Purple": "#a855f7",
+    "PurpleSubtle": "#3b0764"
+  }
+}
+

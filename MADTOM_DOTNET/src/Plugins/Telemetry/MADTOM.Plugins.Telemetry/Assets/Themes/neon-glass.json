@@ -1,0 +1,30 @@
+{
+  "themeName": "neon-glass",
+  "displayName": "Neon Glass",
+  "colors": {
+    "Background": "#080C42",
+    "HeaderBackground": "#000229",
+    "SidebarBackground": "#150B2E",
+    "CardBackground": "#1C1445",
+    "CardHoverBackground": "#281D5E",
+    "DarkBase": "#000229",
+    "Border": "#6A4CD4",
+    "BorderSubtle": "#351B42",
+    "TextPrimary": "#E2EBF3",
+    "TextSecondary": "#A4A6E3",
+    "TextMuted": "#7A7EC4",
+    "Accent": "#6A4CD4",
+    "AccentSubtle": "#251859",
+    "AccentText": "#FFFFFF",
+    "Healthy": "#34D399",
+    "HealthySubtle": "#064E3B",
+    "Warning": "#FBBF24",
+    "WarningSubtle": "#78350F",
+    "Critical": "#F87171",
+    "CriticalSubtle": "#7F1D1D",
+    "Indigo": "#6A4CD4",
+    "IndigoSubtle": "#1B1745",
+    "Purple": "#6E3477",
+    "PurpleSubtle": "#2D1236"
+  }
+}

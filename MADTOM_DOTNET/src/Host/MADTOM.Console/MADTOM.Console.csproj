@@ -11,6 +11,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Core\MADTOM.PluginContracts\MADTOM.PluginContracts.csproj" />
     <ProjectReference Include="..\..\Plugins\Telemetry\MADTOM.Plugins.Telemetry\MADTOM.Plugins.Telemetry.csproj" />
+    <ProjectReference Include="..\..\Plugins\Squeeze\MADTOM.Plugins.Squeeze\MADTOM.Plugins.Squeeze.csproj" />
+    <ProjectReference Include="..\..\Plugins\AndroidToolkit\MADTOM.Plugins.AndroidToolkit\MADTOM.Plugins.AndroidToolkit.csproj" />
+    <ProjectReference Include="..\..\Plugins\MediaCenter\MADTOM.Plugins.MediaCenter\MADTOM.Plugins.MediaCenter.csproj" />
+    <ProjectReference Include="..\..\Plugins\NoxAI\MADTOM.Plugins.NoxAI\MADTOM.Plugins.NoxAI.csproj" />
+    <ProjectReference Include="..\..\Plugins\AudioSync\MADTOM.Plugins.AudioSync\MADTOM.Plugins.AudioSync.csproj" />
   </ItemGroup>
 
   <ItemGroup>

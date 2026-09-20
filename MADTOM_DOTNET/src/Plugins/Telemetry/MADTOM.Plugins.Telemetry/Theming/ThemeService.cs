@@ -142,6 +142,12 @@ public sealed class ThemeService : IThemeService, IDisposable
         bool foundAny = false;
         try
         {
+            try
+            {
+                System.Reflection.Assembly.Load("MADTOM.Console");
+            }
+            catch { }
+
             var baseUris = new[]
             {
                 new Uri("avares://MADTOM.Console/Assets/Themes/"),
@@ -186,7 +192,7 @@ public sealed class ThemeService : IThemeService, IDisposable
             ScanDirectoryForPalettes(Path.Combine(AppContext.BaseDirectory, "Assets", "Themes"), _fallbackPalettes);
 
             string cur = AppContext.BaseDirectory;
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 8; i++)
             {
                 var parent = Directory.GetParent(cur);
                 if (parent == null) break;
@@ -247,7 +253,7 @@ public sealed class ThemeService : IThemeService, IDisposable
 
         // Local dev environment scan for plugin asset overrides
         string cur = AppContext.BaseDirectory;
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 8; i++)
         {
             var parent = Directory.GetParent(cur);
             if (parent == null) break;

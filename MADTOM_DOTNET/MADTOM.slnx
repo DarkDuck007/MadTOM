@@ -11,5 +11,33 @@
     <Project Path="src/Plugins/Telemetry/MADTOM.Plugins.Telemetry.App/MADTOM.Plugins.Telemetry.App.csproj" />
     <Project Path="src/Plugins/Telemetry/MADTOM.Plugins.Telemetry/MADTOM.Plugins.Telemetry.csproj" />
   </Folder>
-  <Project Path="MadTOM.Tests/MadTOM.Tests.csproj" />
+  <Folder Name="/src/Plugins/Squeeze/">
+    <Project Path="src/Plugins/Squeeze/MADTOM.Plugins.Squeeze.App/MADTOM.Plugins.Squeeze.App.csproj" />
+    <Project Path="src/Plugins/Squeeze/MADTOM.Plugins.Squeeze/MADTOM.Plugins.Squeeze.csproj" />
+  </Folder>
+  <Folder Name="/src/Plugins/AndroidToolkit/">
+    <Project Path="src/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit.App/MADTOM.Plugins.AndroidToolkit.App.csproj" />
+    <Project Path="src/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit/MADTOM.Plugins.AndroidToolkit.csproj" />
+  </Folder>
+  <Folder Name="/src/Plugins/MediaCenter/">
+    <Project Path="src/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter.App/MADTOM.Plugins.MediaCenter.App.csproj" />
+    <Project Path="src/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter/MADTOM.Plugins.MediaCenter.csproj" />
+  </Folder>
+  <Folder Name="/src/Plugins/NoxAI/">
+    <Project Path="src/Plugins/NoxAI/MADTOM.Plugins.NoxAI.App/MADTOM.Plugins.NoxAI.App.csproj" />
+    <Project Path="src/Plugins/NoxAI/MADTOM.Plugins.NoxAI/MADTOM.Plugins.NoxAI.csproj" />
+  </Folder>
+  <Folder Name="/src/Plugins/AudioSync/">
+    <Project Path="src/Plugins/AudioSync/MADTOM.Plugins.AudioSync.App/MADTOM.Plugins.AudioSync.App.csproj" />
+    <Project Path="src/Plugins/AudioSync/MADTOM.Plugins.AudioSync/MADTOM.Plugins.AudioSync.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="MadTOM.Tests/Console/MadTOM.Console.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/Telemetry/MADTOM.Plugins.Telemetry.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/Squeeze/MADTOM.Plugins.Squeeze.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/NoxAI/MADTOM.Plugins.NoxAI.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/AudioSync/MADTOM.Plugins.AudioSync.Tests.csproj" />
+  </Folder>
 </Solution>

@@ -21,7 +21,7 @@ public sealed class SysadminPlaceholderPluginModule : IPluginModule
     public string IconGlyph => "🖥️";
     public string Category => "Systems";
     public Version Version => new(1, 0, 0);
-    public int OrderWeight => 20;
+    public int OrderWeight => 900;
 
     public Task InitializeAsync(IPluginHostContext hostContext, CancellationToken cancellationToken = default)
     {
@@ -53,6 +53,23 @@ public sealed class SysadminPlaceholderPluginModule : IPluginModule
                         FontWeight = FontWeight.Bold,
                         Foreground = new SolidColorBrush(Color.Parse("#38BDF8")),
                         HorizontalAlignment = HorizontalAlignment.Center
+                    },
+                    new Border
+                    {
+                        Background = new SolidColorBrush(Color.Parse("#332400")),
+                        BorderBrush = new SolidColorBrush(Color.Parse("#F59E0B")),
+                        BorderThickness = new Avalonia.Thickness(1),
+                        CornerRadius = new Avalonia.CornerRadius(12),
+                        Padding = new Avalonia.Thickness(12, 3),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Child = new TextBlock
+                        {
+                            Text = "• COMING SOON",
+                            FontSize = 10,
+                            FontWeight = FontWeight.Bold,
+                            Foreground = new SolidColorBrush(Color.Parse("#F59E0B")),
+                            LetterSpacing = 1.2
+                        }
                     },
                     new TextBlock
                     {
@@ -98,7 +115,7 @@ public sealed class EscPlaceholderPluginModule : IPluginModule
     public string IconGlyph => "⚡";
     public string Category => "Hardware";
     public Version Version => new(1, 0, 0);
-    public int OrderWeight => 30;
+    public int OrderWeight => 910;
 
     public Task InitializeAsync(IPluginHostContext hostContext, CancellationToken cancellationToken = default)
     {
@@ -125,6 +142,23 @@ public sealed class EscPlaceholderPluginModule : IPluginModule
                         FontWeight = FontWeight.Bold,
                         Foreground = new SolidColorBrush(Color.Parse("#F59E0B")),
                         HorizontalAlignment = HorizontalAlignment.Center
+                    },
+                    new Border
+                    {
+                        Background = new SolidColorBrush(Color.Parse("#332400")),
+                        BorderBrush = new SolidColorBrush(Color.Parse("#F59E0B")),
+                        BorderThickness = new Avalonia.Thickness(1),
+                        CornerRadius = new Avalonia.CornerRadius(12),
+                        Padding = new Avalonia.Thickness(12, 3),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Child = new TextBlock
+                        {
+                            Text = "• COMING SOON",
+                            FontSize = 10,
+                            FontWeight = FontWeight.Bold,
+                            Foreground = new SolidColorBrush(Color.Parse("#F59E0B")),
+                            LetterSpacing = 1.2
+                        }
                     },
                     new TextBlock
                     {

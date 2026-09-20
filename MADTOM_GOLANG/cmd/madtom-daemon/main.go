@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/DarkDuck007/madtom/pkg/daemon/collector"
-	"github.com/DarkDuck007/madtom/pkg/daemon/config"
-	"github.com/DarkDuck007/madtom/pkg/daemon/spool"
-	"github.com/DarkDuck007/madtom/pkg/daemon/transport"
-	"github.com/DarkDuck007/madtom/pkg/daemon/twamp"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/collector"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/config"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/spool"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/transport"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/twamp"
 )
 
 func main() {

@@ -219,6 +219,15 @@ if [ -z "$CONFIG_FILE" ] && [ -z "$CLI_HOST" ]; then
     elif [ -f "$REPO_ROOT/deploy.yaml" ]; then
         CONFIG_FILE="$REPO_ROOT/deploy.yaml"
         echo "Notice: Found '$REPO_ROOT/deploy.yaml', using it for deployment."
+    elif [ -f "$REPO_ROOT/MADTOM_GOLANG/deploy.yaml" ]; then
+        CONFIG_FILE="$REPO_ROOT/MADTOM_GOLANG/deploy.yaml"
+        echo "Notice: Found '$REPO_ROOT/MADTOM_GOLANG/deploy.yaml', using it for deployment."
+    elif [ -f "$REPO_ROOT/MADTOM_GOLANG/configs/telemetry/deploy.yaml" ]; then
+        CONFIG_FILE="$REPO_ROOT/MADTOM_GOLANG/configs/telemetry/deploy.yaml"
+        echo "Notice: Found '$REPO_ROOT/MADTOM_GOLANG/configs/telemetry/deploy.yaml', using it for deployment."
+    elif [ -f "configs/telemetry/deploy.yaml" ]; then
+        CONFIG_FILE="configs/telemetry/deploy.yaml"
+        echo "Notice: Found 'configs/telemetry/deploy.yaml', using it for deployment."
     fi
 fi
 
@@ -259,7 +268,9 @@ build_target_binary() {
     local cmd_dir=""
     local go_src_dir="$SCRIPT_DIR"
 
-    if [ -d "$SCRIPT_DIR/cmd/$bin_name" ]; then
+    if [ "$bin_name" = "madtom-squeeze" ] || [ "$bin_name" = "squeeze-server" ]; then
+        cmd_dir="./cmd/squeeze-server"
+    elif [ -d "$SCRIPT_DIR/cmd/$bin_name" ]; then
         cmd_dir="./cmd/$bin_name"
     elif [ -d "$REPO_ROOT/MADTOM_GOLANG/cmd/$bin_name" ]; then
         go_src_dir="$REPO_ROOT/MADTOM_GOLANG"

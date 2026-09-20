@@ -1,0 +1,31 @@
+{
+  "themeName": "tft-amber-terminal",
+  "displayName": "TFT Amber High-Vis",
+  "colors": {
+    "Background": "#1b1c18",
+    "HeaderBackground": "#22241e",
+    "SidebarBackground": "#20211b",
+    "CardBackground": "#252720",
+    "CardHoverBackground": "#2e3028",
+    "DarkBase": "#141511",
+    "Border": "#4e523e",
+    "BorderSubtle": "#383b2d",
+    "TextPrimary": "#ffb000",
+    "TextSecondary": "#d49200",
+    "TextMuted": "#8f6500",
+    "Accent": "#ffb000",
+    "AccentSubtle": "#3b2c05",
+    "AccentText": "#ffc83b",
+    "Healthy": "#55ff55",
+    "HealthySubtle": "#143b14",
+    "Warning": "#ffaa00",
+    "WarningSubtle": "#3b2800",
+    "Critical": "#ff3333",
+    "CriticalSubtle": "#421010",
+    "Indigo": "#c678dd",
+    "IndigoSubtle": "#3b1e45",
+    "Purple": "#da70d6",
+    "PurpleSubtle": "#3e1940"
+  }
+}
+

@@ -1,0 +1,59 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SQUEEZE.App"
+             xmlns:local="using:SQUEEZE"
+             RequestedThemeVariant="Dark">
+
+    <Application.DataTemplates>
+        <local:ViewLocator />
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+    <Application.Resources>
+        <!-- Standard MADTOM Theme Brushes -->
+        <SolidColorBrush x:Key="AppBgBrush">#070A12</SolidColorBrush>
+        <SolidColorBrush x:Key="HeaderBgBrush">#0B111E</SolidColorBrush>
+        <SolidColorBrush x:Key="SidebarBgBrush">#0C1220</SolidColorBrush>
+        <SolidColorBrush x:Key="CardBgBrush">#0C1220</SolidColorBrush>
+        <SolidColorBrush x:Key="CardHoverBgBrush">#0F172A</SolidColorBrush>
+        <SolidColorBrush x:Key="DarkBaseBrush">#04060B</SolidColorBrush>
+        <SolidColorBrush x:Key="BorderBrush">#1E293B</SolidColorBrush>
+        <SolidColorBrush x:Key="BorderSubtleBrush">#0F172A</SolidColorBrush>
+
+        <SolidColorBrush x:Key="TextPrimaryBrush">#F8FAFC</SolidColorBrush>
+        <SolidColorBrush x:Key="TextSecondaryBrush">#94A3B8</SolidColorBrush>
+        <SolidColorBrush x:Key="TextMutedBrush">#64748B</SolidColorBrush>
+
+        <SolidColorBrush x:Key="AccentBrush">#06B6D4</SolidColorBrush>
+        <SolidColorBrush x:Key="AccentSubtleBrush">#083344</SolidColorBrush>
+        <SolidColorBrush x:Key="AccentTextBrush">#22D3EE</SolidColorBrush>
+        <SolidColorBrush x:Key="HealthyBrush">#10B981</SolidColorBrush>
+        <SolidColorBrush x:Key="HealthySubtleBrush">#064E3B</SolidColorBrush>
+        <SolidColorBrush x:Key="WarningBrush">#F59E0B</SolidColorBrush>
+        <SolidColorBrush x:Key="WarningSubtleBrush">#451A03</SolidColorBrush>
+        <SolidColorBrush x:Key="CriticalBrush">#F43F5E</SolidColorBrush>
+        <SolidColorBrush x:Key="CriticalSubtleBrush">#4C0519</SolidColorBrush>
+
+        <!-- Cyber / Legacy Aliases -->
+        <SolidColorBrush x:Key="CyberBg">#070A12</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberCard">#0C1220</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberPanel">#0C1220</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberPanelDark">#04060B</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberBorder">#1E293B</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberBorderLight">#30363D</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberGold">#F59E0B</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberGoldLight">#F5A623</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberCyan">#06B6D4</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberCyanLight">#22D3EE</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberGreen">#10B981</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberGreenLight">#34D399</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberBlue">#38BDF8</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberPurple">#A855F7</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberMuted">#64748B</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberText">#F8FAFC</SolidColorBrush>
+        <SolidColorBrush x:Key="CyberWhite">#FFFFFF</SolidColorBrush>
+    </Application.Resources>
+</Application>

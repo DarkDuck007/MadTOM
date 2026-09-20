@@ -1,0 +1,300 @@
+# SQUEEZE Transcoder Daemon Configuration
+# Run with: ./bin/squeeze-server --config config.sample.yaml
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  workers: 2
+  queue_size: 128
+  max_upload: 10737418240 # 10 GiB
+  scratch: "/tmp/squeeze/scratch"
+  output: "/tmp/squeeze/output"
+  retention: "24h"
+  upload_timeout: "30m"
+  node_id: "RIG_ALPHA_01"
+  mdns: true
+  token: "" # Optional bearer token for authentication
+  ffmpeg: "ffmpeg"
+  ffprobe: "ffprobe"
+
+# Server-side presets catalog exposed via GET /api/v1/presets
+presets:
+  # ============================================================================
+  # 1. General Presets
+  # ============================================================================
+  - key: "fast1080"
+    title: "Fast 1080p30 (Default)"
+    category: "General"
+    description: "Standard H.264 high-speed delivery profile."
+    tag: "DEFAULT"
+    spec:
+      video_codec: "libx264"
+      crf: 22
+      preset: "medium"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 160
+      width: 1920
+      height: 1080
+      fps: 30
+      deinterlace: true
+
+  - key: "ultra_compression"
+    title: "Ultra Compression"
+    category: "General"
+    description: "Maximum space saving • H.264 CRF 30 • veryslow • tune film • hqdn3d denoise • 64k mono audio."
+    tag: "TINY"
+    spec:
+      video_codec: "libx264"
+      crf: 30
+      preset: "veryslow"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 64
+      audio_channels: 1
+      tune: "film"
+      denoise: "hqdn3d=1.5:1.5:6:6"
+      deinterlace: false
+      fps: 30
+      width: 1280
+
+  - key: "veryfast1080"
+    title: "Very Fast 1080p30"
+    category: "General"
+    description: "High speed draft encode for fast client previews."
+    spec:
+      video_codec: "libx264"
+      crf: 24
+      preset: "veryfast"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 128
+      width: 1920
+      height: 1080
+      fps: 30
+
+  - key: "hq1080surround"
+    title: "HQ 1080p30 Surround"
+    category: "General"
+    description: "H.264 High Profile • CRF 20.0 • Surround Audio."
+    spec:
+      video_codec: "libx264"
+      crf: 20
+      preset: "slow"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 320
+      width: 1920
+      height: 1080
+      fps: 30
+
+  - key: "superfast720"
+    title: "Super Fast 720p30"
+    category: "General"
+    description: "Downscaled 720p rapid proxy generation."
+    spec:
+      video_codec: "libx264"
+      crf: 26
+      preset: "superfast"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 128
+      width: 1280
+      height: 720
+      fps: 30
+
+  - key: "ultrafast480"
+    title: "Ultra Fast 480p30"
+    category: "General"
+    description: "Low-overhead reference proxy for slow networks."
+    spec:
+      video_codec: "libx264"
+      crf: 28
+      preset: "ultrafast"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 96
+      width: 854
+      height: 480
+      fps: 30
+
+  # ============================================================================
+  # 2. Web Presets
+  # ============================================================================
+  - key: "discord"
+    title: "Discord 8MB Target"
+    category: "Web"
+    description: "Optimized for Discord free file upload cap."
+    tag: "WEB"
+    spec:
+      video_codec: "libx264"
+      crf: 26
+      preset: "faster"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 96
+      width: 1280
+      height: 720
+
+  - key: "web_optimized"
+    title: "Web Optimized H.264"
+    category: "Web"
+    description: "Faststart flag enabled for seamless web streaming playback."
+    tag: "WEB"
+    spec:
+      video_codec: "libx264"
+      crf: 22
+      preset: "medium"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 160
+
+  - key: "youtube4k"
+    title: "YouTube 4K Creator"
+    category: "Web"
+    description: "High bitrate H.264 upload preset recommended for YouTube 4K."
+    tag: "WEB"
+    spec:
+      video_codec: "libx264"
+      crf: 18
+      preset: "medium"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 320
+      width: 3840
+      height: 2160
+      fps: 60
+
+  - key: "vimeo1440"
+    title: "Vimeo 1440p HQ"
+    category: "Web"
+    description: "Clean 2K QHD profile targeted for Vimeo platform encoding."
+    tag: "WEB"
+    spec:
+      video_codec: "libx264"
+      crf: 19
+      preset: "slow"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 256
+      width: 2560
+      height: 1440
+
+  # ============================================================================
+  # 3. Hardware Presets
+  # ============================================================================
+  - key: "nvenc_h264"
+    title: "NVIDIA NVENC H.264"
+    category: "Hardware"
+    description: "Hardware-accelerated NVIDIA GPU H.264 encoder."
+    tag: "GPU"
+    spec:
+      video_codec: "h264_nvenc"
+      crf: 23
+      preset: "p4"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 160
+
+  - key: "nvenc_hevc"
+    title: "NVIDIA NVENC HEVC"
+    category: "Hardware"
+    description: "Hardware-accelerated 10-bit HEVC GPU encoding pipeline."
+    tag: "GPU"
+    spec:
+      video_codec: "hevc_nvenc"
+      crf: 24
+      preset: "p4"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 160
+
+  - key: "nvenc_av1"
+    title: "NVIDIA NVENC AV1"
+    category: "Hardware"
+    description: "Next-gen AV1 GPU encoding (RTX 40-series and newer)."
+    tag: "GPU"
+    spec:
+      video_codec: "av1_nvenc"
+      crf: 26
+      preset: "p4"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 160
+
+  - key: "qsv_h264"
+    title: "Intel QuickSync H.264"
+    category: "Hardware"
+    description: "Intel QuickSync Video hardware acceleration."
+    tag: "QSV"
+    spec:
+      video_codec: "h264_qsv"
+      crf: 22
+      preset: "medium"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 160
+
+  - key: "vaapi_hevc"
+    title: "Linux VA-API HEVC"
+    category: "Hardware"
+    description: "Linux Direct Rendering Manager VA-API hardware engine."
+    tag: "VAAPI"
+    spec:
+      video_codec: "hevc_vaapi"
+      crf: 24
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 160
+
+  # ============================================================================
+  # 4. Production Presets
+  # ============================================================================
+  - key: "master_prores"
+    title: "Production Master H.265"
+    category: "Production"
+    description: "Near-lossless 10-bit archival profile for primary masters."
+    tag: "PRO"
+    spec:
+      video_codec: "libx265"
+      crf: 16
+      preset: "slow"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 320
+
+  - key: "archive_h265"
+    title: "Archival H.265 10-bit"
+    category: "Production"
+    description: "Space-efficient long-term deep storage encode."
+    spec:
+      video_codec: "libx265"
+      crf: 18
+      preset: "medium"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 256
+
+  - key: "hevc"
+    title: "Standard HEVC / H.265"
+    category: "Production"
+    description: "50% bitrate reduction over H.264 at equivalent visual quality."
+    spec:
+      video_codec: "libx265"
+      crf: 24
+      preset: "medium"
+      container: "mp4"
+      audio_codec: "aac"
+      audio_bitrate: 160
+
+  - key: "audio_passthru"
+    title: "Audio Pass-Through / Copy"
+    category: "Production"
+    description: "Retains original uncompressed/surround source audio streams verbatim."
+    spec:
+      video_codec: "libx264"
+      crf: 22
+      preset: "medium"
+      container: "mp4"
+      audio_codec: "copy"
+

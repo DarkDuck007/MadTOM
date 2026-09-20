@@ -1,0 +1,31 @@
+{
+  "themeName": "high-contrast",
+  "displayName": "High Contrast Dark",
+  "colors": {
+    "Background": "#000000",
+    "HeaderBackground": "#050505",
+    "SidebarBackground": "#050505",
+    "CardBackground": "#0a0a0a",
+    "CardHoverBackground": "#171717",
+    "DarkBase": "#000000",
+    "Border": "#383838",
+    "BorderSubtle": "#262626",
+    "TextPrimary": "#ffffff",
+    "TextSecondary": "#d4d4d4",
+    "TextMuted": "#a3a3a3",
+    "Accent": "#00f0ff",
+    "AccentSubtle": "#003840",
+    "AccentText": "#00f0ff",
+    "Healthy": "#00ff66",
+    "HealthySubtle": "#003314",
+    "Warning": "#ffbb00",
+    "WarningSubtle": "#332500",
+    "Critical": "#ff2255",
+    "CriticalSubtle": "#400010",
+    "Indigo": "#7075ff",
+    "IndigoSubtle": "#141533",
+    "Purple": "#d444ff",
+    "PurpleSubtle": "#300040"
+  }
+}
+

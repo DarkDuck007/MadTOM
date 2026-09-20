@@ -61,10 +61,10 @@ sequenceDiagram
 
 ### Multi-Host Deployment via YAML (`deploy.yaml`)
 
-To deploy to multiple servers in a single run, create a `deploy.yaml` file (excluded from git via `.gitignore`). A template is provided in [`deploy.example.yaml`](file:///home/danial/Programming/Projects/CSharp/MADTOM/deploy.example.yaml):
+To deploy to multiple servers in a single run, create a `deploy.yaml` file (excluded from git via `.gitignore`). A template is provided in [`MADTOM_GOLANG/deploy.example.yaml`](../../../MADTOM_GOLANG/deploy.example.yaml):
 
 ```bash
-cp deploy.example.yaml deploy.yaml
+cp MADTOM_GOLANG/deploy.example.yaml deploy.yaml
 ./deploy.sh -c deploy.yaml
 ```
 

@@ -95,10 +95,10 @@ public class ThemeServiceTests
     [InlineData("anti-bleed-grey", "#23272e", "#00d4ff")]
     [InlineData("tft-amber-terminal", "#1b1c18", "#ffb000")]
     [InlineData("solarized-dark", "#002b36", "#2aa198")]
-    [InlineData("simple-purple-dark", "#000229", "#A4A6E3")]
-    [InlineData("simple-purple-light", "#E2EBF3", "#6A4CD4")]
-    [InlineData("cyberpunk-high-contrast", "#000229", "#00F5A0")]
-    [InlineData("lavender", "#F5F8FC", "#6A4CD4")]
+    [InlineData("simple-purple-dark", "#150016", "#c084fc")]
+    [InlineData("simple-purple-light", "#faf5f8", "#9333ea")]
+    [InlineData("cyberpunk-high-contrast", "#031716", "#00f5a0")]
+    [InlineData("lavender", "#f8f6fc", "#7c3aed")]
     [InlineData("neon-glass", "#080C42", "#6A4CD4")]
     public void ApplyTheme_LoadsCorrectPaletteColors(string themeName, string expectedBgHex, string expectedAccentHex)
     {

@@ -34,11 +34,15 @@ public partial class App : Application
             var hostContext = new ConsoleHostContext();
             _pluginManager = new PluginManager(hostContext);
 
-            // Register primary Telemetry plugin
-            var telemetryModule = new TelemetryPluginModule();
-            _pluginManager.RegisterModuleAsync(telemetryModule).GetAwaiter().GetResult();
+            // Register active plugins
+            _pluginManager.RegisterModuleAsync(new TelemetryPluginModule()).GetAwaiter().GetResult();
+            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.Squeeze.SqueezePluginModule()).GetAwaiter().GetResult();
+            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AndroidToolkit.AndroidToolkitPluginModule()).GetAwaiter().GetResult();
+            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.MediaCenter.MediaCenterPluginModule()).GetAwaiter().GetResult();
+            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.NoxAI.NoxAIPluginModule()).GetAwaiter().GetResult();
+            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AudioSync.AudioSyncPluginModule()).GetAwaiter().GetResult();
 
-            // Register sample plugins for multi-module switching
+            // Register placeholder plugins at bottom of rail
             _pluginManager.RegisterModuleAsync(new SysadminPlaceholderPluginModule()).GetAwaiter().GetResult();
             _pluginManager.RegisterModuleAsync(new EscPlaceholderPluginModule()).GetAwaiter().GetResult();
 

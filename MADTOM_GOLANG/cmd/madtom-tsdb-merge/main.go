@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DarkDuck007/madtom/pkg/collector/storage"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/collector/storage"
 )
 
 func main() {

@@ -1,0 +1,31 @@
+{
+  "themeName": "paper-white",
+  "displayName": "Warm Paper",
+  "colors": {
+    "Background": "#fbf9f5",
+    "HeaderBackground": "#f4efe6",
+    "SidebarBackground": "#efe9de",
+    "CardBackground": "#ffffff",
+    "CardHoverBackground": "#f7f3eb",
+    "DarkBase": "#e8dfd1",
+    "Border": "#dcd3c4",
+    "BorderSubtle": "#eae2d5",
+    "TextPrimary": "#2d2820",
+    "TextSecondary": "#615646",
+    "TextMuted": "#8c7f6e",
+    "Accent": "#b45309",
+    "AccentSubtle": "#fef3c7",
+    "AccentText": "#92400e",
+    "Healthy": "#15803d",
+    "HealthySubtle": "#dcfce7",
+    "Warning": "#b45309",
+    "WarningSubtle": "#fef3c7",
+    "Critical": "#b91c1c",
+    "CriticalSubtle": "#fee2e2",
+    "Indigo": "#4338ca",
+    "IndigoSubtle": "#e0e7ff",
+    "Purple": "#7e22ce",
+    "PurpleSubtle": "#f3e8ff"
+  }
+}
+

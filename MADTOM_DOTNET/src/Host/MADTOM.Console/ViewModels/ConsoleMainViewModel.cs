@@ -21,6 +21,7 @@ public sealed partial class PluginItemViewModel : ObservableObject
     public string IconGlyph => Module.IconGlyph;
     public string Category => Module.Category;
     public int OrderWeight => Module.OrderWeight;
+    public bool IsPlaceholder => Module.Id is not ("telemetry" or "squeeze");
 
     [ObservableProperty]
     private bool _isSelected;

@@ -1,0 +1,84 @@
+[Unit]
+Description=SQUEEZE Hardware-Accelerated Media Transcode Daemon (squeeze-server)
+Documentation=https://github.com/DarkDuck007/madtom
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# ------------------------------------------------------------------------------
+# COMMAND ARGUMENT REFERENCE FOR squeeze-server
+# ------------------------------------------------------------------------------
+# ALL possible command arguments accepted by squeeze-server:
+#
+#   -c, --config <path>
+#       Path to YAML configuration file (e.g. /etc/squeeze/squeeze.yaml).
+#
+#   -host <string>
+#       IP address to bind the HTTP REST & SSE server to.
+#       Default: 0.0.0.0
+#
+#   -port <int>
+#       TCP port for HTTP REST API and Server-Sent Events (SSE).
+#       Default: 8080
+#
+#   -scratch <path>
+#       Directory for staging incoming uploads and active chunk processing.
+#       Default: /tmp/squeeze/scratch (Recommended: /var/lib/squeeze/scratch)
+#
+#   -output <path>
+#       Directory for finalized transcoded media artifacts.
+#       Default: /tmp/squeeze/output (Recommended: /var/lib/squeeze/output)
+#
+#   -ffmpeg <path>
+#       Path to ffmpeg binary (software & hardware acceleration probe).
+#       Default: ffmpeg
+#
+#   -ffprobe <path>
+#       Path to ffprobe binary (stream metadata inspection).
+#       Default: ffprobe
+#
+#   -node-id <string>
+#       Unique name/identifier for this node broadcasted via mDNS.
+#       Default: System hostname
+#
+#   -workers <int>
+#       Number of concurrent transcoding worker routines.
+#       Default: Number of CPU cores
+#
+#   -queue-size <int>
+#       Capacity of the in-memory FIFO job prioritization queue.
+#       Default: 100
+#
+#   -retention <duration>
+#       Duration before completed transcode outputs are pruned from disk.
+#       Default: 24h
+#
+#   -mdns <bool>
+#       Enable mDNS Zeroconf LAN advertising (_squeeze._tcp).
+#       Default: true
+#
+#   -token <string>
+#       Optional Bearer token for authenticating HTTP requests.
+#       Default: "" (Open access)
+# ------------------------------------------------------------------------------
+
+# Active standard configuration:
+ExecStart=/opt/squeeze-server \
+    -config /etc/squeeze/squeeze.yaml \
+    -scratch /var/lib/squeeze/scratch \
+    -output /var/lib/squeeze/output
+
+Restart=always
+RestartSec=5s
+LimitNOFILE=65536
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

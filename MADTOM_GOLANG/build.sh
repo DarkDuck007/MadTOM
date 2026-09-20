@@ -48,7 +48,9 @@ ${BOLD}Options:${NC}
   -p, --package PKG     Package to build:
                           - daemon    (madtom-daemon only)
                           - collector (madtom-collector only)
-                          - all       (both daemons, default)
+                          - squeeze   (squeeze-server only)
+                          - telemetry (madtom-collector and madtom-daemon)
+                          - all       (all Go services, default)
 
   -c, --clean           Clean bin directory before building
   --release             Build optimized release binaries with stripped symbols (default)
@@ -57,6 +59,7 @@ ${BOLD}Options:${NC}
 
 ${BOLD}Examples:${NC}
   $(basename "$0")
+  $(basename "$0") --package squeeze
   $(basename "$0") --arch arm64
   $(basename "$0") --arch all
   $(basename "$0") -p daemon -a arm64
@@ -81,9 +84,11 @@ while [[ $# -gt 0 ]]; do
             case "${2,,}" in
                 daemon|madtom-daemon)       TARGET_PKG="daemon" ;;
                 collector|madtom-collector) TARGET_PKG="collector" ;;
+                squeeze|squeeze-server|madtom-squeeze) TARGET_PKG="squeeze" ;;
+                telemetry)                  TARGET_PKG="telemetry" ;;
                 all)                        TARGET_PKG="all" ;;
                 *)
-                    echo -e "${RED}Error: Unknown package '$2'. Choose 'daemon', 'collector', or 'all'.${NC}" >&2
+                    echo -e "${RED}Error: Unknown package '$2'. Choose 'daemon', 'collector', 'squeeze', 'telemetry', or 'all'.${NC}" >&2
                     exit 1
                     ;;
             esac
@@ -137,11 +142,13 @@ PKGS=()
 case "$TARGET_PKG" in
     daemon)    PKGS=("madtom-daemon") ;;
     collector) PKGS=("madtom-collector") ;;
-    all)       PKGS=("madtom-collector" "madtom-daemon") ;;
+    squeeze)   PKGS=("squeeze-server") ;;
+    telemetry) PKGS=("madtom-collector" "madtom-daemon") ;;
+    all)       PKGS=("madtom-collector" "madtom-daemon" "squeeze-server") ;;
 esac
 
 echo -e "${BOLD}${CYAN}================================================================${NC}"
-echo -e "${BOLD}${CYAN} MADTOM Go Backend Daemon Compiler${NC}"
+echo -e "${BOLD}${CYAN} MADTOM Go Backend Compiler${NC}"
 echo -e "${BOLD}${CYAN}================================================================${NC}"
 echo -e "  Configuration : ${BOLD}${CONFIG}${NC}"
 echo -e "  Architectures : ${BOLD}${ARCHES[*]}${NC}"
@@ -182,9 +189,17 @@ for arch in "${ARCHES[@]}"; do
         BIN_SIZE="$(du -h "$OUT_PATH" | cut -f1)"
         echo -e "       ${GREEN}✓ ${OUT_PATH} (${BIN_SIZE})${NC}"
 
+        # If squeeze-server, also provide madtom-squeeze binary alias
+        if [ "$pkg" = "squeeze-server" ]; then
+            cp -f "$OUT_PATH" "$ARCH_DIR/madtom-squeeze" 2>/dev/null || true
+        fi
+
         # If this matches host architecture, also copy to top-level bin/ for convenience
         if [ "$arch" = "$DEFAULT_ARCH" ]; then
             cp -f "$OUT_PATH" "$BIN_DIR/$pkg" 2>/dev/null || true
+            if [ "$pkg" = "squeeze-server" ]; then
+                cp -f "$OUT_PATH" "$BIN_DIR/madtom-squeeze" 2>/dev/null || true
+            fi
         fi
 
         TOTAL_BUILT=$((TOTAL_BUILT + 1))

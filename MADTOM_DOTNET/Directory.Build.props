@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <UsedAvaloniaProducts></UsedAvaloniaProducts>
+    <AvaloniaVersion>12.1.1</AvaloniaVersion>
     <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
     <EnableAvaloniaStatsTask>false</EnableAvaloniaStatsTask>
   </PropertyGroup>

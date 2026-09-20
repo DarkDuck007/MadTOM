@@ -41,13 +41,21 @@ public partial class MainWindow : Window
 
         // ILexiconHost
         public string CurrentLexicon => "goose";
-        public event EventHandler<string>? CurrentLexiconChanged;
+        public event EventHandler<string>? CurrentLexiconChanged
+        {
+            add { }
+            remove { }
+        }
         public void RegisterLexicon(string pluginId, string lexiconKey, System.Collections.Generic.IReadOnlyDictionary<string, string> entries) { }
         public string GetString(string pluginId, string key, string? fallback = null) => fallback ?? key;
 
         // IThemeHost
         public string CurrentTheme => "default-dark";
-        public event EventHandler<string>? CurrentThemeChanged;
+        public event EventHandler<string>? CurrentThemeChanged
+        {
+            add { }
+            remove { }
+        }
         public System.Collections.Generic.IReadOnlyList<MadTOM.Theming.ThemePaletteModel> AvailablePalettes =>
             MadTOM.Theming.ThemeService.Instance.AvailablePalettes;
         public MadTOM.Theming.ThemePaletteModel? GetPalette(string themeName) =>
