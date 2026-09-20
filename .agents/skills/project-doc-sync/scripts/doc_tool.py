@@ -57,7 +57,7 @@ def check_markdown_links(root_dir):
         
     doc_dir = root / "Documentation"
     if doc_dir.exists():
-        for p in sorted(doc_dir.glob("*.md")):
+        for p in sorted(doc_dir.rglob("*.md")):
             doc_files.append(p)
 
     link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
@@ -155,7 +155,7 @@ def cmd_summary(args):
         
     doc_dir = root / "Documentation"
     if doc_dir.exists():
-        for p in sorted(doc_dir.glob("*.md")):
+        for p in sorted(doc_dir.rglob("*.md")):
             doc_files.append(p)
 
     print(f"Documentation Overview for {root.name}:")
