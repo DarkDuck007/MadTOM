@@ -99,7 +99,7 @@ public sealed class CompressedPointHistory : IEnumerable<LODPoint>
         if (_tail.Count == BlockSize)
         {
             AddBlock(new CompressedPointBlock(_tail.ToArray()));
-            _tail.Clear(); _tail.TrimExcess();
+            _tail.Clear();
         }
     }
     public long FirstTimestamp => _head.Count > 0 ? _head.Peek().TimestampUnixNano :
@@ -110,7 +110,7 @@ public sealed class CompressedPointHistory : IEnumerable<LODPoint>
         while (_head.Count > 0 && _head.Peek().TimestampUnixNano < cutoff) { _head.Dequeue(); Count--; }
         while (_blocks.First != null && _blocks.First.Value.Last < cutoff)
         { Count -= _blocks.First.Value.Count; RemoveFirstBlock(); }
-        if (_blocks.First != null && _blocks.First.Value.First < cutoff)
+        if (_head.Count == 0 && _blocks.First != null && _blocks.First.Value.First < cutoff)
         {
             var firstBlock = _blocks.First.Value;
             foreach (var p in firstBlock.Decode())
@@ -118,8 +118,6 @@ public sealed class CompressedPointHistory : IEnumerable<LODPoint>
             RemoveFirstBlock();
         }
         while (_tail.Count > 0 && _tail.Peek().TimestampUnixNano < cutoff) { _tail.Dequeue(); Count--; }
-        if (_head.Count == 0) _head.TrimExcess();
-        if (_tail.Count == 0) _tail.TrimExcess();
     }
     public void DropOldestBlock()
     {

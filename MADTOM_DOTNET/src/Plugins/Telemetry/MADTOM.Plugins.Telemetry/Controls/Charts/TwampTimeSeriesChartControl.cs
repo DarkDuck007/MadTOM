@@ -7,11 +7,14 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using Avalonia.Threading;
+using MadTOM.Services;
 
 namespace MadTOM.Controls.Charts;
 
 public sealed class TwampTimeSeriesChartControl : Control
 {
+    private static double MaxZoom => GraphPerformanceSettings.Current.MaxZoomLevel;
     public static readonly StyledProperty<double[]> ForwardSeriesProperty =
         AvaloniaProperty.Register<TwampTimeSeriesChartControl, double[]>(nameof(ForwardSeries), Array.Empty<double>());
 
@@ -178,7 +181,7 @@ public sealed class TwampTimeSeriesChartControl : Control
         }
 
         // Apply zoom and pan transformation
-        double zoom = Math.Max(1.0, Math.Min(8.0, ZoomLevel));
+        double zoom = Math.Max(1.0, Math.Min(MaxZoom, ZoomLevel));
         double maxPan = Math.Max(0.0, (zoom - 1.0) * plotW);
         double pan = Math.Clamp(PanOffset, 0.0, maxPan);
 
@@ -358,14 +361,15 @@ public sealed class TwampTimeSeriesChartControl : Control
         double leftPad,
         double plotW,
         double minZoom = 1.0,
-        double maxZoom = 8.0)
+        double? maxZoom = null)
     {
         if (plotW <= 0) return (oldZoom, oldPan);
 
+        double effectiveMaxZoom = maxZoom ?? MaxZoom;
         double relX = Math.Clamp(cursorX - leftPad, 0.0, plotW);
         double dataFrac = (relX + oldPan) / (plotW * oldZoom);
 
-        double newZoom = Math.Clamp(oldZoom + (deltaY * 0.25), minZoom, maxZoom);
+        double newZoom = Math.Clamp(oldZoom + (deltaY * 0.25), minZoom, effectiveMaxZoom);
         double newMaxPan = Math.Max(0.0, (newZoom - 1.0) * plotW);
         double newPan = (dataFrac * plotW * newZoom) - relX;
 
@@ -448,7 +452,7 @@ public sealed class TwampTimeSeriesChartControl : Control
                 double currentDistance = Math.Max(10.0, Math.Abs(pts[0].X - pts[1].X));
                 double scale = currentDistance / _multiTouchStartDistance;
 
-                double newZoom = Math.Clamp(_multiTouchStartZoom * scale, 1.0, 8.0);
+                double newZoom = Math.Clamp(_multiTouchStartZoom * scale, 1.0, MaxZoom);
                 double relX = Math.Clamp(_multiTouchStartCenter.X - leftPad, 0.0, plotW);
                 double dataFrac = (relX + _multiTouchStartPan) / (plotW * _multiTouchStartZoom);
                 double newMaxPan = Math.Max(0.0, (newZoom - 1.0) * plotW);
@@ -540,12 +544,32 @@ public sealed class TwampTimeSeriesChartControl : Control
         if (Math.Abs(deltaY) > 0.001)
         {
             Point cursorPt = _hoverPoint ?? e.GetPosition(this);
-            var (newZoom, newPan) = ComputeCursorAnchoredZoom(ZoomLevel, PanOffset, deltaY, cursorPt.X, leftPad, plotW, 1.0, 8.0);
+            var (newZoom, newPan) = ComputeCursorAnchoredZoom(ZoomLevel, PanOffset, deltaY, cursorPt.X, leftPad, plotW);
             PanOffset = newPan;
             ZoomLevel = newZoom;
             InvalidateVisual();
             e.Handled = true;
         }
+    }
+
+    private void InvalidateVisualSafe()
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+            InvalidateVisual();
+        else
+            Dispatcher.UIThread.Post(InvalidateVisual);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        GraphPerformanceSettings.Current.Changed += InvalidateVisualSafe;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        GraphPerformanceSettings.Current.Changed -= InvalidateVisualSafe;
+        base.OnDetachedFromVisualTree(e);
     }
 
     protected override void OnPointerExited(PointerEventArgs e)

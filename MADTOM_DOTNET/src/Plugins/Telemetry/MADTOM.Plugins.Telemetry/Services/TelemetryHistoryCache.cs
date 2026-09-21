@@ -15,6 +15,8 @@ public sealed class TelemetryHistoryCache
     private readonly Func<DateTime> _utcNow;
     private readonly Dictionary<(string Collector, string Node, string Metric), Series> _live = new();
     private readonly List<RemoteRange> _remote = new();
+    private readonly List<(string Collector, string Node, string Metric)> _deadKeysBuffer = new();
+    private DateTime _lastPruneUtc = DateTime.MinValue;
     private sealed class Series
     {
         public CompressedPointHistory Points { get; set; } = new();
@@ -174,7 +176,8 @@ public sealed class TelemetryHistoryCache
     {
         lock (_gate)
         {
-            PruneLocked();
+            if ((_utcNow() - _lastPruneUtc).TotalSeconds >= 5 || _utcNow() < _lastPruneUtc)
+                PruneLocked();
             double projected = 0;
             foreach (var (key, series) in _live)
             {
@@ -260,12 +263,26 @@ public sealed class TelemetryHistoryCache
                 }
                 var points = series.Points;
                 if (points.Count > 0 && series.Latest >= timestamp) continue;
-                UpdateSeriesDeltaLocked(series, () =>
+
+                long oldStorage = points.StorageBytes;
+                long oldCount = points.Count;
+                int oldBlocks = points.BlocksCount;
+                long oldComp = points.CompressedBytes;
+                long oldCompRaw = points.CompressedRawBytes;
+
+                points.Enqueue(new(timestamp, value, value, value));
+                series.Latest = timestamp;
+
+                if (points.FirstTimestamp < cutoff)
                 {
-                    points.Enqueue(new(timestamp, value, value, value));
-                    series.Latest = timestamp;
                     points.RemoveBefore(cutoff);
-                });
+                }
+
+                _liveStorageBytes += (points.StorageBytes - oldStorage);
+                _livePoints += (points.Count - oldCount);
+                _liveBlocks += (points.BlocksCount - oldBlocks);
+                _liveCompressedBytes += (points.CompressedBytes - oldComp);
+                _liveCompressedRawBytes += (points.CompressedRawBytes - oldCompRaw);
             }
             EnforceLimitsLocked();
         }
@@ -278,7 +295,8 @@ public sealed class TelemetryHistoryCache
     {
         lock (_gate)
         {
-            PruneLocked();
+            if ((_utcNow() - _lastPruneUtc).TotalSeconds >= 5 || _utcNow() < _lastPruneUtc)
+                PruneLocked();
             double projected = 0;
             long current = _storedStorageBytes;
             foreach (var series in _live.Values)
@@ -538,12 +556,37 @@ public sealed class TelemetryHistoryCache
 
     private void PruneLocked()
     {
+        _lastPruneUtc = _utcNow();
         long cutoff = Cutoff();
-        foreach (var (key, series) in _live.ToArray())
+        _deadKeysBuffer.Clear();
+
+        foreach (var (key, series) in _live)
         {
-            UpdateSeriesDeltaLocked(series, () => series.Points.RemoveBefore(cutoff));
-            if (series.Points.Count == 0) RemoveSeriesLocked(key, series);
+            long oldStorage = series.Points.StorageBytes;
+            long oldCount = series.Points.Count;
+            int oldBlocks = series.Points.BlocksCount;
+            long oldComp = series.Points.CompressedBytes;
+            long oldCompRaw = series.Points.CompressedRawBytes;
+
+            series.Points.RemoveBefore(cutoff);
+
+            _liveStorageBytes += (series.Points.StorageBytes - oldStorage);
+            _livePoints += (series.Points.Count - oldCount);
+            _liveBlocks += (series.Points.BlocksCount - oldBlocks);
+            _liveCompressedBytes += (series.Points.CompressedBytes - oldComp);
+            _liveCompressedRawBytes += (series.Points.CompressedRawBytes - oldCompRaw);
+
+            if (series.Points.Count == 0) _deadKeysBuffer.Add(key);
         }
+
+        for (int i = 0; i < _deadKeysBuffer.Count; i++)
+        {
+            var key = _deadKeysBuffer[i];
+            if (_live.TryGetValue(key, out var series))
+                RemoveSeriesLocked(key, series);
+        }
+        _deadKeysBuffer.Clear();
+
         PruneExpiredRemoteLocked(_utcNow());
         // Expiring part of a sealed block can materialize a raw head. Recheck budgets.
         EnforceLimitsLocked();

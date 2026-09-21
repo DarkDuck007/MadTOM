@@ -10,6 +10,7 @@ public sealed class GraphPerformanceSettings
     private readonly string _path;
     public double PointsPerPixel { get; private set; } = 1;
     public double HistoryPointsPerPixel { get; private set; } = 3;
+    public double MaxZoomLevel => HistoryPointsPerPixel * 10.0;
     public event Action? Changed;
 
     public GraphPerformanceSettings(string? path = null)

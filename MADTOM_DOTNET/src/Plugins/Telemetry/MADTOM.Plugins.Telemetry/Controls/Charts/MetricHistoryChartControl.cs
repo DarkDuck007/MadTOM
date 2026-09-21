@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using Avalonia.Threading;
 using MadTOM.Models;
 using MadTOM.Services;
 
@@ -54,6 +55,7 @@ public sealed class MetricHistoryChartControl : Control
     public IReadOnlyList<ChartSeriesModel>? SeriesList { get => GetValue(SeriesListProperty); set => SetValue(SeriesListProperty, value); }
     public double ZoomLevel { get => GetValue(ZoomLevelProperty); set => SetValue(ZoomLevelProperty, value); }
     public double PanOffset { get => GetValue(PanOffsetProperty); set => SetValue(PanOffsetProperty, value); }
+    private static double MaxZoom => GraphPerformanceSettings.Current.MaxZoomLevel;
 
     private Point? _hoverPoint;
     private bool _isDragging;
@@ -75,6 +77,14 @@ public sealed class MetricHistoryChartControl : Control
         _geometryCacheValid = false;
         if (UiPerformanceDiagnostics.Enabled && _dirtySince == 0)
             _dirtySince = System.Diagnostics.Stopwatch.GetTimestamp();
+    }
+
+    private void InvalidateVisualSafe()
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+            InvalidateVisual();
+        else
+            Dispatcher.UIThread.Post(InvalidateVisual);
     }
     private double _cachedWidth;
     private double _cachedHeight;
@@ -157,7 +167,7 @@ public sealed class MetricHistoryChartControl : Control
                     foreach (var item in newItems) item.PropertyChanged += OnSeriesItemPropertyChanged;
                 }
             }
-            InvalidateVisual();
+            InvalidateVisualSafe();
         }
     }
 
@@ -174,7 +184,7 @@ public sealed class MetricHistoryChartControl : Control
             foreach (var item in e.NewItems.OfType<ChartSeriesModel>())
                 item.PropertyChanged += OnSeriesItemPropertyChanged;
         }
-        InvalidateVisual();
+        InvalidateVisualSafe();
     }
 
     private void OnSeriesItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -185,7 +195,7 @@ public sealed class MetricHistoryChartControl : Control
                                nameof(ChartSeriesModel.ColorHex))
         {
             MarkGeometryDirty();
-            InvalidateVisual();
+            InvalidateVisualSafe();
         }
     }
 
@@ -280,7 +290,7 @@ public sealed class MetricHistoryChartControl : Control
         long timeSpanNano = wEnd - wStart;
         bool useTimeMapping = timeSpanNano > 1_000_000_000L; // Valid time range > 1 sec
 
-        double zoom = Math.Clamp(ZoomLevel, 1.0, 8.0);
+        double zoom = Math.Clamp(ZoomLevel, 1.0, MaxZoom);
         double maxPan = (zoom - 1.0) * plotW;
         double pan = Math.Clamp(PanOffset, 0.0, maxPan);
 
@@ -651,7 +661,7 @@ public sealed class MetricHistoryChartControl : Control
         if (Bounds.Width > 68)
             SetCurrentValue(HistoryPointBudgetProperty, GraphHistoryResolution.PointBudget(Bounds.Width - 68, GraphPerformanceSettings.Current.HistoryPointsPerPixel));
         MarkGeometryDirty();
-        InvalidateVisual();
+        InvalidateVisualSafe();
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -727,7 +737,7 @@ public sealed class MetricHistoryChartControl : Control
                 double currentDistance = Math.Max(10.0, Math.Abs(pts[0].X - pts[1].X));
                 double scale = currentDistance / _multiTouchStartDistance;
 
-                double newZoom = Math.Clamp(_multiTouchStartZoom * scale, 1.0, 8.0);
+                double newZoom = Math.Clamp(_multiTouchStartZoom * scale, 1.0, MaxZoom);
                 double relX = Math.Clamp(_multiTouchStartCenter.X - leftPad, 0.0, plotW);
                 double dataFrac = (relX + _multiTouchStartPan) / (plotW * _multiTouchStartZoom);
                 double newMaxPan = Math.Max(0.0, (newZoom - 1.0) * plotW);
@@ -861,7 +871,7 @@ public sealed class MetricHistoryChartControl : Control
         // Mouse wheel zoom
         double mouseX = Math.Clamp((_hoverPoint ?? e.GetPosition(this)).X - leftPad, 0.0, plotW);
         double oldZoom = ZoomLevel;
-        double newZoom = Math.Clamp(oldZoom + e.Delta.Y * 0.35, 1.0, 8.0);
+        double newZoom = Math.Clamp(oldZoom + e.Delta.Y * 0.35, 1.0, MaxZoom);
 
         double frac = (mouseX + PanOffset) / (plotW * oldZoom);
         ZoomLevel = newZoom;

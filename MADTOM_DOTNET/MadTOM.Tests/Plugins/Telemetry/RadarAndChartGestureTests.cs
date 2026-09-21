@@ -77,10 +77,16 @@ public class RadarAndChartGestureTests
         Assert.Equal(1.0, minZoom);
         Assert.Equal(0.0, minPan);
 
-        // Zoom in beyond 8.0
-        var (maxZoom, _) = TwampTimeSeriesChartControl.ComputeCursorAnchoredZoom(
+        // Zoom in beyond custom maxZoom 8.0
+        var (customMaxZoom, _) = TwampTimeSeriesChartControl.ComputeCursorAnchoredZoom(
             7.5, 0.0, 10.0, leftPad + 100, leftPad, plotW, minZoom: 1.0, maxZoom: 8.0);
-        Assert.Equal(8.0, maxZoom);
+        Assert.Equal(8.0, customMaxZoom);
+
+        // Zoom in beyond default dynamic maxZoom (derived from GraphPerformanceSettings.Current.MaxZoomLevel)
+        double currentMax = GraphPerformanceSettings.Current.MaxZoomLevel;
+        var (defaultMaxZoom, _) = TwampTimeSeriesChartControl.ComputeCursorAnchoredZoom(
+            currentMax - 1.0, 0.0, 20.0, leftPad + 100, leftPad, plotW);
+        Assert.Equal(currentMax, defaultMaxZoom);
     }
 
     [Fact]

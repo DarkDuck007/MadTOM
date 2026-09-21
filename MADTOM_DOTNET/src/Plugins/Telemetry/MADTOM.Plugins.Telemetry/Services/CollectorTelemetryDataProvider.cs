@@ -391,7 +391,18 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
             }
 
             HistoryCache.Record(node.CollectorEndpoint, node.Id, s.TimestampUnixNano, node.LatestMetricValues);
-            NodeTelemetryUpdated?.Invoke(this, node);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                NodeTelemetryUpdated?.Invoke(this, node);
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_disposeCts.IsCancellationRequested) return;
+                    NodeTelemetryUpdated?.Invoke(this, node);
+                });
+            }
         });
     }
 
