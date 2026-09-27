@@ -6,6 +6,8 @@
 # ==============================================================================
 set -euo pipefail
 
+export MSBuildEnableWorkloadResolver=false
+
 # Resolve real script directory even if invoked via symlink
 REAL_SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "$REAL_SCRIPT_PATH")" && pwd)"

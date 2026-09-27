@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
     <UsedAvaloniaProducts></UsedAvaloniaProducts>
     <AvaloniaVersion>12.1.1</AvaloniaVersion>
     <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>

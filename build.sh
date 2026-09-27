@@ -5,6 +5,8 @@
 # ==============================================================================
 set -euo pipefail
 
+export MSBuildEnableWorkloadResolver=false
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GO_DIR="$ROOT_DIR/MADTOM_GOLANG"
 DOTNET_DIR="$ROOT_DIR/MADTOM_DOTNET"
