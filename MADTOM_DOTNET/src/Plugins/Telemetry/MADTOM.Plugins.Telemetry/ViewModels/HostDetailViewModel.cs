@@ -133,12 +133,17 @@ public partial class HostDetailViewModel : ViewModelBase
     {
         if (value != null && value.Id != SelectedHostId)
         {
+            if (!DeepDiveTransitionTracker.IsActive)
+                DeepDiveTransitionTracker.Begin(value.Id, fromView: "dropdown");
             UpdateHostView(value.Id);
         }
     }
 
     public void SelectHost(string hostId)
     {
+        if (!DeepDiveTransitionTracker.IsActive)
+            DeepDiveTransitionTracker.Begin(hostId, fromView: "detail");
+
         var opt = HostOptions.FirstOrDefault(o => o.Id.Equals(hostId, StringComparison.OrdinalIgnoreCase));
         if (opt == null)
         {
@@ -168,16 +173,19 @@ public partial class HostDetailViewModel : ViewModelBase
 
         if (hostId.Equals("aggregated", StringComparison.OrdinalIgnoreCase))
         {
-            IsAggregated = true;
-            HostTitle = $"Cluster ({allNodes.Count} Hosts)";
-            RoleBadge = "Aggregated";
-            IsBaremetal = false;
-            CpuSpec = "All processors";
-            ThreadsSpec = $"{allNodes.Sum(n => n.Cores)} Logical Threads";
-            var total = allNodes.Sum(n => (double)n.MemoryTotalBytes);
-            RamSpec = $"{total / 1073741824:F1} GB Total RAM";
-            RamUsedSpec = total > 0 ? $"{allNodes.Sum(n => n.RamUsedPct * n.MemoryTotalBytes) / total:F1}% Used" : "Unavailable";
-            TwampUpText = "Unavailable"; TwampDownText = ""; TwampAsymText = "No TWAMP probe configured";
+            using (DeepDiveTransitionTracker.MeasureStep("host-detail.specs"))
+            {
+                IsAggregated = true;
+                HostTitle = $"Cluster ({allNodes.Count} Hosts)";
+                RoleBadge = "Aggregated";
+                IsBaremetal = false;
+                CpuSpec = "All processors";
+                ThreadsSpec = $"{allNodes.Sum(n => n.Cores)} Logical Threads";
+                var total = allNodes.Sum(n => (double)n.MemoryTotalBytes);
+                RamSpec = $"{total / 1073741824:F1} GB Total RAM";
+                RamUsedSpec = total > 0 ? $"{allNodes.Sum(n => n.RamUsedPct * n.MemoryTotalBytes) / total:F1}% Used" : "Unavailable";
+                TwampUpText = "Unavailable"; TwampDownText = ""; TwampAsymText = "No TWAMP probe configured";
+            }
 
             MetricsTab.UpdateForNode("aggregated", null, allNodes);
             ProcessesTab.SetTargetHost("all");
@@ -190,34 +198,38 @@ public partial class HostDetailViewModel : ViewModelBase
 
         if (node == null)
         {
-            HostTitle = hostId;
-            IsBaremetal = false;
-            RoleBadge = "Connecting...";
-            CpuSpec = "Waiting for node metrics...";
-            ThreadsSpec = "Probing telemetry stream...";
-            RamSpec = "-";
-            RamUsedSpec = "-";
-            TwampUpText = "-";
-            TwampDownText = "-";
-            TwampAsymText = "-";
+            using (DeepDiveTransitionTracker.MeasureStep("host-detail.specs"))
+            {
+                HostTitle = hostId;
+                IsBaremetal = false;
+                RoleBadge = "Connecting...";
+                CpuSpec = "Waiting for node metrics...";
+                ThreadsSpec = "Probing telemetry stream...";
+                RamSpec = "-";
+                RamUsedSpec = "-";
+                TwampUpText = "-";
+                TwampDownText = "-";
+                TwampAsymText = "-";
+            }
             MetricsTab.UpdateForNode(hostId, null, allNodes);
             ProcessesTab.SetTargetHost(hostId);
             FlightTab.SetTargetHost(hostId);
             return;
         }
 
-        HostTitle = node.Id;
-        IsBaremetal = node.Role == "baremetal";
-        RoleBadge = $"{node.Role.ToUpperInvariant()} · {node.Status}";
-
-        CpuSpec = node.CpuModel;
-        ThreadsSpec = $"{node.Cores} Logical Threads";
-        RamSpec = node.RamTotal;
-        RamUsedSpec = $"{node.RamUsedPct:F1}% Used (Active Allocation)";
-
-        TwampUpText = node.Twamp.DisplayText;
-        TwampDownText = node.Twamp.OneWayAvailable ? $"↑ {node.Twamp.ForwardMs:F2} / ↓ {node.Twamp.ReverseMs:F2} ms" : "";
-        TwampAsymText = node.Twamp.OneWayAvailable ? $"Asymmetry: {node.Twamp.AsymmetryMs:F2} ms" : node.Twamp.Available ? "One-way delay requires synchronized clocks" : node.Twamp.Error;
+        using (DeepDiveTransitionTracker.MeasureStep("host-detail.specs"))
+        {
+            HostTitle = node.Id;
+            IsBaremetal = node.Role == "baremetal";
+            RoleBadge = $"{node.Role.ToUpperInvariant()} · {node.Status}";
+            CpuSpec = node.CpuModel;
+            ThreadsSpec = $"{node.Cores} Logical Threads";
+            RamSpec = node.RamTotal;
+            RamUsedSpec = $"{node.RamUsedPct:F1}% Used (Active Allocation)";
+            TwampUpText = node.Twamp.DisplayText;
+            TwampDownText = node.Twamp.OneWayAvailable ? $"↑ {node.Twamp.ForwardMs:F2} / ↓ {node.Twamp.ReverseMs:F2} ms" : "";
+            TwampAsymText = node.Twamp.OneWayAvailable ? $"Asymmetry: {node.Twamp.AsymmetryMs:F2} ms" : node.Twamp.Available ? "One-way delay requires synchronized clocks" : node.Twamp.Error;
+        }
 
         MetricsTab.UpdateForNode(node.Id, node, allNodes);
         ProcessesTab.SetTargetHost(node.Id);
@@ -228,6 +240,21 @@ public partial class HostDetailViewModel : ViewModelBase
     public void SwitchTab(string tab)
     {
         ActiveTab = tab;
+        string target = IsAggregated ? "all" : SelectedHostId;
+        if (IsProcessesTab)
+        {
+            ProcessesTab.SetTargetHost(target);
+        }
+        else if (IsFlightTab)
+        {
+            FlightTab.SetTargetHost(target);
+        }
+        else if (IsMetricsTab)
+        {
+            var allNodes = _telemetryProvider.GetFleetNodes();
+            var node = allNodes.FirstOrDefault(n => n.Id.Equals(SelectedHostId, StringComparison.OrdinalIgnoreCase));
+            MetricsTab.UpdateForNode(IsAggregated ? "aggregated" : SelectedHostId, node, allNodes);
+        }
     }
 
     [RelayCommand]

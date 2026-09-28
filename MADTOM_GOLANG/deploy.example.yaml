@@ -13,10 +13,14 @@
 
 # Global defaults applied to all servers unless overridden per-host
 defaults:
-  # Default SSH user
+  # Default project to deploy (madtom-daemon, madtom-collector, squeeze-server, madtom-tsdb-merge)
+  # Automatically sets default service, binary, and destination if not explicitly overridden.
+  project: madtom-daemon
+
+  # Default SSH user (can be omitted if host is an SSH config alias or matching local user)
   user: danial
 
-  # Default SSH port
+  # Default SSH port (defaults to 22 or port defined in ~/.ssh/config)
   port: 22
 
   # Default systemd service name to restart on remote systems
@@ -35,13 +39,14 @@ defaults:
   # Whether to build the binary locally before deploying (true / false)
   build: true
 
-  # Optional global default SSH password (leave empty if per-server or key-based)
+  # Optional global default SSH password (leave empty if using SSH key authentication)
   ssh_pass: ""
 
-  # Optional global default sudo password (defaults to ssh_pass if not set)
+  # Optional global default sudo password (leave empty if remote user has passwordless sudo)
   sudo_pass: ""
 
 # Target server list
+# Hosts can be IP addresses, FQDNs, or SSH config aliases (e.g. tp1, tp2 defined in ~/.ssh/config).
 servers:
   - host: ssh.example.com
     # user: danial              # Optional override
@@ -50,3 +55,12 @@ servers:
     # dest: /opt/madtomd        # Optional destination override
     ssh_pass: "YOUR_SSH_PASSWORD"
     sudo_pass: "YOUR_SUDO_PASSWORD" # Optional: defaults to ssh_pass if omitted
+
+  # Example using SSH short name from ~/.ssh/config with public key authentication
+  # - host: tp1
+  #   project: madtom-daemon
+
+  # Example deploying the collector hub
+  # - host: collector.example.com
+  #   project: madtom-collector
+

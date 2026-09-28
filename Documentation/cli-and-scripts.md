@@ -6,18 +6,42 @@ This guide provides an exhaustive reference for all executables, build scripts, 
 
 ## Table of Contents
 
-1. [Scripts Reference](#scripts-reference)
-   - [`./build.sh` — Unified Project Build](#1-buildsh--unified-project-build)
-   - [`./publish.sh` — .NET Self-Contained Linux Publishing](#2-publishsh--net-self-contained-linux-publishing)
-   - [`./deploy.sh` — Remote SSH/Sudo Daemon Deployment](#3-deploysh--remote-sshsudo-daemon-deployment)
-   - [`MADTOM_GOLANG/build.sh` — Go Multi-Architecture Compiler](#4-madtom_golangbuildsh--go-multi-architecture-compiler)
-2. [Executables Reference](#executables-reference)
-   - [`madtom-daemon` — Node Telemetry Agent](#1-madtom-daemon--node-telemetry-agent)
-   - [`madtom-collector` — Central Telemetry Hub](#2-madtom-collector--central-telemetry-hub)
-   - [`squeeze-server` — SQUEEZE Media Transcoding Daemon](#3-squeeze-server--squeeze-media-transcoding-daemon)
-   - [`MADTOM.Studio` — Modular Operations Host Shell](#4-madtomstudio--modular-operations-host-shell)
-   - [`MADTOM.Plugins.Telemetry.App` — Standalone Telemetry Client](#5-madtompluginstelemetryapp--standalone-telemetry-client)
-   - [`MADTOM.Plugins.Squeeze.App` — Standalone SQUEEZE Client](#6-madtompluginssqueezeapp--standalone-squeeze-client)
+- [Command-Line \& Scripts Reference](#command-line--scripts-reference)
+  - [Table of Contents](#table-of-contents)
+  - [Scripts Reference](#scripts-reference)
+    - [1. `./build.sh` — Unified Project Build](#1-buildsh--unified-project-build)
+      - [Syntax](#syntax)
+      - [Options](#options)
+      - [Examples](#examples)
+    - [2. `./publish.sh` — .NET Self-Contained Linux Publishing](#2-publishsh--net-self-contained-linux-publishing)
+      - [Syntax](#syntax-1)
+      - [Options](#options-1)
+      - [Examples](#examples-1)
+    - [3. `./deploy.sh` — Remote SSH/Sudo Daemon Deployment](#3-deploysh--remote-sshsudo-daemon-deployment)
+      - [Key Features:](#key-features)
+      - [Syntax](#syntax-2)
+      - [Options](#options-2)
+      - [Examples](#examples-2)
+    - [4. `MADTOM_GOLANG/build.sh` — Go Multi-Architecture Compiler](#4-madtom_golangbuildsh--go-multi-architecture-compiler)
+      - [Syntax](#syntax-3)
+      - [Options](#options-3)
+      - [Examples](#examples-3)
+  - [Executables Reference](#executables-reference)
+    - [1. `madtom-daemon` — Node Telemetry Agent](#1-madtom-daemon--node-telemetry-agent)
+      - [Command Arguments](#command-arguments)
+      - [Execution Examples](#execution-examples)
+    - [2. `madtom-collector` — Central Telemetry Hub](#2-madtom-collector--central-telemetry-hub)
+      - [Command Arguments](#command-arguments-1)
+      - [Execution Examples](#execution-examples-1)
+    - [3. `squeeze-server` — SQUEEZE Media Transcoding Daemon](#3-squeeze-server--squeeze-media-transcoding-daemon)
+      - [Command Arguments](#command-arguments-2)
+      - [Execution Examples](#execution-examples-2)
+    - [4. `MADTOM.Studio` — Modular Operations Host Shell](#4-madtomstudio--modular-operations-host-shell)
+      - [Running](#running)
+    - [5. `MADTOM.Plugins.Telemetry.App` — Standalone Telemetry Client](#5-madtompluginstelemetryapp--standalone-telemetry-client)
+      - [Running](#running-1)
+    - [6. `MADTOM.Plugins.Squeeze.App` — Standalone SQUEEZE Client](#6-madtompluginssqueezeapp--standalone-squeeze-client)
+      - [Running](#running-2)
 
 ---
 
@@ -114,8 +138,11 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 
 #### Key Features:
 - **Multi-Host YAML Deployment**: Deploy to multiple servers sequentially with a single command via `-c / --config deploy.yaml`.
-- **Non-Interactive Authentication**: Pass SSH and sudo passwords directly via CLI flags (`--ssh-pass`, `--sudo-pass`) or YAML configuration for automation.
-- **Custom Service Overrides**: Override systemd service unit name per server or globally via `-s / --service`.
+- **SSH Config & Host Aliases**: Seamlessly resolves short names / aliases defined in `~/.ssh/config` (via `ssh -G <host>`), automatically loading configured users, hostnames, and ports.
+- **SSH Key & Passwordless Sudo Auto-Detection**: Probes for public key authentication and passwordless sudo (`sudo -n`) on the remote host, skipping password prompts entirely when key-based auth and sudo privileges are configured.
+- **Project Selection & Aliases**: Supports building and deploying any backend project via `-P / --project / --app` (e.g. `madtom-daemon`, `madtom-collector`, `squeeze-server`, `madtom-tsdb-merge`), automatically resolving matching binary paths, systemd service units, and destination paths.
+- **Automatic Service Installation**: Detects when a remote systemd service is nonexistent and automatically uploads and installs the matching unit file from `MADTOM_GOLANG/systemd/`, creates companion working directories, stages initial configuration (e.g. `/etc/squeeze/squeeze.yaml`), and enables the service.
+- **Custom Service Overrides & Manual Installation**: Override systemd service unit name per server or globally via `-s / --service`, or force unit file installation/updates using `-i / --install-service` or `--service-file PATH`.
 - **Architecture Auto-Detection & Build Caching**: When `--arch auto` (default) is used, queries `uname -m` over SSH and compiles for the remote architecture automatically, caching builds across identical target architectures.
 - **Binary Architecture Validation**: Uses `file -b` to verify the binary matches the destination architecture before uploading, preventing remote `Exec format error`.
 - **Safe Sudo Staging**: Passes the sudo password securely via standard input without exposing it in process listings.
@@ -123,7 +150,7 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 
 #### Syntax
 ```bash
-./deploy.sh [OPTIONS] [USER@HOST | USER HOST]
+./deploy.sh [OPTIONS] [USER@HOST | HOST | USER HOST]
 ./deploy.sh -c config.yaml [OPTIONS]
 ```
 
@@ -131,23 +158,39 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 | Option | Argument | Default | Description |
 |---|---|---|---|
 | `-c`, `--config` | `PATH` | *(none)* | Path to YAML configuration file for multi-host deployment |
-| `-u`, `--user` | `USER` | Interactive prompt | Remote SSH username |
-| `-h`, `--host` | `HOST` | Interactive prompt | Remote hostname or IP address |
-| `-p`, `--port` | `PORT` | `22` | SSH port |
-| `-b`, `--binary` | `PATH` | `bin/madtom-daemon` | Local executable to deploy |
-| `-d`, `--dest` | `PATH` | `/opt/madtomd` | Remote target destination path |
-| `-s`, `--service` | `NAME` | `madtomd.service` | Remote systemd service name to restart |
+| `-P`, `--project`, `--app` | `NAME` | `madtom-daemon` | Project to build and deploy (`daemon`, `collector`, `squeeze`, `merge`, or custom `cmd/<name>`) |
+| `--list-projects` | *(none)* | *(none)* | Display available MADTOM Go projects and their default mappings |
+| `-i`, `--install-service` | *(none)* | Auto | Force installation/overwrite of remote systemd service unit file (auto-installs if missing) |
+| `--service-file` | `PATH` | Project default | Explicit local path to systemd service unit file to install |
+| `-u`, `--user` | `USER` | Auto / Prompted | Remote SSH username (auto-resolved from `~/.ssh/config` or local user if omitted) |
+| `-h`, `--host` | `HOST` | Prompted | Remote hostname, IP address, or SSH config alias (e.g. `tp1`) |
+| `-p`, `--port` | `PORT` | `22` | SSH port (or port configured in `~/.ssh/config`) |
+| `-b`, `--binary` | `PATH` | Project default | Local executable to deploy (e.g. `bin/madtom-daemon`, `bin/madtom-collector`) |
+| `-d`, `--dest` | `PATH` | Project default | Remote target destination path |
+| `-s`, `--service` | `NAME` | Project default | Remote systemd service name to restart |
 | `-a`, `--arch` | `amd64` \| `arm64` \| `arm` \| `auto` | `auto` | Target architecture (auto-probed via SSH) |
-| `--ssh-pass` | `PASS` | *(none)* | Remote SSH login password |
-| `--sudo-pass` | `PASS` | `--ssh-pass` | Remote sudo elevation password |
+| `--ssh-pass` | `PASS` | *(none)* | Remote SSH login password (omitted if SSH keys are available) |
+| `--sudo-pass` | `PASS` | *(none)* | Remote sudo elevation password (omitted if passwordless sudo is available) |
 | `--build` | *(none)* | Disabled | Force local Go compilation before deployment |
-| `--daemon` | *(none)* | Active | Deploy node telemetry agent |
-| `--collector` | *(none)* | Inactive | Deploy collector service |
-| `--dry-run` | *(none)* | Disabled | Validate deployment configuration without connecting |
+| `--daemon` | *(none)* | Active | Shortcut for `--project madtom-daemon` |
+| `--collector` | *(none)* | Inactive | Shortcut for `--project madtom-collector` |
+| `--dry-run` | *(none)* | Disabled | Validate deployment configuration without connecting or altering remote host |
 | `-h`, `--help` | *(none)* | *(none)* | Show usage help and exit |
 
 #### Examples
 ```bash
+# Deploy daemon to an SSH config alias using public key and passwordless sudo
+./deploy.sh tp1
+
+# Deploy squeeze to tp1 (automatically installs unit file and initial config if service does not exist)
+./deploy.sh -P squeeze tp1
+
+# Deploy madtom-collector to a remote host using project selection
+./deploy.sh -P collector tp1
+
+# List all available Go projects and their default target mappings
+./deploy.sh --list-projects
+
 # Multi-host deployment from YAML config
 ./deploy.sh -c deploy.yaml
 
@@ -157,17 +200,11 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 # Non-interactive single-host deployment with CLI passwords
 ./deploy.sh -u danial -h la.realiteam.art --ssh-pass secret123 --sudo-pass secret123
 
-# Interactive deployment (prompts for user, host, and password)
+# Interactive deployment (prompts for user, host, and password if needed)
 ./deploy.sh
 
 # Deploy to an ARM64 server, forcing compilation
 ./deploy.sh -u danial -h 10.0.0.12 -a arm64 --build
-
-# Deploy the collector hub instead of the node daemon
-./deploy.sh -u admin -h 10.0.0.15 \
-  -b bin/madtom-collector \
-  -d /opt/madtom-collector \
-  -s madtom-collector.service
 ```
 
 ---
@@ -389,6 +426,7 @@ sudo systemctl enable --now squeeze-server
 ### 4. `MADTOM.Studio` — Modular Operations Host Shell
 
 Both desktop clients also accept `MADTOM_UI_TIMING=1` for compact refresh summaries and five-second UI performance intervals. See [UI baselining commands and metrics](Plugins/Telemetry/ui-and-visualization.md#ui-performance-baselining), including the `tools/Telemetry/summarize_ui_performance.py` log summarizer.
+Both desktop clients also accept `MADTOM_UI_TIMING=1` (for full UI performance intervals and refresh summaries) and `MADTOM_DEEPDIVE_TIMING=1` (for end-to-end node transition and chart load measurements). See [deep-dive transition timing](Plugins/Telemetry/ui-and-visualization.md#deep-dive-transition-timing-diagnostics) and [UI baselining commands and metrics](Plugins/Telemetry/ui-and-visualization.md#ui-performance-baselining), including the `tools/summarize_ui_performance.py` log summarizer.
 
 Both desktop clients accept the environment variable `MADTOM_HISTORY_TIMING=1` for opt-in scope-load timing logs on stderr. See [capture commands and timing fields](Plugins/Telemetry/ui-and-visualization.md#history-timing-diagnostics). Omit it to disable.
 

@@ -50,6 +50,11 @@ public partial class FleetViewModel : ViewModelBase
             node.GroupName = _nodeGroupStore.GetGroup(node.Id);
             var cardVm = new FleetNodeCardViewModel(node);
             cardVm.OpenDetailRequested += (hostId) => OpenHostDetailRequested?.Invoke(hostId);
+            cardVm.OpenDetailRequested += (hostId) =>
+            {
+                DeepDiveTransitionTracker.Begin(hostId, fromView: "fleet");
+                OpenHostDetailRequested?.Invoke(hostId);
+            };
             cardVm.ConfigureNodeRequested += (n) => ConfigureNodeRequested?.Invoke(n);
             _allCards.Add(cardVm);
         }
@@ -79,6 +84,11 @@ public partial class FleetViewModel : ViewModelBase
                 updated.GroupName = _nodeGroupStore.GetGroup(updated.Id);
                 var newCard = new FleetNodeCardViewModel(updated);
                 newCard.OpenDetailRequested += (hostId) => OpenHostDetailRequested?.Invoke(hostId);
+                newCard.OpenDetailRequested += (hostId) =>
+                {
+                    DeepDiveTransitionTracker.Begin(hostId, fromView: "fleet");
+                    OpenHostDetailRequested?.Invoke(hostId);
+                };
                 newCard.ConfigureNodeRequested += (n) => ConfigureNodeRequested?.Invoke(n);
                 _allCards.Add(newCard);
                 RefreshGroups();

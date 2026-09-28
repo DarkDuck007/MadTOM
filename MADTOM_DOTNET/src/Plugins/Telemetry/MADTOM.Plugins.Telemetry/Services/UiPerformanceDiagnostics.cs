@@ -145,9 +145,10 @@ public sealed class UiRefreshSummaryCollector
 /// <summary>Process-lifetime, opt-in baseline logger. Never calls blocking output on the UI thread.</summary>
 public static class UiPerformanceDiagnostics
 {
-    public static bool Enabled { get; } = Environment.GetEnvironmentVariable("MADTOM_UI_TIMING") == "1";
+    public static bool Enabled { get; } = Environment.GetEnvironmentVariable("MADTOM_UI_TIMING") == "1" || Environment.GetEnvironmentVariable("MADTOM_DEEPDIVE_TIMING") == "1";
     private static readonly Lazy<State> Instance = new(() => new State());
     public static Func<(long LiveBytes, long StoredBytes, long LivePoints, long StoredPoints, int SeriesCount, int LiveBlocks, int StoredBlocks)>? CacheStatsProvider { get; set; }
+    public static void Write(object record) => Instance.Value.Write(record);
     public static void Observe(HistoryTiming.Entry entry)
     {
         if (!Enabled) return;

@@ -29,8 +29,9 @@ def gfm_slugify(text):
     return ''.join(cleaned).replace(' ', '-')
 
 def extract_headings(file_path):
-    """Extract all headings from a markdown file and compute both GFM and relaxed slugs."""
+    """Extract all headings from a markdown file and compute both GFM and relaxed slugs, including duplicate suffixes (-1, -2, etc.)."""
     slugs = set()
+    slug_counts = {}
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -39,12 +40,17 @@ def extract_headings(file_path):
                     heading_text = match.group(2).strip()
                     # Remove trailing '#' if present
                     heading_text = re.sub(r'\s+#+$', '', heading_text)
-                    slugs.add(gfm_slugify(heading_text))
-                    # Also add a single-hyphen collapsed variant for robustness
-                    slugs.add(re.sub(r'-+', '-', gfm_slugify(heading_text)))
+                    base_slug = gfm_slugify(heading_text)
+                    count = slug_counts.get(base_slug, 0)
+                    slug_counts[base_slug] = count + 1
+                    actual_slug = base_slug if count == 0 else f"{base_slug}-{count}"
+                    slugs.add(actual_slug)
+                    slugs.add(base_slug)
+                    slugs.add(re.sub(r'-+', '-', actual_slug))
     except Exception as e:
         print(f"Warning: could not read headings from {file_path}: {e}")
     return slugs
+
 
 def check_markdown_links(root_dir):
     """Check all relative markdown links in README.md and Documentation/*.md."""

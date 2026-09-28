@@ -273,7 +273,9 @@ public sealed class TelemetryHistoryCache
                 points.Enqueue(new(timestamp, value, value, value));
                 series.Latest = timestamp;
 
-                if (points.FirstTimestamp < cutoff)
+                // Only trigger block-level expiry when a new block was just sealed.
+                // Periodic PruneLocked() handles continuous time-based pruning.
+                if (points.BlocksCount > oldBlocks && points.FirstTimestamp < cutoff)
                 {
                     points.RemoveBefore(cutoff);
                 }

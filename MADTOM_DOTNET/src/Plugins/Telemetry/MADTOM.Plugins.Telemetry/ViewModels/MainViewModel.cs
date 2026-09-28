@@ -189,9 +189,18 @@ public partial class MainViewModel : ViewModelBase
 
     public void OpenHostDetail(string hostId)
     {
-        HostDetailView.SelectHost(hostId);
-        CurrentView = HostDetailView;
-        Sidebar.ActiveView = "detail";
+        if (!DeepDiveTransitionTracker.IsActive)
+            DeepDiveTransitionTracker.Begin(hostId, fromView: "fleet");
+
+        using (DeepDiveTransitionTracker.MeasureStep("navigation.view-switch"))
+        {
+            CurrentView = HostDetailView;
+            Sidebar.ActiveView = "detail";
+        }
+        using (DeepDiveTransitionTracker.MeasureStep("navigation.host-select"))
+        {
+            HostDetailView.SelectHost(hostId);
+        }
         UpdateHeaderNavigation();
     }
 

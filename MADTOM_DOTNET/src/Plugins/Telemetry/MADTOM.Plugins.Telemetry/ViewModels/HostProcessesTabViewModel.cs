@@ -54,6 +54,7 @@ public partial class HostProcessesTabViewModel : ViewModelBase
         else if (IsProcessOverviewTabSelected)
         {
             UpdateOverviewSeriesData();
+            _ = RefreshHistoryAsync();
         }
     }
 
@@ -182,7 +183,10 @@ public partial class HostProcessesTabViewModel : ViewModelBase
             _historySamples.Clear();
             RebuildOverviewSeries();
             LoadProcesses();
-            _ = RefreshHistoryAsync();
+            if (IsProcessOverviewTabSelected)
+            {
+                _ = RefreshHistoryAsync();
+            }
         }
         else
         {

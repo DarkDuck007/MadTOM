@@ -111,6 +111,7 @@ public partial class SidebarViewModel : ViewModelBase
     public void SelectHost(string hostId)
     {
         SelectedHostId = hostId;
+        DeepDiveTransitionTracker.Begin(hostId, fromView: "sidebar");
         HostSelected?.Invoke(hostId);
     }
 

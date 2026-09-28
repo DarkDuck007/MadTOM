@@ -9,6 +9,7 @@ import statistics
 
 def summarize(lines):
     refreshes = defaultdict(list)
+    deepdive_transitions = defaultdict(list)
     metrics = defaultdict(list)
     malformed = 0
     allocated = seconds = dropped = 0
@@ -19,6 +20,8 @@ def summarize(lines):
             row = json.loads(line.split('[ui-performance] ', 1)[1])
             if row['Kind'] == 'refresh':
                 refreshes[(row['Node'], row['Range'], row['Outcome'])].append(row)
+            elif row['Kind'] == 'deepdive-transition':
+                deepdive_transitions[(row['TargetHost'], row['FromView'], row['Outcome'])].append(row)
             elif row['Kind'] == 'interval':
                 allocated += row['AllocatedBytes']
                 seconds += row['Seconds']
@@ -55,6 +58,35 @@ def summarize(lines):
             grouped[(node, scope, mode, outcome)].append(r)
 
     output = ['Refresh summaries (wall time; cancelled/error runs kept separate):']
+    output = []
+    if deepdive_transitions:
+        output.append('Deep-dive transition summaries (moment node clicked -> all charts rendered):')
+        for (target, from_view, outcome), rows in sorted(deepdive_transitions.items()):
+            wall_times = sorted(r['TotalWallMs'] for r in rows)
+            view_switches = [r.get('ViewSwitchMs', 0) for r in rows]
+            host_specs = [r.get('HostSpecsMs', 0) for r in rows]
+            save_layouts = [r.get('LayoutSaveMs', 0) for r in rows]
+            load_layouts = [r.get('LayoutLoadMs', 0) for r in rows]
+            populate_metrics = [r.get('PopulateMetricsMs', 0) for r in rows]
+            query_walls = [r.get('DataQueryWallMs', 0) for r in rows]
+            transforms = [r.get('TransformMs', 0) for r in rows]
+            publishes = [r.get('BatchPublishMs', 0) for r in rows]
+            render_charts = [r.get('RenderAllChartsMs', 0) for r in rows]
+            expected = sum(r.get('ExpectedChartsCount', 0) for r in rows)
+            rendered = sum(r.get('RenderedChartsCount', 0) for r in rows)
+
+            med_wall = statistics.median(wall_times)
+            p95_wall = wall_times[math.ceil(len(wall_times) * .95) - 1]
+
+            output.append(f'{target} (from {from_view}) | {outcome} | n={len(rows)} median={med_wall:.1f}ms p95={p95_wall:.1f}ms '
+                          f'charts={rendered}/{expected} | viewSwitchAvg={statistics.mean(view_switches):.2f}ms '
+                          f'specsAvg={statistics.mean(host_specs):.2f}ms saveLayoutAvg={statistics.mean(save_layouts):.2f}ms '
+                          f'loadLayoutAvg={statistics.mean(load_layouts):.2f}ms populateAvg={statistics.mean(populate_metrics):.2f}ms '
+                          f'queryWallAvg={statistics.mean(query_walls):.2f}ms transformAvg={statistics.mean(transforms):.2f}ms '
+                          f'publishAvg={statistics.mean(publishes):.2f}ms renderChartsAvg={statistics.mean(render_charts):.2f}ms')
+        output.append('')
+
+    output.append('Refresh summaries (wall time; cancelled/error runs kept separate):')
     for (node, scope, mode, outcome), rows in sorted(grouped.items()):
         values = sorted(r['WallMs'] for r in rows)
         hits = sum(r['Cache'].get('stored-hit-decoded', 0) for r in rows)

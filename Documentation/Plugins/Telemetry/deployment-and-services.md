@@ -46,15 +46,19 @@ sequenceDiagram
 | Flag | Argument | Default | Description |
 |---|---|---|---|
 | `-c`, `--config` | `PATH` | *(none)* | Path to YAML configuration file for multi-host deployments (e.g. `deploy.yaml`) |
-| `-u`, `--user` | `USER` | Prompted | Remote SSH username |
-| `-h`, `--host` | `HOST` | Prompted | Remote hostname or IP address |
-| `-p`, `--port` | `PORT` | `22` | Remote SSH port |
-| `-b`, `--binary` | `PATH` | `bin/madtom-daemon` | Local executable to upload |
-| `-d`, `--dest` | `PATH` | `/opt/madtomd` | Target binary path on remote machine |
-| `-s`, `--service` | `NAME` | `madtomd.service` | Systemd service unit to restart (can override config defaults) |
+| `-P`, `--project`, `--app` | `NAME` | `madtom-daemon` | Project to build and deploy (`daemon`, `collector`, `squeeze`, `merge`, or custom `cmd/<name>`) |
+| `--list-projects` | *(none)* | *(none)* | Display available MADTOM Go backend projects and their default mappings |
+| `-i`, `--install-service` | *(none)* | Auto | Force installation/overwrite of remote systemd service unit file (auto-installs if missing) |
+| `--service-file` | `PATH` | Project default | Explicit local path to systemd service unit file to install |
+| `-u`, `--user` | `USER` | Auto / Prompted | Remote SSH username (auto-resolved from `~/.ssh/config` or local user if omitted) |
+| `-h`, `--host` | `HOST` | Prompted | Remote hostname, IP address, or SSH config alias (e.g. `tp1`) |
+| `-p`, `--port` | `PORT` | `22` | Remote SSH port (or port configured in `~/.ssh/config`) |
+| `-b`, `--binary` | `PATH` | Project default | Local executable to upload (e.g. `bin/madtom-daemon`, `bin/madtom-collector`) |
+| `-d`, `--dest` | `PATH` | Project default | Target binary path on remote machine |
+| `-s`, `--service` | `NAME` | Project default | Systemd service unit to restart |
 | `-a`, `--arch` | `amd64` \| `arm64` \| `arm` \| `auto` | `auto` | Target architecture (auto-probed via SSH) |
-| `--ssh-pass` | `PASS` | *(none)* | Non-interactive SSH login password |
-| `--sudo-pass` | `PASS` | `--ssh-pass` | Remote sudo password (piped securely to `sudo -S`) |
+| `--ssh-pass` | `PASS` | *(none)* | Non-interactive SSH login password (omitted when SSH keys are configured) |
+| `--sudo-pass` | `PASS` | *(none)* | Remote sudo password (omitted when remote user has passwordless sudo) |
 | `--build` | *(none)* | Disabled | Force local compilation before deploying (reuses build across hosts) |
 | `--dry-run` | *(none)* | Disabled | Validate target parameters without connecting or modifying remote systems |
 | `--help` | *(none)* | *(none)* | Show usage help |
@@ -73,6 +77,7 @@ cp MADTOM_GOLANG/deploy.example.yaml deploy.yaml
 ```yaml
 # Global defaults applied to all servers unless overridden
 defaults:
+  project: madtom-daemon
   user: danial
   port: 22
   service: madtomd.service
@@ -83,7 +88,7 @@ defaults:
   ssh_pass: ""
   sudo_pass: ""
 
-# Target server list
+# Target server list (supports IP, FQDN, or SSH config aliases like tp1)
 servers:
   - host: la.realiteam.art
     ssh_pass: "SECRET_SSH_PASSWORD"
@@ -92,8 +97,8 @@ servers:
     ssh_pass: "SECRET_SSH_PASSWORD"
     sudo_pass: "SECRET_SUDO_PASSWORD"
   - host: realiteam.art
-    ssh_pass: "SECRET_SSH_PASSWORD"
-    sudo_pass: "SECRET_SUDO_PASSWORD"
+    project: madtom-collector
+    # Automatically resolves service: madtom-collector.service, binary: bin/madtom-collector
 ```
 
 > [!NOTE]
@@ -102,22 +107,31 @@ servers:
 ### Examples
 
 ```bash
-# 1. Multi-host deployment with YAML configuration
+# 1. Single-host deployment using SSH config alias (auto key auth & passwordless sudo)
+./deploy.sh tp1
+
+# 2. Deploy collector hub using project selection
+./deploy.sh -P collector tp1
+
+# 3. List available Go projects and their default mappings
+./deploy.sh --list-projects
+
+# 4. Multi-host deployment with YAML configuration
 ./deploy.sh -c deploy.yaml
 
-# 2. Multi-host deployment overriding systemd service across all hosts
+# 5. Multi-host deployment overriding systemd service across all hosts
 ./deploy.sh -c deploy.yaml -s madtomd.service
 
-# 3. Single-host non-interactive deployment with CLI passwords
+# 6. Single-host non-interactive deployment with CLI passwords
 ./deploy.sh -u danial -h la.realiteam.art --ssh-pass secret123 --sudo-pass secret123
 
-# 4. Interactive single-host deployment (prompts for user, host, and sudo password)
+# 7. Interactive single-host deployment (prompts for user, host, and sudo password if needed)
 ./deploy.sh
 
-# 5. Compile for ARM64 and deploy with custom service
+# 8. Compile for ARM64 and deploy with custom service
 ./deploy.sh -u danial -h 10.0.0.12 -a arm64 -s madtom-custom.service --build
 
-# 6. Dry run validation without executing commands
+# 9. Dry run validation without executing commands
 ./deploy.sh -c deploy.yaml --dry-run
 ```
 

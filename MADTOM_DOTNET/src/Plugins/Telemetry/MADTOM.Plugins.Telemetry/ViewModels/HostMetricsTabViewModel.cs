@@ -25,6 +25,7 @@ public partial class MetricGraphViewModel : ViewModelBase
     [ObservableProperty] private long _windowEnd;
     [ObservableProperty] private double[] _values = Array.Empty<double>();
     [ObservableProperty] private string[] _labels = Array.Empty<string>();
+    [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _status = "Waiting for measurements";
 
     public ObservableCollection<ChartSeriesModel> Series { get; } = new();
@@ -289,7 +290,12 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     }
                     if (seriesList.Count > 0)
                     {
-                        groupVm.Graphs.Add(new MetricGraphViewModel(cfg.Title, seriesList));
+                        var graphVm = new MetricGraphViewModel(cfg.Title, seriesList)
+                        {
+                            IsLoading = _provider != null,
+                            Status = _provider != null ? "Loading…" : "Waiting for measurements"
+                        };
+                        groupVm.Graphs.Add(graphVm);
                     }
                 }
                 if (groupVm.Graphs.Count > 0)
@@ -303,12 +309,20 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         {
             var s1 = new ChartSeriesModel("cpu.total", "cpu.total", "#06B6D4");
             s1.ConfigurationChanged += SaveLayout;
-            var g1 = new MetricGraphViewModel("cpu.total", new[] { s1 });
+            var g1 = new MetricGraphViewModel("cpu.total", new[] { s1 })
+            {
+                IsLoading = _provider != null,
+                Status = _provider != null ? "Loading…" : "Waiting for measurements"
+            };
             Groups.Add(new MetricGraphGroupViewModel(g1));
 
             var s2 = new ChartSeriesModel("memory.used", "memory.used", "#10B981");
             s2.ConfigurationChanged += SaveLayout;
-            var g2 = new MetricGraphViewModel("memory.used", new[] { s2 });
+            var g2 = new MetricGraphViewModel("memory.used", new[] { s2 })
+            {
+                IsLoading = _provider != null,
+                Status = _provider != null ? "Loading…" : "Waiting for measurements"
+            };
             Groups.Add(new MetricGraphGroupViewModel(g2));
         }
 
@@ -1099,6 +1113,11 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         SelectedScope = scope;
         if (scope == "custom") { IsCustomScopeModalOpen = true; return; }
         _hasLoadedHistory = false;
+        foreach (var g in Graphs)
+        {
+            g.IsLoading = true;
+            g.Status = "Loading…";
+        }
         _ = RefreshHistoryAsync();
     }
 
@@ -1106,7 +1125,15 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public void ApplyCustomScope()
     {
         if (!TryRange(out _, out _)) { ScopeError = "Choose a start time before the end time."; return; }
-        ScopeError = ""; IsCustomScopeModalOpen = false; _hasLoadedHistory = false; _ = RefreshHistoryAsync();
+        ScopeError = "";
+        IsCustomScopeModalOpen = false;
+        _hasLoadedHistory = false;
+        foreach (var g in Graphs)
+        {
+            g.IsLoading = true;
+            g.Status = "Loading…";
+        }
+        _ = RefreshHistoryAsync();
     }
 
     [RelayCommand] public void CancelCustomScope() { IsCustomScopeModalOpen = false; SetScope("5m"); }
@@ -1138,6 +1165,8 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             if (!string.IsNullOrEmpty(TargetHostId))
             {
                 SaveLayout();
+                using (DeepDiveTransitionTracker.MeasureStep("metrics.save-layout"))
+                    SaveLayout();
             }
 
             TargetHostId = hostId;
@@ -1146,6 +1175,11 @@ public partial class HostMetricsTabViewModel : ViewModelBase
 
             PopulateAvailableMetrics(node, allNodes);
             LoadGraphsForNode(hostId);
+            using (DeepDiveTransitionTracker.MeasureStep("metrics.populate-metrics"))
+                PopulateAvailableMetrics(node, allNodes);
+
+            using (DeepDiveTransitionTracker.MeasureStep("metrics.load-layout"))
+                LoadGraphsForNode(hostId);
 
             _hasLoadedHistory = false;
             _latestSeenTimestampNano = 0;
@@ -1194,6 +1228,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     private void PushLiveSampleToGraphs(long timestampNano, FleetNodeModel? node, IReadOnlyList<FleetNodeModel> allNodes)
     {
         if (timestampNano <= 0 || IsScopeCustom) return;
+        if (!_hasLoadedHistory) return;
         using var liveWork = UiPerformanceDiagnostics.Measure("graph.live-update");
 
         long windowSpanNano = SelectedScope switch
@@ -1328,7 +1363,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 graph.Labels = primary.Timestamps.Select(t => DateTimeOffset.FromUnixTimeSeconds(t / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss")).ToArray();
             }
 
-            if (maxPoints > 0)
+            if (maxPoints > 0 && !graph.IsLoading)
             {
                 var startDt = DateTimeOffset.FromUnixTimeMilliseconds(windowStartNano / 1_000_000L).ToLocalTime();
                 var endDt = DateTimeOffset.FromUnixTimeMilliseconds(windowEndNano / 1_000_000L).ToLocalTime();
@@ -1342,7 +1377,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
     public async Task RefreshHistoryAsync()
     {
         _pendingLiveTimingRefresh = null;
-        _queryCts?.Cancel(); _queryCts?.Dispose();
+        _queryCts?.Cancel();
         var cts = _queryCts = new CancellationTokenSource();
         long generation = Interlocked.Increment(ref _refreshGeneration);
         _lastRefresh = DateTime.UtcNow;
@@ -1350,9 +1385,14 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         using var timing = HistoryTiming.Begin("scope-refresh", TargetHostId, newRefresh: true);
         timing?.Mark("range", $"start={start:O}; end={end:O}; graphs={Graphs.Count}");
         _isQueryRunning = true;
+        DeepDiveTransitionTracker.MarkQueryStart();
         var ids = IsAggregatedMode ? ClusterNodes.Select(n => n.Id).ToArray() : new[] { TargetHostId };
 
-        foreach (var g in Graphs) g.Status = "Loading…";
+        foreach (var g in Graphs)
+        {
+            g.IsLoading = true;
+            g.Status = "Loading…";
+        }
 
         try
         {
@@ -1379,6 +1419,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
 
                     var prepared = await Task.Run(() =>
                     {
+                        long transformStart = System.Diagnostics.Stopwatch.GetTimestamp();
                         using var seriesWork = UiPerformanceDiagnostics.Measure("graph.history-transform-publish");
                         long timestampUnit = IsAggregatedMode ? 1_000_000_000L : 1L;
                         var points = results.SelectMany(s => s.GroupBy(p => p.TimestampUnixNano / timestampUnit).Select(g => g.OrderBy(p => p.TimestampUnixNano).Last()))
@@ -1422,6 +1463,8 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         var (dispTs, dispVals) = SampleToDisplayBudget(rawTs, rawVals, graph.HistoryPointBudget, windowStartNano, windowEndNano);
                         seriesTiming?.Mark("sampled", $"points={dispVals.Length}");
                         double? latestVal = dispVals.Length > 0 ? dispVals[^1] : null;
+                        double transformElapsed = System.Diagnostics.Stopwatch.GetElapsedTime(transformStart).TotalMilliseconds;
+                        DeepDiveTransitionTracker.RecordQueryStats(0, 0, transformElapsed);
 
                         return new SeriesDisplayData(series, dispTs, dispVals, rawTs, rawVals, latestVal, prevVal, prevTs);
                     }, cts.Token);
@@ -1460,11 +1503,13 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             });
 
             var snapshots = await Task.WhenAll(graphTasks);
+            DeepDiveTransitionTracker.MarkDataReady();
             if (cts.IsCancellationRequested || Volatile.Read(ref _refreshGeneration) != generation) return;
 
             void ApplySnapshots()
             {
                 if (cts.IsCancellationRequested || Volatile.Read(ref _refreshGeneration) != generation) return;
+                long publishStart = System.Diagnostics.Stopwatch.GetTimestamp();
                 using var publishTiming = UiPerformanceDiagnostics.Measure("graph.batch-publish");
                 foreach (var snap in snapshots)
                 {
@@ -1484,7 +1529,11 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     snap.Graph.Values = snap.Values;
                     snap.Graph.Labels = snap.Labels;
                     snap.Graph.Status = snap.Status;
+                    snap.Graph.IsLoading = false;
                 }
+                double publishMs = System.Diagnostics.Stopwatch.GetElapsedTime(publishStart).TotalMilliseconds;
+                DeepDiveTransitionTracker.RecordBatchPublish(publishMs);
+                DeepDiveTransitionTracker.ExpectCharts(Graphs.Where(g => g.IsVisible).Select(g => g.Title));
             }
 
             ApplySnapshots();
@@ -1496,8 +1545,37 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 _pendingLiveTimingRefresh = timing?.RefreshId;
             }
         }
-        catch (OperationCanceledException) { timing?.Mark("cancelled"); }
-        catch (Exception ex) { timing?.Mark("error", ex.GetType().Name); if (!cts.IsCancellationRequested && Volatile.Read(ref _refreshGeneration) == generation) foreach (var graph in Graphs) graph.Status = $"Query failed: {ex.Message}"; }
+        catch (OperationCanceledException)
+        {
+            timing?.Mark("cancelled");
+            DeepDiveTransitionTracker.Cancel("cancelled");
+            if (Volatile.Read(ref _refreshGeneration) == generation)
+            {
+                foreach (var graph in Graphs) graph.IsLoading = false;
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            timing?.Mark("cancelled");
+            DeepDiveTransitionTracker.Cancel("cancelled");
+            if (Volatile.Read(ref _refreshGeneration) == generation)
+            {
+                foreach (var graph in Graphs) graph.IsLoading = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            timing?.Mark("error", ex.GetType().Name);
+            DeepDiveTransitionTracker.Cancel("error: " + ex.Message);
+            if (!cts.IsCancellationRequested && Volatile.Read(ref _refreshGeneration) == generation)
+            {
+                foreach (var graph in Graphs)
+                {
+                    graph.IsLoading = false;
+                    graph.Status = $"Query failed: {ex.Message}";
+                }
+            }
+        }
         finally
         {
             if (ReferenceEquals(_queryCts, cts)) _isQueryRunning = false;

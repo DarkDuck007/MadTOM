@@ -47,6 +47,12 @@ public sealed class MetricHistoryChartControl : Control
     public static readonly StyledProperty<double> PanOffsetProperty =
         AvaloniaProperty.Register<MetricHistoryChartControl, double>(nameof(PanOffset), 0.0);
 
+    public static readonly StyledProperty<bool> IsLoadingProperty =
+        AvaloniaProperty.Register<MetricHistoryChartControl, bool>(nameof(IsLoading));
+
+    public static readonly StyledProperty<string?> GraphTitleProperty =
+        AvaloniaProperty.Register<MetricHistoryChartControl, string?>(nameof(GraphTitle));
+
     public long[] Timestamps { get => GetValue(TimestampsProperty); set => SetValue(TimestampsProperty, value); }
     public long WindowStart { get => GetValue(WindowStartProperty); set => SetValue(WindowStartProperty, value); }
     public long WindowEnd { get => GetValue(WindowEndProperty); set => SetValue(WindowEndProperty, value); }
@@ -55,6 +61,8 @@ public sealed class MetricHistoryChartControl : Control
     public IReadOnlyList<ChartSeriesModel>? SeriesList { get => GetValue(SeriesListProperty); set => SetValue(SeriesListProperty, value); }
     public double ZoomLevel { get => GetValue(ZoomLevelProperty); set => SetValue(ZoomLevelProperty, value); }
     public double PanOffset { get => GetValue(PanOffsetProperty); set => SetValue(PanOffsetProperty, value); }
+    public bool IsLoading { get => GetValue(IsLoadingProperty); set => SetValue(IsLoadingProperty, value); }
+    public string? GraphTitle { get => GetValue(GraphTitleProperty); set => SetValue(GraphTitleProperty, value); }
     private static double MaxZoom => GraphPerformanceSettings.Current.MaxZoomLevel;
 
     private Point? _hoverPoint;
@@ -125,7 +133,7 @@ public sealed class MetricHistoryChartControl : Control
         AffectsRender<MetricHistoryChartControl>(
             ValuesProperty, LabelsProperty, TimestampsProperty,
             WindowStartProperty, WindowEndProperty, SeriesListProperty,
-            ZoomLevelProperty, PanOffsetProperty);
+            ZoomLevelProperty, PanOffsetProperty, IsLoadingProperty);
     }
 
     public MetricHistoryChartControl()
@@ -244,11 +252,19 @@ public sealed class MetricHistoryChartControl : Control
 
         if (activeSeries.Count == 0)
         {
-            var emptyText = new FormattedText("No measurements in this time window",
+            string message = IsLoading ? "Loading measurements…" : "No measurements in this time window";
+            IBrush textBrush = IsLoading ? new ImmutableSolidColorBrush(Color.FromRgb(6, 182, 212)) : Brushes.Gray;
+            var emptyText = new FormattedText(message,
                 CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-                MonoTypeface, 11, Brushes.Gray);
+                MonoTypeface, 11, textBrush);
             context.DrawText(emptyText, new Point(leftPad + (plotW - emptyText.Width) / 2, topPad + (plotH - emptyText.Height) / 2));
             return;
+        }
+
+        if (DeepDiveTransitionTracker.IsActive && !IsLoading && activeSeries.Count > 0)
+        {
+            string chartTitle = GraphTitle ?? (DataContext as ViewModels.MetricGraphViewModel)?.Title ?? "chart";
+            DeepDiveTransitionTracker.RecordChartRendered(chartTitle);
         }
 
         // 3. Compute global Y scale range across all visible series

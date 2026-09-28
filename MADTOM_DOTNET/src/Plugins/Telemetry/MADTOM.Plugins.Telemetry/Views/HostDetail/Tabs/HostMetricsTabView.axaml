@@ -249,6 +249,8 @@
                                                                                   WindowEnd="{Binding WindowEnd}"
                                                                                   Values="{Binding Values}"
                                                                                   Labels="{Binding Labels}"
+                                                                                  IsLoading="{Binding IsLoading}"
+                                                                                  GraphTitle="{Binding Title}"
                                                                                   Height="190"/>
                                             </StackPanel>
                                         </Border>

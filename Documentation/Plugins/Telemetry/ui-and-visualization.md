@@ -6,34 +6,40 @@ This guide covers the **MADTOM Telemetry Plugin** (`MADTOM.Plugins.Telemetry`) a
 
 ## Table of Contents
 
-- [Overview & Standalone Mode](#overview--standalone-mode)
-- [Fleet Dashboard](#fleet-dashboard)
-  - [Live 1Hz Sparklines & Health Badges](#live-1hz-sparklines--health-badges)
-  - [Dynamic Node Grouping & Fleet Filtering](#dynamic-node-grouping--fleet-filtering)
-  - [Node Group Persistence (`node-groups.json`)](#node-group-persistence-node-groupsjson)
-- [Host Deep Dive & Metrics Tab](#host-deep-dive--metrics-tab)
-  - [Pinned Slim Control Bar](#pinned-slim-control-bar)
-  - [Telemetry Graph Scopes](#telemetry-graph-scopes)
-  - [Custom Scope (Date & Time Picker)](#custom-scope-date--time-picker)
-  - [Resolution-Adaptive Downsampling](#resolution-adaptive-downsampling)
-  - [Graph Navigation: Zoom, Pan & Page Scrolling](#graph-navigation-zoom-pan--page-scrolling)
-  - [Custom Graph Layouts & Presets](#custom-graph-layouts--presets)
-  - [Multi-Device Disk I/O Metrics](#multi-device-disk-io-metrics)
-- [Collector & Fleet Management](#collector--fleet-management)
-  - [Adding, Editing, and Removing Collectors](#adding-editing-and-removing-collectors)
-  - [Collector Persistence (`collectors.json`)](#collector-persistence-collectorsjson)
-  - [Opt-In Global Metrics & Top-Bar Pinning](#opt-in-global-metrics--top-bar-pinning)
-  - [Node Opt-In Settings & Safe Apply Workflow](#node-opt-in-settings--safe-apply-workflow)
-- [Process Monitoring & Storage Modes](#process-monitoring--storage-modes)
-  - [Three-Tier Collection Policy](#three-tier-collection-policy)
-  - [Top-N Process Count Configuration](#top-n-process-count-configuration)
-  - [Processes Manager: Sub-Tabs & Breakdown Charting](#processes-manager-sub-tabs--breakdown-charting)
-- [TWAMP Flight & Latency Radar](#twamp-flight--latency-radar)
-- [Diagnostics & Performance Tuning](#diagnostics--performance-tuning)
-  - [Client History Cache & Off-Lock Decompression](#client-history-cache--off-lock-decompression)
-  - [Compression Diagnostics Window](#compression-diagnostics-window)
-  - [History Timing Diagnostics](#history-timing-diagnostics)
-  - [UI Performance Baselining](#ui-performance-baselining)
+- [MADTOM Telemetry: UI \& Visualization Guide](#madtom-telemetry-ui--visualization-guide)
+  - [Table of Contents](#table-of-contents)
+  - [Overview \& Standalone Mode](#overview--standalone-mode)
+  - [Fleet Dashboard](#fleet-dashboard)
+    - [Live 1Hz Sparklines \& Health Badges](#live-1hz-sparklines--health-badges)
+    - [Dynamic Node Grouping \& Fleet Filtering](#dynamic-node-grouping--fleet-filtering)
+    - [Node Group Persistence (`node-groups.json`)](#node-group-persistence-node-groupsjson)
+  - [Host Deep Dive \& Metrics Tab](#host-deep-dive--metrics-tab)
+    - [Instant View Transition \& Graph Loading State](#instant-view-transition--graph-loading-state)
+    - [Pinned Slim Control Bar](#pinned-slim-control-bar)
+    - [Telemetry Graph Scopes](#telemetry-graph-scopes)
+    - [Custom Scope (Date \& Time Picker)](#custom-scope-date--time-picker)
+    - [Resolution-Adaptive Downsampling](#resolution-adaptive-downsampling)
+    - [Graph Navigation: Zoom, Pan \& Page Scrolling](#graph-navigation-zoom-pan--page-scrolling)
+    - [Custom Graph Layouts \& Presets](#custom-graph-layouts--presets)
+    - [Multi-Device Disk I/O Metrics](#multi-device-disk-io-metrics)
+  - [Collector \& Fleet Management](#collector--fleet-management)
+    - [Adding, Editing, and Removing Collectors](#adding-editing-and-removing-collectors)
+    - [Collector Persistence (`collectors.json`)](#collector-persistence-collectorsjson)
+    - [Opt-In Global Metrics \& Top-Bar Pinning](#opt-in-global-metrics--top-bar-pinning)
+    - [Node Opt-In Settings \& Safe Apply Workflow](#node-opt-in-settings--safe-apply-workflow)
+  - [Process Monitoring \& Storage Modes](#process-monitoring--storage-modes)
+    - [Three-Tier Collection Policy](#three-tier-collection-policy)
+    - [Top-N Process Count Configuration](#top-n-process-count-configuration)
+    - [Processes Manager: Sub-Tabs \& Breakdown Charting](#processes-manager-sub-tabs--breakdown-charting)
+  - [TWAMP Flight \& Latency Radar](#twamp-flight--latency-radar)
+  - [Diagnostics \& Performance Tuning](#diagnostics--performance-tuning)
+    - [Background Ingestion Worker \& Coalesced UI Drains](#background-ingestion-worker--coalesced-ui-drains)
+    - [Zero-Allocation Sparklines \& Deferred Pruning](#zero-allocation-sparklines--deferred-pruning)
+    - [Client History Cache \& Off-Lock Decompression](#client-history-cache--off-lock-decompression)
+    - [Compression Diagnostics Window](#compression-diagnostics-window)
+    - [History Timing Diagnostics](#history-timing-diagnostics)
+    - [Deep-Dive Transition Timing Diagnostics](#deep-dive-transition-timing-diagnostics)
+    - [UI Performance Baselining](#ui-performance-baselining)
 
 ---
 
@@ -86,7 +92,13 @@ Saved groups persist to:
 
 ## Host Deep Dive & Metrics Tab
 
-Selecting any node in the fleet view opens the Host Detail view.
+Selecting any node in the fleet view opens the Host Detail view immediately, shifting views without waiting for network or query completion.
+
+### Instant View Transition & Graph Loading State
+
+- **Immediate View Switch**: Selecting a node instantly updates the current view and sidebar selection, ensuring zero UI lag or freezing on the fleet overview.
+- **Visual Loading Indicators**: When opening a host or switching time scopes, metric charts render a prominent `"Loading measurements…"` status in accent cyan (`#06B6D4`) in the center of the plot canvas, while graph card headers display `"Loading…"`.
+- **Buffered Live Telemetry**: Incoming 1Hz live telemetry updates are buffered cleanly without overwriting the loading indicator, keeping the status stable until the historical baseline query finishes and is applied to the graph.
 
 ### Pinned Slim Control Bar
 
@@ -121,7 +133,7 @@ MADTOM utilizes the **Largest-Triangle-Three-Buckets (LTTB)** algorithm to prese
 
 ### Graph Navigation: Zoom, Pan & Page Scrolling
 
-- **Zoom**: Scroll the mouse wheel while hovering over a chart canvas to zoom in/out anchored around the cursor.
+- **Zoom**: Scroll the mouse wheel while hovering over a chart canvas to zoom in/out anchored around the cursor. The zoom ceiling is dynamic, scaling with the operator's configured history retention ratio (`history_retention_ratio * 10`, reaching up to 100× magnification when retention is set to 10×) to allow fine-grained sub-second inspection.
 - **Pan**: Click and drag horizontally to pan backward and forward across historical time windows.
 - **Page Scrolling**: Mouse wheel scrolling outside chart canvases smoothly scrolls the page vertically.
 
@@ -205,6 +217,7 @@ Configure how many top CPU/memory consuming processes the endpoint tracks (from 
 
 - **True Top N Overview**: View the active process hierarchy sorted by CPU%, RSS Memory, or Disk Write Rate.
 - **Process Breakdown Chart**: Stacked multi-series charts showing individual process consumption over the selected historical time scope.
+- **Lazy Query Scheduling**: To preserve collector gRPC query slots for active metric charts, historical process queries are only scheduled when the Process Overview tab is actively visible.
 
 ---
 
@@ -218,6 +231,17 @@ MADTOM features RFC 5357 **Two-Way Active Measurement Protocol (TWAMP Light)**:
 ---
 
 ## Diagnostics & Performance Tuning
+
+### Background Ingestion Worker & Coalesced UI Drains
+
+To maintain smooth 60 FPS presentation even during multi-node bursts or high-frequency 10Hz streaming:
+- **Offloaded Ingestion**: Rate calculations, disk throughput deltas, process ranking, and `HistoryCache.Record()` execute on dedicated background worker threads.
+- **Coalesced Drains**: UI updates are staged in an atomic latest-snapshot slot and scheduled via `Interlocked.CompareExchange` onto the Avalonia UI dispatcher, preventing event queue backlog.
+
+### Zero-Allocation Sparklines & Deferred Pruning
+
+- **In-Place Sparkline Buffers**: Live 60-second node card sparklines shift points in-place using fixed-size arrays and memory copy, eliminating transient heap allocations on every sample.
+- **Deferred Cache Pruning**: Queue traversal and sample pruning are deferred to block-seal boundaries and periodic timer maintenance, keeping steady-state sample recording lightweight.
 
 ### Client History Cache & Off-Lock Decompression
 
@@ -242,12 +266,42 @@ MADTOM.Console 2> ui-performance.log
 ```
 The timing subsystem logs lock wait/hold durations, gRPC network fetch times, downsample runtimes, and dispatcher frame latency.
 
+### Deep-Dive Transition Timing Diagnostics
+
+To measure the end-to-end latency from the moment an operator clicks a node card until all historical charts in the deep-dive view are fully populated and rendered:
+```bash
+export MADTOM_DEEPDIVE_TIMING=1
+# Or enable the full UI performance diagnostics suite:
+export MADTOM_UI_TIMING=1
+MADTOM.Studio 2> deepdive-transition.log
+```
+
+The transition tracker measures each step in the pipeline:
+- **`navigation.click`**: Moment the node card, sidebar host, or dropdown item is clicked.
+- **`navigation.view-switch`**: Immediate view model swap (`CurrentView = HostDetailView`).
+- **`host-detail.specs`**: Header properties and hardware specs update (CPU model, RAM%, TWAMP).
+- **`metrics.save-layout`**: Serializing previous host's layout to `graphs.json` if changes were pending.
+- **`metrics.load-layout`**: Loading target host's layout from `graphs.json` and instantiating graph view models.
+- **`metrics.populate-metrics`**: Scanning and populating available metric series.
+- **`data.query-wall`**: Asynchronous gRPC queries to collector TSDB and cache lookups.
+- **`data.transform`**: Background rate calculations, point sorting, LTTB downsampling, and time labels.
+- **`data.batch-publish`**: UI dispatcher batch update (`ApplySnapshots`) clearing loading flags.
+- **`chart.render-all`**: Render completion across all visible chart canvases (`MetricHistoryChartControl.Render`).
+
 ### UI Performance Baselining
 
 Analyze captured logs with the performance summarizer tool:
 ```bash
 python3 tools/Telemetry/summarize_ui_performance.py ui-performance.log
+python3 tools/summarize_ui_performance.py deepdive-transition.log
 ```
 
 The tool produces a breakdown of zero-RPC vs. remote queries, cache hit ratios, and 95th/99th percentile frame rendering latencies.
+Example transition summary:
+```text
+Deep-dive transition summaries (moment node clicked -> all charts rendered):
+la.realiteam.art (from fleet) | completed | n=3 median=124.5ms p95=142.1ms charts=4/4 | viewSwitchAvg=1.20ms specsAvg=2.10ms saveLayoutAvg=0.80ms loadLayoutAvg=3.40ms populateAvg=1.10ms queryWallAvg=98.40ms transformAvg=8.20ms publishAvg=1.80ms renderChartsAvg=7.50ms
+```
+
+The tool also produces a breakdown of zero-RPC vs. remote queries, cache hit ratios, and 95th/99th percentile frame rendering latencies.
 

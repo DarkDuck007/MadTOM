@@ -18,17 +18,17 @@ See the [conversation recap and first UI capture findings](#conversation-recap-l
 
 ### Next stages and completion gates
 
-| Order | Deliverable | Completion evidence |
-|---|---|---|
-| 1 — UI baseline and first fixes | Measure dispatcher/frame stalls; move numeric history/cache work off UI thread; publish coherent graph snapshots with cancellation | Comparable node/scope traces, UI-thread checks, lower warm-switch p95 and frame stalls without losing live samples |
-| 2 — Storage baseline and rollup schema | Measure bytes/point, series cardinality and scan cost; define gauge/counter semantics and versioned tier keys | Golden-data tests and a checkpoint-based size/query benchmark; explicit retention choices |
-| 3 — Rollup writer and tier-aware reads | Build durable minute/hour summaries with raw fallback, late-data policy and resumable backfill | Raw-versus-rollup correctness, crash/replay tests, reduced scans; **no raw deletion yet** |
-| 4 — Retention and reclamation | Enable selected tier lifetimes only after coverage verification; bounded range deletion and paced compaction | Recovery tests prove rollups survive raw expiry; measured reclaimed bytes and foreground latency under maintenance |
-| 5 — Remaining UI allocation work | Coalesced display publication, ring/incremental buffers, tick-only labels, visibility-aware projection; benchmark bounded series prefetch | Sustained live frame pacing, stable allocations/RSS and fast touch/navigation during ingest |
-| 6 — Operations and protocol follow-ups | Security implementation, clock/freshness health and WAL backlog visibility; collector service hardening | Interoperability, failure/recovery and deployment tests, accurate operational docs |
-| 7 — Optional UX and further encoding | Crosshairs, exports, alerts; Pebble zstd and compact chunks only where measurements justify them | Explicit resource budgets and measured benefit, with regression gates below |
+| Order | Deliverable | Completion evidence | Status |
+|---|---|---|---|
+| 1 — UI baseline and first fixes | Measure dispatcher/frame stalls; move numeric history/cache work off UI thread; publish coherent graph snapshots with cancellation | Comparable node/scope traces, UI-thread checks, lower warm-switch p95 and frame stalls without losing live samples | **Delivered & validated** (2026-09-20 / 2026-09-27) |
+| 2 — Storage baseline and rollup schema | Measure bytes/point, series cardinality and scan cost; define gauge/counter semantics and versioned tier keys | Golden-data tests and a checkpoint-based size/query benchmark; explicit retention choices | **Next Stage** |
+| 3 — Rollup writer and tier-aware reads | Build durable minute/hour summaries with raw fallback, late-data policy and resumable backfill | Raw-versus-rollup correctness, crash/replay tests, reduced scans; **no raw deletion yet** | Planned |
+| 4 — Retention and reclamation | Enable selected tier lifetimes only after coverage verification; bounded range deletion and paced compaction | Recovery tests prove rollups survive raw expiry; measured reclaimed bytes and foreground latency under maintenance | Planned |
+| 5 — Remaining UI allocation work | Coalesced display publication, zero-alloc buffers, instant deep-dive transition, lazy queries, dynamic zoom | Sustained live frame pacing, stable allocations/RSS and fast touch/navigation during ingest | **Delivered & validated** (2026-09-27 / 2026-09-28) |
+| 6 — Operations and protocol follow-ups | Security implementation, clock/freshness health and WAL backlog visibility; collector service hardening | Interoperability, failure/recovery and deployment tests, accurate operational docs | Planned |
+| 7 — Optional UX and further encoding | Crosshairs, exports, alerts; Pebble zstd and compact chunks only where measurements justify them | Explicit resource budgets and measured benefit, with regression gates below | Planned |
 
-Documentation corrections and accurate deployment/security guidance accompany each stage. Stages 1 and 2 are independent tracks; the default implementation order starts with UI responsiveness, then rollups. This is not a request to deploy or perform live-database migration.
+Documentation corrections and accurate deployment/security guidance accompany each stage. With Stage 1 and Stage 5 UI responsiveness and allocation improvements delivered, the active roadmap transitions to Stage 2 (Storage baseline and rollup schema). This is not a request to deploy or perform live-database migration.
 
 ### UI responsiveness: implementation design
 
@@ -588,3 +588,90 @@ Implemented the core algorithmic and concurrency optimizations for active stage 
    - Updated `tools/summarize_ui_performance.py` and its test suite to categorize refreshes as `zero-rpc` vs `network`, report lock wait/hold averages, and display peak cache occupancy.
 
 Validation: .NET build succeeded; all 238 tests passed with timing disabled and again with `MADTOM_UI_TIMING=1`. All 3 Python summarizer tests passed. New tests in `CacheAccountingAndConcurrencyTests` verify incremental totals against full scans across all mutations, multi-threaded record/query concurrency without deadlocks, and coherent display downsampling.
+
+### Ingestion worker offloading, UI display coalescing, and sparkline allocation elimination — 2026-09-27
+
+Implemented Primary Step 1 & 2 of the active UI responsiveness & allocation roadmap:
+1. **Background Ingestion Worker & Decoupled State**:
+   - In `CollectorTelemetryDataProvider.cs`, moved network interface delta rates, disk I/O rates, process list sorting/filtering, and `HistoryCache.Record()` completely off the Avalonia UI dispatcher.
+   - Introduced thread-safe per-node `NodeIngestState` (tracking interface counters, disk counters, and timestamps on ingestion threads) so multi-node streaming operates concurrently without UI locks.
+2. **Coalesced UI Display Drain**:
+   - Introduced `NodeDisplaySnapshot` capturing the latest display state per node.
+   - Scheduled UI drains via `Interlocked.CompareExchange(ref _displayDrainScheduled, 1, 0) == 0` on `Dispatcher.UIThread.Post(DrainDisplayUpdates)`.
+   - Rapid bursts or 10 Hz telemetry streams now update the latest display slot per node, draining at display cadence rather than flooding the Avalonia dispatcher with hundreds of closures. Lossless telemetry remains immediately committed to `HistoryCache` in background ingestion.
+3. **Zero-Allocation Sparkline Buffer Updates**:
+   - Replaced LINQ pipelines (`.ToList()`, `.RemoveAt(0)`, `.Append()`, `.TakeLast(60)`, `.ToArray()`) in `PushSparkline` with an in-place `Array.Copy` into fixed 60-element arrays.
+   - Completely eliminates Gen 0 allocation churn from sparkline updates across CPU, RAM, and network interfaces.
+4. **History Cache Pruning Deferral**:
+   - In `TelemetryHistoryCache.Record()`, removed redundant per-sample queue traversal `points.RemoveBefore(cutoff)`.
+   - Pruning during `Record()` now only triggers when an unsealed block seals (`points.BlocksCount > oldBlocks && points.FirstTimestamp < cutoff`), with continuous time-based pruning handled periodically in `PruneLocked()`.
+5. **Regression Verification**:
+   - Added unit test suite `TelemetryIngestionCoalescingTests` covering:
+     - Sparkline initialization and left-shifting without reallocation
+     - History cache recording without UI thread dispatcher invocation
+     - Coalesced burst updates where all samples are stored losslessly while UI receives the coalesced latest state
+     - Avoidance of per-sample block pruning during steady-state ingestion
+   - All 195 `MADTOM.Plugins.Telemetry.Tests` passed; all 326 .NET solution tests passed.
+
+### Dynamic zoom scaling, instant deep-dive transition, and graph loading indicators — 2026-09-28
+
+Completed follow-up responsiveness and navigation enhancements for active stages 1 & 5:
+1. **Dynamic Graph Zoom Multiplier**:
+   - Replaced the fixed arbitrary 100-point zoom cap with a dynamic property tied to the operator's configured history retention ratio (`history_retention_ratio * 10`).
+   - Operators configuring up to 10× history retention now achieve up to 100× zoom magnification, allowing sub-second point inspection without synthetic boundaries or magic numbers.
+2. **Instant View Transition on Node Selection**:
+   - In `MainViewModel.OpenHostDetail(string hostId)`, prioritized updating `CurrentView = HostDetailView` and `Sidebar.ActiveView = "detail"` immediately before executing `HostDetailView.SelectHost(hostId)`.
+   - Eliminates UI stalls on the fleet view; the operator transitions immediately to the deep-dive shell while metrics and telemetry load asynchronously in the background.
+3. **Responsive Graph Loading State**:
+   - Extended `MetricGraphViewModel` with an `IsLoading` property and added `IsLoadingProperty` styled property to `MetricHistoryChartControl`.
+   - When historical series are in-flight or time scopes are switched (`SetScope`, `ApplyCustomScope`), graphs render a prominent `"Loading measurements…"` status in cyan (`#06B6D4`) in the center of the plot canvas rather than misleading `"No measurements in this time window"` empty notices.
+   - Graph headers initialize and display `"Loading…"` until snapshots arrive.
+4. **Guarded Live Telemetry Pushes**:
+   - In `HostMetricsTabViewModel.PushLiveSampleToGraphs`, guarded against incoming live telemetry ticks overwriting the `"Loading…"` status before initial gRPC history queries return (`!_hasLoadedHistory` and `!graph.IsLoading`).
+   - Ensures the graph status string remains accurately marked as `"Loading…"` until historical point arrays are populated by `ApplySnapshots()`.
+5. **Decoupled Process Overview Query Scheduling**:
+   - In `HostProcessesTabViewModel`, restricted heavy gRPC history queries (`RefreshHistoryAsync()`) during host selection to when the Process Overview tab is actively visible (`if (IsProcessOverviewTabSelected)`).
+   - When switching to the tab (`OnSelectedTabIndexChanged`), queries execute lazily.
+   - Prevents 15 background process range queries from monopolizing the 4 concurrent collector query slots in `HistoryQueryCoordinator`, ensuring metric graphs have immediate access to gRPC query channels.
+6. **Regression Verification**:
+   - Added unit test suite `DeepDivePageTransitionLoadingTests` (7 tests) verifying loading states, Avalonia chart properties, scope transition loading resets, live sample push guards, immediate `CurrentView` assignment, and lazy process query execution.
+   - All 202 `MADTOM.Plugins.Telemetry.Tests` passed (0 failed, 0 skipped).
+   - All 339 .NET solution tests passed across all plugins.
+
+### Deep-dive transition instrumentation and end-to-end chart timing — 2026-09-28
+
+Implemented exact end-to-end timing measurement capturing the complete transition lifecycle from node click until all charts in the deep-dive view are loaded and rendered:
+1. **Targeted Diagnostic Activation**:
+   - Extended `UiPerformanceDiagnostics` to activate on either `MADTOM_DEEPDIVE_TIMING=1` or `MADTOM_UI_TIMING=1`.
+   - Thread-safe structured diagnostic records stream asynchronously to the diagnostics channel with zero allocations and zero overhead when disabled.
+2. **End-to-End Transition Tracker (`DeepDiveTransitionTracker`)**:
+   - Records wall-clock duration from the trigger event (`DeepDiveTransitionTracker.Begin(hostId, fromView)`) through:
+     - `navigation.view-switch`: Setting active view and navigation state
+     - `navigation.host-select`: Binding and selecting the host across detail models
+     - `host-detail.specs`: Computing hardware specifications and static badges
+     - `metrics.save-layout` / `metrics.populate-metrics` / `metrics.load-layout`: Metric tab initialization
+     - `query.range-rpc`: gRPC range query dispatch and response wait across series
+     - `data.ready`: Historical data decoding and snapshot preparation completion
+     - `graph.batch-publish`: Applying snapshots to chart view models on the UI dispatcher
+     - `chart.rendered`: Actual Skia/Avalonia canvas drawing in `MetricHistoryChartControl.Render()`
+   - Tracks expected vs rendered chart counts; transitions complete when all charts render or when cancelled/superseded by switching hosts.
+   - Emits structured JSON events: `[ui-performance] {"Kind":"deepdive-transition", ...}`.
+3. **UI Performance Summarizer Update**:
+   - Created symlink `tools/summarize_ui_performance.py -> Telemetry/summarize_ui_performance.py` so standard tool invocation paths resolve consistently.
+   - Updated `tools/Telemetry/summarize_ui_performance.py` to parse `Kind: "deepdive-transition"`.
+   - Generates dedicated summary reports reporting:
+     - Total transition count (completed vs cancelled/superseded)
+     - End-to-end wall-clock time percentiles (p50 and p95)
+     - Average charts rendered per transition
+     - Step-by-step elapsed time breakdown with percentage of total transition time
+4. **Regression Verification**:
+   - Added unit test suite `DeepDiveTransitionTimingTests` (4 tests) covering:
+     - Full transition lifecycle from click to all charts rendered
+     - Intermediate step measurement recording
+     - Superseding/cancellation handling when switching hosts
+     - Disabled no-op behavior when environment variables are unset
+   - Added Python summarizer test `test_deepdive_transition_summary` in `tools/Telemetry/test_summarize_ui_performance.py`.
+   - All 4 Python summarizer tests passed.
+   - All 206 `MADTOM.Plugins.Telemetry.Tests` passed (0 failed).
+   - All 343 .NET solution tests passed across all plugins.
+

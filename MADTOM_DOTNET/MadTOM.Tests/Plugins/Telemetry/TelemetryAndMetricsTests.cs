@@ -1438,7 +1438,7 @@ public class TelemetryAndMetricsTests
         public List<(string HostId, NodeConfig Config)> UpdatedConfigs { get; } = new();
 
         public event EventHandler<FleetNodeModel>? NodeTelemetryUpdated;
-        public event EventHandler<LogEntryModel>? LogReceived;
+        public event EventHandler<LogEntryModel>? LogReceived { add { } remove { } }
 
         public IReadOnlyList<FleetNodeModel> GetFleetNodes() => Nodes;
         public FleetNodeModel? GetNode(string hostId) => Nodes.FirstOrDefault(n => n.Id == hostId);
