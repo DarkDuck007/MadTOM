@@ -837,6 +837,16 @@ rm -f "\$REMOTE_TMP"
 # Pre-create companion directories and install initial config if needed
 if [ "\$PROJECT_NAME" = "squeeze-server" ] || [ "\$PROJECT_NAME" = "squeeze" ] || [ "\$SERVICE_NAME" = "squeeze-server.service" ]; then
     run_sudo mkdir -p /var/lib/squeeze/scratch /var/lib/squeeze/output /etc/squeeze
+    if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+        echo "    Notice: ffmpeg/ffprobe not found on remote. Attempting installation via package manager..."
+        if command -v apt-get >/dev/null 2>&1; then
+            DEBIAN_FRONTEND=noninteractive run_sudo apt-get update -qq && DEBIAN_FRONTEND=noninteractive run_sudo apt-get install -y -qq ffmpeg || true
+        elif command -v dnf >/dev/null 2>&1; then
+            run_sudo dnf install -y -q ffmpeg || true
+        elif command -v pacman >/dev/null 2>&1; then
+            run_sudo pacman -S --noconfirm ffmpeg || true
+        fi
+    fi
     if [ -n "\$REMOTE_CFG_TMP" ] && [ -f "\$REMOTE_CFG_TMP" ]; then
         if [ ! -f /etc/squeeze/squeeze.yaml ]; then
             echo "    Installing initial configuration: /etc/squeeze/squeeze.yaml"

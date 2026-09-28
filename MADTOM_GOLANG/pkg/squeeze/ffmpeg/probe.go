@@ -147,11 +147,11 @@ func TestHardwareEncoder(ctx context.Context, binary, name string) bool {
 
 	var args []string
 	if strings.HasSuffix(name, "_vaapi") {
-		args = []string{"-hide_banner", "-v", "error", "-init_hw_device", "vaapi=va", "-filter_hw_device", "va", "-f", "lavfi", "-i", "color=size=128x128:rate=1:duration=0.04", "-vf", "format=nv12,hwupload", "-frames:v", "1", "-c:v", name, "-f", "null", "-"}
+		args = []string{"-hide_banner", "-v", "error", "-init_hw_device", "vaapi=va", "-filter_hw_device", "va", "-f", "lavfi", "-i", "color=size=256x256:rate=1:duration=0.04", "-vf", "format=nv12,hwupload", "-frames:v", "1", "-c:v", name, "-f", "null", "-"}
 	} else if strings.HasSuffix(name, "_qsv") {
-		args = []string{"-hide_banner", "-v", "error", "-init_hw_device", "qsv=hw", "-filter_hw_device", "hw", "-f", "lavfi", "-i", "color=size=128x128:rate=1:duration=0.04", "-frames:v", "1", "-c:v", name, "-f", "null", "-"}
+		args = []string{"-hide_banner", "-v", "error", "-init_hw_device", "qsv=hw", "-filter_hw_device", "hw", "-f", "lavfi", "-i", "color=size=256x256:rate=1:duration=0.04", "-frames:v", "1", "-c:v", name, "-f", "null", "-"}
 	} else {
-		args = []string{"-hide_banner", "-v", "error", "-f", "lavfi", "-i", "color=size=128x128:rate=1:duration=0.04", "-frames:v", "1", "-c:v", name, "-f", "null", "-"}
+		args = []string{"-hide_banner", "-v", "error", "-f", "lavfi", "-i", "color=size=256x256:rate=1:duration=0.04", "-frames:v", "1", "-c:v", name, "-f", "null", "-"}
 	}
 
 	cmd := exec.CommandContext(testCtx, binary, args...)
