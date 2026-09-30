@@ -66,12 +66,4 @@ public partial class MainWindow : Window
         _isExplicitExit = true;
         Close();
     }
-
-    private void OnSidebarSplitterDragDelta(object? sender, VectorEventArgs e)
-    {
-        if (DataContext is ConsoleMainViewModel vm && !vm.IsSidebarCollapsed)
-        {
-            vm.SidebarWidth += e.Vector.X;
-        }
-    }
 }

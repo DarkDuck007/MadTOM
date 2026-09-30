@@ -27,28 +27,28 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        var hostContext = new ConsoleHostContext();
+        _pluginManager = new PluginManager(hostContext);
+
+        // Register active plugins
+        _pluginManager.RegisterModuleAsync(new TelemetryPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.Squeeze.SqueezePluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AndroidToolkit.AndroidToolkitPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.MediaCenter.MediaCenterPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.NoxAI.NoxAIPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AudioSync.AudioSyncPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.VNA.VNAPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.ConnectionToolkit.ConnectionToolkitPluginModule()).GetAwaiter().GetResult();
+
+        // Register placeholder plugins at bottom of rail
+        _pluginManager.RegisterModuleAsync(new SysadminPlaceholderPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new EscPlaceholderPluginModule()).GetAwaiter().GetResult();
+
+        var viewModel = new ConsoleMainViewModel(hostContext, _pluginManager);
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-
-            var hostContext = new ConsoleHostContext();
-            _pluginManager = new PluginManager(hostContext);
-
-            // Register active plugins
-            _pluginManager.RegisterModuleAsync(new TelemetryPluginModule()).GetAwaiter().GetResult();
-            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.Squeeze.SqueezePluginModule()).GetAwaiter().GetResult();
-            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AndroidToolkit.AndroidToolkitPluginModule()).GetAwaiter().GetResult();
-            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.MediaCenter.MediaCenterPluginModule()).GetAwaiter().GetResult();
-            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.NoxAI.NoxAIPluginModule()).GetAwaiter().GetResult();
-            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AudioSync.AudioSyncPluginModule()).GetAwaiter().GetResult();
-            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.VNA.VNAPluginModule()).GetAwaiter().GetResult();
-            _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.ConnectionToolkit.ConnectionToolkitPluginModule()).GetAwaiter().GetResult();
-
-            // Register placeholder plugins at bottom of rail
-            _pluginManager.RegisterModuleAsync(new SysadminPlaceholderPluginModule()).GetAwaiter().GetResult();
-            _pluginManager.RegisterModuleAsync(new EscPlaceholderPluginModule()).GetAwaiter().GetResult();
-
-            var viewModel = new ConsoleMainViewModel(hostContext, _pluginManager);
 
             var mainWindow = new MainWindow
             {
@@ -66,6 +66,13 @@ public partial class App : Application
                 {
                     await _pluginManager.DisposeAsync();
                 }
+            };
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+        {
+            singleView.MainView = new MainView
+            {
+                DataContext = viewModel
             };
         }
 

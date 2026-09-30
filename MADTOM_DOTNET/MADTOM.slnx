@@ -4,7 +4,8 @@
     <Project Path="src/Core/MADTOM.PluginContracts/MADTOM.PluginContracts.csproj" />
   </Folder>
   <Folder Name="/src/Host/">
-    <Project Path="src/Host/MADTOM.Console/MADTOM.Console.csproj" />
+    <Project Path="src/Host/MADTOM.Studio/MADTOM.Studio.csproj" />
+    <Project Path="src/Host/MADTOM.Studio.Android/MADTOM.Studio.Android.csproj" />
   </Folder>
   <Folder Name="/src/Plugins/" />
   <Folder Name="/src/Plugins/Telemetry/">
@@ -32,7 +33,7 @@
     <Project Path="src/Plugins/AudioSync/MADTOM.Plugins.AudioSync/MADTOM.Plugins.AudioSync.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="MadTOM.Tests/Console/MadTOM.Console.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Studio/MadTOM.Studio.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/Telemetry/MADTOM.Plugins.Telemetry.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/Squeeze/MADTOM.Plugins.Squeeze.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit.Tests.csproj" />
