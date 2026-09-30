@@ -3,6 +3,9 @@
     <!-- Monospace font family resource -->
     <FontFamily x:Key="MonoFontFamily">Cascadia Code, Consolas, DejaVu Sans Mono, Menlo, monospace</FontFamily>
 
+    <!-- Emoji font family resource with full multiplatform fallback -->
+    <FontFamily x:Key="EmojiFontFamily">Noto Color Emoji, Segoe UI Emoji, Apple Color Emoji, sans-serif</FontFamily>
+
     <!-- Theme Color Palette Definitions -->
     <Color x:Key="ColorAppBg">#070A12</Color>
     <Color x:Key="ColorHeaderBg">#0B111E</Color>

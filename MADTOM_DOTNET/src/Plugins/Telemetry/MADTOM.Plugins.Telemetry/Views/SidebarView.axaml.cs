@@ -26,7 +26,19 @@ public partial class SidebarView : UserControl
 
     private void ShowCompression(Control anchor, bool tapped)
     {
-        if (DataContext is not SidebarViewModel vm || TopLevel.GetTopLevel(this) is not Window owner) return;
+        if (DataContext is not SidebarViewModel vm) return;
+
+        // If the platform does not support floating windows (Android, iOS, DRM direct-display)
+        // or TopLevel is not a desktop Window, route to the unified in-tree modal dialog.
+        if (!MADTOM.PluginContracts.PlatformCapabilities.SupportsFloatingWindows || TopLevel.GetTopLevel(this) is not Window owner)
+        {
+            if (tapped)
+            {
+                vm.OpenCompressionModal();
+            }
+            return;
+        }
+
         if (_compressionWindow == null)
         {
             vm.RefreshCompressionDiagnostics();

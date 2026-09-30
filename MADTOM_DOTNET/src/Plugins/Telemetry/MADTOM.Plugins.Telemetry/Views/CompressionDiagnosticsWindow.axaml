@@ -1,25 +1,54 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="using:MadTOM.Views"
+        xmlns:controls="using:MadTOM.Controls"
         x:Class="MadTOM.Views.CompressionDiagnosticsWindow"
-        Width="520" Height="520" MinWidth="360" MinHeight="260"
+        Width="540" Height="520" MinWidth="360" MinHeight="260"
         Title="Zstd diagnostics" WindowDecorations="None" CanResize="True"
-        ShowInTaskbar="False" ShowActivated="False">
-    <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}"
-            BorderThickness="1" Padding="10">
-        <Grid RowDefinitions="Auto,*">
-            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
-                <Border Background="Transparent" PointerPressed="DragHeader" Height="28" MinHeight="0">
-                    <TextBlock Text="ZSTD DIAGNOSTICS" VerticalAlignment="Center" FontWeight="Bold"/>
+        ShowInTaskbar="False" ShowActivated="False"
+        Background="Transparent" TransparencyLevelHint="Transparent">
+
+    <Window.Styles>
+        <controls:ModalDialogStyles/>
+    </Window.Styles>
+
+    <Border Classes="modal-container" Margin="8">
+        <Grid RowDefinitions="Auto,*" Margin="16">
+            <!-- Unified Header matching MADTOM modals & popup windows -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,14">
+                <Border Grid.Column="0" Classes="modal-icon-badge" Margin="0,0,10,0">
+                    <TextBlock Text="🗜️" FontSize="12" FontFamily="{DynamicResource EmojiFontFamily}" Foreground="White"/>
                 </Border>
-                <ToggleButton x:Name="PinButton" Grid.Column="1" Width="28" MinWidth="0" Padding="0" Height="28" MinHeight="0"
+                <Border Grid.Column="1" Background="Transparent" PointerPressed="DragHeader" VerticalAlignment="Center">
+                    <StackPanel Spacing="1">
+                        <TextBlock Text="ZSTD DIAGNOSTICS"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   FontWeight="Bold"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Real-time frame compression &amp; dictionary memory"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Standardized Pin ToggleButton -->
+                <ToggleButton x:Name="PinButton" Grid.Column="2" Classes="modal-pin-btn"
+                              Width="30" Height="30"
                               Click="TogglePin" ToolTip.Tip="Keep this panel open" AutomationProperties.Name="Pin diagnostics">
-                    <Path Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.5"
+                    <Path Width="14" Height="14" Stretch="Uniform" StrokeThickness="1.5"
                           Data="M 5,1 L 11,1 L 10,6 L 13,9 L 3,9 L 6,6 Z M 8,9 L 8,15"/>
                 </ToggleButton>
-                <Button Grid.Column="2" Content="×" Width="28" MinWidth="0" Padding="0" Height="28" MinHeight="0" Margin="4,0,0,0"
-                        FontSize="16" AutomationProperties.Name="Close diagnostics" Click="ClosePanel" ToolTip.Tip="Close diagnostics"/>
+
+                <!-- Standardized Close Button with ✕ matching MADTOM modal popups -->
+                <Button Grid.Column="3" Classes="modal-close-btn"
+                        Width="30" Height="30" Margin="4,0,0,0"
+                        AutomationProperties.Name="Close diagnostics" Click="ClosePanel" ToolTip.Tip="Close diagnostics">
+                    <TextBlock Text="✕" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
             </Grid>
+
+            <!-- Diagnostics Content View -->
             <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <views:CompressionDiagnosticsView/>
             </ScrollViewer>

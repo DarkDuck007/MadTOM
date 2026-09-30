@@ -59,6 +59,11 @@
             <modals:CustomizeGraphsModal DataContext="{Binding HostDetailView.MetricsTab}" />
         </Panel>
 
+        <!-- ZSTD Compression Diagnostics Modal Overlay (single-window / non-floating modal) -->
+        <Panel IsVisible="{Binding Sidebar.IsCompressionModalOpen}">
+            <modals:CompressionDiagnosticsModal DataContext="{Binding Sidebar}" />
+        </Panel>
+
         <!-- Floating Toast Notification Overlay -->
         <toast:ToastNotificationView IsVisible="{Binding IsToastVisible}"
                                      HorizontalAlignment="Right"
