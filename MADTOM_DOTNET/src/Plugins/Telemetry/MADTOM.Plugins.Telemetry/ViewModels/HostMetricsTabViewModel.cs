@@ -1360,7 +1360,16 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             {
                 graph.Timestamps = primary.Timestamps;
                 graph.Values = primary.Values;
-                graph.Labels = primary.Timestamps.Select(t => DateTimeOffset.FromUnixTimeSeconds(t / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss")).ToArray();
+                graph.Labels = primary.Timestamps.Length switch
+                {
+                    0 => Array.Empty<string>(),
+                    1 => new[] { DateTimeOffset.FromUnixTimeSeconds(primary.Timestamps[0] / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss") },
+                    _ => new[]
+                    {
+                        DateTimeOffset.FromUnixTimeSeconds(primary.Timestamps[0] / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss"),
+                        DateTimeOffset.FromUnixTimeSeconds(primary.Timestamps[^1] / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss")
+                    }
+                };
             }
 
             if (maxPoints > 0 && !graph.IsLoading)
@@ -1422,13 +1431,69 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         long transformStart = System.Diagnostics.Stopwatch.GetTimestamp();
                         using var seriesWork = UiPerformanceDiagnostics.Measure("graph.history-transform-publish");
                         long timestampUnit = IsAggregatedMode ? 1_000_000_000L : 1L;
-                        var points = results.SelectMany(s => s.GroupBy(p => p.TimestampUnixNano / timestampUnit).Select(g => g.OrderBy(p => p.TimestampUnixNano).Last()))
-                                            .GroupBy(p => p.TimestampUnixNano / timestampUnit)
-                                            .OrderBy(g => g.Key)
-                                            .ToArray();
+                        long[] rawTs;
+                        double[] rawVals;
 
-                        var rawTs = points.Select(g => g.Key * timestampUnit).ToArray();
-                        var rawVals = points.Select(g => series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio") ? g.Average(p => p.Value) : g.Sum(p => p.Value)).ToArray();
+                        if (results.Length == 1 && !IsAggregatedMode)
+                        {
+                            var list = results[0];
+                            int count = list.Count;
+                            rawTs = new long[count];
+                            rawVals = new double[count];
+                            for (int i = 0; i < count; i++)
+                            {
+                                rawTs[i] = list[i].TimestampUnixNano;
+                                rawVals[i] = list[i].Value;
+                            }
+                        }
+                        else
+                        {
+                            var map = new SortedDictionary<long, (double Sum, int Count)>();
+                            foreach (var res in results)
+                            {
+                                long lastBucket = long.MinValue;
+                                LODPoint lastPt = default;
+                                for (int i = 0; i < res.Count; i++)
+                                {
+                                    var p = res[i];
+                                    long b = p.TimestampUnixNano / timestampUnit;
+                                    if (b == lastBucket)
+                                    {
+                                        lastPt = p;
+                                    }
+                                    else
+                                    {
+                                        if (lastBucket != long.MinValue)
+                                        {
+                                            if (map.TryGetValue(lastBucket, out var existing))
+                                                map[lastBucket] = (existing.Sum + lastPt.Value, existing.Count + 1);
+                                            else
+                                                map[lastBucket] = (lastPt.Value, 1);
+                                        }
+                                        lastBucket = b;
+                                        lastPt = p;
+                                    }
+                                }
+                                if (lastBucket != long.MinValue)
+                                {
+                                    if (map.TryGetValue(lastBucket, out var existing))
+                                        map[lastBucket] = (existing.Sum + lastPt.Value, existing.Count + 1);
+                                    else
+                                        map[lastBucket] = (lastPt.Value, 1);
+                                }
+                            }
+
+                            bool useAvg = series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio");
+                            rawTs = new long[map.Count];
+                            rawVals = new double[map.Count];
+                            int idx = 0;
+                            foreach (var kvp in map)
+                            {
+                                rawTs[idx] = kvp.Key * timestampUnit;
+                                rawVals[idx] = useAvg ? (kvp.Value.Sum / kvp.Value.Count) : kvp.Value.Sum;
+                                idx++;
+                            }
+                        }
 
                         double? prevVal = null;
                         long? prevTs = null;
@@ -1476,9 +1541,16 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 var primary = seriesDisplayList.FirstOrDefault();
                 long[] primaryTimestamps = primary?.DisplayTimestamps ?? Array.Empty<long>();
                 double[] primaryValues = primary?.DisplayValues ?? Array.Empty<double>();
-                string[] labels = primaryTimestamps.Length > 0
-                    ? primaryTimestamps.Select(t => DateTimeOffset.FromUnixTimeSeconds(t / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss")).ToArray()
-                    : Array.Empty<string>();
+                string[] labels = primaryTimestamps.Length switch
+                {
+                    0 => Array.Empty<string>(),
+                    1 => new[] { DateTimeOffset.FromUnixTimeSeconds(primaryTimestamps[0] / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss") },
+                    _ => new[]
+                    {
+                        DateTimeOffset.FromUnixTimeSeconds(primaryTimestamps[0] / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss"),
+                        DateTimeOffset.FromUnixTimeSeconds(primaryTimestamps[^1] / 1_000_000_000L).ToLocalTime().ToString("MM-dd HH:mm:ss")
+                    }
+                };
 
                 string status;
                 if (maxPoints == 0)

@@ -374,12 +374,15 @@ public sealed class TelemetryHistoryCache
             else
             {
                 var nowUtc = _utcNow();
+                long bucketSpanNano = targetPoints > 0 ? (to - from) / targetPoints : 0;
+                long tolerance = bucketSpanNano;
                 for (int i = _remote.Count - 1; i >= 0; i--)
                 {
                     var r = _remote[i];
                     if (r.Expires <= nowUtc) continue;
-                    if (r.Key == key && HasResolution(r, from, to, targetPoints) && r.Start <= from &&
-                        (r.End >= to || (series != null && series.Points.Covers(r.End, to))))
+                    bool withinBucketTolerance = tolerance > 0 && (to - r.End) <= tolerance;
+                    if (r.Key == key && HasResolution(r, from, to, targetPoints) && r.Start <= from + tolerance &&
+                        (r.End >= to || withinBucketTolerance || (series != null && series.Points.Covers(r.End, to))))
                     {
                         _remote.RemoveAt(i);
                         _remote.Add(r);
@@ -397,7 +400,7 @@ public sealed class TelemetryHistoryCache
                         var r = _remote[i];
                         if (r.Expires <= nowUtc) continue;
                         if (r.Key == key && HasResolution(r, from, to, targetPoints) &&
-                            r.Start <= from && r.End >= from && r.End < to)
+                            r.Start <= from + tolerance && r.End >= from && r.End < to)
                         {
                             if (prefixRange == null || r.End > prefixRange.End) prefixRange = r;
                         }
@@ -464,22 +467,33 @@ public sealed class TelemetryHistoryCache
         timing?.Mark("prefix-merged", $"points={remote.Count}");
         ct.ThrowIfCancellationRequested();
 
-        CompressedPointBlock? candidate = fetchSucceeded && remote.Count <= MaxStoredQueryPoints
-            ? new CompressedPointBlock(remote.ToArray()) : null;
-        timing?.Mark("encoded", candidate == null ? "not-admitted" : $"bytes={candidate.StorageBytes}");
-        ct.ThrowIfCancellationRequested();
-
         CompressedPointHistory.HistorySnapshot latestLiveSnapshot;
         bool genMatch;
         long postLockWaitStart = Stopwatch.GetTimestamp();
+        LODPoint[] result;
         lock (_gate)
         {
             double postLockWaitMs = Stopwatch.GetElapsedTime(postLockWaitStart).TotalMilliseconds;
             long postLockHoldStart = Stopwatch.GetTimestamp();
             timing?.Mark("lock-acquired-publication", $"waitMs={postLockWaitMs:F2}");
             genMatch = (generation == _generation);
-            if (genMatch)
+            _live.TryGetValue(key, out var finalLiveSeries);
+            latestLiveSnapshot = finalLiveSeries != null ? finalLiveSeries.Points.Snapshot(from, to) : default;
+            var finalLocal = latestLiveSnapshot.Decode(from, to);
+
+            if (!genMatch)
             {
+                result = finalLocal;
+            }
+            else
+            {
+                result = Merge(remote, finalLocal, from, to);
+                timing?.Mark("merged-for-storage", $"points={result.Length}");
+
+                CompressedPointBlock? candidate = fetchSucceeded && result.Length <= MaxStoredQueryPoints
+                    ? new CompressedPointBlock(result) : null;
+                timing?.Mark("encoded", candidate == null ? "not-admitted" : $"bytes={candidate.StorageBytes}");
+
                 if (candidate != null)
                 {
                     var expires = prefixBlock != null ? prefixExpires : _utcNow().AddSeconds(_storedRetentionSeconds);
@@ -516,20 +530,26 @@ public sealed class TelemetryHistoryCache
                             }
                             AddRemoteRangeLocked(range);
                             EnforceLimitsLocked();
+
+                            if (finalLiveSeries != null && finalLocal.Length > 0)
+                            {
+                                UpdateSeriesDeltaLocked(finalLiveSeries, () =>
+                                {
+                                    finalLiveSeries.Points.RemoveRange(range.Start, range.End);
+                                });
+                                if (finalLiveSeries.Points.Count == 0)
+                                {
+                                    RemoveSeriesLocked(key, finalLiveSeries);
+                                }
+                            }
                         }
                     }
                 }
             }
-            _live.TryGetValue(key, out var finalLiveSeries);
-            latestLiveSnapshot = finalLiveSeries != null ? finalLiveSeries.Points.Snapshot(from, to) : default;
             double postLockHoldMs = Stopwatch.GetElapsedTime(postLockHoldStart).TotalMilliseconds;
             timing?.Mark("lock-released-publication", $"holdMs={postLockHoldMs:F2}");
         }
 
-        var finalLocal = latestLiveSnapshot.Decode(from, to);
-        if (!genMatch) return finalLocal;
-
-        var result = Merge(remote, finalLocal, from, to);
         timing?.Mark("published", $"points={result.Length}");
         return result;
     }
@@ -542,7 +562,7 @@ public sealed class TelemetryHistoryCache
 
     private static bool HasResolution(RemoteRange range, long start, long end, int targetPoints) =>
         targetPoints <= 0 || (range.PointBudget >= targetPoints &&
-            (decimal)range.PointBudget * Math.Max(1m, (decimal)end - start) >=
+            (decimal)range.PointBudget * Math.Max(1m, (decimal)end - start) * 1.05m >=
             (decimal)targetPoints * Math.Max(1m, (decimal)range.End - range.Start));
 
     private LODPoint[] ReadLocked((string Collector, string Node, string Metric) key, long start, long end) =>

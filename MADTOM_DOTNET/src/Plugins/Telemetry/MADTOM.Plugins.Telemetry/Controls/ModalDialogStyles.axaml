@@ -1,0 +1,63 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MadTOM.Controls.ModalDialogStyles">
+
+    <!-- Modal dimming background scrim -->
+    <Style Selector="Grid.modal-scrim">
+        <Setter Property="Background" Value="#B3000000"/>
+    </Style>
+
+    <!-- Unified Modal Dialog / Floating Window Container Card -->
+    <Style Selector="Border.modal-container">
+        <Setter Property="Background" Value="{DynamicResource CardBgBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="16"/>
+        <Setter Property="BoxShadow" Value="0 14 36 #C0000000"/>
+    </Style>
+
+    <!-- Header Icon Badge -->
+    <Style Selector="Border.modal-icon-badge">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Standard Header Close Button -->
+    <Style Selector="Button.modal-close-btn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+    </Style>
+    <Style Selector="Button.modal-close-btn:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CardHoverBgBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    </Style>
+
+    <!-- Standard Header Pin ToggleButton -->
+    <Style Selector="ToggleButton.modal-pin-btn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="ToggleButton.modal-pin-btn:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CardHoverBgBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.modal-pin-btn:checked /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.modal-pin-btn Path">
+        <Setter Property="Stroke" Value="{DynamicResource TextSecondaryBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.modal-pin-btn:checked Path">
+        <Setter Property="Stroke" Value="{DynamicResource AccentTextBrush}"/>
+    </Style>
+
+</Styles>
+

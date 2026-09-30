@@ -119,6 +119,93 @@ public sealed class CompressedPointHistory : IEnumerable<LODPoint>
         }
         while (_tail.Count > 0 && _tail.Peek().TimestampUnixNano < cutoff) { _tail.Dequeue(); Count--; }
     }
+
+    public void RemoveRange(long start, long end)
+    {
+        if (Count == 0 || start > end) return;
+        if (start <= FirstTimestamp)
+        {
+            RemoveBefore(end + 1);
+            return;
+        }
+
+        if (_head.Count > 0)
+        {
+            var headArray = _head.ToArray();
+            _head.Clear();
+            for (int i = 0; i < headArray.Length; i++)
+            {
+                var p = headArray[i];
+                if (p.TimestampUnixNano >= start && p.TimestampUnixNano <= end) Count--;
+                else _head.Enqueue(p);
+            }
+        }
+
+        var node = _blocks.First;
+        while (node != null)
+        {
+            var next = node.Next;
+            var b = node.Value;
+            if (b.Last < start || b.First > end)
+            {
+                // Fully outside
+            }
+            else if (b.First >= start && b.Last <= end)
+            {
+                // Fully inside
+                _blocks.Remove(node);
+                Count -= b.Count;
+                _blocksStorageBytes -= b.StorageBytes + 32;
+                _blocksCompressedBytes -= b.CompressedBytes;
+                if (b.IsCompressed) _blocksCompressedRawBytes -= b.RawBytes;
+                _blocksCount--;
+            }
+            else
+            {
+                // Partially overlapping
+                var points = b.Decode();
+                var kept = new List<LODPoint>(points.Length);
+                for (int i = 0; i < points.Length; i++)
+                {
+                    var p = points[i];
+                    if (p.TimestampUnixNano >= start && p.TimestampUnixNano <= end) Count--;
+                    else kept.Add(p);
+                }
+                _blocks.Remove(node);
+                _blocksStorageBytes -= b.StorageBytes + 32;
+                _blocksCompressedBytes -= b.CompressedBytes;
+                if (b.IsCompressed) _blocksCompressedRawBytes -= b.RawBytes;
+                _blocksCount--;
+
+                if (kept.Count > 0)
+                {
+                    var replacement = new CompressedPointBlock(kept);
+                    if (next != null) _blocks.AddBefore(next, replacement);
+                    else _blocks.AddLast(replacement);
+                    _blocksStorageBytes += replacement.StorageBytes + 32;
+                    _blocksCompressedBytes += replacement.CompressedBytes;
+                    if (replacement.IsCompressed) _blocksCompressedRawBytes += replacement.RawBytes;
+                    _blocksCount++;
+                }
+            }
+            node = next;
+        }
+
+        if (_tail.Count > 0)
+        {
+            var tailArray = _tail.ToArray();
+            _tail.Clear();
+            for (int i = 0; i < tailArray.Length; i++)
+            {
+                var p = tailArray[i];
+                if (p.TimestampUnixNano >= start && p.TimestampUnixNano <= end) Count--;
+                else _tail.Enqueue(p);
+            }
+        }
+
+        TrimExcess();
+    }
+
     public void DropOldestBlock()
     {
         if (_head.Count > 0)

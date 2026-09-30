@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MadTOM.ViewModels"
+             xmlns:views="using:MadTOM.Views"
+             xmlns:controls="using:MadTOM.Controls"
+             x:Class="MadTOM.Views.Modals.CompressionDiagnosticsModal"
+             x:DataType="vm:SidebarViewModel">
+
+    <UserControl.Styles>
+        <controls:ModalDialogStyles/>
+    </UserControl.Styles>
+
+    <!-- Modal Scrim Backdrop -->
+    <Grid Classes="modal-scrim" PointerPressed="OnBackdropPointerPressed">
+        <!-- Dialog Container -->
+        <Border Classes="modal-container"
+                Width="640" Height="580"
+                MinWidth="380" MinHeight="300"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                PointerPressed="OnContainerPointerPressed">
+            <Grid Margin="24" RowDefinitions="Auto,*">
+                <!-- Modal Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Border Classes="modal-icon-badge">
+                            <TextBlock Text="🗜️" FontSize="12" FontFamily="{StaticResource EmojiFontFamily}" Foreground="White"/>
+                        </Border>
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="ZSTD Compression Diagnostics"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       FontWeight="Bold"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Real-time frame compression, dictionary cache &amp; transport statistics"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Classes="modal-close-btn"
+                            Command="{Binding CloseCompressionModalCommand}"
+                            ToolTip.Tip="Close diagnostics"
+                            AutomationProperties.Name="Close diagnostics">
+                        <TextBlock Text="✕" FontSize="14" FontWeight="Bold"/>
+                    </Button>
+                </Grid>
+
+                <!-- Modal Content -->
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <views:CompressionDiagnosticsView/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+
+</UserControl>
+

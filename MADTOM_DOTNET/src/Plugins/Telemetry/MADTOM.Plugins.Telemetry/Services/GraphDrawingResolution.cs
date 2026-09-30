@@ -20,29 +20,29 @@ public static class GraphDrawingResolution
         int last = first;
         while (last < source.Count && source[last].X <= left + width) last++;
         int start = Math.Max(0, first - 1), end = Math.Min(source.Count, last + 1);
-        if (end - start <= budget) return source.Skip(start).Take(end - start).ToList();
+        if (end - start <= budget)
+        {
+            var list = new List<Point>(end - start);
+            for (int i = start; i < end; i++) list.Add(source[i]);
+            return list;
+        }
         if (budget < 6) return new List<Point> { source[start], source[end - 1] };
         if (timestamps?.Count == source.Count && windowEnd > windowStart)
         {
-            var timed = new List<LODPoint>(end - start);
-            var originals = new Dictionary<long, Point>(end - start);
-            for (int i = start; i < end; i++)
-            {
-                timed.Add(new LODPoint(timestamps[i], source[i].Y, 0, 0));
-                originals[timestamps[i]] = source[i];
-            }
-            return GraphHistoryResolution.Downsample(timed, budget, windowStart, windowEnd)
-                .Select(p => originals[p.TimestampUnixNano]).ToList();
+            var indices = GraphHistoryResolution.DownsampleIndices(i => timestamps[i], i => source[i].Y, source.Count, budget, windowStart, windowEnd, first, last);
+            var result = new List<Point>(indices.Count);
+            for (int i = 0; i < indices.Count; i++) result.Add(source[indices[i]]);
+            return result;
         }
 
         var visible = new List<LODPoint>(last - first);
         for (int i = first; i < last; i++)
             visible.Add(new LODPoint((long)((source[i].X - left) * 1_000_000), source[i].Y, 0, 0));
         var sampled = GraphHistoryResolution.Downsample(visible, budget - 2, 0, (long)(width * 1_000_000));
-        var result = new List<Point>(budget);
-        if (first > 0) result.Add(source[first - 1]);
-        result.AddRange(sampled.Select(p => new Point(left + p.TimestampUnixNano / 1_000_000.0, p.Value)));
-        if (last < source.Count) result.Add(source[last]);
-        return result;
+        var fallbackResult = new List<Point>(budget);
+        if (first > 0) fallbackResult.Add(source[first - 1]);
+        fallbackResult.AddRange(sampled.Select(p => new Point(left + p.TimestampUnixNano / 1_000_000.0, p.Value)));
+        if (last < source.Count) fallbackResult.Add(source[last]);
+        return fallbackResult;
     }
 }

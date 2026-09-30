@@ -51,6 +51,22 @@ public partial class SidebarViewModel : ViewModelBase
         if (usage != null) ZstdSummary = ClientCompressionSnapshot.FormatBytes(usage.LiveZstdBytes + usage.StoredZstdBytes);
     }
 
+    [ObservableProperty]
+    private bool _isCompressionModalOpen;
+
+    [RelayCommand]
+    public void OpenCompressionModal()
+    {
+        RefreshCompressionDiagnostics();
+        IsCompressionModalOpen = true;
+    }
+
+    [RelayCommand]
+    public void CloseCompressionModal()
+    {
+        IsCompressionModalOpen = false;
+    }
+
     public void RefreshCompressionDiagnostics()
     {
         var snapshot = _telemetryProvider.GetCompressionDiagnostics();

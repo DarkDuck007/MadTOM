@@ -142,4 +142,75 @@ public class TelemetryHistoryCacheTests
         Assert.Single(await cache.QueryAsync("a", "node", "cpu.total", _now.AddHours(-1), _now, false, (_, _, _) => throw new IOException()));
         await Assert.ThrowsAsync<OperationCanceledException>(() => cache.QueryAsync("a", "node", "cpu.total", _now.AddHours(-1), _now, false, (_, _, _) => throw new OperationCanceledException()));
     }
+
+    [Fact]
+    public async Task LiveHistoryMergedIntoStoredQueryCacheAndCoveredPointsEvictedWhilePreservingMonitoredOnlyMetrics()
+    {
+        var cache = new TelemetryHistoryCache(60, () => _now);
+        // Record live samples for cpu.total (to be queried) and gpu.temp (monitored only, not queried)
+        long t1 = Nano(_now.AddSeconds(-30));
+        long t2 = Nano(_now.AddSeconds(-10));
+        cache.Record("a", "node", t1, new Dictionary<string, double> { ["cpu.total"] = 15.0, ["gpu.temp"] = 45.0 });
+        cache.Record("a", "node", t2, new Dictionary<string, double> { ["cpu.total"] = 25.0, ["gpu.temp"] = 47.0 });
+
+        int collectorFetches = 0;
+        Task<IReadOnlyList<LODPoint>> Fetch(DateTime a, DateTime b, CancellationToken ct)
+        {
+            collectorFetches++;
+            return Task.FromResult<IReadOnlyList<LODPoint>>(new[]
+            {
+                new LODPoint(Nano(_now.AddHours(-2)), 10.0, 10.0, 10.0),
+                new LODPoint(Nano(_now.AddHours(-1)), 12.0, 12.0, 12.0)
+            });
+        }
+
+        // Query cpu.total for last 3 hours
+        var result = await cache.QueryAsync("a", "node", "cpu.total", _now.AddHours(-3), _now, false, Fetch, targetPoints: 800);
+        Assert.Equal(1, collectorFetches);
+        // Result should include collector data + live data (10, 12, 15, 25)
+        Assert.Equal(4, result.Count);
+        Assert.Equal(new[] { 10.0, 12.0, 15.0, 25.0 }, result.Select(p => p.Value));
+
+        // Stored query cache now holds the merged result
+        var usage = cache.GetUsage(60);
+        Assert.Equal(1, usage.StoredRanges);
+        Assert.Equal(4, usage.StoredPoints);
+
+        // The returned live points for cpu.total must be evicted from _live
+        var liveCpu = await cache.QueryAsync("a", "node", "cpu.total", _now.AddHours(-3), _now, true, (_, _, _) => Task.FromResult<IReadOnlyList<LODPoint>>(Array.Empty<LODPoint>()));
+        Assert.Empty(liveCpu);
+
+        // But gpu.temp (monitored-only, never queried/cached in stored cache) must NOT be deleted!
+        var liveGpu = await cache.QueryAsync("a", "node", "gpu.temp", _now.AddHours(-3), _now, true, (_, _, _) => Task.FromResult<IReadOnlyList<LODPoint>>(Array.Empty<LODPoint>()));
+        Assert.Equal(2, liveGpu.Count);
+        Assert.Equal(new[] { 45.0, 47.0 }, liveGpu.Select(p => p.Value));
+    }
+
+    [Fact]
+    public async Task RapidQueriesWithinBucketIntervalHitStoredQueryCacheWithoutCollectorFetch()
+    {
+        var cache = new TelemetryHistoryCache(60, () => _now);
+        int collectorFetches = 0;
+        Task<IReadOnlyList<LODPoint>> Fetch(DateTime a, DateTime b, CancellationToken ct)
+        {
+            collectorFetches++;
+            return Task.FromResult<IReadOnlyList<LODPoint>>(new[]
+            {
+                new LODPoint(Nano(a.AddHours(1)), 50.0, 50.0, 50.0),
+                new LODPoint(Nano(b.AddMinutes(-10)), 60.0, 60.0, 60.0)
+            });
+        }
+
+        // 24-hour query with 800 target points -> bucket interval is 86,400 / 800 = 108 seconds
+        var first = await cache.QueryAsync("a", "node", "cpu.total", _now.AddHours(-24), _now, false, Fetch, targetPoints: 800);
+        Assert.Equal(1, collectorFetches);
+        Assert.Equal(2, first.Count);
+
+        // User clicks 24h again 10 seconds later (well within the 108-second bucket width of the graph's stored data)
+        _now = _now.AddSeconds(10);
+        var second = await cache.QueryAsync("a", "node", "cpu.total", _now.AddHours(-24), _now, false, Fetch, targetPoints: 800);
+        // Must hit stored query cache, NO extra collector fetch!
+        Assert.Equal(1, collectorFetches);
+        Assert.Equal(2, second.Count);
+    }
 }
