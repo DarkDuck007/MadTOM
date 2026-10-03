@@ -111,7 +111,7 @@ public partial class HostDetailViewModel : ViewModelBase
             var option = HostOptions.FirstOrDefault(o => o.Id == node.Id);
             if (option == null) { option = new HostOptionItem { Id = node.Id }; HostOptions.Add(option); }
             option.DisplayText = $"{node.Id} ({node.Cores}T)";
-            if (IsAggregated || SelectedHostId == node.Id) UpdateHostView(SelectedHostId);
+            if (IsAggregated || SelectedHostId == node.Id) UpdateHostView(SelectedHostId, node);
         };
     }
 
@@ -166,7 +166,7 @@ public partial class HostDetailViewModel : ViewModelBase
         }
     }
 
-    private void UpdateHostView(string hostId)
+    private void UpdateHostView(string hostId, FleetNodeModel? updatedNode = null)
     {
         SelectedHostId = hostId;
         var allNodes = _telemetryProvider.GetFleetNodes();
@@ -187,14 +187,14 @@ public partial class HostDetailViewModel : ViewModelBase
                 TwampUpText = "Unavailable"; TwampDownText = ""; TwampAsymText = "No TWAMP probe configured";
             }
 
-            MetricsTab.UpdateForNode("aggregated", null, allNodes);
+            MetricsTab.UpdateForNode("aggregated", updatedNode, allNodes);
             ProcessesTab.SetTargetHost("all");
             FlightTab.SetTargetHost("all");
             return;
         }
 
         IsAggregated = false;
-        var node = allNodes.FirstOrDefault(n => n.Id.Equals(hostId, StringComparison.OrdinalIgnoreCase));
+        var node = updatedNode ?? allNodes.FirstOrDefault(n => n.Id.Equals(hostId, StringComparison.OrdinalIgnoreCase));
 
         if (node == null)
         {

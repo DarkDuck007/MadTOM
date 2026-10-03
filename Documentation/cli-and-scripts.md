@@ -435,13 +435,27 @@ The primary desktop user interface hosting plugins (Telemetry, SQUEEZE, Android 
 - **Technology**: Avalonia UI (.NET 10)
 - **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Studio/MADTOM.Studio`
 
+#### Command-Line Options
+| Option | Short | Argument | Default | Description |
+|---|---|---|---|---|
+| `--output` | `-o` | `desktop` \| `drm` | `desktop` | Presentation output mode: standard desktop window or DRM/KMS direct-display appliance mode |
+| `--card` | `-c` | `PATH` | `/dev/dri/card0` | Linux DRI card node path (only applicable when `--output drm`) |
+| `--scaling` | `-s` | `FACTOR` | `1.0` | Display scaling factor override (e.g. `1.0`, `1.5`, `2.0`, only for `--output drm`) |
+| `--help` | `-h` | *(none)* | *(none)* | Show command-line usage information and exit |
+
 #### Running
 ```bash
-# Direct execution (self-contained executable)
+# Direct execution (self-contained executable, default desktop window)
 ./MADTOM_DOTNET/publish/linux-x64/MADTOM.Studio/MADTOM.Studio
 
-# Or running from source
+# Launch direct-display appliance mode (DRM/KMS without X11/Wayland)
+./MADTOM_DOTNET/publish/linux-x64/MADTOM.Studio/MADTOM.Studio --output drm --card /dev/dri/card0 --scaling 1.25
+
+# Or running from source via dotnet CLI
 dotnet run --project MADTOM_DOTNET/src/Host/MADTOM.Studio/MADTOM.Studio.csproj
+
+# Run direct-display from source with custom card and scaling
+dotnet run --project MADTOM_DOTNET/src/Host/MADTOM.Studio/MADTOM.Studio.csproj -- --output drm --card /dev/dri/card0 --scaling 1.5
 ```
 
 ---

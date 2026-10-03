@@ -127,7 +127,8 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
             SparkCpu = cpu,
             SparkRam = ram,
             CoreLoads = new float[cores],
-            ProcessesAvailable = true
+            ProcessesAvailable = true,
+            TimestampUnixNano = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L
         };
 
         node.Interfaces = new[]
@@ -218,9 +219,11 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
 
     private void OnStreamTick(object? state)
     {
+        long nowNano = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L;
         // Random slight fluctuation to simulated TWAMP metrics, sparklines, and core loads
         foreach (var node in _nodes)
         {
+            node.TimestampUnixNano = nowNano;
             node.Twamp.ForwardMs = Math.Max(0.5, Math.Round(node.Twamp.ForwardMs + (_random.NextDouble() - 0.5) * 0.25, 2));
             node.Twamp.ReverseMs = Math.Max(0.8, Math.Round(node.Twamp.ReverseMs + (_random.NextDouble() - 0.5) * 0.35, 2));
             node.Twamp.JitterUp = Math.Max(0.02, Math.Round(node.Twamp.JitterUp + (_random.NextDouble() - 0.5) * 0.05, 2));

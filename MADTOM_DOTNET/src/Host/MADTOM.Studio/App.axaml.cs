@@ -60,12 +60,23 @@ public partial class App : Application
             // Setup System Tray Icon & Decoupled Menu
             SetupTrayIcon(desktop, mainWindow, hostContext);
 
+            AppShutdownCoordinator.Initialize(
+                async () =>
+                {
+                    if (_pluginManager != null)
+                    {
+                        await _pluginManager.DisposeAsync();
+                    }
+                },
+                () =>
+                {
+                    mainWindow.CloseForReal();
+                    desktop.Shutdown();
+                });
+
             desktop.Exit += async (_, _) =>
             {
-                if (_pluginManager != null)
-                {
-                    await _pluginManager.DisposeAsync();
-                }
+                await AppShutdownCoordinator.ShutdownAsync();
             };
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
@@ -74,6 +85,19 @@ public partial class App : Application
             {
                 DataContext = viewModel
             };
+
+            AppShutdownCoordinator.Initialize(
+                async () =>
+                {
+                    if (_pluginManager != null)
+                    {
+                        await _pluginManager.DisposeAsync();
+                    }
+                },
+                () =>
+                {
+                    Environment.Exit(0);
+                });
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -202,10 +226,9 @@ public partial class App : Application
         desiredItems.Add(new NativeMenuItemSeparator());
         desiredItems.Add(new NativeMenuItem("✕ Quit MADTOM")
         {
-            Command = new RelayCommand(() =>
+            Command = new RelayCommand(async () =>
             {
-                mainWindow.CloseForReal();
-                desktop.Shutdown();
+                await AppShutdownCoordinator.ShutdownAsync();
             })
         });
 

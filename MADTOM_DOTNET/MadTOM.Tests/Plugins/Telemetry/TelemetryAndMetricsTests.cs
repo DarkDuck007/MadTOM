@@ -224,6 +224,116 @@ public class TelemetryAndMetricsTests
     }
 
     [Fact]
+    public void HostMetricsTabViewModel_UpdateForNode_AggregatedMode_AppendsLiveSamplesToGraphs()
+    {
+        var vm = new HostMetricsTabViewModel();
+        vm.SetScope("1m");
+
+        var node1 = new FleetNodeModel
+        {
+            Id = "node-1",
+            Cores = 4,
+            CpuAvgPct = 20.0,
+            MemoryTotalBytes = 16_000_000_000,
+            RamUsedPct = 50.0,
+            TimestampUnixNano = 1_700_000_000_000_000_000L
+        };
+        var node2 = new FleetNodeModel
+        {
+            Id = "node-2",
+            Cores = 4,
+            CpuAvgPct = 40.0,
+            MemoryTotalBytes = 16_000_000_000,
+            RamUsedPct = 50.0,
+            TimestampUnixNano = 1_700_000_000_000_000_000L
+        };
+        var allNodes = new[] { node1, node2 };
+
+        // Initial setup for aggregated
+        vm.UpdateForNode("aggregated", null, allNodes);
+        Assert.True(vm.IsAggregatedMode);
+        Assert.All(vm.Graphs, g => Assert.True(g.IsVisible));
+
+        // Push subsequent 1Hz live sample from node1
+        long t1 = 1_700_000_001_000_000_000L;
+        node1.TimestampUnixNano = t1;
+        node1.CpuAvgPct = 30.0; // average will be (30 + 40) / 2 = 35.0
+        vm.UpdateForNode("aggregated", node1, allNodes);
+
+        // Push subsequent 1Hz live sample from node2 (same second bucket replacement)
+        node2.TimestampUnixNano = t1 + 50_000_000L;
+        node2.CpuAvgPct = 50.0; // average will be (30 + 50) / 2 = 40.0
+        vm.UpdateForNode("aggregated", node2, allNodes);
+
+        // Push next second t2
+        long t2 = 1_700_000_002_000_000_000L;
+        node1.TimestampUnixNano = t2;
+        node1.CpuAvgPct = 60.0; // average will be (60 + 50) / 2 = 55.0
+        vm.UpdateForNode("aggregated", node1, allNodes);
+
+        var cpuGraph = vm.Graphs.FirstOrDefault(g => g.Series.Any(s => s.Metric == "cpu.total"));
+        Assert.NotNull(cpuGraph);
+        var series = cpuGraph.Series.First(s => s.Metric == "cpu.total");
+
+        Assert.NotEmpty(series.Values);
+        Assert.Equal(55.0, series.LatestValue);
+        Assert.Contains(40.0, series.Values);
+        Assert.Contains(55.0, series.Values);
+        Assert.Equal(t2, cpuGraph.WindowEnd);
+    }
+
+    [Fact]
+    public void HostDetailViewModel_AggregatedMode_UpdatesGraphsOnTelemetryTick()
+    {
+        var provider = new TestTelemetryProvider();
+        var node1 = new FleetNodeModel
+        {
+            Id = "node-1",
+            Cores = 4,
+            CpuAvgPct = 10.0,
+            CoreLoads = new[] { 0.1f, 0.1f, 0.1f, 0.1f },
+            TimestampUnixNano = 1_700_000_000_000_000_000L
+        };
+        var node2 = new FleetNodeModel
+        {
+            Id = "node-2",
+            Cores = 4,
+            CpuAvgPct = 20.0,
+            CoreLoads = new[] { 0.2f, 0.2f, 0.2f, 0.2f },
+            TimestampUnixNano = 1_700_000_000_000_000_000L
+        };
+        provider.Nodes.Add(node1);
+        provider.Nodes.Add(node2);
+
+        var metricsTab = new HostMetricsTabViewModel(provider);
+        metricsTab.SetScope("1m");
+        var processesTab = new HostProcessesTabViewModel(provider);
+        var logsTab = new HostLogsTabViewModel(provider);
+        var flightTab = new HostFlightTabViewModel(provider);
+
+        var detailVm = new HostDetailViewModel(provider, LexiconService.Instance, metricsTab, processesTab, logsTab, flightTab);
+        detailVm.SelectHost("aggregated");
+        Assert.True(detailVm.IsAggregated);
+        Assert.True(metricsTab.IsAggregatedMode);
+
+        // Simulate incoming telemetry tick for node-1
+        long t1 = 1_700_000_001_000_000_000L;
+        node1.TimestampUnixNano = t1;
+        node1.CpuAvgPct = 30.0; // cluster avg: (30 + 20) / 2 = 25.0
+        provider.TriggerTelemetryUpdated(node1);
+
+        // Verify cpu matrix is updated
+        Assert.NotEmpty(metricsTab.CoreLoads);
+
+        // Verify graphs are updated
+        var cpuGraph = metricsTab.Graphs.FirstOrDefault(g => g.Series.Any(s => s.Metric == "cpu.total"));
+        Assert.NotNull(cpuGraph);
+        var series = cpuGraph.Series.First(s => s.Metric == "cpu.total");
+        Assert.NotEmpty(series.Values);
+        Assert.Equal(25.0, series.LatestValue);
+    }
+
+    [Fact]
     public void GraphLayoutStore_PerNodePersistenceAndLegacyMigration()
     {
         string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid() + ".json");

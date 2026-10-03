@@ -271,8 +271,8 @@
 
                                         <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
 
-                                        <!-- System Tray Section -->
-                                        <StackPanel Spacing="6">
+                                        <!-- System Tray Section (Desktop only) -->
+                                        <StackPanel Spacing="6" IsVisible="{Binding SupportsSystemTray}">
                                             <TextBlock Text="SYSTEM TRAY BEHAVIOR"
                                                        FontSize="10"
                                                        FontWeight="Bold"
@@ -301,6 +301,25 @@
                                                     </DataTemplate>
                                                 </ComboBox.ItemTemplate>
                                             </ComboBox>
+                                        </StackPanel>
+
+                                        <!-- Application Lifecycle / Exit Section -->
+                                        <StackPanel Spacing="6">
+                                            <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
+                                            <Button Command="{Binding ExitApplicationCommand}"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Center"
+                                                    Padding="10,6"
+                                                    Background="{DynamicResource CriticalSubtleBrush}"
+                                                    BorderBrush="{DynamicResource CriticalBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Cursor="Hand">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <TextBlock Text="✕" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource CriticalBrush}" />
+                                                    <TextBlock Text="Exit Studio" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource CriticalBrush}" />
+                                                </StackPanel>
+                                            </Button>
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

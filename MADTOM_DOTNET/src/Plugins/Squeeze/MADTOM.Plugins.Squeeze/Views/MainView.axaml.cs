@@ -71,7 +71,14 @@ public partial class MainView : UserControl
     private async Task<string?> OpenSaveFilePickerAsync(string suggestedFileName)
     {
         var topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel?.StorageProvider == null) return null;
+        if (topLevel?.StorageProvider == null || !topLevel.StorageProvider.CanSave)
+        {
+            if (DataContext is MainViewModel vm)
+            {
+                vm.SourceWarningMessage = "Native save picker is unavailable in direct-display mode. Default destination will be used.";
+            }
+            return null;
+        }
 
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
@@ -117,9 +124,13 @@ public partial class MainView : UserControl
         try
         {
             var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel?.StorageProvider == null)
+            if (topLevel?.StorageProvider == null || !topLevel.StorageProvider.CanOpen)
             {
-                throw new InvalidOperationException("The file picker is not available yet. Please try again.");
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.SourceWarningMessage = "Native file picker is unavailable in direct-display mode. Please enter or drag the file path directly.";
+                }
+                return null;
             }
 
             MainViewModel.Log("[SQUEEZE_PICKER] Calling topLevel.StorageProvider.OpenFilePickerAsync");

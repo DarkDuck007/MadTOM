@@ -1194,7 +1194,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         IsAggregatedMode = hostId == "aggregated";
         ThreadCount = IsAggregatedMode ? allNodes.Sum(n => n.Cores) : node?.Cores ?? 0;
         ViewCoreMatrix = node?.ViewCpuMatrix ?? true;
-        foreach (var graph in Graphs) graph.IsVisible = node == null ||
+        foreach (var graph in Graphs) graph.IsVisible = IsAggregatedMode || node == null ||
             (graph.Series.Any(s => s.Metric.StartsWith("power.")) ? node.ViewPowerBattery :
              graph.Series.Any(s => s.Metric.StartsWith("nic.")) ? node.ViewNetworkCounters :
              graph.Series.Any(s => s.Metric.Contains("swap") || s.Metric.Contains("zram")) ? node.ViewSwapZram : true);
@@ -1210,15 +1210,20 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             }
         }
 
-        if (node != null)
-            _latestSeenTimestampNano = Math.Max(_latestSeenTimestampNano, node.TimestampUnixNano);
+        long tsNano = node?.TimestampUnixNano ?? 0;
+        if (tsNano <= 0 && IsAggregatedMode && allNodes.Count > 0)
+        {
+            tsNano = allNodes.Max(n => n.TimestampUnixNano);
+        }
+
+        if (tsNano > 0)
+            _latestSeenTimestampNano = Math.Max(_latestSeenTimestampNano, tsNano);
 
         if (!_hasLoadedHistory && _provider != null && !_isQueryRunning)
         {
             _ = RefreshHistoryAsync();
         }
 
-        long tsNano = node?.TimestampUnixNano ?? 0;
         if (tsNano > 0)
         {
             PushLiveSampleToGraphs(tsNano, node, allNodes);
@@ -1247,7 +1252,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             ? HistoryTiming.Begin("first-live-after-history", TargetHostId) : null;
         liveTiming?.Mark("arrival", $"historyRefresh={_pendingLiveTimingRefresh}; sampleNano={timestampNano}; receivedUtc={node?.TelemetryReceivedUtc:O}; uiObservedUtc={DateTime.UtcNow:O}");
         _pendingLiveTimingRefresh = null;
-        long windowEndNano = timestampNano;
+        long windowEndNano = Math.Max(_latestSeenTimestampNano, timestampNano);
         long windowStartNano = windowEndNano - windowSpanNano;
 
         foreach (var graph in Graphs)
@@ -1287,7 +1292,8 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                     var previousTimes = _displaySources.TryGetValue(series, out var previousSource)
                         ? previousSource.Times : series.Timestamps;
                     if ((!IsAggregatedMode && previousTimes.Length > 0 && timestampNano <= previousTimes[^1]) ||
-                        (series.IsRateOfChange && timestampNano <= series.PreviousRawSampleTimestampNano))
+                        (IsAggregatedMode && previousTimes.Length > 0 && (previousTimes[^1] / 1_000_000_000L) > (timestampNano / 1_000_000_000L)) ||
+                        (!IsAggregatedMode && series.IsRateOfChange && timestampNano <= series.PreviousRawSampleTimestampNano))
                     {
                         maxPoints = Math.Max(maxPoints, series.Values.Length);
                         continue;
@@ -1295,6 +1301,18 @@ public partial class HostMetricsTabViewModel : ViewModelBase
 
                     double currentRaw = sampleVal.Value;
                     double plotVal = currentRaw;
+
+                    var source = _displaySources.TryGetValue(series, out var saved) ? saved : (series.Timestamps, series.Values);
+                    var currentTs = source.Item1;
+                    var currentVals = source.Item2;
+
+                    long tsSec = timestampNano / 1_000_000_000L;
+                    int startIdx = 0;
+                    long pruneThreshold = windowStartNano - 5_000_000_000L; // keep small grace margin to avoid gaps at edge
+                    while (startIdx < currentTs.Length && currentTs[startIdx] < pruneThreshold)
+                        startIdx++;
+
+                    bool replaceLast = currentTs.Length > 0 && (IsAggregatedMode ? (currentTs[^1] / 1_000_000_000L) == tsSec : currentTs[^1] == timestampNano);
 
                     if (series.IsRateOfChange)
                     {
@@ -1313,21 +1331,13 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                             maxPoints = Math.Max(maxPoints, series.Values.Length);
                             continue;
                         }
-                        series.PreviousRawSampleValue = currentRaw;
-                        series.PreviousRawSampleTimestampNano = timestampNano;
+
+                        if (!replaceLast)
+                        {
+                            series.PreviousRawSampleValue = currentRaw;
+                            series.PreviousRawSampleTimestampNano = timestampNano;
+                        }
                     }
-
-                    var source = _displaySources.TryGetValue(series, out var saved) ? saved : (series.Timestamps, series.Values);
-                    var currentTs = source.Item1;
-                    var currentVals = source.Item2;
-
-                    long tsSec = timestampNano / 1_000_000_000L;
-                    int startIdx = 0;
-                    long pruneThreshold = windowStartNano - 5_000_000_000L; // keep small grace margin to avoid gaps at edge
-                    while (startIdx < currentTs.Length && currentTs[startIdx] < pruneThreshold)
-                        startIdx++;
-
-                    bool replaceLast = currentTs.Length > 0 && (IsAggregatedMode ? (currentTs[^1] / 1_000_000_000L) == tsSec : currentTs[^1] == timestampNano);
 
                     int newCount = (currentTs.Length - startIdx) + (replaceLast ? 0 : 1);
                     var newTs = new long[newCount];

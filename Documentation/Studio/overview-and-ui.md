@@ -23,6 +23,10 @@ This guide covers the **MADTOM Studio** desktop host shell, dynamic layout scali
   - [Custom Theme Schema (YAML & JSON)](#custom-theme-schema-yaml--json)
 - [Lexicon Dialect Localization](#lexicon-dialect-localization)
   - [Community Dialect Packs](#community-dialect-packs)
+- [Direct-Display Appliance Mode (DRM/KMS)](#direct-display-appliance-mode-drmkms)
+  - [Architectural Model](#architectural-model)
+  - [Launching Direct-Display Mode](#launching-direct-display-mode)
+  - [Systemd Appliance Service](#systemd-appliance-service)
 - [Host Configuration & Persistent Storage](#host-configuration--persistent-storage)
   - [Settings File Path](#settings-file-path)
   - [Schema (`settings.json`)](#schema-settingsjson)
@@ -219,6 +223,55 @@ MADTOM Studio provides a playful and flexible terminology customization system c
 ### Community Dialect Packs
 
 Place custom `.json` lexicon packs into `~/.local/share/MADTOM/lexicons/` to add new community terminology sets.
+
+---
+
+## Direct-Display Appliance Mode (DRM/KMS)
+
+MADTOM Studio can boot and run directly on Linux hardware without a desktop environment or display server (no X11, Wayland, or desktop compositor required). Direct-display mode is ideal for dedicated monitoring appliances, rackmounted touchscreens, single-board computers (such as Raspberry Pi 4/5), and kiosk displays.
+
+### Architectural Model
+
+```mermaid
+flowchart TD
+    HW["Linux DRM/KMS Driver (/dev/dri/card0)"] <--> FB["Avalonia LinuxFramebuffer (Direct GPU)"]
+    IN["Linux evdev Input (/dev/input/event*)"] --> FB
+    FB --> MV["Single Shared View (MainView.axaml)"]
+    MV --> PL["Unified Plugins (Telemetry, Squeeze, etc.)"]
+    SC["AppShutdownCoordinator (SIGTERM / SIGINT)"] --> PL
+```
+
+- **Zero UI Duplication**: The exact same visual tree and controls (`MainView.axaml`) render seamlessly across both classic desktop windows and Linux DRM framebuffers.
+- **Hardware Acceleration**: Connects directly to Linux kernel mode-setting (KMS) and Direct Rendering Manager (DRM) nodes for smooth, GPU-accelerated drawing.
+- **Unified Lifecycle**: Controlled shutdown signals (`SIGTERM`, `SIGINT`, systemd stop, or in-app "Exit Studio" button) coordinate via `AppShutdownCoordinator`, ensuring TSDB WAL buffers flush and plugins dispose cleanly before process termination.
+- **Capability-Aware Plugins**: Plugins adapt automatically to appliance environments. For example, system tray configuration is hidden when running without a tray host, and file transfer components offer inline path entry when native desktop file pickers are unavailable.
+
+### Launching Direct-Display Mode
+
+```bash
+# Launch direct-display on primary GPU output
+MADTOM.Studio --output drm --card /dev/dri/card0 --scaling 1.0
+
+# Launch on secondary card with 1.5x display scaling
+MADTOM.Studio --output drm --card /dev/dri/card1 --scaling 1.5
+```
+
+### Systemd Appliance Service
+
+A production systemd unit template is provided at [`MADTOM_DOTNET/deploy/systemd/madtom-studio.service`](../../MADTOM_DOTNET/deploy/systemd/madtom-studio.service).
+
+#### Hardware & Permission Requirements
+The executing user must belong to the `video`, `render`, `input`, and `tty` groups:
+```bash
+sudo usermod -a -G video,render,input,tty madtom
+```
+
+#### Service Installation
+```bash
+sudo cp MADTOM_DOTNET/deploy/systemd/madtom-studio.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now madtom-studio.service
+```
 
 ---
 

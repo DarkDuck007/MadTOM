@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -363,6 +364,14 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     public void WakeFromSleepMode()
     {
         IsSleeping = false;
+    }
+
+    public bool SupportsSystemTray => MADTOM.PluginContracts.PlatformCapabilities.SupportsFloatingWindows;
+
+    [RelayCommand]
+    public async Task ExitApplicationAsync()
+    {
+        await Hosting.AppShutdownCoordinator.ShutdownAsync();
     }
 }
 
