@@ -64,8 +64,29 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     private DispatcherTimer? _toastTimer;
     private readonly AppSettings _appSettings;
 
+    public IBrightnessService BrightnessService { get; }
+    public OnScreenKeyboardViewModel Keyboard { get; } = new();
+
     public ObservableCollection<PluginItemViewModel> Plugins { get; } = new();
     public ObservableCollection<ThemeOption> AvailableThemes { get; } = new();
+    public ObservableCollection<DisplayDeviceItemViewModel> BrightnessDevices { get; } = new();
+
+    [ObservableProperty]
+    private bool _isSettingsOpen;
+
+    [ObservableProperty]
+    private int _selectedSettingsTab = 0;
+
+    [ObservableProperty]
+    private bool _isBrightnessWarningOpen;
+
+    [ObservableProperty]
+    private string _brightnessWarningMessage = string.Empty;
+
+    public DisplayDeviceItemViewModel? PendingBrightnessDevice { get; private set; }
+    public int PendingBrightnessValue { get; private set; }
+
+    public bool IsBrightnessAvailable => BrightnessService.IsSupported && BrightnessDevices.Count > 0;
 
     [ObservableProperty]
     private PluginItemViewModel? _selectedPlugin;
@@ -216,10 +237,11 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         }
     }
 
-    public ConsoleMainViewModel(ConsoleHostContext hostContext, PluginManager pluginManager)
+    public ConsoleMainViewModel(ConsoleHostContext hostContext, PluginManager pluginManager, IBrightnessService? brightnessService = null)
     {
         _hostContext = hostContext;
         _pluginManager = pluginManager;
+        BrightnessService = brightnessService ?? new LinuxBrightnessService();
 
         _appSettings = AppSettingsStore.Load();
         _activeTheme = _appSettings.Theme;
@@ -253,6 +275,66 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         {
             Dispatcher.UIThread.Post(RefreshAvailableThemes);
         };
+
+        RefreshBrightnessDevices();
+    }
+
+    public void RefreshBrightnessDevices()
+    {
+        BrightnessDevices.Clear();
+        if (BrightnessService.IsSupported)
+        {
+            foreach (var dev in BrightnessService.GetDevices())
+            {
+                BrightnessDevices.Add(new DisplayDeviceItemViewModel(dev, BrightnessService, OnRequestLowBrightnessConfirmation));
+            }
+        }
+        OnPropertyChanged(nameof(IsBrightnessAvailable));
+    }
+
+    private void OnRequestLowBrightnessConfirmation(DisplayDeviceItemViewModel device, int targetRaw, double percent)
+    {
+        PendingBrightnessDevice = device;
+        PendingBrightnessValue = targetRaw;
+        BrightnessWarningMessage = $"Setting display brightness to {percent:0.#}% ({targetRaw} / {device.MaxBrightness}) is below 5% and may turn off the display completely or make the screen unreadable.\n\nDo you wish to continue and apply this brightness level?";
+        IsBrightnessWarningOpen = true;
+    }
+
+    [RelayCommand]
+    public void ConfirmLowBrightness()
+    {
+        if (PendingBrightnessDevice != null)
+        {
+            PendingBrightnessDevice.ApplyRawBrightness(PendingBrightnessValue);
+            ShowToast($"Applied low brightness ({PendingBrightnessValue})", "⚠️");
+        }
+        IsBrightnessWarningOpen = false;
+    }
+
+    [RelayCommand]
+    public void CancelLowBrightness()
+    {
+        PendingBrightnessDevice?.RevertSliderToSafe();
+        IsBrightnessWarningOpen = false;
+    }
+
+    [RelayCommand]
+    public void OpenSettings()
+    {
+        RefreshBrightnessDevices();
+        IsSettingsOpen = true;
+    }
+
+    [RelayCommand]
+    public void CloseSettings()
+    {
+        IsSettingsOpen = false;
+    }
+
+    [RelayCommand]
+    public void ToggleKeyboard()
+    {
+        Keyboard.ToggleVisibility();
     }
 
     private void InitializeThemes() => RefreshAvailableThemes();
@@ -390,4 +472,3 @@ public sealed class TrayBehaviorOption
 
     public override string ToString() => DisplayName;
 }
-

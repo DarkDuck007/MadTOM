@@ -52,18 +52,43 @@ The desktop shell supports interactive, draggable splitters for navigation and s
 - Left-click and drag the vertical border divider between the navigation rail/sidebar and main view area.
 - Width changes are reactive and clamp to minimum readable widths to prevent UI collapse.
 
-### Symmetrically Resizable Centered Modals
+### Universal Modal Control & Touchscreen Resizing
 
-All major dialogs and configuration windows in MADTOM Studio use a centralized `CenteredDialogResizer` layout pattern:
-- Modals anchor dynamically to the center of the application window.
-- Dragging any edge or corner symmetrically adjusts dialog dimensions while preserving viewport centering.
-- Minimum and maximum constraints guard against off-screen placement regardless of desktop scale.
+All major dialogs and configuration windows in MADTOM Studio use the universal `UniversalModalControl` pattern:
+- **Full-Screen Dimmed Backdrop**: Scrim overlay (`#C0000000`) centers the dialog and dims background clutter, matching MADTOM Telemetry's settings design.
+- **Symmetric & Directional Resizing**: Edge and corner borders dynamically resize while preserving centered viewport alignment.
+- **Touchscreen Support**: Touch gestures (`PointerType.Touch` and `PointerType.Pen`) are natively supported across all edges and corners with wider hit targets.
+- **Tactile Corner Touch Grip**: A dedicated, prominent touch handle (`◢`) in the bottom-right corner provides an intuitive grab target for fingers on touch displays.
+- **Modal Escape Key Navigation**: Pressing `Escape` or tapping the scrim (when configured) immediately dismisses the active modal dialog without saving uncommitted drafts.
 
-### Modal Escape Key Navigation
+---
 
-Every overlay modal implements top-level `KeyDown` interception:
-- Pressing `Escape` on an open modal immediately dismisses the active modal dialog without saving uncommitted drafts.
-- Background focus safely restores to the underlying host or plugin view without keyboard focus traps.
+## Settings Screen
+
+Accessible via the gear icon (**⚙**) on the top header bar, the MADTOM Studio settings screen displays a full-screen dimmed modal organized into structured cards and tabs:
+- **Appearance & Scaling**: Color theme cards with live swatch previews and category tags, along with UI scaling sliders and quick-preset chips.
+- **Display & Brightness**: Hardware backlight controls for bare-metal / kiosk deployments (see below).
+- **Persona & Lexicon**: Dialect selection (Goose, Feline, Standard).
+- **System & Input**: System tray preferences, virtual on-screen keyboard controls, and application shutdown.
+
+---
+
+## Hardware Display Brightness Controls (Bare-Metal)
+
+When MADTOM Studio runs directly without a desktop environment (e.g. DRM/KMS appliance mode or console Linux framebuffer), the settings dialog automatically exposes direct kernel sysfs backlight controls:
+- **Multi-Monitor Support**: Automatically scans `/sys/class/backlight/` and surfaces independent brightness sliders for each attached display panel (e.g. `intel_backlight`, `card0-DP-1`).
+- **Low-Brightness Safeguard**: Setting brightness below **5% of maximum** triggers a confirmation safeguard dialog (`Low Brightness Warning`) to prevent accidental screen shutoff or making the display unreadable. Confirmed settings apply to hardware; cancellations safely revert the slider.
+
+---
+
+## Virtual On-Screen Keyboard (OSK)
+
+For bare-metal, touchscreen, and kiosk deployments without an OS desktop environment, MADTOM Studio provides an integrated virtual on-screen keyboard:
+- **Standard US QWERTY Layout**: Full alphabet with single-tap Shift and persistent Caps Lock.
+- **Symbols & Numbers (`?123`)**: Access numbers `0-9` and common punctuation.
+- **Extended Symbols (`=\<`)**: Brackets, math operators, currency, and special characters.
+- **Quick Networking Keys**: Dedicated one-tap keys for `@`, `/`, `.`, and `:` in the primary row for entering IP addresses, MAC addresses, URLs, and domain names without switching modes.
+- **Auto-Popup & Floating Launcher**: Automatically appears when any text input field (`TextBox`) receives focus, and can be toggled manually anytime via the floating keyboard button (**⌨ OSK**) in the bottom-left corner.
 
 ---
 
@@ -72,8 +97,8 @@ Every overlay modal implements top-level `KeyDown` interception:
 MADTOM Studio features an app-wide layout scaling engine powered by Avalonia's `LayoutTransformControl` and `ScaleTransform`:
 
 - **Dynamic Multiplier**: Scales all interface elements, typography, dialogs, and embedded plugin canvases from **10% (0.1×) up to 1000% (10.0×)** with pixel-accurate layout recalculation.
-- **Settings Flyout**: Accessible via the gear icon (**⚙**) on the top-left header bar.
-  - **Live Scale Readout**: Displays current percentage (e.g. `100% (1.0x)`).
+- **Settings Modal**: Accessible via the gear icon (**⚙**) on the top header bar.
+  - **Live Scale Readout**: Displays current percentage (e.g. `100%`).
   - **Smooth Slider**: Continuous adjustment from 10% to 1000% with tick markers.
   - **Quick Preset Chips**: Fast one-click jumps to `50%`, `75%`, `100%`, `150%`, and `200%`.
   - **Reset Button**: One-click restoration back to default 100% scale.

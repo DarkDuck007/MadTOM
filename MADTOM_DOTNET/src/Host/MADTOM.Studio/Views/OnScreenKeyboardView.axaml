@@ -1,0 +1,159 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Console.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="260"
+             x:Class="MADTOM.Console.Views.OnScreenKeyboardView"
+             x:DataType="vm:OnScreenKeyboardViewModel"
+             IsVisible="{Binding IsVisible}">
+
+    <UserControl.Styles>
+        <Style Selector="Button.osk-key">
+            <Setter Property="Background" Value="{DynamicResource DarkBaseBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="44"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Focusable" Value="False"/>
+        </Style>
+        <Style Selector="Button.osk-key:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="Button.osk-key.special">
+            <Setter Property="Background" Value="{DynamicResource CardBgBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.osk-key.active">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="{DynamicResource CardBgBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1,1,1,0"
+            CornerRadius="16,16,0,0"
+            BoxShadow="0 -8 32 #A0000000"
+            MaxWidth="960"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Bottom"
+            Padding="12,10,12,12">
+        <StackPanel Spacing="6">
+            <!-- OSK Drag / Header Bar -->
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,0,4,4">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="⌨" FontSize="14" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="ON-SCREEN KEYBOARD"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               LetterSpacing="1"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Grid.Column="2"
+                        Classes="osk-key special"
+                        Command="{Binding ToggleVisibilityCommand}"
+                        Padding="8,2"
+                        MinHeight="26"
+                        CornerRadius="4"
+                        Cursor="Hand"
+                        ToolTip.Tip="Close keyboard">
+                    <TextBlock Text="✕" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                </Button>
+            </Grid>
+
+            <!-- Row 1 -->
+            <ItemsControl ItemsSource="{Binding Row1Keys}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:KeyboardKeyViewModel">
+                        <Button Classes="osk-key"
+                                Classes.special="{Binding IsSpecial}"
+                                Classes.active="{Binding IsActive}"
+                                Width="52"
+                                Command="{Binding $parent[ItemsControl].((vm:OnScreenKeyboardViewModel)DataContext).HandleKeyPressCommand}"
+                                CommandParameter="{Binding}"
+                                Content="{Binding DisplayText}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Row 2 -->
+            <ItemsControl ItemsSource="{Binding Row2Keys}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:KeyboardKeyViewModel">
+                        <Button Classes="osk-key"
+                                Classes.special="{Binding IsSpecial}"
+                                Classes.active="{Binding IsActive}"
+                                Width="52"
+                                Command="{Binding $parent[ItemsControl].((vm:OnScreenKeyboardViewModel)DataContext).HandleKeyPressCommand}"
+                                CommandParameter="{Binding}"
+                                Content="{Binding DisplayText}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Row 3 -->
+            <ItemsControl ItemsSource="{Binding Row3Keys}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:KeyboardKeyViewModel">
+                        <Button Classes="osk-key"
+                                Classes.special="{Binding IsSpecial}"
+                                Classes.active="{Binding IsActive}"
+                                Width="52"
+                                Command="{Binding $parent[ItemsControl].((vm:OnScreenKeyboardViewModel)DataContext).HandleKeyPressCommand}"
+                                CommandParameter="{Binding}"
+                                Content="{Binding DisplayText}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Row 4 -->
+            <ItemsControl ItemsSource="{Binding Row4Keys}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:KeyboardKeyViewModel">
+                        <Button Classes="osk-key"
+                                Classes.special="{Binding IsSpecial}"
+                                Classes.active="{Binding IsActive}"
+                                Width="52"
+                                Command="{Binding $parent[ItemsControl].((vm:OnScreenKeyboardViewModel)DataContext).HandleKeyPressCommand}"
+                                CommandParameter="{Binding}"
+                                Content="{Binding DisplayText}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+
+</UserControl>

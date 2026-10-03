@@ -6,6 +6,7 @@ using Avalonia.Input;
 namespace SQUEEZE.Views;
 
 // Same centered edge/corner interaction as Telemetry, bounded to the plugin viewport.
+// Supports mouse, touch, and pen pointer devices.
 internal static class CenteredDialogResizer
 {
     public static void Attach(Control dialog, Control handle, int x, int y, Action<double, double> resize)
@@ -15,7 +16,10 @@ internal static class CenteredDialogResizer
         bool dragging = false;
         handle.PointerPressed += (_, e) =>
         {
-            if (!e.GetCurrentPoint(handle).Properties.IsLeftButtonPressed) return;
+            var pt = e.GetCurrentPoint(handle);
+            if (!pt.Properties.IsLeftButtonPressed && e.Pointer.Type != PointerType.Touch && e.Pointer.Type != PointerType.Pen)
+                return;
+
             origin = e.GetPosition(null);
             size = dialog.Bounds.Size;
             dragging = true;

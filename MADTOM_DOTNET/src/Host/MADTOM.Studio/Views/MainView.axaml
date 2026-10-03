@@ -3,6 +3,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MADTOM.Console.ViewModels"
+             xmlns:views="using:MADTOM.Console.Views"
+             xmlns:controls="using:MADTOM.PluginContracts.Controls"
              mc:Ignorable="d" d:DesignWidth="1440" d:DesignHeight="900"
              x:Class="MADTOM.Console.Views.MainView"
              x:DataType="vm:ConsoleMainViewModel"
@@ -31,438 +33,258 @@
         <Style Selector="Button.plugin-tab.placeholder:pointerover">
             <Setter Property="Opacity" Value="0.65" />
         </Style>
+
+        <Style Selector="Button.theme-card">
+            <Setter Property="Background" Value="{DynamicResource DarkBaseBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.theme-card:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="Button.theme-card.active">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Background" Value="{DynamicResource CardBgBrush}"/>
+        </Style>
     </UserControl.Styles>
 
-    <LayoutTransformControl>
-        <LayoutTransformControl.LayoutTransform>
-            <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}" />
-        </LayoutTransformControl.LayoutTransform>
-        <Grid>
+    <Grid>
+        <!-- Main Scaled Viewport -->
+        <LayoutTransformControl>
+            <LayoutTransformControl.LayoutTransform>
+                <ScaleTransform ScaleX="{Binding UiScale}" ScaleY="{Binding UiScale}" />
+            </LayoutTransformControl.LayoutTransform>
             <Grid RowDefinitions="Auto,*">
-            
-            <!-- Global Top Bar (MADTOM Studio Header) -->
-            <Border Grid.Row="0"
-                    Background="{DynamicResource HeaderBgBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="0,0,0,1"
-                    Height="54"
-                    Padding="16,0">
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    
-                    <!-- Left: Studio Logo / Collapse Toggle -->
-                    <Button Grid.Column="0"
-                            Command="{Binding ToggleSidebarCommand}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="6,4"
-                            Cursor="Hand"
-                            VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Border Background="{DynamicResource AccentBrush}"
-                                    CornerRadius="6"
-                                    Width="32" Height="32">
-                                <TextBlock Text="⊞"
-                                           FontSize="18"
-                                           Foreground="#FFFFFF"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
-                            </Border>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="MADTOM"
-                                           FontFamily="Consolas, monospace"
-                                           FontSize="13"
-                                           FontWeight="Bold"
-                                           LetterSpacing="1.5"
-                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                                <TextBlock Text="STUDIO"
-                                           FontSize="10"
-                                           FontWeight="SemiBold"
-                                           LetterSpacing="2"
-                                           Foreground="{DynamicResource AccentTextBrush}" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Settings Menu (Gear Icon on top left, right side of MADTOM Console logo) -->
-                    <Button Grid.Column="1"
-                            Background="Transparent"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="7,5"
-                            Margin="8,0,0,0"
-                            Cursor="Hand"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="⚙"
-                                   FontSize="15"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   VerticalAlignment="Center"
-                                   HorizontalAlignment="Center" />
-                        <Button.Flyout>
-                            <Flyout Placement="BottomEdgeAlignedLeft"
-                                    OverlayDismissEventPassThrough="False">
-                                <Border Background="{DynamicResource CardBgBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="14"
-                                        Width="330">
-                                    <StackPanel Spacing="12">
-                                        <!-- Header -->
-                                        <Grid ColumnDefinitions="Auto,*">
-                                            <TextBlock Grid.Column="0"
-                                                       Text="⚙ SETTINGS"
-                                                       FontWeight="Bold"
-                                                       FontSize="11"
-                                                       LetterSpacing="1.2"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                                       VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1"
-                                                       Text="Appearance &amp; Lexicon"
-                                                       FontSize="10"
-                                                       Foreground="{DynamicResource TextMutedBrush}"
-                                                       HorizontalAlignment="Right"
-                                                       VerticalAlignment="Center" />
-                                        </Grid>
-
-                                        <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
-
-                                        <!-- Themes Section -->
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="COLOR THEME"
-                                                       FontSize="10"
-                                                       FontWeight="Bold"
-                                                       LetterSpacing="1"
-                                                       Foreground="{DynamicResource TextMutedBrush}" />
-
-                                            <ComboBox ItemsSource="{Binding AvailableThemes}"
-                                                      SelectedItem="{Binding SelectedThemeOption, Mode=TwoWay}"
-                                                      HorizontalAlignment="Stretch"
-                                                      FontSize="11"
-                                                      Background="{DynamicResource DarkBaseBrush}"
-                                                      BorderBrush="{DynamicResource BorderBrush}"
-                                                      CornerRadius="6"
-                                                      Padding="8,5">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate x:DataType="vm:ThemeOption">
-                                                        <Grid ColumnDefinitions="Auto,*">
-                                                            <Border Grid.Column="0"
-                                                                    Width="14" Height="14"
-                                                                    CornerRadius="3"
-                                                                    Margin="0,0,8,0"
-                                                                    VerticalAlignment="Center"
-                                                                    BorderBrush="{Binding PreviewAccent}"
-                                                                    BorderThickness="1.5"
-                                                                    Background="{Binding PreviewBg}" />
-                                                            <TextBlock Grid.Column="1"
-                                                                       Text="{Binding DisplayName}"
-                                                                       FontSize="11"
-                                                                       VerticalAlignment="Center" />
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
-                                        </StackPanel>
-
-                                        <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
-
-                                        <!-- Lexicon Section -->
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="LEXICON / TERMINOLOGY"
-                                                       FontSize="10"
-                                                       FontWeight="Bold"
-                                                       LetterSpacing="1"
-                                                       Foreground="{DynamicResource TextMutedBrush}" />
-
-                                            <Grid ColumnDefinitions="*,*,*" Margin="0,2">
-                                                <Button Grid.Column="0"
-                                                        Content="Goose"
-                                                        Command="{Binding SwitchLexiconCommand}"
-                                                        CommandParameter="goose"
-                                                        FontSize="10"
-                                                        FontWeight="SemiBold"
-                                                        HorizontalAlignment="Stretch"
-                                                        HorizontalContentAlignment="Center"
-                                                        Margin="0,0,3,0"
-                                                        Padding="6,4"
-                                                        Background="{DynamicResource DarkBaseBrush}"
-                                                        BorderBrush="{DynamicResource BorderBrush}"
-                                                        CornerRadius="4" />
-
-                                                <Button Grid.Column="1"
-                                                        Content="Feline"
-                                                        Command="{Binding SwitchLexiconCommand}"
-                                                        CommandParameter="feline"
-                                                        FontSize="10"
-                                                        FontWeight="SemiBold"
-                                                        HorizontalAlignment="Stretch"
-                                                        HorizontalContentAlignment="Center"
-                                                        Margin="3,0,3,0"
-                                                        Padding="6,4"
-                                                        Background="{DynamicResource DarkBaseBrush}"
-                                                        BorderBrush="{DynamicResource BorderBrush}"
-                                                        CornerRadius="4" />
-
-                                                <Button Grid.Column="2"
-                                                        Content="Standard"
-                                                        Command="{Binding SwitchLexiconCommand}"
-                                                        CommandParameter="standard"
-                                                        FontSize="10"
-                                                        FontWeight="SemiBold"
-                                                        HorizontalAlignment="Stretch"
-                                                        HorizontalContentAlignment="Center"
-                                                        Margin="3,0,0,0"
-                                                        Padding="6,4"
-                                                        Background="{DynamicResource DarkBaseBrush}"
-                                                        BorderBrush="{DynamicResource BorderBrush}"
-                                                        CornerRadius="4" />
-                                            </Grid>
-                                        </StackPanel>
-
-                                        <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
-
-                                        <!-- UI Scaling Section -->
-                                        <StackPanel Spacing="6">
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Grid.Column="0"
-                                                           Text="UI SCALING"
-                                                           FontSize="10"
-                                                           FontWeight="Bold"
-                                                           LetterSpacing="1"
-                                                           Foreground="{DynamicResource TextMutedBrush}"
-                                                           VerticalAlignment="Center" />
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding UiScalePercent, StringFormat='{}{0}%'}"
-                                                               FontSize="11"
-                                                               FontWeight="Bold"
-                                                               Foreground="{DynamicResource AccentTextBrush}"
-                                                               VerticalAlignment="Center" />
-                                                    <Button Content="Reset"
-                                                            Command="{Binding ResetUiScaleCommand}"
-                                                            FontSize="9"
-                                                            Padding="6,2"
-                                                            Background="Transparent"
-                                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="4"
-                                                            Cursor="Hand" />
-                                                </StackPanel>
-                                            </Grid>
-
-                                            <Slider Minimum="10"
-                                                    Maximum="1000"
-                                                    Value="{Binding UiScalePercent, Mode=TwoWay}"
-                                                    SmallChange="5"
-                                                    LargeChange="25" />
-
-                                            <Grid ColumnDefinitions="*,*,*,*,*" Margin="0,2">
-                                                <Button Grid.Column="0" Content="50%" Command="{Binding SetUiScaleCommand}" CommandParameter="50"
-                                                        FontSize="9" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,2,0" Padding="4,2" Background="{DynamicResource DarkBaseBrush}" CornerRadius="3" />
-                                                <Button Grid.Column="1" Content="75%" Command="{Binding SetUiScaleCommand}" CommandParameter="75"
-                                                        FontSize="9" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,2,0" Padding="4,2" Background="{DynamicResource DarkBaseBrush}" CornerRadius="3" />
-                                                <Button Grid.Column="2" Content="100%" Command="{Binding SetUiScaleCommand}" CommandParameter="100"
-                                                        FontSize="9" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,2,0" Padding="4,2" Background="{DynamicResource DarkBaseBrush}" CornerRadius="3" />
-                                                <Button Grid.Column="3" Content="150%" Command="{Binding SetUiScaleCommand}" CommandParameter="150"
-                                                        FontSize="9" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,2,0" Padding="4,2" Background="{DynamicResource DarkBaseBrush}" CornerRadius="3" />
-                                                <Button Grid.Column="4" Content="200%" Command="{Binding SetUiScaleCommand}" CommandParameter="200"
-                                                        FontSize="9" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="2,0,0,0" Padding="4,2" Background="{DynamicResource DarkBaseBrush}" CornerRadius="3" />
-                                            </Grid>
-                                        </StackPanel>
-
-                                        <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
-
-                                        <!-- System Tray Section (Desktop only) -->
-                                        <StackPanel Spacing="6" IsVisible="{Binding SupportsSystemTray}">
-                                            <TextBlock Text="SYSTEM TRAY BEHAVIOR"
-                                                       FontSize="10"
-                                                       FontWeight="Bold"
-                                                       LetterSpacing="1"
-                                                       Foreground="{DynamicResource TextMutedBrush}" />
-
-                                            <ComboBox ItemsSource="{Binding TrayBehaviorOptions}"
-                                                      SelectedItem="{Binding SelectedTrayBehavior, Mode=TwoWay}"
-                                                      HorizontalAlignment="Stretch"
-                                                      FontSize="11"
-                                                      Background="{DynamicResource DarkBaseBrush}"
-                                                      BorderBrush="{DynamicResource BorderBrush}"
-                                                      CornerRadius="6"
-                                                      Padding="8,5">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate x:DataType="vm:TrayBehaviorOption">
-                                                        <StackPanel Spacing="1">
-                                                            <TextBlock Text="{Binding DisplayName}"
-                                                                       FontSize="11"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                            <TextBlock Text="{Binding Description}"
-                                                                       FontSize="9"
-                                                                       Foreground="{DynamicResource TextMutedBrush}" />
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
-                                        </StackPanel>
-
-                                        <!-- Application Lifecycle / Exit Section -->
-                                        <StackPanel Spacing="6">
-                                            <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,-4,0,-4" />
-                                            <Button Command="{Binding ExitApplicationCommand}"
-                                                    HorizontalAlignment="Stretch"
-                                                    HorizontalContentAlignment="Center"
-                                                    Padding="10,6"
-                                                    Background="{DynamicResource CriticalSubtleBrush}"
-                                                    BorderBrush="{DynamicResource CriticalBrush}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="6"
-                                                    Cursor="Hand">
-                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                    <TextBlock Text="✕" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource CriticalBrush}" />
-                                                    <TextBlock Text="Exit Studio" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource CriticalBrush}" />
-                                                </StackPanel>
-                                            </Button>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
-
-                    <!-- Active Plugin Indicator Badge -->
-                    <Border Grid.Column="2"
-                            Background="{DynamicResource DarkBaseBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="10,4"
-                            Margin="16,0,0,0"
-                            VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding SelectedPlugin.IconGlyph}" FontSize="13" FontFamily="{StaticResource EmojiFontFamily}" VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding SelectedPlugin.DisplayName}"
-                                       FontSize="11"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource AccentTextBrush}" />
-                            <TextBlock Text="• RUNNING"
-                                       FontSize="9"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource HealthyBrush}"
-                                       IsVisible="{Binding !SelectedPlugin.IsPlaceholder}"
-                                       VerticalAlignment="Center" />
-                            <TextBlock Text="• COMING SOON"
-                                       FontSize="9"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource WarningBrush}"
-                                       IsVisible="{Binding SelectedPlugin.IsPlaceholder}"
-                                       VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Border>
-                </Grid>
-            </Border>
-
-            <!-- Main Shell Body: Left Plugin Sidebar + Active Viewport Slot -->
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,4,*">
                 
-                <!-- Left Navigation Sidebar -->
-                <Border Grid.Column="0"
-                        Background="{DynamicResource SidebarBgBrush}"
+                <!-- Global Top Bar (MADTOM Studio Header) -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource HeaderBgBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="0,0,1,0"
-                        Width="{Binding SidebarWidth}">
-                    <Border.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="CubicEaseOut" />
-                        </Transitions>
-                    </Border.Transitions>
-
-                    <Grid RowDefinitions="Auto,*,Auto" Margin="8,12">
+                        BorderThickness="0,0,0,1"
+                        Height="54"
+                        Padding="16,0">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
                         
-                        <!-- Header Label -->
-                        <TextBlock Grid.Row="0"
-                                   Text="MODULES"
-                                   FontSize="10"
-                                   FontWeight="Bold"
-                                   LetterSpacing="1.2"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   Margin="8,0,0,8"
-                                   IsVisible="{Binding !IsSidebarCollapsed}" />
+                        <!-- Left: Studio Logo / Collapse Toggle -->
+                        <Button Grid.Column="0"
+                                Command="{Binding ToggleSidebarCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="6,4"
+                                Cursor="Hand"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Border Background="{DynamicResource AccentBrush}"
+                                        CornerRadius="6"
+                                        Width="32" Height="32">
+                                    <TextBlock Text="⊞"
+                                               FontSize="18"
+                                               Foreground="#FFFFFF"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="MADTOM"
+                                               FontFamily="Consolas, monospace"
+                                               FontSize="13"
+                                               FontWeight="Bold"
+                                               LetterSpacing="1.5"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="STUDIO"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               LetterSpacing="2"
+                                               Foreground="{DynamicResource AccentTextBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Button>
 
-                        <!-- Plugin List -->
-                        <ItemsControl Grid.Row="1" ItemsSource="{Binding Plugins}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:PluginItemViewModel">
-                                    <Button Command="{Binding $parent[UserControl].((vm:ConsoleMainViewModel)DataContext).SelectPluginCommand}"
-                                            CommandParameter="{Binding}"
-                                            Classes="plugin-tab"
-                                            Classes.active="{Binding IsSelected}"
-                                            Classes.placeholder="{Binding IsPlaceholder}"
-                                            HorizontalAlignment="Stretch"
-                                            Margin="0,2">
-                                        <Grid ColumnDefinitions="Auto,*">
-                                            <Border Grid.Column="0"
-                                                    Width="24" Height="24"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    Margin="2,0,8,0">
-                                                <TextBlock Text="{Binding IconGlyph}"
-                                                           FontFamily="{StaticResource EmojiFontFamily}"
-                                                           FontSize="16"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           TextAlignment="Center" />
-                                            </Border>
-                                            
-                                            <StackPanel Grid.Column="1"
-                                                        VerticalAlignment="Center"
-                                                        IsVisible="{Binding !$parent[UserControl].((vm:ConsoleMainViewModel)DataContext).IsSidebarCollapsed}">
-                                                <TextBlock Text="{Binding DisplayName}"
-                                                           FontSize="11"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TextPrimaryBrush}" />
-                                                <TextBlock Text="{Binding Category}"
-                                                           FontSize="9"
-                                                           Foreground="{DynamicResource TextMutedBrush}" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <!-- Settings Button (Triggers Full-Screen Dimmed Settings Modal) -->
+                        <Button Grid.Column="1"
+                                Command="{Binding OpenSettingsCommand}"
+                                Background="Transparent"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="8,5"
+                                Margin="8,0,0,0"
+                                Cursor="Hand"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="Open Studio Settings">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="⚙"
+                                           FontSize="15"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="Settings"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
 
-                        <!-- Bottom Console Info -->
-                        <Border Grid.Row="2"
+                        <!-- Active Plugin Indicator Badge -->
+                        <Border Grid.Column="2"
                                 Background="{DynamicResource DarkBaseBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
-                                Padding="8"
-                                IsVisible="{Binding !IsSidebarCollapsed}">
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="MADTOM STUDIO v1.0"
+                                Padding="10,4"
+                                Margin="16,0,0,0"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SelectedPlugin.IconGlyph}" FontSize="13" FontFamily="{StaticResource EmojiFontFamily}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SelectedPlugin.DisplayName}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentTextBrush}" />
+                                <TextBlock Text="• RUNNING"
                                            FontSize="9"
                                            FontWeight="Bold"
-                                           Foreground="{DynamicResource TextMutedBrush}" />
-                                <TextBlock Text="In-Process Visual ALC Host"
-                                           FontSize="8"
-                                           Foreground="{DynamicResource TextMutedBrush}" />
+                                           Foreground="{DynamicResource HealthyBrush}"
+                                           IsVisible="{Binding !SelectedPlugin.IsPlaceholder}"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="• COMING SOON"
+                                           FontSize="9"
+                                           FontWeight="Bold"
+                                           Foreground="{DynamicResource WarningBrush}"
+                                           IsVisible="{Binding SelectedPlugin.IsPlaceholder}"
+                                           VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
                     </Grid>
                 </Border>
 
-                <!-- Draggable Sidebar Splitter -->
-                <GridSplitter Grid.Column="1"
-                              Width="4"
-                              ResizeDirection="Columns"
-                              Background="Transparent"
-                              DragDelta="OnSidebarSplitterDragDelta"
-                              Cursor="SizeWestEast" />
+                <!-- Main Shell Body: Left Plugin Sidebar + Active Viewport Slot -->
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,4,*">
+                    
+                    <!-- Left Navigation Sidebar -->
+                    <Border Grid.Column="0"
+                            Background="{DynamicResource SidebarBgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="0,0,1,0"
+                            Width="{Binding SidebarWidth}">
+                        <Border.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="CubicEaseOut" />
+                            </Transitions>
+                        </Border.Transitions>
 
-                <!-- Active Module Viewport Stage -->
-                <ContentControl Grid.Column="2"
-                                Content="{Binding CurrentPluginView}"
-                                Background="{DynamicResource AppBgBrush}" />
+                        <Grid RowDefinitions="Auto,*,Auto" Margin="8,12">
+                            
+                            <!-- Header Label -->
+                            <TextBlock Grid.Row="0"
+                                       Text="MODULES"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       LetterSpacing="1.2"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Margin="8,0,0,8"
+                                       IsVisible="{Binding !IsSidebarCollapsed}" />
+
+                            <!-- Plugin List -->
+                            <ItemsControl Grid.Row="1" ItemsSource="{Binding Plugins}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:PluginItemViewModel">
+                                        <Button Command="{Binding $parent[UserControl].((vm:ConsoleMainViewModel)DataContext).SelectPluginCommand}"
+                                                CommandParameter="{Binding}"
+                                                Classes="plugin-tab"
+                                                Classes.active="{Binding IsSelected}"
+                                                Classes.placeholder="{Binding IsPlaceholder}"
+                                                HorizontalAlignment="Stretch"
+                                                Margin="0,2">
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <Border Grid.Column="0"
+                                                        Width="24" Height="24"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Margin="2,0,8,0">
+                                                    <TextBlock Text="{Binding IconGlyph}"
+                                                               FontFamily="{StaticResource EmojiFontFamily}"
+                                                               FontSize="16"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               TextAlignment="Center" />
+                                                </Border>
+                                                
+                                                <StackPanel Grid.Column="1"
+                                                            VerticalAlignment="Center"
+                                                            IsVisible="{Binding !$parent[UserControl].((vm:ConsoleMainViewModel)DataContext).IsSidebarCollapsed}">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding Category}"
+                                                               FontSize="9"
+                                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Bottom Console Info -->
+                            <Border Grid.Row="2"
+                                    Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8"
+                                    IsVisible="{Binding !IsSidebarCollapsed}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="MADTOM STUDIO v1.0"
+                                               FontSize="9"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                    <TextBlock Text="In-Process Visual ALC Host"
+                                               FontSize="8"
+                                               Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Draggable Sidebar Splitter -->
+                    <GridSplitter Grid.Column="1"
+                                  Width="4"
+                                  ResizeDirection="Columns"
+                                  Background="Transparent"
+                                  DragDelta="OnSidebarSplitterDragDelta"
+                                  Cursor="SizeWestEast" />
+
+                    <!-- Active Module Viewport Stage -->
+                    <ContentControl Grid.Column="2"
+                                    Content="{Binding CurrentPluginView}"
+                                    Background="{DynamicResource AppBgBrush}" />
+                </Grid>
             </Grid>
-        </Grid>
+        </LayoutTransformControl>
+
+        <!-- Floating On-Screen Keyboard Quick-Launch Button (Bottom-Left) -->
+        <Button Command="{Binding ToggleKeyboardCommand}"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Margin="16"
+                Background="{DynamicResource DarkBaseBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="20"
+                Padding="10,8"
+                Opacity="0.85"
+                Cursor="Hand"
+                ToolTip.Tip="Toggle On-Screen Keyboard">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="⌨" FontSize="14" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="OSK" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
 
         <!-- Global Toast Notification Overlay -->
         <Border IsVisible="{Binding IsToastVisible}"
@@ -484,7 +306,488 @@
                            VerticalAlignment="Center" />
             </StackPanel>
         </Border>
+
+        <!-- On-Screen Keyboard Overlay (Docked Bottom) -->
+        <views:OnScreenKeyboardView DataContext="{Binding Keyboard}"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Bottom" />
+
+        <!-- Full-Screen Dimmed MADTOM Studio Settings Modal -->
+        <controls:UniversalModalControl
+            IsOpen="{Binding IsSettingsOpen}"
+            Title="MADTOM STUDIO SETTINGS"
+            Subtitle="Configure themes, UI scaling, display brightness, and runtime preferences"
+            Icon="⚙"
+            CloseCommand="{Binding CloseSettingsCommand}"
+            DialogWidth="760"
+            DialogHeight="620"
+            DialogMinWidth="520"
+            DialogMinHeight="400">
+
+            <TabControl SelectedIndex="{Binding SelectedSettingsTab}">
+                
+                <!-- TAB 1: Appearance & Scaling -->
+                <TabItem Header="Appearance &amp; Scaling" FontSize="12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                        <StackPanel Spacing="16" Margin="0,0,12,0">
+                            
+                            <!-- Color Themes Section -->
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="COLOR PALETTES &amp; THEMES"
+                                                   FontWeight="Bold"
+                                                   FontSize="11"
+                                                   LetterSpacing="1"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding ActiveTheme}"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource AccentTextBrush}"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <!-- Theme Selection Grid -->
+                                    <ItemsControl ItemsSource="{Binding AvailableThemes}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ThemeOption">
+                                                <Button Classes="theme-card"
+                                                        Classes.active="{Binding IsActive}"
+                                                        Command="{Binding SelectCommand}"
+                                                        Margin="0,0,8,8"
+                                                        Width="210">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                        <!-- Color Preview Swatch -->
+                                                        <Border Grid.Column="0"
+                                                                Width="24" Height="24"
+                                                                CornerRadius="4"
+                                                                Margin="0,0,10,0"
+                                                                VerticalAlignment="Center"
+                                                                BorderThickness="2"
+                                                                BorderBrush="{Binding PreviewAccent}"
+                                                                Background="{Binding PreviewBg}"/>
+                                                        <!-- Theme Info -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding DisplayName}"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                            <TextBlock Text="{Binding Category}"
+                                                                       FontSize="9"
+                                                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                                                        </StackPanel>
+                                                        <!-- Active Checkmark -->
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="✓"
+                                                                   FontSize="13"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource AccentTextBrush}"
+                                                                   IsVisible="{Binding IsActive}"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="4,0,0,0"/>
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- UI Scaling Section -->
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="UI SCALING &amp; ZOOM"
+                                                   FontWeight="Bold"
+                                                   FontSize="11"
+                                                   LetterSpacing="1"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding UiScalePercent, StringFormat='{}{0}%'}"
+                                                       FontSize="12"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource AccentTextBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <Button Content="Reset"
+                                                    Command="{Binding ResetUiScaleCommand}"
+                                                    FontSize="10"
+                                                    Padding="8,3"
+                                                    Background="Transparent"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Cursor="Hand"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Slider Minimum="10"
+                                            Maximum="1000"
+                                            Value="{Binding UiScalePercent, Mode=TwoWay}"
+                                            SmallChange="5"
+                                            LargeChange="25"/>
+
+                                    <Grid ColumnDefinitions="*,*,*,*,*" Margin="0,2">
+                                        <Button Grid.Column="0" Content="50%" Command="{Binding SetUiScaleCommand}" CommandParameter="50"
+                                                FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                        <Button Grid.Column="1" Content="75%" Command="{Binding SetUiScaleCommand}" CommandParameter="75"
+                                                FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                        <Button Grid.Column="2" Content="100%" Command="{Binding SetUiScaleCommand}" CommandParameter="100"
+                                                FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                        <Button Grid.Column="3" Content="150%" Command="{Binding SetUiScaleCommand}" CommandParameter="150"
+                                                FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                        <Button Grid.Column="4" Content="200%" Command="{Binding SetUiScaleCommand}" CommandParameter="200"
+                                                FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,0,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- TAB 2: Display & Brightness (Only visible if running directly without desktop environment and backlight exists) -->
+                <TabItem Header="Display &amp; Brightness"
+                         FontSize="12"
+                         IsVisible="{Binding IsBrightnessAvailable}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                        <StackPanel Spacing="16" Margin="0,0,12,0">
+                            
+                            <!-- Information Banner -->
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="BARE-METAL DISPLAY BRIGHTNESS"
+                                               FontWeight="Bold"
+                                               FontSize="11"
+                                               LetterSpacing="1"
+                                               Foreground="{DynamicResource AccentTextBrush}"/>
+                                    <TextBlock Text="Direct kernel sysfs backlight control for attached monitor panels. Controls below 5% brightness are safeguarded to prevent unintentional screen turn-off."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Multi-Device Brightness List -->
+                            <ItemsControl ItemsSource="{Binding BrightnessDevices}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DisplayDeviceItemViewModel">
+                                        <Border Background="{DynamicResource DarkBaseBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="14"
+                                                Margin="0,0,0,12">
+                                            <StackPanel Spacing="10">
+                                                <!-- Device Header -->
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Spacing="2">
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontWeight="Bold"
+                                                                   FontSize="12"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                        <TextBlock Text="{Binding Device.SysfsPath}"
+                                                                   FontSize="10"
+                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding CurrentBrightness, StringFormat='Raw: {0}'}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding CurrentPercent, StringFormat='{}{0:0.#}%'}"
+                                                                   FontSize="13"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource AccentTextBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- Slider with Safeguard Action -->
+                                                <Slider Minimum="0"
+                                                        Maximum="100"
+                                                        Value="{Binding SliderPercent, Mode=TwoWay}"
+                                                        SmallChange="1"
+                                                        LargeChange="5"/>
+
+                                                <!-- Preset Buttons & Apply -->
+                                                <Grid ColumnDefinitions="*,*,*,*,Auto" Margin="0,2">
+                                                    <Button Grid.Column="0" Content="25%" Command="{Binding SetPresetCommand}" CommandParameter="25"
+                                                            FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                                    <Button Grid.Column="1" Content="50%" Command="{Binding SetPresetCommand}" CommandParameter="50"
+                                                            FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                                    <Button Grid.Column="2" Content="75%" Command="{Binding SetPresetCommand}" CommandParameter="75"
+                                                            FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                                    <Button Grid.Column="3" Content="100%" Command="{Binding SetPresetCommand}" CommandParameter="100"
+                                                            FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,6,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
+                                                    <Button Grid.Column="4"
+                                                            Content="Apply"
+                                                            Command="{Binding ApplySliderBrightnessCommand}"
+                                                            Background="{DynamicResource AccentBrush}"
+                                                            Foreground="White"
+                                                            FontWeight="Bold"
+                                                            FontSize="11"
+                                                            Padding="14,4"
+                                                            CornerRadius="4"
+                                                            Cursor="Hand"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- TAB 3: Persona / Lexicon -->
+                <TabItem Header="Persona &amp; Lexicon" FontSize="12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                        <StackPanel Spacing="16" Margin="0,0,12,0">
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="TERMINOLOGY &amp; LEXICON PROFILE"
+                                               FontWeight="Bold"
+                                               FontSize="11"
+                                               LetterSpacing="1"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text="Customizes terms, telemetry identifiers, and messages across the entire console."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+
+                                    <Grid ColumnDefinitions="*,*,*" Margin="0,4">
+                                        <Button Grid.Column="0"
+                                                Command="{Binding SwitchLexiconCommand}"
+                                                CommandParameter="goose"
+                                                Classes="theme-card"
+                                                Margin="0,0,4,0"
+                                                HorizontalAlignment="Stretch">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="🦆 Goose" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="Aviation &amp; telemetry theme" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <Button Grid.Column="1"
+                                                Command="{Binding SwitchLexiconCommand}"
+                                                CommandParameter="feline"
+                                                Classes="theme-card"
+                                                Margin="2,0,2,0"
+                                                HorizontalAlignment="Stretch">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="🐾 Feline" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="Cozy cat-themed lexicon" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <Button Grid.Column="2"
+                                                Command="{Binding SwitchLexiconCommand}"
+                                                CommandParameter="standard"
+                                                Classes="theme-card"
+                                                Margin="4,0,0,0"
+                                                HorizontalAlignment="Stretch">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="⚙ Standard" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="Technical engineering terms" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- TAB 4: System & Input -->
+                <TabItem Header="System &amp; Input" FontSize="12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+                        <StackPanel Spacing="16" Margin="0,0,12,0">
+                            
+                            <!-- Virtual On-Screen Keyboard Section -->
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="VIRTUAL ON-SCREEN KEYBOARD"
+                                               FontWeight="Bold"
+                                               FontSize="11"
+                                               LetterSpacing="1"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text="Designed for touchscreen and direct DRM bare-metal execution without a desktop environment. Includes US QWERTY letters, numbers, symbols, and quick networking keys (@, /, ., :)."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                    
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                        <CheckBox Grid.Column="0"
+                                                  IsChecked="{Binding Keyboard.IsAutoPopupEnabled, Mode=TwoWay}"
+                                                  Content="Auto-show keyboard on input field focus"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                                  FontSize="11"/>
+                                        <Button Grid.Column="1"
+                                                Content="Open Keyboard Now"
+                                                Command="{Binding ToggleKeyboardCommand}"
+                                                Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="12,5"
+                                                FontSize="11"
+                                                Cursor="Hand"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- System Tray Section (Desktop only) -->
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14"
+                                    IsVisible="{Binding SupportsSystemTray}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="SYSTEM TRAY BEHAVIOR"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               LetterSpacing="1"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <ComboBox ItemsSource="{Binding TrayBehaviorOptions}"
+                                              SelectedItem="{Binding SelectedTrayBehavior, Mode=TwoWay}"
+                                              HorizontalAlignment="Stretch"
+                                              FontSize="11"
+                                              Background="{DynamicResource CardBgBrush}"
+                                              BorderBrush="{DynamicResource BorderBrush}"
+                                              CornerRadius="6"
+                                              Padding="8,5">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:TrayBehaviorOption">
+                                                <StackPanel Spacing="1">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                    <TextBlock Text="{Binding Description}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Application Lifecycle / Exit Section -->
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="APPLICATION LIFECYCLE"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               LetterSpacing="1"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <Button Command="{Binding ExitApplicationCommand}"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            Padding="12,8"
+                                            Background="{DynamicResource CriticalSubtleBrush}"
+                                            BorderBrush="{DynamicResource CriticalBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <TextBlock Text="✕" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource CriticalBrush}"/>
+                                            <TextBlock Text="Exit MADTOM Studio" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource CriticalBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+            </TabControl>
+        </controls:UniversalModalControl>
+
+        <!-- Low Brightness Warning Safeguard Confirmation Dialog -->
+        <controls:UniversalModalControl
+            IsOpen="{Binding IsBrightnessWarningOpen}"
+            Title="Low Brightness Warning"
+            Subtitle="Screen visibility safeguard"
+            Icon="⚠️"
+            CloseCommand="{Binding CancelLowBrightnessCommand}"
+            DialogWidth="490"
+            DialogHeight="280"
+            DialogMinWidth="380"
+            DialogMinHeight="220"
+            ShowTouchGrip="False">
+            <Grid RowDefinitions="*,Auto" Margin="4">
+                <StackPanel Grid.Row="0" Spacing="12" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding BrightnessWarningMessage}"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               LineHeight="18"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Continuing will immediately write this level to hardware. If the display turns off, you may need to reconnect or reboot."
+                               FontSize="10"
+                               Foreground="{DynamicResource WarningBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1" ColumnDefinitions="*,10,*" Margin="0,16,0,0">
+                    <Button Grid.Column="0"
+                            Command="{Binding CancelLowBrightnessCommand}"
+                            Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,8"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Cursor="Hand">
+                        <TextBlock Text="Cancel (Keep Safe)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </Button>
+                    <Button Grid.Column="2"
+                            Command="{Binding ConfirmLowBrightnessCommand}"
+                            Background="{DynamicResource CriticalBrush}"
+                            CornerRadius="6"
+                            Padding="12,8"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Cursor="Hand">
+                        <TextBlock Text="Confirm (Apply Low)" FontSize="12" FontWeight="Bold" Foreground="White"/>
+                    </Button>
+                </Grid>
+            </Grid>
+        </controls:UniversalModalControl>
+
     </Grid>
-    </LayoutTransformControl>
 
 </UserControl>
