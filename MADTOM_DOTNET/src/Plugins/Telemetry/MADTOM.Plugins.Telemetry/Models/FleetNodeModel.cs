@@ -159,12 +159,69 @@ public sealed partial class FleetNodeModel : ObservableObject
                 .Sum(p => p.Cpu);
         }
 
+        if (metricName.StartsWith("cpu.core.", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(metricName.Substring("cpu.core.".Length), out int coreIdx))
+            {
+                if (coreIdx >= 0 && CoreLoads != null && coreIdx < CoreLoads.Length)
+                {
+                    return Math.Round((double)CoreLoads[coreIdx] * 100.0, 1);
+                }
+            }
+        }
+
+        if (metricName.StartsWith("nic.", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = metricName.Split('.');
+            if (parts.Length == 3 && Interfaces != null)
+            {
+                string iface = parts[1];
+                string type = parts[2];
+                var nic = Interfaces.FirstOrDefault(i => i.Name.Equals(iface, StringComparison.OrdinalIgnoreCase));
+                if (nic != null)
+                {
+                    if (type.Equals("rx_bytes", StringComparison.OrdinalIgnoreCase)) return nic.RxBytes;
+                    if (type.Equals("tx_bytes", StringComparison.OrdinalIgnoreCase)) return nic.TxBytes;
+                }
+            }
+        }
+
+        if (metricName.StartsWith("disk.io.", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = metricName.Split('.');
+            if (parts.Length == 4 && Disks != null)
+            {
+                string dev = parts[2];
+                string type = parts[3];
+                var d = Disks.FirstOrDefault(disk => disk.Name.Equals(dev, StringComparison.OrdinalIgnoreCase));
+                if (d != null)
+                {
+                    return type.ToLowerInvariant() switch
+                    {
+                        "read_bytes" => d.ReadBytes,
+                        "write_bytes" => d.WriteBytes,
+                        "read_ops" => d.ReadOps,
+                        "write_ops" => d.WriteOps,
+                        _ => null
+                    };
+                }
+            }
+        }
+
         return metricName.ToLowerInvariant() switch
         {
             "cpu.total" => CpuAvgPct,
+            "cpu.load" => CpuAvgPct,
             "memory.used" => (double)(MemoryTotalBytes * (RamUsedPct / 100.0)),
             "memory.total" => (double)MemoryTotalBytes,
             "memory.available" => (double)(MemoryTotalBytes * (1.0 - (RamUsedPct / 100.0))),
+            "memory.bytes" => (double)(MemoryTotalBytes * (RamUsedPct / 100.0)),
+            "network.ingress" => RxBytesPerSecond * 8.0,
+            "network.egress" => TxBytesPerSecond * 8.0,
+            "network.rx_bytes" => Interfaces?.Sum(i => (double)i.RxBytes) ?? 0.0,
+            "network.tx_bytes" => Interfaces?.Sum(i => (double)i.TxBytes) ?? 0.0,
+            "disk.bytes.read" => DiskReadBytesPerSecond,
+            "disk.bytes.write" => DiskWriteBytesPerSecond,
             "twamp.rtt" => Twamp.Available ? Twamp.RttMs : null,
             "twamp.forward" => Twamp.OneWayAvailable ? Twamp.ForwardMs : null,
             "twamp.reverse" => Twamp.OneWayAvailable ? Twamp.ReverseMs : null,

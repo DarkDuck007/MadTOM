@@ -6,6 +6,7 @@ using Xunit;
 
 namespace MadTOM.Tests;
 
+[Collection("GlobalSingletons")]
 public class DeepDiveTransitionTimingTests : IDisposable
 {
     private readonly List<DeepDiveTransitionTracker.TransitionRecord> _records = new();

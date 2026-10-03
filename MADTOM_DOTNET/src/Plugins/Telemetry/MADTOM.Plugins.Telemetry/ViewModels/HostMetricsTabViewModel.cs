@@ -358,12 +358,23 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             }
         }
 
-        int coreCount = IsAggregatedMode 
-            ? (allNodes.Count > 0 ? allNodes.Max(n => n.Cores) : 0) 
-            : (node?.Cores ?? 0);
-        for (int c = 0; c < coreCount; c++)
+        if (IsAggregatedMode)
         {
-            AvailableMetrics.Add($"cpu.core.{c}");
+            foreach (var n in allNodes)
+            {
+                for (int c = 0; c < n.Cores; c++)
+                {
+                    AvailableMetrics.Add($"{n.Id}.cpu.core.{c}");
+                }
+            }
+        }
+        else
+        {
+            int coreCount = node?.Cores ?? 0;
+            for (int c = 0; c < coreCount; c++)
+            {
+                AvailableMetrics.Add($"cpu.core.{c}");
+            }
         }
 
         var swapDevs = (IsAggregatedMode ? allNodes.SelectMany(n => n.SwapDevices) : (node?.SwapDevices ?? Array.Empty<SwapDevice>()))
@@ -485,10 +496,36 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         IsOptInPromptOpen = false;
     }
 
+    public static bool IsCumulativeCounter(string metric)
+    {
+        if (string.IsNullOrEmpty(metric)) return false;
+        string m = metric.ToLowerInvariant();
+        return m.EndsWith(".rx_bytes") || m.EndsWith(".tx_bytes") ||
+               m.EndsWith(".read_bytes") || m.EndsWith(".write_bytes") ||
+               m.EndsWith(".read_ops") || m.EndsWith(".write_ops") ||
+               m.StartsWith("nic.") || m.Contains(".nic.");
+    }
+
     private void ExecuteAddGraph(string metricName)
     {
-        bool isRate = IsAddMetricRateOfChange;
-        string label = isRate ? $"{metricName} (rate/s)" : metricName;
+        bool isRate = IsAddMetricRateOfChange || IsCumulativeCounter(metricName);
+        string label = metricName;
+        if (metricName.Contains(".cpu.core."))
+        {
+            int idx = metricName.IndexOf(".cpu.core.");
+            string nodeId = metricName.Substring(0, idx);
+            string coreNum = metricName.Substring(idx + ".cpu.core.".Length);
+            label = $"{nodeId} - Thread {coreNum}";
+        }
+        else if (metricName.StartsWith("cpu.core."))
+        {
+            string coreNum = metricName.Substring("cpu.core.".Length);
+            label = $"Thread {coreNum}";
+        }
+        else if (isRate)
+        {
+            label = $"{metricName} (rate/s)";
+        }
         string title = label;
         if (Graphs.Any(g => g.Series.Count == 1 && g.Series[0].Metric == metricName && g.Series[0].IsRateOfChange == isRate)) return;
 
@@ -1270,15 +1307,26 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 double? sampleVal = null;
                 if (IsAggregatedMode)
                 {
-                    var vals = allNodes.Select(n => n.GetMetricValue(series.Metric))
-                                       .Where(v => v.HasValue)
-                                       .Select(v => v!.Value)
-                                       .ToList();
-                    if (vals.Count > 0)
+                    if (series.Metric.Contains(".cpu.core."))
                     {
-                        sampleVal = series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio")
-                            ? vals.Average()
-                            : vals.Sum();
+                        int dotIdx = series.Metric.IndexOf(".cpu.core.");
+                        string nodeId = series.Metric.Substring(0, dotIdx);
+                        string subMetric = series.Metric.Substring(dotIdx + 1);
+                        var targetNode = allNodes.FirstOrDefault(n => n.Id.Equals(nodeId, StringComparison.OrdinalIgnoreCase));
+                        sampleVal = targetNode?.GetMetricValue(subMetric);
+                    }
+                    else
+                    {
+                        var vals = allNodes.Select(n => n.GetMetricValue(series.Metric))
+                                           .Where(v => v.HasValue)
+                                           .Select(v => v!.Value)
+                                           .ToList();
+                        if (vals.Count > 0)
+                        {
+                            sampleVal = series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio")
+                                ? vals.Average()
+                                : vals.Sum();
+                        }
                     }
                 }
                 else if (node != null)
@@ -1428,7 +1476,16 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                 foreach (var series in seriesList)
                 {
                     using var seriesTiming = HistoryTiming.Begin("series", TargetHostId, series.Metric);
-                    var results = await Task.WhenAll(ids.Select(id => _provider.QueryHistoryWithResolutionAsync(id, series.Metric, start, end, graph.HistoryPointBudget, cts.Token)));
+                    string queryMetric = series.Metric;
+                    string[] targetNodeIds = ids;
+                    if (IsAggregatedMode && series.Metric.Contains(".cpu.core."))
+                    {
+                        int dotIdx = series.Metric.IndexOf(".cpu.core.");
+                        string nodeId = series.Metric.Substring(0, dotIdx);
+                        queryMetric = series.Metric.Substring(dotIdx + 1);
+                        targetNodeIds = new[] { nodeId };
+                    }
+                    var results = await Task.WhenAll(targetNodeIds.Select(id => _provider.QueryHistoryWithResolutionAsync(id, queryMetric, start, end, graph.HistoryPointBudget, cts.Token)));
                     seriesTiming?.Mark("data-ready", $"points={results.Sum(r => r.Count)}");
                     if (cts.IsCancellationRequested || Volatile.Read(ref _refreshGeneration) != generation)
                     {
@@ -1443,94 +1500,130 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         long timestampUnit = IsAggregatedMode ? 1_000_000_000L : 1L;
                         long[] rawTs;
                         double[] rawVals;
-
-                        if (results.Length == 1 && !IsAggregatedMode)
-                        {
-                            var list = results[0];
-                            int count = list.Count;
-                            rawTs = new long[count];
-                            rawVals = new double[count];
-                            for (int i = 0; i < count; i++)
-                            {
-                                rawTs[i] = list[i].TimestampUnixNano;
-                                rawVals[i] = list[i].Value;
-                            }
-                        }
-                        else
-                        {
-                            var map = new SortedDictionary<long, (double Sum, int Count)>();
-                            foreach (var res in results)
-                            {
-                                long lastBucket = long.MinValue;
-                                LODPoint lastPt = default;
-                                for (int i = 0; i < res.Count; i++)
-                                {
-                                    var p = res[i];
-                                    long b = p.TimestampUnixNano / timestampUnit;
-                                    if (b == lastBucket)
-                                    {
-                                        lastPt = p;
-                                    }
-                                    else
-                                    {
-                                        if (lastBucket != long.MinValue)
-                                        {
-                                            if (map.TryGetValue(lastBucket, out var existing))
-                                                map[lastBucket] = (existing.Sum + lastPt.Value, existing.Count + 1);
-                                            else
-                                                map[lastBucket] = (lastPt.Value, 1);
-                                        }
-                                        lastBucket = b;
-                                        lastPt = p;
-                                    }
-                                }
-                                if (lastBucket != long.MinValue)
-                                {
-                                    if (map.TryGetValue(lastBucket, out var existing))
-                                        map[lastBucket] = (existing.Sum + lastPt.Value, existing.Count + 1);
-                                    else
-                                        map[lastBucket] = (lastPt.Value, 1);
-                                }
-                            }
-
-                            bool useAvg = series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio");
-                            rawTs = new long[map.Count];
-                            rawVals = new double[map.Count];
-                            int idx = 0;
-                            foreach (var kvp in map)
-                            {
-                                rawTs[idx] = kvp.Key * timestampUnit;
-                                rawVals[idx] = useAvg ? (kvp.Value.Sum / kvp.Value.Count) : kvp.Value.Sum;
-                                idx++;
-                            }
-                        }
-
                         double? prevVal = null;
                         long? prevTs = null;
+
                         if (series.IsRateOfChange)
                         {
-                            if (rawTs.Length >= 2)
+                            var perNodeRateLists = new List<List<LODPoint>>(results.Length);
+                            foreach (var res in results)
                             {
-                                var rateTs = new long[rawTs.Length - 1];
-                                var rateVals = new double[rawVals.Length - 1];
-                                for (int i = 1; i < rawTs.Length; i++)
+                                var nodeRates = new List<LODPoint>();
+                                for (int i = 1; i < res.Count; i++)
                                 {
-                                    double dt = (rawTs[i] - rawTs[i - 1]) / 1e9;
-                                    if (dt <= 0.001) dt = 1.0;
-                                    double delta = rawVals[i] - rawVals[i - 1];
-                                    if (delta < 0 && series.Metric.Contains("bytes")) delta = 0;
-                                    rateTs[i - 1] = rawTs[i];
-                                    rateVals[i - 1] = delta / dt;
+                                    var p0 = res[i - 1];
+                                    var p1 = res[i];
+                                    double dt = (p1.TimestampUnixNano - p0.TimestampUnixNano) / 1e9;
+                                    if (dt < 0.1) continue; // Skip near-zero dt downsample artifacts
+                                    double delta = p1.Value - p0.Value;
+                                    if (delta < 0 && (series.Metric.Contains("bytes") || series.Metric.Contains("ops")))
+                                        delta = 0;
+                                    nodeRates.Add(new LODPoint(p1.TimestampUnixNano, delta / dt, 0, 0));
                                 }
-                                prevVal = rawVals[^1];
-                                prevTs = rawTs[^1];
-                                rawTs = rateTs;
-                                rawVals = rateVals;
+                                perNodeRateLists.Add(nodeRates);
+                            }
+
+                            if (results.Length == 1 && (!IsAggregatedMode || targetNodeIds.Length == 1))
+                            {
+                                var singleRates = perNodeRateLists[0];
+                                rawTs = new long[singleRates.Count];
+                                rawVals = new double[singleRates.Count];
+                                for (int i = 0; i < singleRates.Count; i++)
+                                {
+                                    rawTs[i] = singleRates[i].TimestampUnixNano;
+                                    rawVals[i] = singleRates[i].Value;
+                                }
                             }
                             else
                             {
-                                rawTs = Array.Empty<long>();
-                                rawVals = Array.Empty<double>();
+                                var rateMap = new SortedDictionary<long, (double Sum, int Count)>();
+                                foreach (var rList in perNodeRateLists)
+                                {
+                                    foreach (var pt in rList)
+                                    {
+                                        long b = pt.TimestampUnixNano / timestampUnit;
+                                        if (rateMap.TryGetValue(b, out var existing))
+                                            rateMap[b] = (existing.Sum + pt.Value, existing.Count + 1);
+                                        else
+                                            rateMap[b] = (pt.Value, 1);
+                                    }
+                                }
+
+                                rawTs = new long[rateMap.Count];
+                                rawVals = new double[rateMap.Count];
+                                int idx = 0;
+                                foreach (var kvp in rateMap)
+                                {
+                                    rawTs[idx] = kvp.Key * timestampUnit;
+                                    rawVals[idx] = kvp.Value.Sum;
+                                    idx++;
+                                }
+                            }
+
+                            prevVal = rawVals.Length > 0 ? rawVals[^1] : null;
+                            prevTs = rawTs.Length > 0 ? rawTs[^1] : null;
+                        }
+                        else
+                        {
+                            if (results.Length == 1 && (!IsAggregatedMode || targetNodeIds.Length == 1))
+                            {
+                                var list = results[0];
+                                int count = list.Count;
+                                rawTs = new long[count];
+                                rawVals = new double[count];
+                                for (int i = 0; i < count; i++)
+                                {
+                                    rawTs[i] = list[i].TimestampUnixNano;
+                                    rawVals[i] = list[i].Value;
+                                }
+                            }
+                            else
+                            {
+                                var map = new SortedDictionary<long, (double Sum, int Count)>();
+                                foreach (var res in results)
+                                {
+                                    long lastBucket = long.MinValue;
+                                    LODPoint lastPt = default;
+                                    for (int i = 0; i < res.Count; i++)
+                                    {
+                                        var p = res[i];
+                                        long b = p.TimestampUnixNano / timestampUnit;
+                                        if (b == lastBucket)
+                                        {
+                                            lastPt = p;
+                                        }
+                                        else
+                                        {
+                                            if (lastBucket != long.MinValue)
+                                            {
+                                                if (map.TryGetValue(lastBucket, out var existing))
+                                                    map[lastBucket] = (existing.Sum + lastPt.Value, existing.Count + 1);
+                                                else
+                                                    map[lastBucket] = (lastPt.Value, 1);
+                                            }
+                                            lastBucket = b;
+                                            lastPt = p;
+                                        }
+                                    }
+                                    if (lastBucket != long.MinValue)
+                                    {
+                                        if (map.TryGetValue(lastBucket, out var existing))
+                                            map[lastBucket] = (existing.Sum + lastPt.Value, existing.Count + 1);
+                                        else
+                                            map[lastBucket] = (lastPt.Value, 1);
+                                    }
+                                }
+
+                                bool useAvg = series.Metric.StartsWith("twamp.") || series.Metric.StartsWith("cpu.") || series.Metric.EndsWith("_pct") || series.Metric.EndsWith("_ratio");
+                                rawTs = new long[map.Count];
+                                rawVals = new double[map.Count];
+                                int idx = 0;
+                                foreach (var kvp in map)
+                                {
+                                    rawTs[idx] = kvp.Key * timestampUnit;
+                                    rawVals[idx] = useAvg ? (kvp.Value.Sum / kvp.Value.Count) : kvp.Value.Sum;
+                                    idx++;
+                                }
                             }
                         }
 

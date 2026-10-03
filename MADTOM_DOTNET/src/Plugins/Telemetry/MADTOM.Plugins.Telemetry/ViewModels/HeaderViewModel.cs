@@ -17,7 +17,7 @@ public partial class HeaderViewModel : ViewModelBase
     private readonly ILexiconService _lexiconService;
     private readonly ITelemetryDataProvider _telemetryProvider;
     private readonly GlobalMetricsStore _metricsStore;
-    private readonly Dictionary<string, (double PrevSum, DateTime PrevTime)> _previousSums = new();
+    private readonly IClusterAggregationService _aggregationService;
 
     public ObservableCollection<GlobalMetricItemViewModel> PinnedMetrics { get; } = new();
 
@@ -59,19 +59,32 @@ public partial class HeaderViewModel : ViewModelBase
 
     public event Action? ToggleSidebarCollapseRequested;
 
-    public HeaderViewModel(ILexiconService lexiconService, ITelemetryDataProvider telemetryProvider, GlobalMetricsStore? metricsStore = null)
+    public HeaderViewModel(ILexiconService lexiconService, ITelemetryDataProvider telemetryProvider, GlobalMetricsStore? metricsStore = null, IClusterAggregationService? aggregationService = null)
     {
         _lexiconService = lexiconService;
         _telemetryProvider = telemetryProvider;
         _metricsStore = metricsStore ?? new GlobalMetricsStore();
+        _aggregationService = aggregationService ?? new ClusterAggregationService(_telemetryProvider);
 
-        ClusterSummary = _telemetryProvider.GetClusterSummary();
+        ClusterSummary = _aggregationService.GetClusterSummary();
         RefreshPinnedMetrics();
 
-        _telemetryProvider.NodeTelemetryUpdated += (_, _) =>
+        _aggregationService.AggregatedSnapshotAvailable += (_, snapshot) =>
         {
-            ClusterSummary = _telemetryProvider.GetClusterSummary();
-            RefreshPinnedMetrics();
+            void Apply()
+            {
+                ClusterSummary = snapshot.Summary;
+                RefreshPinnedMetricsFromSnapshot(snapshot);
+            }
+
+            if (Avalonia.Threading.Dispatcher.UIThread != null && !Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(Apply, Avalonia.Threading.DispatcherPriority.Background);
+            }
+            else
+            {
+                Apply();
+            }
         };
 
         _metricsStore.ConfigChanged += RefreshPinnedMetrics;
@@ -94,10 +107,14 @@ public partial class HeaderViewModel : ViewModelBase
 
     public void RefreshPinnedMetrics()
     {
+        var snapshot = _aggregationService.LatestSnapshot;
+        ClusterSummary = snapshot.Summary;
+        RefreshPinnedMetricsFromSnapshot(snapshot);
+    }
+
+    private void RefreshPinnedMetricsFromSnapshot(ClusterAggregationSnapshot snapshot)
+    {
         var pinnedConfigs = _metricsStore.GetPinnedItems();
-        var nodes = _telemetryProvider.GetFleetNodes();
-        int count = nodes.Count;
-        DateTime now = DateTime.UtcNow;
 
         // Synchronize PinnedMetrics items to match configs
         for (int i = 0; i < pinnedConfigs.Count; i++)
@@ -127,22 +144,11 @@ public partial class HeaderViewModel : ViewModelBase
             }
         }
 
-        // Compute live values
+        // Compute live values from the unified aggregation pool
         foreach (var item in PinnedMetrics)
         {
-            var (sum, avg) = ComputeMetricSumAndAvg(item.Key, nodes, count);
-            double rate = 0;
-            if (_previousSums.TryGetValue(item.Key, out var prev))
-            {
-                double dt = (now - prev.PrevTime).TotalSeconds;
-                if (dt > 0.05)
-                {
-                    rate = (sum - prev.PrevSum) / dt;
-                }
-            }
-            _previousSums[item.Key] = (sum, now);
-
-            item.Update(sum, avg, rate, count, item.ModifierLabel);
+            var (sum, avg, rate) = _aggregationService.GetMetricValues(item.Key);
+            item.Update(sum, avg, rate, snapshot.ActiveNodeCount, item.ModifierLabel);
         }
     }
 

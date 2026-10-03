@@ -254,6 +254,19 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
                 loads[coreIdx] = (float)Math.Clamp(loads[coreIdx] + (_random.NextDouble() - 0.5) * 0.2, 0.05, 0.98);
             }
             node.CoreLoads = loads;
+            node.TimestampUnixNano = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L;
+            node.LatestMetricValues["cpu.total"] = nextCpu;
+            for (int c = 0; c < node.Cores; c++)
+            {
+                node.LatestMetricValues[$"cpu.core.{c}"] = node.CoreLoads[c] * 100.0;
+            }
+            foreach (var iface in node.Interfaces)
+            {
+                iface.RxBytes += (ulong)(nextRx * 1024 * 1024 / 8);
+                iface.TxBytes += (ulong)(nextTx * 1024 * 1024 / 8);
+                node.LatestMetricValues[$"nic.{iface.Name}.rx_bytes"] = iface.RxBytes;
+                node.LatestMetricValues[$"nic.{iface.Name}.tx_bytes"] = iface.TxBytes;
+            }
 
             try
             {

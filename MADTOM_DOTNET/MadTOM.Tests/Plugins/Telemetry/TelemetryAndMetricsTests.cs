@@ -283,7 +283,7 @@ public class TelemetryAndMetricsTests
     }
 
     [Fact]
-    public void HostDetailViewModel_AggregatedMode_UpdatesGraphsOnTelemetryTick()
+    public async Task HostDetailViewModel_AggregatedMode_UpdatesGraphsOnTelemetryTick()
     {
         var provider = new TestTelemetryProvider();
         var node1 = new FleetNodeModel
@@ -315,6 +315,7 @@ public class TelemetryAndMetricsTests
         detailVm.SelectHost("aggregated");
         Assert.True(detailVm.IsAggregated);
         Assert.True(metricsTab.IsAggregatedMode);
+        await Task.Delay(50);
 
         // Simulate incoming telemetry tick for node-1
         long t1 = 1_700_000_001_000_000_000L;
@@ -1952,6 +1953,134 @@ public class TelemetryAndMetricsTests
         Assert.False(vm.IsOptInPromptOpen);
         Assert.Contains(provider.UpdatedConfigs, u => u.HostId == "host-gamma" && u.Config.CoreModes["0"] == TelemetryOptInMode.OptInMonitorAndStore);
         Assert.Contains(vm.Graphs, g => g.Series.Any(s => s.Metric == "cpu.core.0"));
+    }
+
+    [Fact]
+    public void ClusterAggregationService_TimeBucket_AggregatesRelevantMetricsAndExcludesPerCore()
+    {
+        var provider = new TestTelemetryProvider();
+        var node1 = new FleetNodeModel { Id = "node-alpha", Status = "online", CpuAvgPct = 25.0, Cores = 4, CoreLoads = new float[] { 0.1f, 0.2f, 0.3f, 0.4f } };
+        node1.LatestMetricValues["cpu.total"] = 25.0;
+        node1.LatestMetricValues["cpu.core.0"] = 10.0;
+        node1.LatestMetricValues["memory.used"] = 2_000_000_000;
+
+        var node2 = new FleetNodeModel { Id = "node-beta", Status = "online", CpuAvgPct = 75.0, Cores = 2, CoreLoads = new float[] { 0.7f, 0.8f } };
+        node2.LatestMetricValues["cpu.total"] = 75.0;
+        node2.LatestMetricValues["cpu.core.0"] = 70.0;
+        node2.LatestMetricValues["memory.used"] = 4_000_000_000;
+
+        provider.Nodes.Add(node1);
+        provider.Nodes.Add(node2);
+
+        using var aggService = new ClusterAggregationService(provider, TimeSpan.FromMilliseconds(500));
+        aggService.ForceFlush();
+
+        var snap = aggService.LatestSnapshot;
+        Assert.NotNull(snap);
+        Assert.Equal(2, snap.ActiveNodeCount);
+
+        // Relevant metrics ARE aggregated
+        Assert.True(snap.TryGetMetric("cpu.total", out var cpuTotal));
+        Assert.Equal(100.0, cpuTotal.Sum);
+        Assert.Equal(50.0, cpuTotal.Avg);
+
+        Assert.True(snap.TryGetMetric("memory.used", out var memUsed));
+        Assert.Equal(6_000_000_000, memUsed.Sum);
+
+        // Per-core metrics are EXCLUDED from the cluster merged pool
+        Assert.False(snap.TryGetMetric("cpu.core.0", out _));
+        Assert.False(snap.TryGetMetric("cpu.core.1", out _));
+    }
+
+    [Fact]
+    public void HostMetricsTabViewModel_PopulateAvailableMetrics_UsesNodePrefixedCoresInAggregatedMode()
+    {
+        var node1 = new FleetNodeModel { Id = "srv1", Cores = 2 };
+        var node2 = new FleetNodeModel { Id = "srv2", Cores = 3 };
+        var allNodes = new[] { node1, node2 };
+
+        var vm = new HostMetricsTabViewModel();
+
+        // 1. Single node mode
+        vm.UpdateForNode("srv1", node1, allNodes);
+        Assert.Contains("cpu.core.0", vm.AvailableMetrics);
+        Assert.Contains("cpu.core.1", vm.AvailableMetrics);
+        Assert.DoesNotContain("srv1.cpu.core.0", vm.AvailableMetrics);
+
+        // 2. Aggregated mode
+        vm.UpdateForNode("aggregated", null, allNodes);
+        Assert.Contains("srv1.cpu.core.0", vm.AvailableMetrics);
+        Assert.Contains("srv1.cpu.core.1", vm.AvailableMetrics);
+        Assert.Contains("srv2.cpu.core.0", vm.AvailableMetrics);
+        Assert.Contains("srv2.cpu.core.1", vm.AvailableMetrics);
+        Assert.Contains("srv2.cpu.core.2", vm.AvailableMetrics);
+        Assert.DoesNotContain("cpu.core.0", vm.AvailableMetrics);
+    }
+
+    [Fact]
+    public void HostMetricsTabViewModel_ExecuteAddGraph_LabelsNodeCoreProperlyAndDefaultsCumulativeRate()
+    {
+        var node1 = new FleetNodeModel { Id = "worker1", Cores = 2 };
+        var vm = new HostMetricsTabViewModel();
+        vm.UpdateForNode("aggregated", null, new[] { node1 });
+
+        // Add node core metric in aggregated mode
+        vm.SelectedMetric = "worker1.cpu.core.0";
+        vm.AddGraph();
+
+        var coreGraph = vm.Graphs.FirstOrDefault(g => g.Series.Any(s => s.Metric == "worker1.cpu.core.0"));
+        Assert.NotNull(coreGraph);
+        Assert.Equal("worker1 - Thread 0", coreGraph.Series[0].Label);
+
+        // Add cumulative counter metric (nic.eth0.rx_bytes)
+        vm.SelectedMetric = "nic.eth0.rx_bytes";
+        vm.AddGraph();
+
+        var nicGraph = vm.Graphs.FirstOrDefault(g => g.Series.Any(s => s.Metric == "nic.eth0.rx_bytes"));
+        Assert.NotNull(nicGraph);
+        Assert.True(nicGraph.Series[0].IsRateOfChange);
+    }
+
+    [Fact]
+    public void FleetNodeModel_GetMetricValue_ResolvesCoresAndRates()
+    {
+        var node = new FleetNodeModel
+        {
+            Id = "test-node",
+            Cores = 4,
+            CoreLoads = new float[] { 0.15f, 0.45f, 0.85f, 0.05f },
+            RxBytesPerSecond = 125_000_000,
+            Interfaces = new[]
+            {
+                new MADTOM.Plugins.Telemetry.Proto.V1.NicMetric { Name = "eth0", RxBytes = 50_000_000_000, TxBytes = 25_000_000_000 }
+            }
+        };
+
+        // Core values should resolve from CoreLoads scaled to percentage
+        Assert.Equal(15.0, node.GetMetricValue("cpu.core.0"));
+        Assert.Equal(45.0, node.GetMetricValue("cpu.core.1"));
+        Assert.Equal(85.0, node.GetMetricValue("cpu.core.2"));
+        Assert.Equal(5.0, node.GetMetricValue("cpu.core.3"));
+        Assert.Null(node.GetMetricValue("cpu.core.99"));
+
+        // Network rates and cumulative bytes
+        Assert.Equal(1_000_000_000.0, node.GetMetricValue("network.ingress"));
+        Assert.Equal(50_000_000_000.0, node.GetMetricValue("nic.eth0.rx_bytes"));
+    }
+
+    [Fact]
+    public void GlobalMetricItemViewModel_FormatsCumulativeCountersAsBytesUnlessRate()
+    {
+        var item = new GlobalMetricItemViewModel("nic.eth0.rx_bytes", "eth0 RX", "network", "B", "RX");
+
+        // Sum modifier on cumulative counter: formats as bytes (e.g. 50.00 GB), NOT Gbps
+        item.Update(50_000_000_000, 50_000_000_000, 100_000_000, 1, "Sum");
+        Assert.Contains("GB", item.FormattedValue);
+        Assert.DoesNotContain("Gbps", item.FormattedValue);
+
+        // Rate modifier: formats with rate
+        item.Update(50_000_000_000, 50_000_000_000, 1_000_000_000, 1, "Rate");
+        Assert.Contains("Gbps/s", item.FormattedValue);
     }
 }
 

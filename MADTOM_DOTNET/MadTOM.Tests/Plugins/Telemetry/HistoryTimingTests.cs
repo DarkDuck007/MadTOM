@@ -48,8 +48,8 @@ public class HistoryTimingTests
     [Fact]
     public async Task FirstLiveUpdateReportsWindowShiftOnlyOncePerHistoryLoad()
     {
-        var entries = new List<HistoryTiming.Entry>();
-        using var timing = HistoryTiming.Begin("test", sink: entries.Add);
+        var entries = new System.Collections.Concurrent.ConcurrentQueue<HistoryTiming.Entry>();
+        using var timing = HistoryTiming.Begin("test", sink: entries.Enqueue);
         using var provider = new MockTelemetryDataProvider(startBackgroundTimer: false);
         var vm = new MadTOM.ViewModels.HostMetricsTabViewModel(provider);
         var node = new MadTOM.Models.FleetNodeModel { Id = "timing-node" };
@@ -61,13 +61,15 @@ public class HistoryTimingTests
         node.TelemetryReceivedUtc = DateTime.UtcNow;
         entries.Clear();
         vm.UpdateForNode(node.Id, node, new[] { node });
-        Assert.Contains(entries, e => e.Event == "arrival" && e.Detail!.Contains("historyRefresh="));
-        Assert.Contains(entries, e => e.Event == "window-before" && e.Detail!.Contains($"endNano={before}"));
-        Assert.Contains(entries, e => e.Event == "window-after" && e.Detail!.Contains($"endNano={node.TimestampUnixNano}"));
+        var snap1 = entries.ToArray();
+        Assert.Contains(snap1, e => e.Event == "arrival" && e.Detail!.Contains("historyRefresh="));
+        Assert.Contains(snap1, e => e.Event == "window-before" && e.Detail!.Contains($"endNano={before}"));
+        Assert.Contains(snap1, e => e.Event == "window-after" && e.Detail!.Contains($"endNano={node.TimestampUnixNano}"));
         entries.Clear();
         node.TimestampUnixNano += 1_000_000_000;
         vm.UpdateForNode(node.Id, node, new[] { node });
-        Assert.DoesNotContain(entries, e => e.Stage == "first-live-after-history");
+        var snap2 = entries.ToArray();
+        Assert.DoesNotContain(snap2, e => e.Stage == "first-live-after-history");
     }
 
     [Fact]

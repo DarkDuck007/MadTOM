@@ -74,13 +74,24 @@ public sealed partial class GlobalMetricItemViewModel : ObservableObject
 
         if (Key.StartsWith("network") || Key.StartsWith("nic."))
         {
-            // Unit is bits/sec or bytes/sec
-            double abs = Math.Abs(v);
-            string prefix = isRate && v > 0 ? "+" : (isRate && v < 0 ? "-" : "");
-            if (abs >= 1e9) FormattedValue = $"{prefix}{abs / 1e9:F3} Gbps{rateSuffix}";
-            else if (abs >= 1e6) FormattedValue = $"{prefix}{abs / 1e6:F2} Mbps{rateSuffix}";
-            else if (abs >= 1e3) FormattedValue = $"{prefix}{abs / 1e3:F1} Kbps{rateSuffix}";
-            else FormattedValue = $"{prefix}{abs:F0} bps{rateSuffix}";
+            if (!isRate && (Key.EndsWith(".rx_bytes", StringComparison.OrdinalIgnoreCase) || Key.EndsWith(".tx_bytes", StringComparison.OrdinalIgnoreCase)))
+            {
+                double abs = Math.Abs(v);
+                if (abs >= 1073741824) FormattedValue = $"{abs / 1073741824:F2} GB";
+                else if (abs >= 1048576) FormattedValue = $"{abs / 1048576:F1} MB";
+                else if (abs >= 1024) FormattedValue = $"{abs / 1024:F0} KB";
+                else FormattedValue = $"{abs:F0} B";
+            }
+            else
+            {
+                // Unit is bits/sec or bytes/sec rate
+                double abs = Math.Abs(v);
+                string prefix = isRate && v > 0 ? "+" : (isRate && v < 0 ? "-" : "");
+                if (abs >= 1e9) FormattedValue = $"{prefix}{abs / 1e9:F3} Gbps{rateSuffix}";
+                else if (abs >= 1e6) FormattedValue = $"{prefix}{abs / 1e6:F2} Mbps{rateSuffix}";
+                else if (abs >= 1e3) FormattedValue = $"{prefix}{abs / 1e3:F1} Kbps{rateSuffix}";
+                else FormattedValue = $"{prefix}{abs:F0} bps{rateSuffix}";
+            }
         }
         else if (Key.StartsWith("disk.bytes") || (Key.StartsWith("disk.io.") && (Key.EndsWith(".read_bytes") || Key.EndsWith(".write_bytes"))))
         {

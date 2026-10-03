@@ -189,3 +189,70 @@ func TestPullOffsetAcknowledgementPreservesGroupedTail(t *testing.T) {
 		t.Fatalf("invalid ACK accepted: %v", err)
 	}
 }
+
+func TestReversePushReconnectSupersedesStaleConnection(t *testing.T) {
+	wal, err := spool.NewWALManager(t.TempDir(), "node-reconn", 1<<20, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer wal.Close()
+	cfg := collector.DefaultConfig("node-reconn")
+	cfg.FastPollIntervalMs = 100
+	server := NewPullServer(0, "node-reconn", wal, collector.NewEngine("node-reconn"), cfg)
+	if err := server.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+	address := server.listener.Addr().String()
+
+	conn1, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn1.Close()
+	client1 := madtomv1.NewIngestServiceClient(conn1)
+	stream1, err := client1.ReceiveBatchStream(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stream1.Send(&madtomv1.BatchAck{NodeId: "node-reconn"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// First stream is open. Now simulate collector resume / reconnect with client 2.
+	conn2, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn2.Close()
+	client2 := madtomv1.NewIngestServiceClient(conn2)
+	stream2, err := client2.ReceiveBatchStream(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stream2.Send(&madtomv1.BatchAck{NodeId: "node-reconn"}); err != nil {
+		t.Fatalf("stream2 handshake should succeed and supersede stream1, got: %v", err)
+	}
+
+	// Stream 2 should successfully receive batch
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	batchChan := make(chan *madtomv1.TelemetryBatch, 1)
+	go func() {
+		b, err := stream2.Recv()
+		if err == nil {
+			batchChan <- b
+		}
+	}()
+
+	select {
+	case b := <-batchChan:
+		if b.NodeId != "node-reconn" {
+			t.Fatalf("expected node-reconn batch, got %s", b.NodeId)
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for batch on stream 2")
+	}
+}
+

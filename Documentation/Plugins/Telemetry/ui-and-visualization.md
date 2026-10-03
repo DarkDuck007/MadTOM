@@ -153,6 +153,22 @@ MADTOM automatically detects all active storage devices:
 - IOPS rates and latency diagnostics.
 - Supports virtual block devices (`nvme*`, `sd*`, `vd*`, `xvd*`, `mapper/*`).
 
+### Aggregated Mode & Time-Based Bucketing Pool
+
+When viewing aggregated cluster metrics or monitoring top-right pinned metrics:
+- **Time-Based Bucketing**: The `ClusterAggregationService` gathers telemetry arrivals across nodes into synchronized 1-second time buckets. A bucket flushes as soon as all active cluster nodes report or when the bucket timeout fires, eliminating erratic UI flickering.
+- **Selective Cluster-Wide Merging**: Only cluster-wide relevant metrics are merged (total CPU load, total memory, aggregated network transit, disk throughput, and TWAMP latency). Individual per-thread/per-core metrics are strictly excluded from the aggregated pool to prevent improper averaging.
+
+### Per-Core & Per-Thread Graphing
+
+MADTOM exposes individual CPU core/thread metrics in Deep Dive graphs:
+- **Single-Node Mode**: Cores appear as `Thread {c}` (e.g. `Thread 0`, `Thread 1`) with direct history lookup and live updates scaled to 0–100%.
+- **Aggregated Mode**: Cores across all cluster hosts are uniquely identified as `{nodeId} - Thread {c}` (e.g. `node1 - Thread 0`). Each node's individual threads can be plotted on graphs simultaneously without being merged into a single averaged line.
+
+### Cumulative Counter Rate Derivation
+
+Cumulative counter metrics (`nic.*.rx_bytes`, `nic.*.tx_bytes`, `disk.io.*.read_bytes`, `disk.io.*.write_bytes`, `disk.io.*.read_ops`, `disk.io.*.write_ops`) automatically default to rate-of-change mode when added to charts. History queries differentiate rates on a per-node basis before bucket aggregation, eliminating tiny `dt` division anomalies and spurious multi-gigabit rate spikes.
+
 ---
 
 ## Collector & Fleet Management

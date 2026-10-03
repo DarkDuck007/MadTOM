@@ -8,6 +8,7 @@ import (
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 )
 
 // ReceivePush connects outbound to a listening daemon and persists its stream.
@@ -25,7 +26,15 @@ func ReceivePush(ctx context.Context, pipeline *Pipeline, nodeID, address string
 }
 
 func receivePushSession(ctx context.Context, p *Pipeline, nodeID, address string) {
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(
+		address,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                5 * time.Second,
+			Timeout:             3 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
 	if err != nil {
 		log.Printf("[ReversePush] Failed to create client for %s at %s: %v", nodeID, address, err)
 		return

@@ -15,26 +15,29 @@ import (
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 )
 
 // PullServer provides a gRPC listener for the collector to scrape pending telemetry batches.
 type PullServer struct {
 	madtomv1.UnimplementedIngestServiceServer
-	mu              sync.RWMutex
-	port            int
-	nodeID          string
-	spoolDir        string
-	wal             *spool.WALManager
-	engine          *collector.Engine
-	config          *madtomv1.NodeConfig
-	server          *grpc.Server
-	listener        net.Listener
-	cancel          context.CancelFunc
-	wg              sync.WaitGroup
-	streamMu        sync.Mutex
-	hasActiveStream bool
-	lastActive      time.Time
+	mu                 sync.RWMutex
+	port               int
+	nodeID             string
+	spoolDir           string
+	wal                *spool.WALManager
+	engine             *collector.Engine
+	config             *madtomv1.NodeConfig
+	server             *grpc.Server
+	listener           net.Listener
+	cancel             context.CancelFunc
+	wg                 sync.WaitGroup
+	streamMu           sync.Mutex
+	activeStreamCancel context.CancelFunc
+	activeStreamDone   chan struct{}
+	hasActiveStream    bool
+	lastActive         time.Time
 }
 
 // NewPullServer creates a new PullServer instance.
@@ -88,7 +91,19 @@ func (s *PullServer) Start() error {
 			}
 		}
 	}()
-	s.server = grpc.NewServer()
+	s.server = grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             2 * time.Second,
+			PermitWithoutStream: true,
+		}),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle:     15 * time.Minute,
+			MaxConnectionAge:      30 * time.Minute,
+			MaxConnectionAgeGrace: 5 * time.Second,
+			Time:                  5 * time.Second,
+			Timeout:               3 * time.Second,
+		}),
+	)
 	madtomv1.RegisterIngestServiceServer(s.server, s)
 
 	go func() {
@@ -173,10 +188,38 @@ func (s *PullServer) PushBatchStream(stream madtomv1.IngestService_PushBatchStre
 
 // ReceiveBatchStream reverses connection establishment without reversing data flow.
 func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBatchStreamServer) error {
-	if !s.streamMu.TryLock() {
-		return status.Error(codes.AlreadyExists, "a collector is already connected")
+	// If a previous stream is hanging (e.g. collector machine suspended and resumed),
+	// supersede it gracefully so the new stream can immediately take over.
+	s.mu.Lock()
+	if s.activeStreamCancel != nil {
+		log.Printf("[PullServer] Cancelling previous collector stream for node %s to allow new connection", s.nodeID)
+		s.activeStreamCancel()
 	}
+	s.mu.Unlock()
+
+	s.streamMu.Lock()
 	defer s.streamMu.Unlock()
+
+	streamCtx, cancel := context.WithCancel(stream.Context())
+	defer cancel()
+
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+
+	s.mu.Lock()
+	s.activeStreamCancel = cancel
+	s.activeStreamDone = doneCh
+	s.mu.Unlock()
+
+	defer func() {
+		s.mu.Lock()
+		if s.activeStreamDone == doneCh {
+			s.activeStreamCancel = nil
+			s.activeStreamDone = nil
+		}
+		s.mu.Unlock()
+	}()
+
 	hello, err := stream.Recv()
 	if err != nil {
 		return err
@@ -202,18 +245,38 @@ func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBat
 			return err
 		}
 		if batch == nil {
-			if !wait(stream.Context(), 100*time.Millisecond) {
-				return stream.Context().Err()
+			if !wait(streamCtx, 100*time.Millisecond) {
+				return streamCtx.Err()
 			}
 			continue
 		}
 		if err := stream.Send(batch); err != nil {
 			return err
 		}
-		ack, err := stream.Recv()
-		if err != nil {
-			return err
+
+		type ackResult struct {
+			ack *madtomv1.BatchAck
+			err error
 		}
+		ackCh := make(chan ackResult, 1)
+		go func() {
+			a, e := stream.Recv()
+			ackCh <- ackResult{ack: a, err: e}
+		}()
+
+		var ack *madtomv1.BatchAck
+		select {
+		case <-streamCtx.Done():
+			return streamCtx.Err()
+		case <-time.After(10 * time.Second):
+			return status.Error(codes.DeadlineExceeded, "timed out waiting for batch acknowledgement")
+		case res := <-ackCh:
+			if res.err != nil {
+				return res.err
+			}
+			ack = res.ack
+		}
+
 		if !ack.Success || ack.NodeId != s.nodeID || ack.SegmentId != batch.SegmentId || ack.SegmentOffset != batch.SegmentOffset {
 			return status.Error(codes.FailedPrecondition, "batch was not acknowledged")
 		}
