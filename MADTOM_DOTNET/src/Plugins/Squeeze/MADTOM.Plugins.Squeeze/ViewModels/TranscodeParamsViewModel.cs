@@ -39,10 +39,10 @@ public partial class TranscodeParamsViewModel : ViewModelBase
     private string _resolutionLimit = "1080p Full HD (1920x1080)";
 
     [ObservableProperty]
-    private int _width = 0;
+    private int? _width = 0;
 
     [ObservableProperty]
-    private int _height = 0;
+    private int? _height = 0;
 
     [ObservableProperty]
     private string _cropping = "Automatic";
@@ -51,16 +51,16 @@ public partial class TranscodeParamsViewModel : ViewModelBase
     private string _cropMode = "None";
 
     [ObservableProperty]
-    private int _cropTop = 0;
+    private int? _cropTop = 0;
 
     [ObservableProperty]
-    private int _cropBottom = 0;
+    private int? _cropBottom = 0;
 
     [ObservableProperty]
-    private int _cropLeft = 0;
+    private int? _cropLeft = 0;
 
     [ObservableProperty]
-    private int _cropRight = 0;
+    private int? _cropRight = 0;
 
     [ObservableProperty]
     private string _tune = "none";
@@ -242,18 +242,18 @@ public partial class TranscodeParamsViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsCustomResolution));
         NotifyParamChange();
     }
-    partial void OnWidthChanged(int value) => NotifyParamChange();
-    partial void OnHeightChanged(int value) => NotifyParamChange();
+    partial void OnWidthChanged(int? value) => NotifyParamChange();
+    partial void OnHeightChanged(int? value) => NotifyParamChange();
     partial void OnCroppingChanged(string value) => NotifyParamChange();
     partial void OnCropModeChanged(string value)
     {
         OnPropertyChanged(nameof(IsCustomCrop));
         NotifyParamChange();
     }
-    partial void OnCropTopChanged(int value) => NotifyParamChange();
-    partial void OnCropBottomChanged(int value) => NotifyParamChange();
-    partial void OnCropLeftChanged(int value) => NotifyParamChange();
-    partial void OnCropRightChanged(int value) => NotifyParamChange();
+    partial void OnCropTopChanged(int? value) => NotifyParamChange();
+    partial void OnCropBottomChanged(int? value) => NotifyParamChange();
+    partial void OnCropLeftChanged(int? value) => NotifyParamChange();
+    partial void OnCropRightChanged(int? value) => NotifyParamChange();
     partial void OnTuneChanged(string value) => NotifyParamChange();
     partial void OnPixelFormatChanged(string value) => NotifyParamChange();
     partial void OnDeinterlaceChanged(bool value) => NotifyParamChange();
@@ -297,13 +297,14 @@ public partial class TranscodeParamsViewModel : ViewModelBase
         }
 
         var filters = new List<string>();
-        if (CropMode == "Custom" && (CropTop > 0 || CropBottom > 0 || CropLeft > 0 || CropRight > 0))
+        int cTop = CropTop ?? 0, cBottom = CropBottom ?? 0, cLeft = CropLeft ?? 0, cRight = CropRight ?? 0;
+        if (CropMode == "Custom" && (cTop > 0 || cBottom > 0 || cLeft > 0 || cRight > 0))
         {
-            filters.Add($"crop=iw-{(CropLeft + CropRight)}:ih-{(CropTop + CropBottom)}:{CropLeft}:{CropTop}");
+            filters.Add($"crop=iw-{(cLeft + cRight)}:ih-{(cTop + cBottom)}:{cLeft}:{cTop}");
         }
 
-        int targetWidth = Width;
-        int targetHeight = Height;
+        int targetWidth = Width ?? 0;
+        int targetHeight = Height ?? 0;
         if (targetWidth == 0 && targetHeight == 0)
         {
             if (ResolutionLimit.Contains("1080p")) { targetWidth = 1920; targetHeight = -1; }
@@ -385,7 +386,7 @@ public partial class TranscodeParamsViewModel : ViewModelBase
             CropBottom = preset.CropBottom;
             CropLeft = preset.CropLeft;
             CropRight = preset.CropRight;
-            CropMode = (CropTop > 0 || CropBottom > 0 || CropLeft > 0 || CropRight > 0) ? "Custom" : "None";
+            CropMode = ((CropTop ?? 0) > 0 || (CropBottom ?? 0) > 0 || (CropLeft ?? 0) > 0 || (CropRight ?? 0) > 0) ? "Custom" : "None";
             Tune = string.IsNullOrEmpty(preset.Tune) ? "none" : preset.Tune;
             PixelFormat = string.IsNullOrEmpty(preset.PixelFormat) ? "yuv420p" : preset.PixelFormat;
             Deinterlace = preset.Deinterlace;
@@ -412,8 +413,8 @@ public partial class TranscodeParamsViewModel : ViewModelBase
         {
             Container = Container,
             EncoderPreset = SpeedName,
-            Width = Width > 0 ? Width : (_loadedPreset?.Width ?? 0),
-            Height = Height > 0 ? Height : (_loadedPreset?.Height ?? 0),
+            Width = (Width ?? 0) > 0 ? (Width ?? 0) : (_loadedPreset?.Width ?? 0),
+            Height = (Height ?? 0) > 0 ? (Height ?? 0) : (_loadedPreset?.Height ?? 0),
             Tune = Tune == "none" ? "" : Tune,
             AudioChannels = AudioChannels,
             Grayscale = Grayscale,
@@ -424,10 +425,10 @@ public partial class TranscodeParamsViewModel : ViewModelBase
             Framerate = Framerate,
             ResolutionLimit = ResolutionLimit,
             Cropping = Cropping,
-            CropTop = CropTop,
-            CropBottom = CropBottom,
-            CropLeft = CropLeft,
-            CropRight = CropRight,
+            CropTop = CropTop ?? 0,
+            CropBottom = CropBottom ?? 0,
+            CropLeft = CropLeft ?? 0,
+            CropRight = CropRight ?? 0,
             Deinterlace = Deinterlace,
             Denoise = Denoise,
             DenoiseFilter = string.IsNullOrEmpty(DenoiseFilter) ? "hqdn3d=1.5:1.5:6:6" : DenoiseFilter,

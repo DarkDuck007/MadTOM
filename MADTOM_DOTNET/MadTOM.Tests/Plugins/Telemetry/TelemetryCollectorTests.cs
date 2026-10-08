@@ -269,8 +269,8 @@ public class TelemetryCollectorTests
         var nodes = await client.ListNodesAsync(cts.Token);
         Assert.Empty(nodes);
 
-        bool updated = await client.UpdateNodeConfigAsync("node1", new MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig(), cts.Token);
-        Assert.False(updated);
+        var ack = await client.UpdateNodeConfigAsync("node1", new MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig(), cts.Token);
+        Assert.Null(ack);
     }
 
     [Fact]
@@ -294,7 +294,7 @@ public class TelemetryCollectorTests
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = daemonBin,
-                    Arguments = $"-node-id node-test-persist -spool-dir \"{tempSpool}\" -twamp-target 127.0.0.1:50077",
+                    Arguments = $"-node-id node-test-persist -mode pull -listen-port 59998 -spool-dir \"{tempSpool}\" -twamp-target 127.0.0.1:50077",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false

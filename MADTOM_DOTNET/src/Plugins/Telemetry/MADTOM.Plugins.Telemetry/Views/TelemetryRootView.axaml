@@ -28,7 +28,7 @@
             <views:HeaderView Grid.Row="0" DataContext="{Binding Header}" />
 
             <!-- Main Shell: Left Sidebar + Viewport Stage -->
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,4,*">
+            <Grid Grid.Row="1" x:Name="ShellGrid" ColumnDefinitions="Auto,4,*">
                 <views:SidebarView Grid.Column="0" DataContext="{Binding Sidebar}" />
 
                 <!-- Draggable Sidebar Splitter -->
@@ -37,6 +37,7 @@
                               ResizeDirection="Columns"
                               Background="Transparent"
                               DragDelta="OnSidebarSplitterDragDelta"
+                              IsVisible="{Binding !Sidebar.IsCollapsed}"
                               Cursor="SizeWestEast" />
 
                 <!-- Active Viewport Stage -->

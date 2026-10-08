@@ -84,4 +84,35 @@ public class ClientCompressionDiagnosticsTests
         response.TransportStats[0].ZstdBytes = 0;
         Assert.Equal("—", ClientCompressionSnapshot.TransportRows("c", response)[0].Ratio);
     }
+
+    [Fact]
+    public void Capture_WithLogChunkCache_IncludesLogMemoryRow()
+    {
+        var cache = new TelemetryHistoryCache();
+        var logCache = new LogChunkCache();
+        var chunk = new MADTOM.Plugins.Telemetry.Proto.V1.LogChunk
+        {
+            NodeId = "n1",
+            ChunkId = 0,
+            FirstSeq = 0,
+            LastSeq = 99,
+            RecordCount = 100,
+            RawSize = 10240,
+            ZstdRecords = Google.Protobuf.ByteString.CopyFrom(new byte[2048]),
+            Sealed = true
+        };
+        logCache.PutChunk("ep1", "n1", chunk);
+
+        var snapshot = ClientCompressionSnapshot.Capture(cache, Array.Empty<CollectorClientService>(), logCache);
+        var logRow = snapshot.MemoryRows.Single(r => r.Scope == "Memory · log chunk cache");
+        Assert.Equal("Zstd + raw", logRow.State);
+        Assert.Equal("2 KiB", logRow.Zstd);
+        Assert.Equal("10 KiB", logRow.Raw);
+        Assert.Equal("100", logRow.Count);
+        Assert.Equal("5.00×", logRow.Ratio);
+
+        var totalRow = snapshot.MemoryRows.Single(r => r.Scope == "Memory · total");
+        Assert.Equal("2 KiB", totalRow.Zstd);
+        Assert.Equal("10 KiB", totalRow.Raw);
+    }
 }

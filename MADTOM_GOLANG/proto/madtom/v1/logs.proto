@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package madtom.v1;
+
+option go_package = "github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1";
+option csharp_namespace = "MADTOM.Plugins.Telemetry.Proto.V1";
+
+// Individual system log entry captured from systemd journal / syslog.
+message LogRecord {
+  uint64 seq = 1;                   // Monotonic per-node sequence number
+  int64 timestamp_unix_nano = 2;    // __REALTIME_TIMESTAMP
+  uint32 priority = 3;              // syslog PRIORITY (0=emerg..7=debug)
+  string unit = 4;                  // _SYSTEMD_UNIT or SYSLOG_IDENTIFIER
+  string message = 5;               // MESSAGE
+  map<string, string> fields = 6;   // Additional selected journal fields (_PID, _COMM, etc.)
+}
+
+// Wrapper for batch serialization before zstd compression.
+message LogRecordList {
+  repeated LogRecord records = 1;
+}
+
+// LogChunk is a self-contained, zstd-compressed block of log records (typically 256 records).
+// Kept compressed during transit, in collector Pebble store, and in client LRU cache.
+message LogChunk {
+  string node_id = 1;
+  uint64 chunk_id = 2;              // chunk index = first_seq / 256
+  uint64 first_seq = 3;             // first sequence number in this chunk
+  uint64 last_seq = 4;              // last sequence number in this chunk
+  int64 first_ts_unix_nano = 5;
+  int64 last_ts_unix_nano = 6;
+  uint32 record_count = 7;
+  bool sealed = 8;                  // true if chunk reached 256 records or closed
+  bytes zstd_records = 9;           // compressed protobuf bytes of LogRecordList
+  uint32 raw_size = 10;             // uncompressed byte size of LogRecordList
+}

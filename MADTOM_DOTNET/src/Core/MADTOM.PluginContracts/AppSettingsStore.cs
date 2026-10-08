@@ -5,18 +5,60 @@ using System.Text.Json;
 namespace MADTOM.PluginContracts;
 
 /// <summary>
+/// Display mode of the MADTOM Studio navigation sidebar.
+/// </summary>
+public enum StudioSidebarState
+{
+    Expanded = 0,
+    Collapsed = 1,
+    Hidden = 2
+}
+
+/// <summary>
 /// Persisted user application settings and preferences across sessions.
 /// </summary>
 public sealed class AppSettings
 {
     public string Theme { get; set; } = "default-dark";
     public string Language { get; set; } = "goose";
-    public bool IsConsoleSidebarCollapsed { get; set; } = false;
+    private StudioSidebarState _consoleSidebarState = StudioSidebarState.Expanded;
+    public StudioSidebarState ConsoleSidebarState
+    {
+        get => _consoleSidebarState;
+        set
+        {
+            _consoleSidebarState = value;
+            _isConsoleSidebarCollapsed = (value == StudioSidebarState.Collapsed);
+        }
+    }
+
+    private bool _isConsoleSidebarCollapsed = false;
+    public bool IsConsoleSidebarCollapsed
+    {
+        get => _isConsoleSidebarCollapsed;
+        set
+        {
+            _isConsoleSidebarCollapsed = value;
+            if (value && _consoleSidebarState == StudioSidebarState.Expanded)
+            {
+                _consoleSidebarState = StudioSidebarState.Collapsed;
+            }
+            else if (!value && _consoleSidebarState == StudioSidebarState.Collapsed)
+            {
+                _consoleSidebarState = StudioSidebarState.Expanded;
+            }
+        }
+    }
+
     public bool IsTelemetrySidebarCollapsed { get; set; } = false;
     public int UiScalePercent { get; set; } = 100;
     public bool CloseToTray { get; set; } = true;
     public bool MinimizeToTray { get; set; } = false;
     public bool ShowTrayIcon { get; set; } = true;
+
+    public bool EnableSidebarExpandedState { get; set; } = true;
+    public bool EnableSidebarCollapsedState { get; set; } = true;
+    public bool EnableSidebarHiddenState { get; set; } = true;
 }
 
 /// <summary>
@@ -55,7 +97,21 @@ public static class AppSettingsStore
                 }
 
                 var settings = JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions);
-                return settings ?? new AppSettings();
+                if (settings != null)
+                {
+                    if (settings.IsConsoleSidebarCollapsed && settings.ConsoleSidebarState == StudioSidebarState.Expanded)
+                    {
+                        settings.ConsoleSidebarState = StudioSidebarState.Collapsed;
+                    }
+                    if (!settings.EnableSidebarExpandedState && !settings.EnableSidebarCollapsedState && !settings.EnableSidebarHiddenState)
+                    {
+                        settings.EnableSidebarExpandedState = true;
+                        settings.EnableSidebarCollapsedState = true;
+                        settings.EnableSidebarHiddenState = true;
+                    }
+                    return settings;
+                }
+                return new AppSettings();
             }
             catch
             {

@@ -383,7 +383,7 @@ public class MdnsServerDiscoveryService : IServerDiscoveryService, IDisposable
             // Verify candidates with HTTP health probe before registering so unroutable/bogus IPs are never shown
             _ = Task.Run(async () =>
             {
-                foreach (var candidate in candidateHosts)
+                var probeTasks = candidateHosts.Select(async candidate =>
                 {
                     try
                     {
@@ -411,14 +411,15 @@ public class MdnsServerDiscoveryService : IServerDiscoveryService, IDisposable
                                 LastSeen = DateTime.UtcNow
                             };
                             RegisterServer(verifiedServer);
-                            break;
                         }
                     }
                     catch
                     {
-                        // Try next candidate
+                        // Candidate unreachable
                     }
-                }
+                });
+
+                await Task.WhenAll(probeTasks);
             });
         }
         catch

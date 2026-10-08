@@ -141,8 +141,8 @@ public sealed class MultiCollectorManager : IAsyncDisposable
         return groups.SelectMany(nodes => nodes).ToArray();
     }
 
-    public ClientCompressionSnapshot GetCompressionDiagnostics(TelemetryHistoryCache cache)
-        => ClientCompressionSnapshot.Capture(cache, _clients.Values);
+    public ClientCompressionSnapshot GetCompressionDiagnostics(TelemetryHistoryCache cache, LogChunkCache? logCache = null)
+        => ClientCompressionSnapshot.Capture(cache, _clients.Values, logCache);
 
     public CollectorClientService? GetClientForNode(FleetNodeModel node)
     {
@@ -171,8 +171,8 @@ public sealed class MultiCollectorManager : IAsyncDisposable
             }
             catch (Exception)
             {
-                // Network interrupted or connection reset; reset channel and reconnect
-                client.ResetChannel();
+                // Network interrupted or connection reset; do NOT reset the shared channel as other nodes share it.
+                // Re-subscribing on the next loop iteration will establish a new HTTP/2 stream cleanly.
             }
 
             if (ct.IsCancellationRequested) break;

@@ -252,3 +252,44 @@ When `madtom-daemon` starts up:
 - The Collector uses one serialized encoder with concurrency one, fastest level and a 1 MiB window. Responses between 1 KiB and 16 MiB are candidates; an envelope is used only when compressed bytes plus overhead save at least 10%. Others stay raw. Existing gRPC receive limits still apply to raw fallback. The client checks encoded/decoded sizes and exact decoded length, limits decoded envelopes to 16 MiB and rejects nested envelopes.
 - Old clients omit negotiation and receive raw responses. New clients accept raw responses from old Collectors. Requests remain ordinary protobuf. No daemon changes, database migration, or Collector flag is required; upgrade Collector and client. Daemon `--zstd` retains its separate meaning for daemon WAL/transport.
 - Diagnostics separate compressed-byte ratios, raw bytes passed, and total payload bytes. UI counters survive channel reconnects; Collector counters reset on Collector restart. Totals exclude envelope/framing/TLS overhead; summing network hops does not measure unique telemetry volume.
+
+---
+
+## System Journal Log Streaming Protocol & Pebble TSDB Storage
+
+MADTOM Telemetry provides full end-to-end streaming and storage for system journal logs (`systemd-journald`) using monotonic sequence numbers, zstd block compression, and Pebble key-value indexing.
+
+### Protobuf Message Specification
+
+Log structures are defined in `proto/madtom/v1/logs.proto`:
+- **`LogRecord`**: Represents an individual log entry parsed from `journalctl -o json -f`. Contains `seq` (uint64 monotonic index), `timestamp_unix_nano` (int64), `priority` (uint32 syslog level 0..7), `unit` (string systemd unit or syslog identifier), `message` (string payload), and `fields` (string map for auxiliary metadata like `_PID`, `_COMM`).
+- **`LogRecordList`**: Repeated wrapper of `LogRecord` serialized into protobuf bytes before block compression.
+- **`LogChunk`**: Sealed or active compressed container holding up to 256 records. Contains `chunk_id` (`first_seq / 256`), `first_seq`, `last_seq`, `first_ts_unix_nano`, `last_ts_unix_nano`, `record_count`, `sealed` flag, `zstd_records` (compressed `LogRecordList`), and `raw_size`.
+
+### Zero-Disk Monitor Only vs. Stored Policy
+
+The 3-tier opt-in model strictly isolates disk activity:
+- In **`OPT_IN_MONITOR_ONLY`**:
+  - The daemon runs `journalctl -o json -f` with token-bucket rate limiting (default 500 records/sec).
+  - Chunks are compressed and kept in an in-memory queue (`liveChunks`).
+  - Chunks are attached to outbound live `TelemetryBatch` messages (`log_chunks = 9`).
+  - **Zero disk writes** are made to the daemon disk WAL (`/var/spool/madtom/wal`). If the network disconnects, live log chunks are dropped rather than accumulating on disk.
+  - The collector fans out received live chunks to active `SubscribeLogs` subscribers. **Zero disk writes** are made to the collector Pebble database.
+- In **`OPT_IN_MONITOR_AND_STORE`**:
+  - Chunks are spooled into the daemon's WAL on disk when offline.
+  - The collector commits received chunks into its Pebble database with monotonic key indexing and time indexing.
+
+### Pebble Storage Key Schema
+
+Stored chunks are organized in Pebble with binary prefixes:
+- **Chunk Record**: `L\x00<nodeId>\x00<chunkId_BE8>` &rarr; Protobuf bytes of `LogChunk`.
+- **Time Index**: `T\x00<nodeId>\x00<ts_BE8>\x00<chunkId_BE8>` &rarr; Empty value (enables binary range scan by timestamp).
+- **Node Metadata**: `M\x00<nodeId>` &rarr; Big-endian binary block containing `[EarliestChunkId (8B), LatestChunkId (8B), TotalChunks (8B), TotalRecords (8B), TotalBytes (8B)]`.
+
+### Retention Enforcement
+
+A 60-second background worker runs in `madtom-collector`:
+1. Queries each node's `log_retention_hours` and `log_retention_bytes`.
+2. Iterates the time index `T\x00<nodeId>\x00...` to delete all chunks older than the configured cutoff timestamp.
+3. If total stored byte volume exceeds `log_retention_bytes`, evicts oldest chunks in FIFO order until within quota.
+4. Deletes chunk keys, time index keys, and atomically updates metadata stats.

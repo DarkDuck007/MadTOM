@@ -9,8 +9,10 @@ This guide covers the **MADTOM Studio** desktop host shell, dynamic layout scali
 - [Desktop UI Shell Overview](#desktop-ui-shell-overview)
   - [Executable & Launching](#executable--launching)
   - [Interactive Resizable Sidebars](#interactive-resizable-sidebars)
-  - [Symmetrically Resizable Centered Modals](#symmetrically-resizable-centered-modals)
-  - [Modal Escape Key Navigation](#modal-escape-key-navigation)
+  - [Universal Modal Control &amp; Touchscreen Resizing](#universal-modal-control--touchscreen-resizing)
+- [Settings Screen](#settings-screen)
+- [Hardware Display Brightness Controls (Bare-Metal)](#hardware-display-brightness-controls-bare-metal)
+- [Virtual On-Screen Keyboard (OSK)](#virtual-on-screen-keyboard-osk)
 - [UI Scaling & Display Multiplier](#ui-scaling--display-multiplier)
 - [System Tray & Background Execution](#system-tray--background-execution)
   - [Decoupled Architecture](#decoupled-architecture)
@@ -46,11 +48,16 @@ MADTOM Studio is a high-performance cross-platform desktop application written i
   dotnet run --project MADTOM_DOTNET/src/Host/MADTOM.Studio/MADTOM.Studio.csproj
   ```
 
-### Interactive Resizable Sidebars
+### Interactive Resizable Sidebars & 3-State Cycling
 
 The desktop shell supports interactive, draggable splitters for navigation and secondary drawers:
 - Left-click and drag the vertical border divider between the navigation rail/sidebar and main view area.
 - Width changes are reactive and clamp to minimum readable widths to prevent UI collapse.
+- Clicking the **MADTOM Studio** logo in the header cycles through enabled navigation sidebar states:
+  - **Expanded**: Full sidebar displaying module icons, titles, and categories (~220px, resizable).
+  - **Compact**: Space-saving icon-only rail (64px).
+  - **Hidden**: Completely hides the left navigation sidebar to maximize workspace view (0px).
+- Users can choose which states are enabled for logo cycling under **Settings -> Appearance & Scaling**. At least one state is always required to remain active.
 
 ### Universal Modal Control & Touchscreen Resizing
 
@@ -66,7 +73,7 @@ All major dialogs and configuration windows in MADTOM Studio use the universal `
 ## Settings Screen
 
 Accessible via the gear icon (**⚙**) on the top header bar, the MADTOM Studio settings screen displays a full-screen dimmed modal organized into structured cards and tabs:
-- **Appearance & Scaling**: Color theme cards with live swatch previews and category tags, along with UI scaling sliders and quick-preset chips.
+- **Appearance & Scaling**: Color theme cards with live swatch previews and category tags, UI scaling sliders and quick-preset chips, and navigation sidebar display & cycling state options.
 - **Display & Brightness**: Hardware backlight controls for bare-metal / kiosk deployments (see below).
 - **Persona & Lexicon**: Dialect selection (Goose, Feline, Standard).
 - **System & Input**: System tray preferences, virtual on-screen keyboard controls, and application shutdown.
@@ -313,13 +320,16 @@ All host-level preferences persist to disk under the user's standard XDG data di
 
 ```json
 {
-  "ThemeId": "default-dark",
-  "UiScalePercent": 100.0,
-  "TrayBehavior": "MinimizeToTray",
-  "LexiconPackId": "goose",
-  "WindowWidth": 1400,
-  "WindowHeight": 900,
-  "IsMaximized": false
+  "Theme": "default-dark",
+  "Language": "goose",
+  "UiScalePercent": 100,
+  "CloseToTray": true,
+  "MinimizeToTray": false,
+  "ShowTrayIcon": true,
+  "ConsoleSidebarState": 0,
+  "EnableSidebarExpandedState": true,
+  "EnableSidebarCollapsedState": true,
+  "EnableSidebarHiddenState": true
 }
 ```
 

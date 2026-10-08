@@ -8,6 +8,7 @@ import (
 
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/collector"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/config"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/logs"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/spool"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
@@ -28,6 +29,11 @@ type PushClient struct {
 	cancel                context.CancelFunc
 	wg                    sync.WaitGroup
 	isConnected           bool
+
+	chunker               *logs.Chunker
+	tailer                *logs.JournalTailer
+	liveChunks            []*madtomv1.LogChunk
+	lastCursor            string
 }
 
 func NewPushClient(address, nodeID string, wal *spool.WALManager, engine *collector.Engine, cfg *madtomv1.NodeConfig, spoolDir ...string) *PushClient {
@@ -42,10 +48,89 @@ func NewPushClient(address, nodeID string, wal *spool.WALManager, engine *collec
 		sDir = spoolDir[0]
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &PushClient{collectorAddr: address, nodeID: nodeID, spoolDir: sDir, wal: wal, engine: engine, config: cfg, ctx: ctx, cancel: cancel}
+
+	var lastSeq uint64
+	var lastCur string
+	if wal != nil {
+		lastSeq, lastCur = wal.GetLogState()
+	}
+	chunker, _ := logs.NewChunker(nodeID, lastSeq)
+
+	p := &PushClient{
+		collectorAddr: address,
+		nodeID:        nodeID,
+		spoolDir:      sDir,
+		wal:           wal,
+		engine:        engine,
+		config:        cfg,
+		ctx:           ctx,
+		cancel:        cancel,
+		chunker:       chunker,
+		lastCursor:    lastCur,
+	}
+
+	p.tailer = logs.NewJournalTailer(p.onLogRecord)
+	return p
 }
-func (p *PushClient) Start() { p.wg.Add(2); go p.sampleLoop(); go p.runLoop() }
-func (p *PushClient) Stop()  { p.cancel(); p.wg.Wait() }
+
+func (p *PushClient) onLogRecord(rec *madtomv1.LogRecord, cur string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.lastCursor = cur
+	if p.chunker == nil {
+		return
+	}
+
+	sealed, err := p.chunker.AddRecord(rec)
+	if err != nil {
+		log.Printf("[PushClient] Chunker error: %v", err)
+		return
+	}
+
+	if sealed != nil {
+		if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			if p.wal != nil {
+				if _, err := p.wal.WriteBatch(nil, []*madtomv1.LogChunk{sealed}); err != nil {
+					log.Printf("[PushClient] WAL log append failed: %v", err)
+				}
+				_ = p.wal.SetLogState(p.chunker.CurrentSeq(), cur)
+			}
+		}
+		if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY || p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			if p.isConnected {
+				if len(p.liveChunks) < 64 {
+					p.liveChunks = append(p.liveChunks, sealed)
+				}
+			}
+		}
+	}
+}
+
+func (p *PushClient) Start() {
+	p.wg.Add(2)
+	p.tailer.Start(p.config, p.lastCursor)
+	go p.sampleLoop()
+	go p.runLoop()
+}
+
+func (p *PushClient) Stop() {
+	p.tailer.Stop()
+	p.cancel()
+	p.wg.Wait()
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.chunker != nil {
+		if sealed, _ := p.chunker.SealCurrent(); sealed != nil {
+			if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE && p.wal != nil {
+				_, _ = p.wal.WriteBatch(nil, []*madtomv1.LogChunk{sealed})
+				_ = p.wal.SetLogState(p.chunker.CurrentSeq(), p.lastCursor)
+			}
+		}
+		p.chunker.Close()
+	}
+}
 func (p *PushClient) sampleLoop() {
 	defer p.wg.Done()
 	for {
@@ -131,6 +216,21 @@ func (p *PushClient) connect() bool {
 			}
 			continue
 		}
+		// Attach live monitor chunks if in MONITOR_ONLY or MONITOR_AND_STORE mode
+		p.mu.Lock()
+		if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY || p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			if len(p.liveChunks) > 0 {
+				batch.LogChunks = append(batch.LogChunks, p.liveChunks...)
+				p.liveChunks = nil
+			} else if unsealed, _ := p.chunker.BuildUnsealedChunk(); unsealed != nil {
+				batch.LogChunks = append(batch.LogChunks, unsealed)
+			}
+		}
+		batch.DaemonVersion = DaemonVersion
+		batch.SupportedFeatures = SupportedFeatures
+		batch.AckedConfigHash = optin.ComputeConfigHash(p.config)
+		p.mu.Unlock()
+
 		// Bound ACK waits and blocked sends; cancellation also unblocks Recv.
 		timeout := time.AfterFunc(10*time.Second, cancel)
 		err = stream.Send(batch)
@@ -151,6 +251,9 @@ func (p *PushClient) connect() bool {
 			p.config = ack.Config
 			if p.spoolDir != "" {
 				_ = config.SaveConfig(p.spoolDir, ack.Config)
+			}
+			if p.tailer.NeedsRestart(ack.Config) {
+				p.tailer.Start(ack.Config, p.lastCursor)
 			}
 		}
 		p.isConnected = true

@@ -105,3 +105,21 @@ The client integrates `MdnsServerDiscoveryService`:
 - Filters out non-RFC 1918 cellular and dummy gateway addresses (`192.0.0.1`).
 - Runs an HTTP health handshake against candidate nodes before exposing them in the UI.
 
+### 5.1 Multi-Interface Node Aggregation & Interface Selection
+
+A single transcode server may have multiple network interfaces (e.g. concurrent Ethernet and Wi-Fi connections, multiple subnets). The UI aggregates these endpoints by unique `node_id`:
+- **Single Aggregated UI Item**: All discovered endpoints belonging to the same `node_id` appear as a single entry in the LAN Nodes list.
+- **Interface Selector**: Each aggregated node item provides a dropdown/ComboBox allowing users to select which interface (`Host:Port`) to use when connecting.
+- **Default Selection**: By default, the first discovered interface for a node is selected.
+- **Auto-Connect Default Interface**: Selecting an interface updates the default priority interface used for automatic reconnection to that specific node.
+
+### 5.2 Auto-Connection Priority List & Changing Network Environments
+
+When moving between networks (e.g. home, lab, office, hotspot), previously connected nodes may come and go:
+- **Priority List**: Rather than only remembering the last connected node URL, the client maintains an ordered list of previously connected devices.
+- **Reordering & Management**: Users can adjust priority ranks (Move Up, Move Down) or remove obsolete nodes.
+- **Dynamic Auto-Connect**: On startup or network discovery, auto-connect evaluates available nodes against the priority list and connects to the highest-priority reachable node.
+- **Fallback Interfaces**: If a node's configured priority interface is down or on an unreachable subnet, auto-connect automatically attempts connection using any other verified interface discovered for that node.
+- **Out-of-Order Latency Handling**: Discovery packets and HTTP health probes arrive asynchronously. If a non-priority interface or lower-priority node responds faster, discovery settlement windows and preferred-interface resolution ensure the higher-priority device or priority interface is selected once detected.
+
+

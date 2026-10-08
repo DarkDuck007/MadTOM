@@ -109,6 +109,12 @@ public class UniversalModalAndDeviceControlTests
             Assert.True(success);
             Assert.Equal(300, d1.CurrentBrightness);
             Assert.Equal("300", File.ReadAllText(Path.Combine(dev1, "brightness")).Trim());
+
+            // Test GetBrightness reading true sysfs value
+            File.WriteAllText(Path.Combine(dev1, "brightness"), "400\n");
+            int readVal = service.GetBrightness(d1);
+            Assert.Equal(400, readVal);
+            Assert.Equal(400, d1.CurrentBrightness);
         }
         finally
         {
@@ -174,6 +180,12 @@ public class UniversalModalAndDeviceControlTests
             vm.SliderPercent = 1;
             vm.RevertSliderToSafe();
             Assert.True(vm.SliderPercent >= 5.0);
+
+            // Test external hardware change + RefreshFromSystem()
+            File.WriteAllText(Path.Combine(devDir, "brightness"), "800\n");
+            vm.RefreshFromSystem();
+            Assert.Equal(800, vm.CurrentBrightness);
+            Assert.Equal(80.0, vm.SliderPercent);
         }
         finally
         {

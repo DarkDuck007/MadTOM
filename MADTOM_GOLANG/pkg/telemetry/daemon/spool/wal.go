@@ -83,6 +83,10 @@ func NewWALManager(dir, nodeID string, maxTotalSpool int64, enableZstd bool) (*W
 }
 
 func (w *WALManager) WriteMetrics(samples []*madtomv1.SystemMetrics) (*madtomv1.TelemetryBatch, error) {
+	return w.WriteBatch(samples, nil)
+}
+
+func (w *WALManager) WriteBatch(samples []*madtomv1.SystemMetrics, logChunks []*madtomv1.LogChunk) (*madtomv1.TelemetryBatch, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.closed {
@@ -91,16 +95,16 @@ func (w *WALManager) WriteMetrics(samples []*madtomv1.SystemMetrics) (*madtomv1.
 	if w.writeErr != nil {
 		return nil, w.writeErr
 	}
-	if len(samples) == 0 {
+	if len(samples) == 0 && len(logChunks) == 0 {
 		return nil, nil
 	}
-	batch := &madtomv1.TelemetryBatch{NodeId: w.nodeID, Samples: samples}
+	batch := &madtomv1.TelemetryBatch{NodeId: w.nodeID, Samples: samples, LogChunks: logChunks}
 	// New records must fit an uncompressed replay response. Legacy oversized records
 	// are reported explicitly during replay, never silently skipped or acknowledged.
 	if proto.Size(batch) > DefaultChunkMaxBytes-1024 {
 		return nil, fmt.Errorf("WAL batch exceeds replay byte limit")
 	}
-	if w.enableZstd {
+	if w.enableZstd && len(samples) > 0 {
 		raw, err := proto.Marshal(&madtomv1.TelemetryBatch{Samples: samples})
 		if err != nil {
 			return nil, err
@@ -206,7 +210,7 @@ func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, e
 				f.Close()
 				return nil, fmt.Errorf("read %s at %d: %w", seg.name, offset, err)
 			}
-			cost := proto.Size(&madtomv1.TelemetryBatch{Samples: record.Samples})
+			cost := proto.Size(&madtomv1.TelemetryBatch{Samples: record.Samples, LogChunks: record.LogChunks})
 			if used+cost > DefaultChunkMaxBytes || (len(batch.Samples) > 0 && len(batch.Samples)+len(record.Samples) > maxSamples) {
 				if first == "" {
 					f.Close()
@@ -222,8 +226,9 @@ func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, e
 			batch.SegmentOffset = next
 			used += cost
 			batch.Samples = append(batch.Samples, record.Samples...)
+			batch.LogChunks = append(batch.LogChunks, record.LogChunks...)
 			offset = next
-			if len(batch.Samples) >= maxSamples {
+			if len(batch.Samples) >= maxSamples || len(batch.LogChunks) >= 16 {
 				stop = true
 				break
 			}
@@ -242,7 +247,7 @@ func (w *WALManager) ReadBatchChunk(maxSamples int) (*madtomv1.TelemetryBatch, e
 	if last != first {
 		batch.SegmentId = first + ":" + last
 	}
-	batch.IsBacklog = stop || len(w.segments) > 1 || len(batch.Samples) > 1
+	batch.IsBacklog = stop || len(w.segments) > 1 || len(batch.Samples) > 1 || len(batch.LogChunks) > 1
 	if w.enableZstd && len(batch.Samples) > 5 {
 		raw, err := proto.Marshal(&madtomv1.TelemetryBatch{Samples: batch.Samples})
 		if err != nil {

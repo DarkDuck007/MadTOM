@@ -19,9 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	QueryService_ListNodes_FullMethodName     = "/madtom.v1.QueryService/ListNodes"
-	QueryService_QueryRange_FullMethodName    = "/madtom.v1.QueryService/QueryRange"
-	QueryService_SubscribeLive_FullMethodName = "/madtom.v1.QueryService/SubscribeLive"
+	QueryService_ListNodes_FullMethodName      = "/madtom.v1.QueryService/ListNodes"
+	QueryService_QueryRange_FullMethodName     = "/madtom.v1.QueryService/QueryRange"
+	QueryService_SubscribeLive_FullMethodName  = "/madtom.v1.QueryService/SubscribeLive"
+	QueryService_GetLogStats_FullMethodName    = "/madtom.v1.QueryService/GetLogStats"
+	QueryService_QueryLogChunks_FullMethodName = "/madtom.v1.QueryService/QueryLogChunks"
+	QueryService_SubscribeLogs_FullMethodName  = "/madtom.v1.QueryService/SubscribeLogs"
 )
 
 // QueryServiceClient is the client API for QueryService service.
@@ -36,6 +39,10 @@ type QueryServiceClient interface {
 	QueryRange(ctx context.Context, in *RangeQueryRequest, opts ...grpc.CallOption) (*RangeQueryResponse, error)
 	// Real-time 1Hz streaming feed for actively viewed cards/nodes.
 	SubscribeLive(ctx context.Context, in *LiveSubscriptionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LiveTelemetryEvent], error)
+	// System logs query and streaming endpoints.
+	GetLogStats(ctx context.Context, in *LogStatsRequest, opts ...grpc.CallOption) (*LogStatsResponse, error)
+	QueryLogChunks(ctx context.Context, in *LogChunkQuery, opts ...grpc.CallOption) (*LogChunkResponse, error)
+	SubscribeLogs(ctx context.Context, in *LogSubscription, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogChunk], error)
 }
 
 type queryServiceClient struct {
@@ -85,6 +92,45 @@ func (c *queryServiceClient) SubscribeLive(ctx context.Context, in *LiveSubscrip
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type QueryService_SubscribeLiveClient = grpc.ServerStreamingClient[LiveTelemetryEvent]
 
+func (c *queryServiceClient) GetLogStats(ctx context.Context, in *LogStatsRequest, opts ...grpc.CallOption) (*LogStatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogStatsResponse)
+	err := c.cc.Invoke(ctx, QueryService_GetLogStats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryServiceClient) QueryLogChunks(ctx context.Context, in *LogChunkQuery, opts ...grpc.CallOption) (*LogChunkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogChunkResponse)
+	err := c.cc.Invoke(ctx, QueryService_QueryLogChunks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryServiceClient) SubscribeLogs(ctx context.Context, in *LogSubscription, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogChunk], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &QueryService_ServiceDesc.Streams[1], QueryService_SubscribeLogs_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[LogSubscription, LogChunk]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type QueryService_SubscribeLogsClient = grpc.ServerStreamingClient[LogChunk]
+
 // QueryServiceServer is the server API for QueryService service.
 // All implementations must embed UnimplementedQueryServiceServer
 // for forward compatibility.
@@ -97,6 +143,10 @@ type QueryServiceServer interface {
 	QueryRange(context.Context, *RangeQueryRequest) (*RangeQueryResponse, error)
 	// Real-time 1Hz streaming feed for actively viewed cards/nodes.
 	SubscribeLive(*LiveSubscriptionRequest, grpc.ServerStreamingServer[LiveTelemetryEvent]) error
+	// System logs query and streaming endpoints.
+	GetLogStats(context.Context, *LogStatsRequest) (*LogStatsResponse, error)
+	QueryLogChunks(context.Context, *LogChunkQuery) (*LogChunkResponse, error)
+	SubscribeLogs(*LogSubscription, grpc.ServerStreamingServer[LogChunk]) error
 	mustEmbedUnimplementedQueryServiceServer()
 }
 
@@ -115,6 +165,15 @@ func (UnimplementedQueryServiceServer) QueryRange(context.Context, *RangeQueryRe
 }
 func (UnimplementedQueryServiceServer) SubscribeLive(*LiveSubscriptionRequest, grpc.ServerStreamingServer[LiveTelemetryEvent]) error {
 	return status.Error(codes.Unimplemented, "method SubscribeLive not implemented")
+}
+func (UnimplementedQueryServiceServer) GetLogStats(context.Context, *LogStatsRequest) (*LogStatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetLogStats not implemented")
+}
+func (UnimplementedQueryServiceServer) QueryLogChunks(context.Context, *LogChunkQuery) (*LogChunkResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method QueryLogChunks not implemented")
+}
+func (UnimplementedQueryServiceServer) SubscribeLogs(*LogSubscription, grpc.ServerStreamingServer[LogChunk]) error {
+	return status.Error(codes.Unimplemented, "method SubscribeLogs not implemented")
 }
 func (UnimplementedQueryServiceServer) mustEmbedUnimplementedQueryServiceServer() {}
 func (UnimplementedQueryServiceServer) testEmbeddedByValue()                      {}
@@ -184,6 +243,53 @@ func _QueryService_SubscribeLive_Handler(srv interface{}, stream grpc.ServerStre
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type QueryService_SubscribeLiveServer = grpc.ServerStreamingServer[LiveTelemetryEvent]
 
+func _QueryService_GetLogStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogStatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServiceServer).GetLogStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: QueryService_GetLogStats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServiceServer).GetLogStats(ctx, req.(*LogStatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _QueryService_QueryLogChunks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogChunkQuery)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServiceServer).QueryLogChunks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: QueryService_QueryLogChunks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServiceServer).QueryLogChunks(ctx, req.(*LogChunkQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _QueryService_SubscribeLogs_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(LogSubscription)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(QueryServiceServer).SubscribeLogs(m, &grpc.GenericServerStream[LogSubscription, LogChunk]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type QueryService_SubscribeLogsServer = grpc.ServerStreamingServer[LogChunk]
+
 // QueryService_ServiceDesc is the grpc.ServiceDesc for QueryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -199,11 +305,24 @@ var QueryService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "QueryRange",
 			Handler:    _QueryService_QueryRange_Handler,
 		},
+		{
+			MethodName: "GetLogStats",
+			Handler:    _QueryService_GetLogStats_Handler,
+		},
+		{
+			MethodName: "QueryLogChunks",
+			Handler:    _QueryService_QueryLogChunks_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "SubscribeLive",
 			Handler:       _QueryService_SubscribeLive_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "SubscribeLogs",
+			Handler:       _QueryService_SubscribeLogs_Handler,
 			ServerStreams: true,
 		},
 	},

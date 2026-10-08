@@ -32,6 +32,10 @@ This guide covers the **MADTOM Telemetry Plugin** (`MADTOM.Plugins.Telemetry`) a
     - [Top-N Process Count Configuration](#top-n-process-count-configuration)
     - [Processes Manager: Sub-Tabs \& Breakdown Charting](#processes-manager-sub-tabs--breakdown-charting)
   - [TWAMP Flight \& Latency Radar](#twamp-flight--latency-radar)
+  - [System Journal Log Streaming \& Virtual Viewer](#system-journal-log-streaming--virtual-viewer)
+    - [Three-Tier Opt-In Policy](#three-tier-opt-in-policy)
+    - [Monospace Virtual Log Viewer (`VirtualLogViewControl`)](#monospace-virtual-log-viewer-virtuallogviewcontrol)
+    - [Client Cache \& Performance Settings](#client-cache--performance-settings)
   - [Diagnostics \& Performance Tuning](#diagnostics--performance-tuning)
     - [Background Ingestion Worker \& Coalesced UI Drains](#background-ingestion-worker--coalesced-ui-drains)
     - [Zero-Allocation Sparklines \& Deferred Pruning](#zero-allocation-sparklines--deferred-pruning)
@@ -320,4 +324,32 @@ la.realiteam.art (from fleet) | completed | n=3 median=124.5ms p95=142.1ms chart
 ```
 
 The tool also produces a breakdown of zero-RPC vs. remote queries, cache hit ratios, and 95th/99th percentile frame rendering latencies.
+
+---
+
+## System Journal Log Streaming & Virtual Viewer
+
+The **Logs Tab** within the Host Deep Dive provides end-to-end streaming of `systemd-journald` log entries over gRPC with high-efficiency virtualization and client-side LRU chunk caching.
+
+### Three-Tier Opt-In Policy
+
+Log capture is completely opt-in and disabled by default per node:
+1. **`OPT_IN_OFF` (Default)**: The daemon does not run `journalctl`, attaches zero log chunks to batches, and uses zero network bandwidth and zero disk writes.
+2. **`OPT_IN_MONITOR_ONLY`**: The daemon tails `journalctl -o json -f`, batches entries into compressed chunks (256 records/chunk), and streams them live to connected UI clients. Zero log chunks are written to the daemon disk WAL or collector Pebble database.
+3. **`OPT_IN_MONITOR_AND_STORE`**: Chunks are streamed live to connected clients and persisted in the collector's Pebble TSDB log store with retention policies (hours and MiB quota) and offline WAL spooling on the daemon.
+
+### Monospace Virtual Log Viewer (`VirtualLogViewControl`)
+
+To handle tens of thousands of lines of log entries without UI lag or memory blowup:
+- **Mathematical Line Projection**: Uses fixed line height (`18px`) and monospace typography. Scrollbar ranges and thumb dimensions map directly to monotonic sequence numbers (`FirstSeq` to `LastSeq`).
+- **Off-Screen Compression**: Only records inside the current viewport (+ overscan) are decompressed from zstd bytes. Offscreen chunks remain compressed in the client LRU cache.
+- **Chunk Prefetching**: When scrolling into unbuffered history ranges, the control emits prefetch requests via `NeedChunk` to retrieve missing chunks seamlessly from the collector without freezing UI frames.
+- **Follow Mode & Floating Jump Chip**: Follow mode auto-scrolls to the newest log entries as they arrive. When the user scrolls up to review history, follow mode pauses; if new entries arrive, a floating **"Jump to latest (↓)"** chip appears to return to live head with one tap.
+
+### Client Cache & Performance Settings
+
+Under **Collector Settings → Performance**, operators can configure:
+- **Log Compressed Cache Quota**: Memory limit (default `128 MiB`, 16–4096 MiB) for raw zstd-compressed chunks across all nodes.
+- **Decoded Chunks Pool**: Limit (default `32 chunks`, 4–256 chunks) of decompressed chunk lists retained in hot memory for viewport rendering.
+- **Clear Log Cache**: One-click purge of all local client log chunks without interrupting running collector streams.
 

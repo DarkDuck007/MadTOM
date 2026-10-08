@@ -46,6 +46,7 @@ public interface IBrightnessService
     bool IsSupported { get; }
     IReadOnlyList<DisplayBacklightDevice> GetDevices();
     bool SetBrightness(DisplayBacklightDevice device, int value);
+    int GetBrightness(DisplayBacklightDevice device);
 }
 
 public sealed class LinuxBrightnessService : IBrightnessService
@@ -197,5 +198,23 @@ public sealed class LinuxBrightnessService : IBrightnessService
             global::System.Console.Error.WriteLine($"[LinuxBrightnessService] Failed setting brightness on {brightFile}: {ex.Message}");
             return false;
         }
+    }
+
+    public int GetBrightness(DisplayBacklightDevice device)
+    {
+        string brightFile = Path.Combine(device.SysfsPath, "brightness");
+        try
+        {
+            if (File.Exists(brightFile) && int.TryParse(File.ReadAllText(brightFile).Trim(), out int val))
+            {
+                device.CurrentBrightness = Math.Clamp(val, 0, device.MaxBrightness);
+                return device.CurrentBrightness;
+            }
+        }
+        catch (Exception ex)
+        {
+            global::System.Console.Error.WriteLine($"[LinuxBrightnessService] Failed reading brightness from {brightFile}: {ex.Message}");
+        }
+        return device.CurrentBrightness;
     }
 }

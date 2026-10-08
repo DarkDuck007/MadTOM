@@ -30,14 +30,16 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
     private int _displayDrainScheduled;
 
     public TelemetryHistoryCache HistoryCache { get; }
+    public LogChunkCache LogCache { get; } = new();
     private readonly HistoryQueryCoordinator _historyQueries = new();
     private readonly ConcurrentDictionary<(string, string), (NodeConfig Config, DateTime Expires)> _configs = new();
     private readonly SemaphoreSlim _configGate = new(1, 1);
 
     public MultiCollectorManager CollectorManager => _collectorManager;
-    public ClientCompressionSnapshot GetCompressionDiagnostics() => _collectorManager.GetCompressionDiagnostics(HistoryCache);
+    public ClientCompressionSnapshot GetCompressionDiagnostics() => _collectorManager.GetCompressionDiagnostics(HistoryCache, LogCache);
 
     public event EventHandler<FleetNodeModel>? NodeTelemetryUpdated;
+    public event Action<string, NodeConfig>? NodeConfigUpdated;
 #pragma warning disable CS0067 // Event required by ITelemetryDataProvider; remote log collection is not yet available on the collector
     public event EventHandler<LogEntryModel>? LogReceived;
 #pragma warning restore CS0067
@@ -46,12 +48,14 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
     {
         _collectorManager = collectorManager;
         HistoryCache = historyCache ?? new TelemetryHistoryCache();
+        var settings = new TelemetryCacheSettingsStore().Load();
         if (historyCache == null)
         {
-            var settings = new TelemetryCacheSettingsStore().Load();
             HistoryCache.Configure(settings.RetentionMinutes, settings.LiveLimitMiB * 1048576L,
                 settings.StoredLimitMiB * 1048576L, settings.StoredRetentionSeconds);
         }
+        LogCache.MaxCacheBytes = settings.LogCacheLimitMiB * 1048576L;
+        LogCache.MaxDecodedChunks = settings.LogDecodedChunkLimit;
 
         // Poll collectors every 3 seconds for new/updated nodes
         _refreshTimer = new Timer(OnPollCollectorsTick, null, 100, 3000);
@@ -67,11 +71,11 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
             HistoryCache.Prune();
 
             // Stream watchdog: if a node has an active stream registered but hasn't received
-            // any telemetry sample in >8 seconds, abort the hung stream token so it will reconnect.
+            // any telemetry sample in >20 seconds, abort the hung stream token so it will reconnect.
             var now = DateTime.UtcNow;
             foreach (var kvp in _streamCancelTokens)
             {
-                if (_lastSampleReceived.TryGetValue(kvp.Key, out var lastRx) && (now - lastRx) > TimeSpan.FromSeconds(8))
+                if (_lastSampleReceived.TryGetValue(kvp.Key, out var lastRx) && (now - lastRx) > TimeSpan.FromSeconds(20))
                 {
                     try { kvp.Value.Cancel(); } catch { }
                     _streamCancelTokens.TryRemove(kvp.Key, out _);
@@ -104,23 +108,50 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
             }
 
             // If a previously discovered node was not returned in this cycle, mark it offline
-            foreach (var kvp in _nodes)
+            // only if we received a valid node list from the collector (so we know the collector is reachable)
+            // AND we haven't received live telemetry for this node recently.
+            if (discoveredNodes.Count > 0)
             {
-                if (!discoveredIds.Contains(kvp.Key) && kvp.Value.Status != "offline")
+                foreach (var kvp in _nodes)
                 {
-                    var stale = kvp.Value;
-                    stale.Status = "offline";
-                    Dispatcher.UIThread.Post(() => NodeTelemetryUpdated?.Invoke(this, stale));
+                    if (!discoveredIds.Contains(kvp.Key) && kvp.Value.Status != "offline")
+                    {
+                        var lastRx = _lastSampleReceived.TryGetValue(kvp.Key, out var rx) ? rx : DateTime.MinValue;
+                        if ((now - lastRx) > TimeSpan.FromSeconds(15))
+                        {
+                            var stale = kvp.Value;
+                            stale.Status = "offline";
+                            Dispatcher.UIThread.Post(() => NodeTelemetryUpdated?.Invoke(this, stale));
+                        }
+                    }
+                }
+            }
+            else if (_nodes.Count > 0)
+            {
+                // Collectors returned 0 nodes (poll failure/unreachable). Only mark offline after sustained absence (>20s).
+                foreach (var kvp in _nodes)
+                {
+                    if (kvp.Value.Status != "offline")
+                    {
+                        var lastRx = _lastSampleReceived.TryGetValue(kvp.Key, out var rx) ? rx : DateTime.MinValue;
+                        if ((now - lastRx) > TimeSpan.FromSeconds(20))
+                        {
+                            var stale = kvp.Value;
+                            stale.Status = "offline";
+                            Dispatcher.UIThread.Post(() => NodeTelemetryUpdated?.Invoke(this, stale));
+                        }
+                    }
                 }
             }
         }
         catch
         {
-            // Transient network failure: mark nodes as offline if they haven't received telemetry recently
+            // Transient network failure: mark nodes as offline only if they haven't received telemetry for >20 seconds
             var now = DateTime.UtcNow;
             foreach (var kvp in _nodes)
             {
-                if (_lastSampleReceived.TryGetValue(kvp.Key, out var lastRx) && (now - lastRx) > TimeSpan.FromSeconds(6))
+                var lastRx = _lastSampleReceived.TryGetValue(kvp.Key, out var rx) ? rx : DateTime.MinValue;
+                if ((now - lastRx) > TimeSpan.FromSeconds(20))
                 {
                     var stale = kvp.Value;
                     if (stale.Status != "offline")
@@ -607,22 +638,63 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
         finally { _configGate.Release(); }
     }
 
-    public async Task<bool> UpdateNodeConfigAsync(string hostId, NodeConfig cfg, CancellationToken ct = default)
+    public async Task<ConfigAck?> UpdateNodeConfigAsync(string hostId, NodeConfig cfg, CancellationToken ct = default)
     {
         var node = GetNode(hostId);
         var client = node == null ? null : _collectorManager.GetClientForNode(node);
-        if (client == null || node == null) return false;
+        if (client == null || node == null) return null;
         await _configGate.WaitAsync(ct);
         try
         {
-            bool success = await client.UpdateNodeConfigAsync(hostId, cfg, ct);
-            if (success) _configs[(node.CollectorEndpoint, hostId)] = (cfg.Clone(), DateTime.UtcNow.AddSeconds(30));
-            return success;
+            var ack = await client.UpdateNodeConfigAsync(hostId, cfg, ct);
+            if (ack != null && ack.Success)
+            {
+                _configs[(node.CollectorEndpoint, hostId)] = (cfg.Clone(), DateTime.UtcNow.AddSeconds(30));
+                NodeConfigUpdated?.Invoke(hostId, cfg.Clone());
+            }
+            return ack;
         }
         finally { _configGate.Release(); }
     }
     public IReadOnlyList<DropRuleModel> GetDropRules(string hostId) => Array.Empty<DropRuleModel>();
     public IReadOnlyList<RegionTrafficModel> GetRegions(string hostId) => Array.Empty<RegionTrafficModel>();
+
+    public async Task<LogStatsResponse?> GetLogStatsAsync(string hostId, CancellationToken ct = default)
+    {
+        var node = GetNode(hostId);
+        var client = node == null ? null : _collectorManager.GetClientForNode(node);
+        if (client == null || node == null) return null;
+        return await client.GetLogStatsAsync(hostId, ct);
+    }
+
+    public async Task<LogChunkResponse?> QueryLogChunksAsync(string hostId, ulong startChunkId, uint maxChunks, long seekTs = 0, bool forward = true, CancellationToken ct = default)
+    {
+        var node = GetNode(hostId);
+        var client = node == null ? null : _collectorManager.GetClientForNode(node);
+        if (client == null || node == null) return null;
+        var res = await client.QueryLogChunksAsync(hostId, startChunkId, maxChunks, seekTs, forward, ct);
+        if (res?.Chunks != null)
+        {
+            foreach (var chunk in res.Chunks)
+            {
+                LogCache.PutChunk(node.CollectorEndpoint, hostId, chunk);
+            }
+        }
+        return res;
+    }
+
+    public async IAsyncEnumerable<LogChunk> SubscribeLogsAsync(string hostId, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var node = GetNode(hostId);
+        var client = node == null ? null : _collectorManager.GetClientForNode(node);
+        if (client == null || node == null) yield break;
+
+        await foreach (var chunk in client.SubscribeLogsAsync(hostId, ct))
+        {
+            LogCache.PutChunk(node.CollectorEndpoint, hostId, chunk);
+            yield return chunk;
+        }
+    }
 
     public void SendSignal(string hostId, int pid, int signal) { NotificationService.Instance.ShowToast("Remote process signals are not supported by the collector."); }
     public void PauseLogs(bool paused) { }

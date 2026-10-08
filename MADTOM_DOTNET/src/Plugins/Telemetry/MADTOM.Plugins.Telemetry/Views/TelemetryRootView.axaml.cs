@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -61,12 +62,36 @@ public partial class TelemetryRootView : UserControl
         }
     }
 
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (DataContext is ViewModels.MainViewModel vm)
+        {
+            vm.Sidebar.PropertyChanged += (s, args) =>
+            {
+                if (args.PropertyName is nameof(ViewModels.SidebarViewModel.IsCollapsed) or nameof(ViewModels.SidebarViewModel.SidebarWidth))
+                {
+                    ResetSidebarColumnAuto();
+                }
+            };
+        }
+    }
+
+    private void ResetSidebarColumnAuto()
+    {
+        if (this.FindControl<Grid>("ShellGrid") is { } grid && grid.ColumnDefinitions.Count > 0)
+        {
+            grid.ColumnDefinitions[0].Width = GridLength.Auto;
+        }
+    }
+
     private void OnSidebarSplitterDragDelta(object? sender, VectorEventArgs e)
     {
         if (DataContext is ViewModels.MainViewModel vm && !vm.Sidebar.IsCollapsed)
         {
             vm.Sidebar.SidebarWidth += e.Vector.X;
         }
+        ResetSidebarColumnAuto();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

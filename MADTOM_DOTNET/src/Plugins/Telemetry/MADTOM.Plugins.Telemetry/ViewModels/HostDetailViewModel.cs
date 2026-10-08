@@ -77,6 +77,11 @@ public partial class HostDetailViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsMetricsTab)); OnPropertyChanged(nameof(IsProcessesTab));
         OnPropertyChanged(nameof(IsLogsTab)); OnPropertyChanged(nameof(IsFlightTab));
+        if (value == "logs" && !string.IsNullOrEmpty(SelectedHostId) && !SelectedHostId.Equals("aggregated", StringComparison.OrdinalIgnoreCase))
+        {
+            var node = _telemetryProvider.GetNode(SelectedHostId) ?? _telemetryProvider.GetFleetNodes().FirstOrDefault(n => n.Id.Equals(SelectedHostId, StringComparison.OrdinalIgnoreCase));
+            LogsTab.SetTargetHost(SelectedHostId, node?.CollectorEndpoint ?? "", forceRefresh: true);
+        }
     }
     public ObservableCollection<HostOptionItem> HostOptions { get; } = new();
 
@@ -190,6 +195,7 @@ public partial class HostDetailViewModel : ViewModelBase
             MetricsTab.UpdateForNode("aggregated", updatedNode, allNodes);
             ProcessesTab.SetTargetHost("all");
             FlightTab.SetTargetHost("all");
+            LogsTab.SetTargetHost("aggregated", "");
             return;
         }
 
@@ -214,6 +220,7 @@ public partial class HostDetailViewModel : ViewModelBase
             MetricsTab.UpdateForNode(hostId, null, allNodes);
             ProcessesTab.SetTargetHost(hostId);
             FlightTab.SetTargetHost(hostId);
+            LogsTab.SetTargetHost(hostId, node?.CollectorEndpoint ?? "");
             return;
         }
 
@@ -234,6 +241,7 @@ public partial class HostDetailViewModel : ViewModelBase
         MetricsTab.UpdateForNode(node.Id, node, allNodes);
         ProcessesTab.SetTargetHost(node.Id);
         FlightTab.SetTargetHost(node.Id);
+        LogsTab.SetTargetHost(node.Id, node.CollectorEndpoint);
     }
 
     [RelayCommand]
@@ -248,6 +256,12 @@ public partial class HostDetailViewModel : ViewModelBase
         else if (IsFlightTab)
         {
             FlightTab.SetTargetHost(target);
+        }
+        else if (IsLogsTab)
+        {
+            var allNodes = _telemetryProvider.GetFleetNodes();
+            var node = allNodes.FirstOrDefault(n => n.Id.Equals(SelectedHostId, StringComparison.OrdinalIgnoreCase));
+            LogsTab.SetTargetHost(target, node?.CollectorEndpoint ?? "");
         }
         else if (IsMetricsTab)
         {

@@ -16,27 +16,35 @@ import (
 
 // Pipeline processes incoming batches, writes them to Pebble TSDB, and fans out to live subscribers.
 type Pipeline struct {
-	mu            sync.RWMutex
-	tsdb          *storage.TSDB
-	reg           *registry.Registry
-	decoder       *zstd.Decoder
-	subscribers   map[string][]chan *madtomv1.LiveTelemetryEvent // key: nodeID
-	latest        map[string]*madtomv1.SystemMetrics
-	transport     map[string]*madtomv1.TransportCompressionStats
-	collectorName string
+	mu             sync.RWMutex
+	tsdb           *storage.TSDB
+	logStore       *storage.LogStore
+	reg            *registry.Registry
+	decoder        *zstd.Decoder
+	subscribers    map[string][]chan *madtomv1.LiveTelemetryEvent // key: nodeID
+	logSubscribers map[string][]chan *madtomv1.LogChunk          // key: nodeID
+	latest         map[string]*madtomv1.SystemMetrics
+	transport      map[string]*madtomv1.TransportCompressionStats
+	collectorName  string
 }
 
 // NewPipeline creates a new ingestion processing pipeline.
-func NewPipeline(tsdb *storage.TSDB, reg *registry.Registry, collectorName string) *Pipeline {
+func NewPipeline(tsdb *storage.TSDB, reg *registry.Registry, collectorName string, logStore ...*storage.LogStore) *Pipeline {
 	dec, _ := zstd.NewReader(nil)
+	var ls *storage.LogStore
+	if len(logStore) > 0 {
+		ls = logStore[0]
+	}
 	return &Pipeline{
-		tsdb:          tsdb,
-		reg:           reg,
-		decoder:       dec,
-		subscribers:   make(map[string][]chan *madtomv1.LiveTelemetryEvent),
-		collectorName: collectorName,
-		latest:        make(map[string]*madtomv1.SystemMetrics),
-		transport:     make(map[string]*madtomv1.TransportCompressionStats),
+		tsdb:           tsdb,
+		logStore:       ls,
+		reg:            reg,
+		decoder:        dec,
+		subscribers:    make(map[string][]chan *madtomv1.LiveTelemetryEvent),
+		logSubscribers: make(map[string][]chan *madtomv1.LogChunk),
+		collectorName:  collectorName,
+		latest:         make(map[string]*madtomv1.SystemMetrics),
+		transport:      make(map[string]*madtomv1.TransportCompressionStats),
 	}
 }
 
@@ -46,10 +54,16 @@ func (p *Pipeline) ProcessBatch(batch *madtomv1.TelemetryBatch, mode string) err
 	return err
 }
 
+// ProcessBatchWithSummary ingests a TelemetryBatch and returns ingestion summary metrics.
+func (p *Pipeline) ProcessBatchWithSummary(batch *madtomv1.TelemetryBatch, mode string) (batchSummary, error) {
+	return p.processBatch(batch, mode)
+}
+
 // batchSummary describes successfully ingested samples without retaining decoded payloads.
 type batchSummary struct {
 	sampleCount     int
 	latestTimestamp int64
+	lastAckedLogSeq uint64
 }
 
 func (p *Pipeline) processBatch(batch *madtomv1.TelemetryBatch, mode string) (batchSummary, error) {
@@ -76,7 +90,7 @@ func (p *Pipeline) processBatch(batch *madtomv1.TelemetryBatch, mode string) (ba
 	}
 
 	p.recordTransport(batch, mode, decodedBytes)
-	p.reg.RegisterOrTouch(batch.NodeId, mode, nil)
+	p.reg.RecordBatch(batch, mode)
 
 	var records []storage.MetricRecord
 	var latestSample *madtomv1.SystemMetrics
@@ -104,6 +118,25 @@ func (p *Pipeline) processBatch(batch *madtomv1.TelemetryBatch, mode string) (ba
 	if latestSample != nil {
 		summary.latestTimestamp = latestSample.TimestampUnixNano
 		p.fanOutLive(batch.NodeId, latestSample)
+	}
+
+	// Ingest Log Chunks
+	for _, chunk := range batch.LogChunks {
+		if chunk == nil {
+			continue
+		}
+		chunk.NodeId = batch.NodeId
+		p.fanOutLogs(batch.NodeId, chunk)
+
+		if cfg != nil && cfg.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			if p.logStore != nil && chunk.Sealed {
+				if err := p.logStore.PutChunk(chunk); err == nil {
+					if chunk.LastSeq > summary.lastAckedLogSeq {
+						summary.lastAckedLogSeq = chunk.LastSeq
+					}
+				}
+			}
+		}
 	}
 
 	return summary, nil
@@ -332,3 +365,55 @@ func (p *Pipeline) Subscribe(nodeID string) (<-chan *madtomv1.LiveTelemetryEvent
 
 	return ch, unsubscribe
 }
+
+// SubscribeLogs streams real-time LogChunk messages for an active node.
+func (p *Pipeline) SubscribeLogs(nodeID string) (<-chan *madtomv1.LogChunk, func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	ch := make(chan *madtomv1.LogChunk, 32)
+	p.logSubscribers[nodeID] = append(p.logSubscribers[nodeID], ch)
+
+	unsubscribe := func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+
+		list := p.logSubscribers[nodeID]
+		for i, sub := range list {
+			if sub == ch {
+				copy(list[i:], list[i+1:])
+				list[len(list)-1] = nil
+				list = list[:len(list)-1]
+				if len(list) == 0 {
+					delete(p.logSubscribers, nodeID)
+				} else {
+					p.logSubscribers[nodeID] = list
+				}
+				close(ch)
+				break
+			}
+		}
+	}
+
+	return ch, unsubscribe
+}
+
+func (p *Pipeline) fanOutLogs(nodeID string, chunk *madtomv1.LogChunk) {
+	p.mu.RLock()
+	subs := p.logSubscribers[nodeID]
+	p.mu.RUnlock()
+
+	for _, ch := range subs {
+		select {
+		case ch <- chunk:
+		default:
+			// drop if subscriber channel is full
+		}
+	}
+}
+
+// LogStore returns the underlying LogStore if configured.
+func (p *Pipeline) LogStore() *storage.LogStore {
+	return p.logStore
+}
+

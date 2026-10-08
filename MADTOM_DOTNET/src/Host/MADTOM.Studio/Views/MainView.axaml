@@ -77,7 +77,8 @@
                                 BorderThickness="0"
                                 Padding="6,4"
                                 Cursor="Hand"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="{Binding SidebarStateTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <Border Background="{DynamicResource AccentBrush}"
                                         CornerRadius="6"
@@ -162,14 +163,15 @@
                 </Border>
 
                 <!-- Main Shell Body: Left Plugin Sidebar + Active Viewport Slot -->
-                <Grid Grid.Row="1" ColumnDefinitions="Auto,4,*">
+                <Grid Grid.Row="1" x:Name="MainShellGrid" ColumnDefinitions="Auto,Auto,*">
                     
                     <!-- Left Navigation Sidebar -->
                     <Border Grid.Column="0"
                             Background="{DynamicResource SidebarBgBrush}"
                             BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="0,0,1,0"
-                            Width="{Binding SidebarWidth}">
+                            Width="{Binding SidebarWidth}"
+                            IsVisible="{Binding IsSidebarVisible}">
                         <Border.Transitions>
                             <Transitions>
                                 <DoubleTransition Property="Width" Duration="0:0:0.2" Easing="CubicEaseOut" />
@@ -186,7 +188,7 @@
                                        LetterSpacing="1.2"
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        Margin="8,0,0,8"
-                                       IsVisible="{Binding !IsSidebarCollapsed}" />
+                                       IsVisible="{Binding IsSidebarExpanded}" />
 
                             <!-- Plugin List -->
                             <ItemsControl Grid.Row="1" ItemsSource="{Binding Plugins}">
@@ -215,7 +217,7 @@
                                                 
                                                 <StackPanel Grid.Column="1"
                                                             VerticalAlignment="Center"
-                                                            IsVisible="{Binding !$parent[UserControl].((vm:ConsoleMainViewModel)DataContext).IsSidebarCollapsed}">
+                                                            IsVisible="{Binding $parent[UserControl].((vm:ConsoleMainViewModel)DataContext).IsSidebarExpanded}">
                                                     <TextBlock Text="{Binding DisplayName}"
                                                                FontSize="11"
                                                                FontWeight="SemiBold"
@@ -237,7 +239,7 @@
                                     BorderThickness="1"
                                     CornerRadius="6"
                                     Padding="8"
-                                    IsVisible="{Binding !IsSidebarCollapsed}">
+                                    IsVisible="{Binding IsSidebarExpanded}">
                                 <StackPanel Spacing="2">
                                     <TextBlock Text="MADTOM STUDIO v1.0"
                                                FontSize="9"
@@ -257,6 +259,7 @@
                                   ResizeDirection="Columns"
                                   Background="Transparent"
                                   DragDelta="OnSidebarSplitterDragDelta"
+                                  IsVisible="{Binding IsSidebarExpanded}"
                                   Cursor="SizeWestEast" />
 
                     <!-- Active Module Viewport Stage -->
@@ -267,36 +270,18 @@
             </Grid>
         </LayoutTransformControl>
 
-        <!-- Floating On-Screen Keyboard Quick-Launch Button (Bottom-Left) -->
-        <Button Command="{Binding ToggleKeyboardCommand}"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Bottom"
-                Margin="16"
-                Background="{DynamicResource DarkBaseBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="20"
-                Padding="10,8"
-                Opacity="0.85"
-                Cursor="Hand"
-                ToolTip.Tip="Toggle On-Screen Keyboard">
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <TextBlock Text="⌨" FontSize="14" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
-                <TextBlock Text="OSK" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
-            </StackPanel>
-        </Button>
-
         <!-- Global Toast Notification Overlay -->
         <Border IsVisible="{Binding IsToastVisible}"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Bottom"
-                Margin="24"
+                Margin="24,0,24,80"
                 Background="{DynamicResource CardBgBrush}"
                 BorderBrush="{DynamicResource AccentBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="16,12"
-                BoxShadow="0 8 24 0 #40000000">
+                BoxShadow="0 8 24 0 #40000000"
+                ZIndex="60">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                 <TextBlock Text="{Binding ToastIcon}" FontSize="16" FontFamily="{StaticResource EmojiFontFamily}" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding ToastMessage}"
@@ -307,10 +292,11 @@
             </StackPanel>
         </Border>
 
-        <!-- On-Screen Keyboard Overlay (Docked Bottom) -->
+        <!-- On-Screen Keyboard Overlay (Centered / Movable) -->
         <views:OnScreenKeyboardView DataContext="{Binding Keyboard}"
-                                    HorizontalAlignment="Stretch"
-                                    VerticalAlignment="Bottom" />
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Bottom"
+                                    ZIndex="150" />
 
         <!-- Full-Screen Dimmed MADTOM Studio Settings Modal -->
         <controls:UniversalModalControl
@@ -322,7 +308,8 @@
             DialogWidth="760"
             DialogHeight="620"
             DialogMinWidth="520"
-            DialogMinHeight="400">
+            DialogMinHeight="400"
+            ZIndex="200">
 
             <TabControl SelectedIndex="{Binding SelectedSettingsTab}">
                 
@@ -459,6 +446,174 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Navigation Sidebar Display & Cycling States Section -->
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14">
+                                <StackPanel Spacing="12">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock Text="NAVIGATION SIDEBAR STATES"
+                                                       FontWeight="Bold"
+                                                       FontSize="11"
+                                                       LetterSpacing="1"
+                                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="Select which states are enabled when clicking the MADTOM logo to cycle. At least one state must remain enabled."
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <!-- Current Active State Badge -->
+                                        <Border Grid.Column="1"
+                                                Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource AccentBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="10,4"
+                                                VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <TextBlock Text="Current:"
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding SidebarStateDescription}"
+                                                           FontSize="11"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource AccentTextBrush}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- The 3 States as Selectable Cards -->
+                                    <Grid ColumnDefinitions="*,*,*" Margin="0,4">
+                                        <!-- 1. Expanded -->
+                                        <Border Grid.Column="0"
+                                                Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="12"
+                                                Margin="0,0,4,0">
+                                            <StackPanel Spacing="8">
+                                                <CheckBox IsChecked="{Binding IsSidebarExpandedEnabled, Mode=TwoWay}"
+                                                          Content="Expanded"
+                                                          FontWeight="Bold"
+                                                          FontSize="12"
+                                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="Full sidebar with module names and categories."
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           TextWrapping="Wrap"/>
+                                                <Button Content="Set Active"
+                                                        Command="{Binding SetSidebarStateCommand}"
+                                                        CommandParameter="Expanded"
+                                                        IsEnabled="{Binding IsSidebarExpandedEnabled}"
+                                                        FontSize="10"
+                                                        Padding="8,4"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Center"
+                                                        Background="Transparent"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Cursor="Hand"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- 2. Compact / Collapsed -->
+                                        <Border Grid.Column="1"
+                                                Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="12"
+                                                Margin="2,0,2,0">
+                                            <StackPanel Spacing="8">
+                                                <CheckBox IsChecked="{Binding IsSidebarCollapsedEnabled, Mode=TwoWay}"
+                                                          Content="Compact"
+                                                          FontWeight="Bold"
+                                                          FontSize="12"
+                                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="64px icon-only rail saving horizontal space."
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           TextWrapping="Wrap"/>
+                                                <Button Content="Set Active"
+                                                        Command="{Binding SetSidebarStateCommand}"
+                                                        CommandParameter="Collapsed"
+                                                        IsEnabled="{Binding IsSidebarCollapsedEnabled}"
+                                                        FontSize="10"
+                                                        Padding="8,4"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Center"
+                                                        Background="Transparent"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Cursor="Hand"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- 3. Hidden -->
+                                        <Border Grid.Column="2"
+                                                Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="12"
+                                                Margin="4,0,0,0">
+                                            <StackPanel Spacing="8">
+                                                <CheckBox IsChecked="{Binding IsSidebarHiddenEnabled, Mode=TwoWay}"
+                                                          Content="Hidden"
+                                                          FontWeight="Bold"
+                                                          FontSize="12"
+                                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="Completely hidden to maximize plugin workspace."
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           TextWrapping="Wrap"/>
+                                                <Button Content="Set Active"
+                                                        Command="{Binding SetSidebarStateCommand}"
+                                                        CommandParameter="Hidden"
+                                                        IsEnabled="{Binding IsSidebarHiddenEnabled}"
+                                                        FontSize="10"
+                                                        Padding="8,4"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Center"
+                                                        Background="Transparent"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Cursor="Hand"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Action / Quick Cycle Row -->
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="Tip: Click the MADTOM logo in the top bar to cycle through enabled states."
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1"
+                                                Content="Cycle Sidebar Now"
+                                                Command="{Binding CycleSidebarStateCommand}"
+                                                Padding="12,5"
+                                                FontSize="11"
+                                                Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Cursor="Hand"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -532,8 +687,8 @@
                                                         SmallChange="1"
                                                         LargeChange="5"/>
 
-                                                <!-- Preset Buttons & Apply -->
-                                                <Grid ColumnDefinitions="*,*,*,*,Auto" Margin="0,2">
+                                                <!-- Preset Buttons (Real-time debounced slider) -->
+                                                <Grid ColumnDefinitions="*,*,*,*" Margin="0,2">
                                                     <Button Grid.Column="0" Content="25%" Command="{Binding SetPresetCommand}" CommandParameter="25"
                                                             FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
                                                     <Button Grid.Column="1" Content="50%" Command="{Binding SetPresetCommand}" CommandParameter="50"
@@ -541,17 +696,7 @@
                                                     <Button Grid.Column="2" Content="75%" Command="{Binding SetPresetCommand}" CommandParameter="75"
                                                             FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,3,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
                                                     <Button Grid.Column="3" Content="100%" Command="{Binding SetPresetCommand}" CommandParameter="100"
-                                                            FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,6,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
-                                                    <Button Grid.Column="4"
-                                                            Content="Apply"
-                                                            Command="{Binding ApplySliderBrightnessCommand}"
-                                                            Background="{DynamicResource AccentBrush}"
-                                                            Foreground="White"
-                                                            FontWeight="Bold"
-                                                            FontSize="11"
-                                                            Padding="14,4"
-                                                            CornerRadius="4"
-                                                            Cursor="Hand"/>
+                                                            FontSize="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="3,0,0,0" Padding="6,4" Background="{DynamicResource CardBgBrush}" CornerRadius="4"/>
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
@@ -747,7 +892,8 @@
             DialogHeight="280"
             DialogMinWidth="380"
             DialogMinHeight="220"
-            ShowTouchGrip="False">
+            ShowTouchGrip="False"
+            ZIndex="300">
             <Grid RowDefinitions="*,Auto" Margin="4">
                 <StackPanel Grid.Row="0" Spacing="12" VerticalAlignment="Center">
                     <TextBlock Text="{Binding BrightnessWarningMessage}"

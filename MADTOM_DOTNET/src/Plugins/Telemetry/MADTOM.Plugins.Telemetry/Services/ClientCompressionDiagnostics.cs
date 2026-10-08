@@ -40,15 +40,34 @@ public sealed record ClientCompressionSnapshot(string Summary, IReadOnlyList<Com
 
     public static ClientCompressionSnapshot Capture(TelemetryHistoryCache cache,
         IEnumerable<CollectorClientService> clients)
+        => Capture(cache, clients, null);
+
+    public static ClientCompressionSnapshot Capture(TelemetryHistoryCache cache,
+        IEnumerable<CollectorClientService> clients,
+        LogChunkCache? logCache)
     {
         var usage = cache.GetUsage(1);
         var rows = new List<CompressionDiagnosticRow>
         {
             MemoryRow("Memory · live history", usage.LiveBytes, usage.LiveZstdBytes, usage.LiveZstdRawBytes, usage.LivePoints),
             MemoryRow("Memory · stored queries", usage.StoredBytes, usage.StoredZstdBytes, usage.StoredZstdRawBytes, usage.StoredPoints),
-            MemoryRow("Memory · total", usage.TotalBytes, usage.LiveZstdBytes + usage.StoredZstdBytes,
-                usage.LiveZstdRawBytes + usage.StoredZstdRawBytes, usage.LivePoints + usage.StoredPoints)
         };
+        long totalRetained = usage.TotalBytes;
+        long totalCompressed = usage.LiveZstdBytes + usage.StoredZstdBytes;
+        long totalRaw = usage.LiveZstdRawBytes + usage.StoredZstdRawBytes;
+        long totalPointsAndRecords = usage.LivePoints + usage.StoredPoints;
+
+        if (logCache != null)
+        {
+            rows.Add(MemoryRow("Memory · log chunk cache", logCache.StorageBytes, logCache.TotalCompressedBytes, logCache.TotalRawBytes, logCache.TotalRecordCount));
+            totalRetained += logCache.StorageBytes;
+            totalCompressed += logCache.TotalCompressedBytes;
+            totalRaw += logCache.TotalRawBytes;
+            totalPointsAndRecords += logCache.TotalRecordCount;
+        }
+
+        rows.Add(MemoryRow("Memory · total", totalRetained, totalCompressed, totalRaw, totalPointsAndRecords));
+
         foreach (var client in clients.OrderBy(c => c.Endpoint, StringComparer.OrdinalIgnoreCase))
         {
             foreach (var (name, counter) in client.ReceivedPayloads)
@@ -61,7 +80,7 @@ public sealed record ClientCompressionSnapshot(string Summary, IReadOnlyList<Com
             if (client.TransportDiagnostics.Count > 0) rows.AddRange(client.TransportDiagnostics);
             else rows.Add(new($"{client.Endpoint} · daemon → Collector", "Not reported", "—", "—", "—", "—"));
         }
-        return new(FormatBytes(usage.LiveZstdBytes + usage.StoredZstdBytes), rows);
+        return new(FormatBytes(totalCompressed), rows);
     }
 
     private static string Ratio(long decoded, long encoded) => encoded > 0

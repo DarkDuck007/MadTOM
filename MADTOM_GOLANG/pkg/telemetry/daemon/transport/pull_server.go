@@ -10,6 +10,7 @@ import (
 
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/collector"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/config"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/logs"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/spool"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
@@ -38,6 +39,11 @@ type PullServer struct {
 	activeStreamDone   chan struct{}
 	hasActiveStream    bool
 	lastActive         time.Time
+
+	chunker            *logs.Chunker
+	tailer             *logs.JournalTailer
+	liveChunks         []*madtomv1.LogChunk
+	lastCursor         string
 }
 
 // NewPullServer creates a new PullServer instance.
@@ -49,7 +55,15 @@ func NewPullServer(port int, nodeID string, wal *spool.WALManager, engine *colle
 	if len(spoolDir) > 0 {
 		sDir = spoolDir[0]
 	}
-	return &PullServer{
+
+	var lastSeq uint64
+	var lastCur string
+	if wal != nil {
+		lastSeq, lastCur = wal.GetLogState()
+	}
+	chunker, _ := logs.NewChunker(nodeID, lastSeq)
+
+	s := &PullServer{
 		port:       port,
 		nodeID:     nodeID,
 		spoolDir:   sDir,
@@ -57,6 +71,46 @@ func NewPullServer(port int, nodeID string, wal *spool.WALManager, engine *colle
 		engine:     engine,
 		config:     cfg,
 		lastActive: time.Now(),
+		chunker:    chunker,
+		lastCursor: lastCur,
+	}
+
+	s.tailer = logs.NewJournalTailer(s.onLogRecord)
+	return s
+}
+
+func (s *PullServer) onLogRecord(rec *madtomv1.LogRecord, cur string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.lastCursor = cur
+	if s.chunker == nil {
+		return
+	}
+
+	sealed, err := s.chunker.AddRecord(rec)
+	if err != nil {
+		log.Printf("[PullServer] Chunker error: %v", err)
+		return
+	}
+
+	if sealed != nil {
+		if s.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			if s.wal != nil {
+				if _, err := s.wal.WriteBatch(nil, []*madtomv1.LogChunk{sealed}); err != nil {
+					log.Printf("[PullServer] WAL log append failed: %v", err)
+				}
+				_ = s.wal.SetLogState(s.chunker.CurrentSeq(), cur)
+			}
+		}
+		if s.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY || s.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			hasActiveClient := s.hasActiveStream || time.Since(s.lastActive) < 15*time.Second
+			if hasActiveClient {
+				if len(s.liveChunks) < 64 {
+					s.liveChunks = append(s.liveChunks, sealed)
+				}
+			}
+		}
 	}
 }
 
@@ -69,6 +123,7 @@ func (s *PullServer) Start() error {
 	s.listener = lis
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
+	s.tailer.Start(s.config, s.lastCursor)
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -114,6 +169,7 @@ func (s *PullServer) Start() error {
 
 // Stop terminates the pull gRPC server.
 func (s *PullServer) Stop() {
+	s.tailer.Stop()
 	if s.cancel != nil {
 		s.cancel()
 	}
@@ -123,6 +179,18 @@ func (s *PullServer) Stop() {
 	}
 	if s.listener != nil {
 		_ = s.listener.Close()
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.chunker != nil {
+		if sealed, _ := s.chunker.SealCurrent(); sealed != nil {
+			if s.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE && s.wal != nil {
+				_, _ = s.wal.WriteBatch(nil, []*madtomv1.LogChunk{sealed})
+				_ = s.wal.SetLogState(s.chunker.CurrentSeq(), s.lastCursor)
+			}
+		}
+		s.chunker.Close()
 	}
 }
 
@@ -142,7 +210,11 @@ func (s *PullServer) PollTelemetry(ctx context.Context, req *madtomv1.PollReques
 		return nil, status.Errorf(codes.InvalidArgument, "node ID mismatch: collector requested %q, daemon is %q; configure the collector target with the daemon node ID", req.NodeId, s.nodeID)
 	}
 	if req.Config != nil {
+		oldMode := s.config.LogMode
 		s.config = req.Config
+		if req.Config.LogMode != oldMode {
+			s.tailer.Start(req.Config, s.lastCursor)
+		}
 	}
 	// Acknowledge previously scraped segment if requested
 	if req.LastAckedSegmentId != "" {
@@ -161,6 +233,14 @@ func (s *PullServer) PollTelemetry(ctx context.Context, req *madtomv1.PollReques
 		return nil, status.Errorf(codes.Internal, "read spool: %v", err)
 	}
 	if batch != nil {
+		if s.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY || s.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			if len(s.liveChunks) > 0 {
+				batch.LogChunks = append(batch.LogChunks, s.liveChunks...)
+				s.liveChunks = nil
+			} else if unsealed, _ := s.chunker.BuildUnsealedChunk(); unsealed != nil {
+				batch.LogChunks = append(batch.LogChunks, unsealed)
+			}
+		}
 		return batch, nil
 	}
 
@@ -176,8 +256,11 @@ func (s *PullServer) PollTelemetry(ctx context.Context, req *madtomv1.PollReques
 		return nil, status.Errorf(codes.Internal, "read spool: %v", err)
 	}
 	if batch == nil {
-		return &madtomv1.TelemetryBatch{NodeId: s.nodeID}, nil
+		batch = &madtomv1.TelemetryBatch{NodeId: s.nodeID}
 	}
+	batch.DaemonVersion = DaemonVersion
+	batch.SupportedFeatures = SupportedFeatures
+	batch.AckedConfigHash = optin.ComputeConfigHash(s.config)
 	return batch, nil
 }
 
@@ -232,6 +315,12 @@ func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBat
 	s.lastActive = time.Now()
 	if hello.Config != nil {
 		s.config = hello.Config
+		if s.spoolDir != "" {
+			_ = config.SaveConfig(s.spoolDir, hello.Config)
+		}
+		if s.tailer.NeedsRestart(s.config) {
+			s.tailer.Start(s.config, s.lastCursor)
+		}
 	}
 	s.mu.Unlock()
 	defer func() {
@@ -250,6 +339,21 @@ func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBat
 			}
 			continue
 		}
+		if s.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY || s.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+			s.mu.Lock()
+			if len(s.liveChunks) > 0 {
+				batch.LogChunks = append(batch.LogChunks, s.liveChunks...)
+				s.liveChunks = nil
+			} else if unsealed, _ := s.chunker.BuildUnsealedChunk(); unsealed != nil {
+				batch.LogChunks = append(batch.LogChunks, unsealed)
+			}
+			s.mu.Unlock()
+		}
+
+		batch.DaemonVersion = DaemonVersion
+		batch.SupportedFeatures = SupportedFeatures
+		batch.AckedConfigHash = optin.ComputeConfigHash(s.config)
+
 		if err := stream.Send(batch); err != nil {
 			return err
 		}
@@ -289,6 +393,9 @@ func (s *PullServer) ReceiveBatchStream(stream madtomv1.IngestService_ReceiveBat
 			s.config = ack.Config
 			if s.spoolDir != "" {
 				_ = config.SaveConfig(s.spoolDir, ack.Config)
+			}
+			if s.tailer.NeedsRestart(ack.Config) {
+				s.tailer.Start(ack.Config, s.lastCursor)
 			}
 		}
 		s.mu.Unlock()

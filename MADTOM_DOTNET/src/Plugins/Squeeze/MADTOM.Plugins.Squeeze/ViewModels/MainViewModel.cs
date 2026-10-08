@@ -235,10 +235,13 @@ public partial class MainViewModel : ViewModelBase
 
     private async Task AutoConnectOrInitializeAsync()
     {
-        if (Settings.AutoConnect && !string.IsNullOrWhiteSpace(Settings.ServerUrl))
+        if (Settings.AutoConnect)
         {
-            await _backendService.ConnectAsync(Settings.ServerUrl, Settings.AuthToken);
-
+            bool connected = await Settings.TryAutoConnectAsync();
+            if (!connected)
+            {
+                await InitializeNodeInfoAsync();
+            }
         }
         else
         {
@@ -251,6 +254,10 @@ public partial class MainViewModel : ViewModelBase
         await InitializeNodeInfoAsync();
         if (connected)
         {
+            if (!string.IsNullOrWhiteSpace(NodeInfo?.NodeName) && !string.IsNullOrWhiteSpace(_backendService.BaseUrl))
+            {
+                Settings.RecordSuccessfulConnection(NodeInfo.NodeName, _backendService.BaseUrl);
+            }
             var serverPresets = await _backendService.GetPresetsAsync();
             if (serverPresets.Count > 0)
             {

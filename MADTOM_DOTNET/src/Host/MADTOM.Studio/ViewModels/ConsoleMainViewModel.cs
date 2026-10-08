@@ -95,21 +95,178 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     private Control? _currentPluginView;
 
     [ObservableProperty]
-    private bool _isSidebarCollapsed;
+    private StudioSidebarState _sidebarState = StudioSidebarState.Expanded;
+
+    private bool _isSidebarExpandedEnabled = true;
+    public bool IsSidebarExpandedEnabled
+    {
+        get => _isSidebarExpandedEnabled;
+        set
+        {
+            if (_isSidebarExpandedEnabled == value) return;
+            if (!value && EnabledStatesCount <= 1)
+            {
+                ShowToast("At least one sidebar state must remain enabled", "⚠️");
+                OnPropertyChanged(nameof(IsSidebarExpandedEnabled));
+                return;
+            }
+            _isSidebarExpandedEnabled = value;
+            OnPropertyChanged(nameof(IsSidebarExpandedEnabled));
+            OnEnabledStatesChanged();
+        }
+    }
+
+    private bool _isSidebarCollapsedEnabled = true;
+    public bool IsSidebarCollapsedEnabled
+    {
+        get => _isSidebarCollapsedEnabled;
+        set
+        {
+            if (_isSidebarCollapsedEnabled == value) return;
+            if (!value && EnabledStatesCount <= 1)
+            {
+                ShowToast("At least one sidebar state must remain enabled", "⚠️");
+                OnPropertyChanged(nameof(IsSidebarCollapsedEnabled));
+                return;
+            }
+            _isSidebarCollapsedEnabled = value;
+            OnPropertyChanged(nameof(IsSidebarCollapsedEnabled));
+            OnEnabledStatesChanged();
+        }
+    }
+
+    private bool _isSidebarHiddenEnabled = true;
+    public bool IsSidebarHiddenEnabled
+    {
+        get => _isSidebarHiddenEnabled;
+        set
+        {
+            if (_isSidebarHiddenEnabled == value) return;
+            if (!value && EnabledStatesCount <= 1)
+            {
+                ShowToast("At least one sidebar state must remain enabled", "⚠️");
+                OnPropertyChanged(nameof(IsSidebarHiddenEnabled));
+                return;
+            }
+            _isSidebarHiddenEnabled = value;
+            OnPropertyChanged(nameof(IsSidebarHiddenEnabled));
+            OnEnabledStatesChanged();
+        }
+    }
+
+    public int EnabledStatesCount =>
+        (_isSidebarExpandedEnabled ? 1 : 0) +
+        (_isSidebarCollapsedEnabled ? 1 : 0) +
+        (_isSidebarHiddenEnabled ? 1 : 0);
+
+    public bool IsSidebarExpanded => SidebarState == StudioSidebarState.Expanded;
+
+    public bool IsSidebarCollapsed
+    {
+        get => SidebarState == StudioSidebarState.Collapsed;
+        set
+        {
+            if (value && SidebarState != StudioSidebarState.Collapsed)
+            {
+                SetSidebarState(StudioSidebarState.Collapsed);
+            }
+            else if (!value && SidebarState == StudioSidebarState.Collapsed)
+            {
+                SetSidebarState(StudioSidebarState.Expanded);
+            }
+        }
+    }
+
+    public bool IsSidebarVisible => SidebarState != StudioSidebarState.Hidden;
+
+    public string SidebarStateDescription => SidebarState switch
+    {
+        StudioSidebarState.Expanded => "Expanded",
+        StudioSidebarState.Collapsed => "Compact",
+        StudioSidebarState.Hidden => "Hidden",
+        _ => "Expanded"
+    };
+
+    public string SidebarStateTooltip => $"Sidebar: {SidebarStateDescription} (Click logo to cycle)";
 
     private double _uncollapsedSidebarWidth = 220;
 
     public double SidebarWidth
     {
-        get => IsSidebarCollapsed ? 64 : _uncollapsedSidebarWidth;
+        get => SidebarState switch
+        {
+            StudioSidebarState.Hidden => 0,
+            StudioSidebarState.Collapsed => 64,
+            _ => _uncollapsedSidebarWidth
+        };
         set
         {
-            if (!IsSidebarCollapsed)
+            if (SidebarState == StudioSidebarState.Expanded)
             {
                 _uncollapsedSidebarWidth = Math.Clamp(value, 140, 600);
                 OnPropertyChanged(nameof(SidebarWidth));
             }
         }
+    }
+
+    partial void OnSidebarStateChanged(StudioSidebarState value)
+    {
+        OnPropertyChanged(nameof(IsSidebarExpanded));
+        OnPropertyChanged(nameof(IsSidebarCollapsed));
+        OnPropertyChanged(nameof(IsSidebarVisible));
+        OnPropertyChanged(nameof(SidebarWidth));
+        OnPropertyChanged(nameof(SidebarStateDescription));
+        OnPropertyChanged(nameof(SidebarStateTooltip));
+    }
+
+    private void OnEnabledStatesChanged()
+    {
+        if (_appSettings != null)
+        {
+            _appSettings.EnableSidebarExpandedState = _isSidebarExpandedEnabled;
+            _appSettings.EnableSidebarCollapsedState = _isSidebarCollapsedEnabled;
+            _appSettings.EnableSidebarHiddenState = _isSidebarHiddenEnabled;
+            AppSettingsStore.Save(_appSettings);
+        }
+
+        if (!IsStateEnabled(SidebarState))
+        {
+            SetSidebarState(GetFirstEnabledSidebarState());
+        }
+    }
+
+    public bool IsStateEnabled(StudioSidebarState state) => state switch
+    {
+        StudioSidebarState.Expanded => IsSidebarExpandedEnabled,
+        StudioSidebarState.Collapsed => IsSidebarCollapsedEnabled,
+        StudioSidebarState.Hidden => IsSidebarHiddenEnabled,
+        _ => true
+    };
+
+    public StudioSidebarState GetFirstEnabledSidebarState()
+    {
+        if (IsSidebarExpandedEnabled) return StudioSidebarState.Expanded;
+        if (IsSidebarCollapsedEnabled) return StudioSidebarState.Collapsed;
+        if (IsSidebarHiddenEnabled) return StudioSidebarState.Hidden;
+        return StudioSidebarState.Expanded;
+    }
+
+    public StudioSidebarState GetNextEnabledSidebarState(StudioSidebarState current)
+    {
+        StudioSidebarState[] order = [StudioSidebarState.Expanded, StudioSidebarState.Collapsed, StudioSidebarState.Hidden];
+        int currentIndex = Array.IndexOf(order, current);
+        if (currentIndex < 0) currentIndex = 0;
+
+        for (int i = 1; i <= order.Length; i++)
+        {
+            var candidate = order[(currentIndex + i) % order.Length];
+            if (IsStateEnabled(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return StudioSidebarState.Expanded;
     }
 
     [ObservableProperty]
@@ -246,7 +403,14 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
         _appSettings = AppSettingsStore.Load();
         _activeTheme = _appSettings.Theme;
         _activeLexicon = _appSettings.Language;
-        _isSidebarCollapsed = _appSettings.IsConsoleSidebarCollapsed;
+        _sidebarState = _appSettings.ConsoleSidebarState;
+        _isSidebarExpandedEnabled = _appSettings.EnableSidebarExpandedState;
+        _isSidebarCollapsedEnabled = _appSettings.EnableSidebarCollapsedState;
+        _isSidebarHiddenEnabled = _appSettings.EnableSidebarHiddenState;
+        if (!IsStateEnabled(_sidebarState))
+        {
+            _sidebarState = GetFirstEnabledSidebarState();
+        }
         _uncollapsedSidebarWidth = 220;
         _uiScalePercent = _appSettings.UiScalePercent > 0 ? Math.Clamp(_appSettings.UiScalePercent, 10, 1000) : 100;
         _closeToTray = _appSettings.CloseToTray;
@@ -281,10 +445,25 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
 
     public void RefreshBrightnessDevices()
     {
-        BrightnessDevices.Clear();
-        if (BrightnessService.IsSupported)
+        if (!BrightnessService.IsSupported)
         {
-            foreach (var dev in BrightnessService.GetDevices())
+            BrightnessDevices.Clear();
+            OnPropertyChanged(nameof(IsBrightnessAvailable));
+            return;
+        }
+
+        var devices = BrightnessService.GetDevices();
+        if (BrightnessDevices.Count == devices.Count && BrightnessDevices.Select(d => d.Id).SequenceEqual(devices.Select(d => d.Id)))
+        {
+            foreach (var devVm in BrightnessDevices)
+            {
+                devVm.RefreshFromSystem();
+            }
+        }
+        else
+        {
+            BrightnessDevices.Clear();
+            foreach (var dev in devices)
             {
                 BrightnessDevices.Add(new DisplayDeviceItemViewModel(dev, BrightnessService, OnRequestLowBrightnessConfirmation));
             }
@@ -391,12 +570,42 @@ public sealed partial class ConsoleMainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void ToggleSidebar()
+    public void ToggleSidebar() => CycleSidebarState();
+
+    [RelayCommand]
+    public void CycleSidebarState()
     {
-        IsSidebarCollapsed = !IsSidebarCollapsed;
-        OnPropertyChanged(nameof(SidebarWidth));
-        _appSettings.IsConsoleSidebarCollapsed = IsSidebarCollapsed;
-        AppSettingsStore.Save(_appSettings);
+        var next = GetNextEnabledSidebarState(SidebarState);
+        SetSidebarState(next);
+    }
+
+    [RelayCommand]
+    public void SetSidebarState(object? param)
+    {
+        StudioSidebarState targetState = SidebarState;
+        if (param is StudioSidebarState s)
+        {
+            targetState = s;
+        }
+        else if (param != null && Enum.TryParse<StudioSidebarState>(param.ToString(), true, out var parsed))
+        {
+            targetState = parsed;
+        }
+
+        if (!IsStateEnabled(targetState))
+        {
+            ShowToast($"{targetState} state is disabled in Settings", "⚠️");
+            return;
+        }
+
+        SidebarState = targetState;
+        if (_appSettings != null)
+        {
+            _appSettings.ConsoleSidebarState = targetState;
+            _appSettings.IsConsoleSidebarCollapsed = (targetState == StudioSidebarState.Collapsed);
+            AppSettingsStore.Save(_appSettings);
+        }
+        ShowToast($"Sidebar: {SidebarStateDescription}", "⊞");
     }
 
     [RelayCommand]

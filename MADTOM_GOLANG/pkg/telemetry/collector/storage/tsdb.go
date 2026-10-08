@@ -44,6 +44,11 @@ func OpenTSDB(dir string) (*TSDB, error) {
 	return &TSDB{db: db}, nil
 }
 
+// DB returns the underlying Pebble DB instance.
+func (t *TSDB) DB() *pebble.DB {
+	return t.db
+}
+
 // PutMetric stores a single time-series metric value.
 func (t *TSDB) PutMetric(nodeID string, metricName string, timestampNano int64, value float64) error {
 	t.mu.RLock()

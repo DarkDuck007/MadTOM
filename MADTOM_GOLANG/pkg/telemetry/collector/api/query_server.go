@@ -155,8 +155,80 @@ func (s *Server) UpdateNodeConfig(ctx context.Context, req *madtomv1.UpdateNodeC
 		}
 	}
 	s.reg.SetConfig(req.NodeId, req.Config)
+	confirmed, daemonStatus, version, features, msg := s.reg.WaitForConfigSync(req.NodeId, 3500*time.Millisecond)
+	success := true
+	if daemonStatus == "UNSUPPORTED" || daemonStatus == "NOT_FOUND" {
+		success = false
+	}
+
 	return encodeResponse(ctx, &madtomv1.ConfigAck{
-		Success: true,
-		Message: "Node configuration updated",
+		Success:           success,
+		Message:           msg,
+		DaemonConfirmed:   confirmed,
+		DaemonStatus:      daemonStatus,
+		DaemonVersion:     version,
+		SupportedFeatures: features,
 	})
 }
+
+// GetLogStats returns log storage statistics for the node.
+func (s *Server) GetLogStats(ctx context.Context, req *madtomv1.LogStatsRequest) (*madtomv1.LogStatsResponse, error) {
+	if req.NodeId == "" {
+		return nil, status.Error(codes.InvalidArgument, "node ID required")
+	}
+	ls := s.pipeline.LogStore()
+	if ls == nil {
+		return encodeResponse(ctx, &madtomv1.LogStatsResponse{NodeId: req.NodeId})
+	}
+	stats, err := ls.GetStats(req.NodeId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get log stats: %v", err)
+	}
+	return encodeResponse(ctx, stats)
+}
+
+// QueryLogChunks returns a range of zstd-compressed LogChunks for the virtual view.
+func (s *Server) QueryLogChunks(ctx context.Context, req *madtomv1.LogChunkQuery) (*madtomv1.LogChunkResponse, error) {
+	if req.NodeId == "" {
+		return nil, status.Error(codes.InvalidArgument, "node ID required")
+	}
+	ls := s.pipeline.LogStore()
+	if ls == nil {
+		return encodeResponse(ctx, &madtomv1.LogChunkResponse{NodeId: req.NodeId})
+	}
+	chunks, hasMore, err := ls.QueryChunks(req.NodeId, req.StartChunkId, int(req.MaxChunks), req.SeekTimestampUnixNano, req.Forward)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "query log chunks: %v", err)
+	}
+	return encodeResponse(ctx, &madtomv1.LogChunkResponse{
+		NodeId:  req.NodeId,
+		Chunks:  chunks,
+		HasMore: hasMore,
+	})
+}
+
+// SubscribeLogs streams live LogChunk events for an active node.
+func (s *Server) SubscribeLogs(req *madtomv1.LogSubscription, stream madtomv1.QueryService_SubscribeLogsServer) error {
+	if req.NodeId == "" {
+		return status.Error(codes.InvalidArgument, "node ID required")
+	}
+
+	ch, unsubscribe := s.pipeline.SubscribeLogs(req.NodeId)
+	defer unsubscribe()
+
+	ctx := stream.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case chunk, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			if err := stream.Send(chunk); err != nil {
+				return err
+			}
+		}
+	}
+}
+

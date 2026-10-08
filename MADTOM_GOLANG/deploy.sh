@@ -810,11 +810,33 @@ run_sudo() {
 
 TARGET_DIR="$target_dir"
 TARGET_BIN="$target_bin"
+BIN_NAME="$bin_name"
 REMOTE_TMP="$remote_tmp"
 REMOTE_SVC_TMP="$remote_svc_tmp"
 REMOTE_CFG_TMP="$remote_cfg_tmp"
 SERVICE_NAME="$service"
 PROJECT_NAME="$project"
+
+# If service already exists on remote, check its ExecStart to accurately target the active binary
+if command -v systemctl >/dev/null 2>&1; then
+    SVC_EXEC="\$(run_sudo systemctl cat "\$SERVICE_NAME" 2>/dev/null | grep -E '^\s*ExecStart=' | head -n1 | awk '{print \$1}' | sed 's/^\s*ExecStart=//' || true)"
+    SVC_EXEC="\${SVC_EXEC#[@+-]}"
+    if [ -n "\$SVC_EXEC" ]; then
+        TARGET_BIN="\$SVC_EXEC"
+        TARGET_DIR="\$(dirname "\$SVC_EXEC")"
+    fi
+fi
+
+# If TARGET_BIN resolves to an existing directory, target the binary file inside it
+if [ -d "\$TARGET_BIN" ]; then
+    if [ -d "\$TARGET_BIN/bin" ]; then
+        TARGET_DIR="\$TARGET_BIN/bin"
+        TARGET_BIN="\$TARGET_BIN/bin/\$BIN_NAME"
+    else
+        TARGET_DIR="\$TARGET_BIN"
+        TARGET_BIN="\$TARGET_BIN/\$BIN_NAME"
+    fi
+fi
 
 # Clean up stale regular file if target dir exists as a file
 if [ -f "\$TARGET_DIR" ]; then
@@ -880,7 +902,8 @@ fi
 # Systemd operations
 if command -v systemctl >/dev/null 2>&1; then
     SERVICE_EXEC="\$(run_sudo systemctl cat "\$SERVICE_NAME" 2>/dev/null | grep -E '^\s*ExecStart=' | head -n1 | awk '{print \$1}' | sed 's/^\s*ExecStart=//' || true)"
-    if [ -n "\$SERVICE_EXEC" ] && [ "\$SERVICE_EXEC" != "\$TARGET_BIN" ]; then
+    SERVICE_EXEC="\${SERVICE_EXEC#[@+-]}"
+    if [ -n "\$SERVICE_EXEC" ] && [ "\$SERVICE_EXEC" != "\$TARGET_BIN" ] && [ -f "\$TARGET_BIN" ]; then
         SERVICE_EXEC_DIR="\$(dirname "\$SERVICE_EXEC")"
         if [ -f "\$SERVICE_EXEC_DIR" ]; then
             run_sudo rm -f "\$SERVICE_EXEC_DIR"
@@ -1013,9 +1036,15 @@ for s in raw_servers:
 
     user = str(s.get('user') or defaults.get('user', '')).strip()
     port = s.get('port') or defaults.get('port', 0)
-    service = str(s.get('service') or defaults.get('service', '') or proj_svc or 'madtomd.service').strip()
-    dest = str(s.get('dest') or defaults.get('dest', '') or proj_dest or '/opt/madtomd').strip()
-    binary = str(s.get('binary') or defaults.get('binary', '') or proj_bin or 'bin/madtom-daemon').strip()
+    has_custom_proj = bool(s.get('project'))
+    if has_custom_proj:
+        service = str(s.get('service') or proj_svc or defaults.get('service', '') or 'madtomd.service').strip()
+        dest = str(s.get('dest') or proj_dest or defaults.get('dest', '') or '/opt/madtomd').strip()
+        binary = str(s.get('binary') or proj_bin or defaults.get('binary', '') or 'bin/madtom-daemon').strip()
+    else:
+        service = str(s.get('service') or defaults.get('service', '') or proj_svc or 'madtomd.service').strip()
+        dest = str(s.get('dest') or defaults.get('dest', '') or proj_dest or '/opt/madtomd').strip()
+        binary = str(s.get('binary') or defaults.get('binary', '') or proj_bin or 'bin/madtom-daemon').strip()
     arch = str(s.get('arch') or defaults.get('arch', 'auto')).strip()
     build = s.get('build', defaults.get('build', False))
     if isinstance(build, str):

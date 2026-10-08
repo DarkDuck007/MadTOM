@@ -122,9 +122,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         double[] DisplayValues,
         long[] SourceTimestamps,
         double[] SourceValues,
-        double? LatestValue,
-        double? PrevRawValue,
-        long? PrevRawTimestamp);
+        double? LatestValue);
 
     public sealed record GraphDisplaySnapshot(
         MetricGraphViewModel Graph,
@@ -1154,6 +1152,11 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         {
             g.IsLoading = true;
             g.Status = "Loading…";
+            foreach (var s in g.Series)
+            {
+                s.PreviousRawSampleValue = null;
+                s.PreviousRawSampleTimestampNano = 0;
+            }
         }
         _ = RefreshHistoryAsync();
     }
@@ -1169,6 +1172,11 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         {
             g.IsLoading = true;
             g.Status = "Loading…";
+            foreach (var s in g.Series)
+            {
+                s.PreviousRawSampleValue = null;
+                s.PreviousRawSampleTimestampNano = 0;
+            }
         }
         _ = RefreshHistoryAsync();
     }
@@ -1201,7 +1209,6 @@ public partial class HostMetricsTabViewModel : ViewModelBase
         {
             if (!string.IsNullOrEmpty(TargetHostId))
             {
-                SaveLayout();
                 using (DeepDiveTransitionTracker.MeasureStep("metrics.save-layout"))
                     SaveLayout();
             }
@@ -1210,8 +1217,6 @@ public partial class HostMetricsTabViewModel : ViewModelBase
             ClusterNodes = allNodes;
             IsAggregatedMode = hostId == "aggregated";
 
-            PopulateAvailableMetrics(node, allNodes);
-            LoadGraphsForNode(hostId);
             using (DeepDiveTransitionTracker.MeasureStep("metrics.populate-metrics"))
                 PopulateAvailableMetrics(node, allNodes);
 
@@ -1367,9 +1372,17 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         if (series.PreviousRawSampleValue.HasValue && series.PreviousRawSampleTimestampNano > 0)
                         {
                             double dt = (timestampNano - series.PreviousRawSampleTimestampNano) / 1e9;
+                            if (dt > 10.0)
+                            {
+                                // Telemetry gap (> 10s): re-prime baseline instead of computing a spurious delta
+                                series.PreviousRawSampleValue = currentRaw;
+                                series.PreviousRawSampleTimestampNano = timestampNano;
+                                maxPoints = Math.Max(maxPoints, series.Values.Length);
+                                continue;
+                            }
                             if (dt <= 0.001) dt = 1.0;
                             double delta = currentRaw - series.PreviousRawSampleValue.Value;
-                            if (delta < 0 && series.Metric.Contains("bytes")) delta = 0;
+                            if (delta < 0 && (series.Metric.Contains("bytes") || series.Metric.Contains("ops"))) delta = 0;
                             plotVal = delta / dt;
                         }
                         else
@@ -1500,8 +1513,6 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         long timestampUnit = IsAggregatedMode ? 1_000_000_000L : 1L;
                         long[] rawTs;
                         double[] rawVals;
-                        double? prevVal = null;
-                        long? prevTs = null;
 
                         if (series.IsRateOfChange)
                         {
@@ -1559,9 +1570,6 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                                     idx++;
                                 }
                             }
-
-                            prevVal = rawVals.Length > 0 ? rawVals[^1] : null;
-                            prevTs = rawTs.Length > 0 ? rawTs[^1] : null;
                         }
                         else
                         {
@@ -1634,7 +1642,7 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         double transformElapsed = System.Diagnostics.Stopwatch.GetElapsedTime(transformStart).TotalMilliseconds;
                         DeepDiveTransitionTracker.RecordQueryStats(0, 0, transformElapsed);
 
-                        return new SeriesDisplayData(series, dispTs, dispVals, rawTs, rawVals, latestVal, prevVal, prevTs);
+                        return new SeriesDisplayData(series, dispTs, dispVals, rawTs, rawVals, latestVal);
                     }, cts.Token);
 
                     seriesDisplayList.Add(prepared);
@@ -1697,8 +1705,6 @@ public partial class HostMetricsTabViewModel : ViewModelBase
                         s.Series.Timestamps = s.DisplayTimestamps;
                         s.Series.Values = s.DisplayValues;
                         if (s.LatestValue.HasValue) s.Series.LatestValue = s.LatestValue.Value;
-                        if (s.PrevRawValue.HasValue) s.Series.PreviousRawSampleValue = s.PrevRawValue.Value;
-                        if (s.PrevRawTimestamp.HasValue) s.Series.PreviousRawSampleTimestampNano = s.PrevRawTimestamp.Value;
                     }
                     snap.Graph.Timestamps = snap.Timestamps;
                     snap.Graph.Values = snap.Values;

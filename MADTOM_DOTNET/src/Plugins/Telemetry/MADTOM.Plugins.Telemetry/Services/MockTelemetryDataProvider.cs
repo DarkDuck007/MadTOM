@@ -17,6 +17,7 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
 
     public event EventHandler<FleetNodeModel>? NodeTelemetryUpdated;
     public event EventHandler<LogEntryModel>? LogReceived;
+    public event Action<string, MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig>? NodeConfigUpdated;
 
     public MockTelemetryDataProvider(bool startBackgroundTimer = true)
     {
@@ -318,6 +319,11 @@ public sealed class MockTelemetryDataProvider : ITelemetryDataProvider
     public void RaiseNodeTelemetryUpdated(FleetNodeModel node)
     {
         NodeTelemetryUpdated?.Invoke(this, node);
+    }
+
+    public void RaiseNodeConfigUpdated(string hostId, MADTOM.Plugins.Telemetry.Proto.V1.NodeConfig cfg)
+    {
+        NodeConfigUpdated?.Invoke(hostId, cfg);
     }
 
     public void Dispose()

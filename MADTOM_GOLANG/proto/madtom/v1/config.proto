@@ -88,6 +88,14 @@ message NodeConfig {
 
   // Individual PIDs in live snapshots; 0 preserves the legacy default of 1000.
   uint32 process_snapshot_limit = 33; // 1..1000; independent of stored top_n_processes
+
+  // System Log Streaming & Retention Configuration
+  TelemetryOptInMode log_mode = 34; // OPT_IN_OFF (default), OPT_IN_MONITOR_ONLY, OPT_IN_MONITOR_AND_STORE
+  repeated string log_units = 35;   // Filter units (empty = all units)
+  uint32 log_max_priority = 36;     // Max syslog priority (0=emerg..7=debug; 0=default/all)
+  uint32 log_rate_limit_per_sec = 37; // Max records/sec token bucket (0=unlimited/default 500)
+  uint64 log_retention_bytes = 38;  // Max log bytes per node on collector (default 512MB)
+  uint32 log_retention_hours = 39;  // Max log age in hours on collector (default 168 = 7 days)
 }
 
 message ConfigAck {
@@ -96,5 +104,9 @@ message ConfigAck {
   uint32 decoded_size = 101;
   bool success = 1;
   string message = 2;
+  bool daemon_confirmed = 3;
+  string daemon_status = 4;
+  string daemon_version = 5;
+  repeated string supported_features = 6;
 }
 

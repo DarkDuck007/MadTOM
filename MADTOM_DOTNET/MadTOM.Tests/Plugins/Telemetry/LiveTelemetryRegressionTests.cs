@@ -139,6 +139,57 @@ public sealed class LiveTelemetryRegressionTests
         }
         finally { File.Delete(path); }
     }
+
+    [Fact]
+    public async Task ScopeChange_DoesNotProduceSpikeOnRateMetrics()
+    {
+        using var provider = new RecordingProvider();
+        provider.Node.Interfaces = new[]
+        {
+            new MADTOM.Plugins.Telemetry.Proto.V1.NicMetric { Name = "eth0", RxBytes = 9_000_000_000, TxBytes = 1_000_000_000 }
+        };
+        provider.Node.Disks = new[]
+        {
+            new MADTOM.Plugins.Telemetry.Proto.V1.DiskIoDevice { Name = "nvme0n1", ReadBytes = 44_000_000_000, WriteBytes = 2_000_000_000 }
+        };
+        provider.Node.TimestampUnixNano = 1_700_000_000_000_000_000L;
+
+        var vm = new HostMetricsTabViewModel(provider);
+        vm.UpdateForNode(provider.Node.Id, provider.Node, provider.GetFleetNodes());
+
+        // Add rate graphs for network and disk
+        vm.SelectedMetric = "nic.eth0.rx_bytes";
+        vm.AddGraph();
+        vm.SelectedMetric = "disk.io.nvme0n1.read_bytes";
+        vm.AddGraph();
+
+        await vm.RefreshHistoryAsync();
+
+        // Change scope to 1h
+        vm.SetScope("1h");
+        await vm.RefreshHistoryAsync();
+
+        // First live update arrives shortly after (0.5s later)
+        long t1 = provider.Node.TimestampUnixNano + 500_000_000L;
+        provider.Node.TimestampUnixNano = t1;
+        provider.Node.Interfaces[0].RxBytes = 9_000_050_000; // 50 KB increment
+        provider.Node.Disks[0].ReadBytes = 44_000_100_000;   // 100 KB increment
+        vm.UpdateForNode(provider.Node.Id, provider.Node, provider.GetFleetNodes());
+
+        // Second live update arrives 1.0s later
+        long t2 = t1 + 1_000_000_000L;
+        provider.Node.TimestampUnixNano = t2;
+        provider.Node.Interfaces[0].RxBytes = 9_000_150_000; // 100 KB increment
+        provider.Node.Disks[0].ReadBytes = 44_000_300_000;   // 200 KB increment
+        vm.UpdateForNode(provider.Node.Id, provider.Node, provider.GetFleetNodes());
+
+        var nicGraph = Assert.Single(vm.Graphs, g => g.Series.Any(s => s.Metric == "nic.eth0.rx_bytes"));
+        var diskGraph = Assert.Single(vm.Graphs, g => g.Series.Any(s => s.Metric == "disk.io.nvme0n1.read_bytes"));
+
+        // Neither graph should have a point anywhere near 9G or 44G!
+        Assert.All(nicGraph.Values, v => Assert.True(v < 100_000_000, $"NIC rate was unexpectedly large: {v}"));
+        Assert.All(diskGraph.Values, v => Assert.True(v < 100_000_000, $"Disk rate was unexpectedly large: {v}"));
+    }
     private sealed class RecordingProvider : ITelemetryDataProvider
     {
         public FleetNodeModel Node { get; } = new() { Id = "two-thread-node", Cores = 2, CpuModel = "Real CPU", RamTotal = "8 GB" };

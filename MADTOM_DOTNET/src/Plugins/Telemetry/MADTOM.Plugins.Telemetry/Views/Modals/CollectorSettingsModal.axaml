@@ -211,12 +211,12 @@
                             <TextBlock Text="GRAPH RESOLUTION · points per plotting pixel" FontSize="11" FontWeight="Bold"/>
                             <Grid ColumnDefinitions="110,*,82,70" RowDefinitions="32,32">
                                 <TextBlock Text="Drawing" VerticalAlignment="Center" FontSize="11"/>
-                                <Slider Grid.Column="1" Margin="6,0" Minimum="0.1" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
-                                <NumericUpDown Grid.Column="2" Classes="performance-number" Minimum="0.1" Maximum="5" Increment="0.1" FormatString="0.0" Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
+                                <Slider Grid.Column="1" Margin="6,0" Minimum="0.1" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding GraphPointsPerPixel, Mode=TwoWay, TargetNullValue=1.0, FallbackValue=1.0}"/>
+                                <NumericUpDown Grid.Column="2" Classes="performance-number" Minimum="0.1" Maximum="5" Increment="0.1" FormatString="0.0" ClipValueToMinMax="True" PlaceholderText="1.0" Value="{Binding GraphPointsPerPixel, Mode=TwoWay}"/>
                                 <Button Grid.Column="3" Grid.RowSpan="2" Content="Apply" Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center" Command="{Binding ApplyGraphPerformanceCommand}"/>
                                 <TextBlock Grid.Row="1" Text="History / zoom" VerticalAlignment="Center" FontSize="11"/>
-                                <Slider Grid.Row="1" Grid.Column="1" Margin="6,0" Minimum="1" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True" Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
-                                <NumericUpDown Grid.Row="1" Grid.Column="2" Classes="performance-number" Minimum="1" Maximum="10" Increment="0.5" FormatString="0.0" Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
+                                <Slider Grid.Row="1" Grid.Column="1" Margin="6,0" Minimum="1" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True" Value="{Binding HistoryPointsPerPixel, Mode=TwoWay, TargetNullValue=3.0, FallbackValue=3.0}"/>
+                                <NumericUpDown Grid.Row="1" Grid.Column="2" Classes="performance-number" Minimum="1" Maximum="10" Increment="0.5" FormatString="0.0" ClipValueToMinMax="True" PlaceholderText="3.0" Value="{Binding HistoryPointsPerPixel, Mode=TwoWay}"/>
                             </Grid>
                             <TextBlock Text="Defaults: drawing 1×, history 3×. More history uses more memory and query data." FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"/>
                             <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,2"/>
@@ -224,28 +224,36 @@
                                 <TextBlock Text="CLIENT CACHES · all connected nodes" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
                                 <Button Grid.Column="1" Content="Refresh" Padding="6,2" Command="{Binding RefreshCacheStatsCommand}"/>
                             </Grid>
-                            <Grid ColumnDefinitions="*,90,110,60" RowDefinitions="22,32,Auto,Auto,32,Auto,Auto" IsEnabled="{Binding IsCacheAvailable}">
+                            <Grid ColumnDefinitions="*,90,110,60" RowDefinitions="22,32,Auto,Auto,32,Auto,Auto,32,Auto,32" IsEnabled="{Binding IsCacheAvailable}">
                                 <TextBlock Text="Cache" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
                                 <TextBlock Grid.Column="1" Text="Limit (MiB)" FontSize="10"/>
                                 <TextBlock Grid.Column="2" Text="Age limit" FontSize="10"/>
                                 <TextBlock Grid.Row="1" Text="Streamed history" FontSize="11" VerticalAlignment="Center"/>
-                                <NumericUpDown Grid.Row="1" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" Value="{Binding LiveCacheLimitMiB, Mode=TwoWay}"/>
+                                <NumericUpDown Grid.Row="1" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" ClipValueToMinMax="True" PlaceholderText="64" Value="{Binding LiveCacheLimitMiB, Mode=TwoWay}"/>
                                 <Grid Grid.Row="1" Grid.Column="2" ColumnDefinitions="80,*">
-                                    <NumericUpDown Classes="performance-number" Minimum="1" Maximum="1440" Increment="30" FormatString="0" Value="{Binding CacheRetentionMinutes, Mode=TwoWay}"/>
+                                    <NumericUpDown Classes="performance-number" Minimum="1" Maximum="1440" Increment="30" FormatString="0" ClipValueToMinMax="True" PlaceholderText="60" Value="{Binding CacheRetentionMinutes, Mode=TwoWay}"/>
                                     <TextBlock Grid.Column="1" Text="min" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
                                 </Grid>
                                 <Button Grid.Row="1" Grid.Column="3" Content="Clear" Padding="4,2" Command="{Binding ClearLiveCacheCommand}"/>
                                 <TextBlock Grid.Row="2" Grid.ColumnSpan="4" Text="{Binding LiveCacheUsage}" FontSize="11" Margin="0,2,0,0"/>
                                 <TextBlock Grid.Row="3" Grid.ColumnSpan="4" Text="{Binding CacheMemoryEstimate}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4"/>
                                 <TextBlock Grid.Row="4" Text="Stored query results" FontSize="11" VerticalAlignment="Center"/>
-                                <NumericUpDown Grid.Row="4" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" Value="{Binding StoredCacheLimitMiB, Mode=TwoWay}"/>
+                                <NumericUpDown Grid.Row="4" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" ClipValueToMinMax="True" PlaceholderText="32" Value="{Binding StoredCacheLimitMiB, Mode=TwoWay}"/>
                                 <Grid Grid.Row="4" Grid.Column="2" ColumnDefinitions="80,*">
-                                    <NumericUpDown Classes="performance-number" Minimum="1" Maximum="86400" Increment="30" FormatString="0" Value="{Binding StoredCacheRetentionSeconds, Mode=TwoWay}" ToolTip.Tip="Maximum age since a result was fetched, even below the memory limit. Increase this to reuse stored queries longer; reused results may omit late-arriving data."/>
+                                    <NumericUpDown Classes="performance-number" Minimum="1" Maximum="86400" Increment="30" FormatString="0" ClipValueToMinMax="True" PlaceholderText="30" Value="{Binding StoredCacheRetentionSeconds, Mode=TwoWay}" ToolTip.Tip="Maximum age since a result was fetched, even below the memory limit. Increase this to reuse stored queries longer; reused results may omit late-arriving data."/>
                                     <TextBlock Grid.Column="1" Text="sec" FontSize="10" VerticalAlignment="Center" Margin="3,0,0,0"/>
                                 </Grid>
                                 <Button Grid.Row="4" Grid.Column="3" Content="Clear" Padding="4,2" Command="{Binding ClearStoredCacheCommand}"/>
                                 <TextBlock Grid.Row="5" Grid.ColumnSpan="4" Text="{Binding StoredCacheUsage}" FontSize="11" Margin="0,2,0,0"/>
                                 <TextBlock Grid.Row="6" Grid.ColumnSpan="4" Text="{Binding StoredCacheEstimate}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Row="7" Text="Log compressed chunks" FontSize="11" VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Row="7" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="16" Maximum="4096" Increment="32" FormatString="0" ClipValueToMinMax="True" PlaceholderText="128" Value="{Binding LogCacheLimitMiB, Mode=TwoWay}" ToolTip.Tip="Maximum client memory quota for zstd-compressed log chunks across all nodes."/>
+                                <TextBlock Grid.Row="7" Grid.Column="2" Text="LRU quota" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <Button Grid.Row="7" Grid.Column="3" Content="Clear" Padding="4,2" Command="{Binding ClearLogCacheCommand}"/>
+                                <TextBlock Grid.Row="8" Grid.ColumnSpan="4" Text="{Binding LogCacheUsage}" FontSize="11" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="9" Text="Decoded chunks pool" FontSize="11" VerticalAlignment="Center"/>
+                                <NumericUpDown Grid.Row="9" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="4" Maximum="256" Increment="4" FormatString="0" ClipValueToMinMax="True" PlaceholderText="32" Value="{Binding LogDecodedChunkLimit, Mode=TwoWay}" ToolTip.Tip="Number of decompressed log chunks kept in hot memory for viewport rendering."/>
+                                <TextBlock Grid.Row="9" Grid.Column="2" Text="chunks" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
                             </Grid>
                             <Border Background="{DynamicResource DarkBaseBrush}" Padding="6,4" CornerRadius="4">
                                 <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
@@ -513,18 +521,18 @@
                                                            FontSize="10"
                                                            Foreground="{DynamicResource TextMutedBrush}"/>
 
-                                                <StackPanel Spacing="8">
+                                                 <StackPanel Spacing="8">
                                                     <StackPanel Orientation="Horizontal" Spacing="16">
                                                         <RadioButton Content="Disabled (Off)"
-                                                                     GroupName="ProcessModeGroup"
+                                                                     GroupName="{Binding ProcessModeGroupName}"
                                                                      IsChecked="{Binding IsProcessDisabled, Mode=TwoWay}"
                                                                      ToolTip.Tip="Completely stops querying /proc, zero streaming and zero storage"/>
                                                         <RadioButton Content="Live Only (Probed)"
-                                                                     GroupName="ProcessModeGroup"
+                                                                     GroupName="{Binding ProcessModeGroupName}"
                                                                      IsChecked="{Binding IsProcessLiveOnly, Mode=TwoWay}"
                                                                      ToolTip.Tip="Streams the configured snapshot and retains numeric history in this client; no process CPU history in Collector TSDB"/>
                                                         <RadioButton Content="Probed &amp; Stored (TSDB)"
-                                                                     GroupName="ProcessModeGroup"
+                                                                     GroupName="{Binding ProcessModeGroupName}"
                                                                      IsChecked="{Binding IsProcessStored, Mode=TwoWay}"
                                                                      ToolTip.Tip="Streams the configured snapshot and stores the top CPU name groups from it in Collector TSDB"/>
                                                     </StackPanel>
@@ -533,6 +541,7 @@
                                                         <TextBlock Text="Live snapshot processes" FontSize="11" VerticalAlignment="Center"
                                                                    ToolTip.Tip="Top individual PIDs by CPU, then memory. Limits the live process table and process CPU samples retained in client history. Default: 1000."/>
                                                         <NumericUpDown Grid.Column="1" Classes="performance-number" Minimum="1" Maximum="1000" Increment="1" FormatString="0"
+                                                                       ClipValueToMinMax="True" PlaceholderText="1000"
                                                                        Value="{Binding ProcessSnapshotLimit, Mode=TwoWay}"/>
                                                     </Grid>
                                                     <TextBlock Text="Client history retains all snapshot names. Collector storage keeps only the top names below; live history can still appear in stored-mode graphs."
@@ -568,6 +577,66 @@
                                                                        Margin="12,0,0,0"/>
                                                         </Grid>
                                                     </Border>
+                                                </StackPanel>
+
+                                                <!-- System Logs & Journald Streaming Section -->
+                                                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                                                <TextBlock Text="SYSTEM LOGS &amp; JOURNALD STREAMING"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource AccentTextBrush}"/>
+                                                <TextBlock Text="Configure journald streaming over gRPC and collector retention policy."
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+
+                                                <StackPanel Spacing="8">
+                                                    <StackPanel Orientation="Horizontal" Spacing="16">
+                                                        <RadioButton Content="Disabled (Off)"
+                                                                     GroupName="{Binding LogModeGroupName}"
+                                                                     IsChecked="{Binding IsLogOff, Mode=TwoWay}"
+                                                                     ToolTip.Tip="Journald streaming is disabled. Zero network bandwidth, zero disk writes."/>
+                                                        <RadioButton Content="Live Monitor Only"
+                                                                     GroupName="{Binding LogModeGroupName}"
+                                                                     IsChecked="{Binding IsLogMonitorOnly, Mode=TwoWay}"
+                                                                     ToolTip.Tip="Streams compressed chunks to connected UI clients. Zero disk writes on daemon WAL or collector Pebble store."/>
+                                                        <RadioButton Content="Monitor &amp; Stored (Pebble)"
+                                                                     GroupName="{Binding LogModeGroupName}"
+                                                                     IsChecked="{Binding IsLogStored, Mode=TwoWay}"
+                                                                     ToolTip.Tip="Streams live chunks and persists them in collector TSDB log store with spooling on daemon."/>
+                                                    </StackPanel>
+
+                                                    <Grid ColumnDefinitions="*,110" Margin="0,4,0,0">
+                                                        <TextBlock Text="Rate limit (records/sec)" FontSize="11" VerticalAlignment="Center"
+                                                                   ToolTip.Tip="Token bucket rate limiter on daemon to protect against runaway logging."/>
+                                                        <NumericUpDown Grid.Column="1" Classes="performance-number" Minimum="10" Maximum="10000" Increment="50" FormatString="0"
+                                                                       ClipValueToMinMax="True" PlaceholderText="500"
+                                                                       Value="{Binding LogRateLimitPerSec, Mode=TwoWay}"/>
+                                                    </Grid>
+
+                                                    <Grid ColumnDefinitions="*,110" Margin="0,2,0,0">
+                                                        <TextBlock Text="Storage retention (hours)" FontSize="11" VerticalAlignment="Center"
+                                                                   ToolTip.Tip="Maximum age of log chunks stored in collector. 0 = unlimited age."/>
+                                                        <NumericUpDown Grid.Column="1" Classes="performance-number" Minimum="0" Maximum="8760" Increment="24" FormatString="0"
+                                                                       ClipValueToMinMax="True" PlaceholderText="168"
+                                                                       Value="{Binding LogRetentionHours, Mode=TwoWay}"/>
+                                                    </Grid>
+
+                                                    <Grid ColumnDefinitions="*,110" Margin="0,2,0,0">
+                                                        <TextBlock Text="Storage quota (MiB)" FontSize="11" VerticalAlignment="Center"
+                                                                   ToolTip.Tip="Maximum disk size quota for stored compressed log chunks per node."/>
+                                                        <NumericUpDown Grid.Column="1" Classes="performance-number" Minimum="16" Maximum="65536" Increment="64" FormatString="0"
+                                                                       ClipValueToMinMax="True" PlaceholderText="512"
+                                                                       Value="{Binding LogRetentionMB, Mode=TwoWay}"/>
+                                                    </Grid>
+
+                                                    <Grid ColumnDefinitions="140,*" Margin="0,2,0,0">
+                                                        <TextBlock Text="Filter systemd units" FontSize="11" VerticalAlignment="Center"
+                                                                   ToolTip.Tip="Optional comma-separated list of systemd units to filter (leave blank for all units)."/>
+                                                        <TextBox Grid.Column="1" Text="{Binding LogUnits, Mode=TwoWay}"
+                                                                 FontFamily="{StaticResource MonoFontFamily}" FontSize="11"
+                                                                 PlaceholderText="e.g. systemd, sshd, madtom (blank for all)"/>
+                                                    </Grid>
                                                 </StackPanel>
 
                                                 <Separator Background="{DynamicResource BorderBrush}" Height="1"/>

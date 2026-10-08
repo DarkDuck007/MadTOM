@@ -8,18 +8,27 @@ import (
 	"sync"
 	"time"
 
+	"fmt"
+	"strings"
+
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/optin"
 )
 
 const ConfigsFileName = "node_configs.json"
 
 type NodeEntry struct {
-	Info       *madtomv1.NodeInfo
-	Config     *madtomv1.NodeConfig
-	Configured bool
+	Info            *madtomv1.NodeInfo
+	Config          *madtomv1.NodeConfig
+	Configured      bool
+	DaemonVersion   string
+	DaemonFeatures  []string
+	DaemonAckedHash string
+	LastAckUnixNano int64
+	AckListeners    []chan struct{}
 }
 
 // Registry maintains device topology, live heartbeats, and persistent opt-in configurations.
@@ -86,6 +95,168 @@ func (r *Registry) RegisterOrTouch(nodeID string, mode string, optInfo *madtomv1
 	}
 }
 
+// RecordBatch updates topology, staleness, and daemon capabilities from an incoming batch.
+func (r *Registry) RecordBatch(batch *madtomv1.TelemetryBatch, mode string) {
+	if batch == nil || batch.NodeId == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	nodeID := batch.NodeId
+	now := time.Now().UnixNano()
+	entry, exists := r.nodes[nodeID]
+	if !exists {
+		info := &madtomv1.NodeInfo{
+			NodeId:           nodeID,
+			Hostname:         nodeID,
+			Os:               "Linux",
+			Arch:             "amd64",
+			Status:           "ONLINE",
+			LastSeenUnixNano: now,
+			ConnectionMode:   mode,
+		}
+		entry = &NodeEntry{
+			Info:   info,
+			Config: defaultConfig(nodeID),
+		}
+		r.nodes[nodeID] = entry
+	}
+
+	entry.Info.LastSeenUnixNano = now
+	entry.Info.Status = "ONLINE"
+	if mode != "" {
+		entry.Info.ConnectionMode = mode
+	}
+	if batch.DaemonVersion != "" {
+		entry.DaemonVersion = batch.DaemonVersion
+		entry.Info.DaemonVersion = batch.DaemonVersion
+	}
+	if len(batch.SupportedFeatures) > 0 {
+		entry.DaemonFeatures = batch.SupportedFeatures
+		entry.Info.SupportedFeatures = batch.SupportedFeatures
+	}
+	if batch.AckedConfigHash != "" {
+		entry.DaemonAckedHash = batch.AckedConfigHash
+		entry.LastAckUnixNano = now
+	}
+
+	targetHash := optin.ComputeConfigHash(entry.Config)
+	if entry.DaemonAckedHash == targetHash {
+		entry.Info.ConfigSyncStatus = "CONFIRMED"
+	} else if entry.DaemonVersion == "" {
+		entry.Info.ConfigSyncStatus = "LEGACY_DAEMON"
+	} else {
+		entry.Info.ConfigSyncStatus = "PENDING"
+	}
+
+	for _, ch := range entry.AckListeners {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
+	entry.AckListeners = nil
+}
+
+// WaitForConfigSync waits up to timeout for the node's daemon to confirm applying the config.
+func (r *Registry) WaitForConfigSync(nodeID string, timeout time.Duration) (confirmed bool, daemonStatus string, version string, features []string, msg string) {
+	r.mu.Lock()
+	entry, exists := r.nodes[nodeID]
+	if !exists {
+		r.mu.Unlock()
+		return false, "NOT_FOUND", "", nil, "Node is not registered"
+	}
+
+	targetHash := optin.ComputeConfigHash(entry.Config)
+	now := time.Now().UnixNano()
+	elapsedSec := float64(now-entry.Info.LastSeenUnixNano) / 1e9
+	isOnline := elapsedSec <= 30 && entry.Info.Status != "OFFLINE"
+
+	if !isOnline {
+		v := entry.DaemonVersion
+		feat := entry.DaemonFeatures
+		r.mu.Unlock()
+		return false, "DAEMON_OFFLINE", v, feat,
+			"Configuration saved on collector. Node is currently OFFLINE; settings will apply automatically when daemon connects."
+	}
+
+	if entry.Config.LogMode != madtomv1.TelemetryOptInMode_OPT_IN_OFF {
+		hasLogSupport := false
+		for _, f := range entry.DaemonFeatures {
+			if strings.EqualFold(f, "logs") {
+				hasLogSupport = true
+				break
+			}
+		}
+		if !hasLogSupport {
+			v := entry.DaemonVersion
+			if v == "" {
+				v = "legacy (<1.2.0)"
+			}
+			feat := entry.DaemonFeatures
+			r.mu.Unlock()
+			return false, "UNSUPPORTED", v, feat,
+				fmt.Sprintf("Saved on collector, but running daemon (%s) does NOT support system logs. Please upgrade madtom-daemon on this host.", v)
+		}
+	}
+
+	if entry.DaemonVersion == "" {
+		r.mu.Unlock()
+		return false, "LEGACY_DAEMON", "legacy (<1.2.0)", nil,
+			"Saved on collector. Running daemon is a legacy build (<1.2.0) that cannot confirm configuration sync. Please upgrade madtom-daemon on this host."
+	}
+
+	if entry.DaemonAckedHash == targetHash {
+		v := entry.DaemonVersion
+		feat := entry.DaemonFeatures
+		r.mu.Unlock()
+		featStr := strings.Join(feat, ", ")
+		if featStr == "" {
+			featStr = "metrics"
+		}
+		return true, "CONFIRMED", v, feat,
+			fmt.Sprintf("Applied and confirmed by daemon (v%s, features: %s)", v, featStr)
+	}
+
+	ch := make(chan struct{}, 1)
+	entry.AckListeners = append(entry.AckListeners, ch)
+	r.mu.Unlock()
+
+	select {
+	case <-ch:
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		if entry.DaemonAckedHash == targetHash {
+			featStr := strings.Join(entry.DaemonFeatures, ", ")
+			if featStr == "" {
+				featStr = "metrics"
+			}
+			return true, "CONFIRMED", entry.DaemonVersion, entry.DaemonFeatures,
+				fmt.Sprintf("Applied and confirmed by daemon (v%s, features: %s)", entry.DaemonVersion, featStr)
+		}
+		return false, "PENDING", entry.DaemonVersion, entry.DaemonFeatures,
+			"Configuration delivered; awaiting daemon sync confirmation."
+	case <-time.After(timeout):
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		if entry.DaemonAckedHash == targetHash {
+			featStr := strings.Join(entry.DaemonFeatures, ", ")
+			if featStr == "" {
+				featStr = "metrics"
+			}
+			return true, "CONFIRMED", entry.DaemonVersion, entry.DaemonFeatures,
+				fmt.Sprintf("Applied and confirmed by daemon (v%s, features: %s)", entry.DaemonVersion, featStr)
+		}
+		if entry.DaemonVersion == "" {
+			return false, "LEGACY_DAEMON", "", nil,
+				"Saved on collector hub. Running daemon does not report version/capabilities; please update madtom-daemon on this host."
+		}
+		return false, "PENDING_DELIVERY", entry.DaemonVersion, entry.DaemonFeatures,
+			fmt.Sprintf("Saved on collector hub; daemon (v%s) has not yet returned confirmation within %v.", entry.DaemonVersion, timeout)
+	}
+}
+
 // ListNodes evaluates staleness and returns all registered nodes.
 func (r *Registry) ListNodes() []*madtomv1.NodeInfo {
 	r.mu.Lock()
@@ -102,6 +273,14 @@ func (r *Registry) ListNodes() []*madtomv1.NodeInfo {
 			entry.Info.Status = "STALE"
 		} else {
 			entry.Info.Status = "ONLINE"
+		}
+		targetHash := optin.ComputeConfigHash(entry.Config)
+		if entry.DaemonAckedHash == targetHash {
+			entry.Info.ConfigSyncStatus = "CONFIRMED"
+		} else if entry.DaemonVersion == "" {
+			entry.Info.ConfigSyncStatus = "LEGACY_DAEMON"
+		} else {
+			entry.Info.ConfigSyncStatus = "PENDING"
 		}
 		list = append(list, proto.Clone(entry.Info).(*madtomv1.NodeInfo))
 	}

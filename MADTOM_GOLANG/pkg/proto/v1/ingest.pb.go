@@ -33,6 +33,12 @@ type TelemetryBatch struct {
 	// Optional compressed payload (e.g. zstd)
 	IsCompressed      bool   `protobuf:"varint,7,opt,name=is_compressed,json=isCompressed,proto3" json:"is_compressed,omitempty"`
 	CompressedPayload []byte `protobuf:"bytes,8,opt,name=compressed_payload,json=compressedPayload,proto3" json:"compressed_payload,omitempty"`
+	// Log chunks (compressed independently with zstd, either live or from log spool)
+	LogChunks []*LogChunk `protobuf:"bytes,9,rep,name=log_chunks,json=logChunks,proto3" json:"log_chunks,omitempty"`
+	// Daemon telemetry capabilities and acknowledgement
+	DaemonVersion     string   `protobuf:"bytes,10,opt,name=daemon_version,json=daemonVersion,proto3" json:"daemon_version,omitempty"`
+	SupportedFeatures []string `protobuf:"bytes,11,rep,name=supported_features,json=supportedFeatures,proto3" json:"supported_features,omitempty"`
+	AckedConfigHash   string   `protobuf:"bytes,12,opt,name=acked_config_hash,json=ackedConfigHash,proto3" json:"acked_config_hash,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -123,6 +129,34 @@ func (x *TelemetryBatch) GetCompressedPayload() []byte {
 	return nil
 }
 
+func (x *TelemetryBatch) GetLogChunks() []*LogChunk {
+	if x != nil {
+		return x.LogChunks
+	}
+	return nil
+}
+
+func (x *TelemetryBatch) GetDaemonVersion() string {
+	if x != nil {
+		return x.DaemonVersion
+	}
+	return ""
+}
+
+func (x *TelemetryBatch) GetSupportedFeatures() []string {
+	if x != nil {
+		return x.SupportedFeatures
+	}
+	return nil
+}
+
+func (x *TelemetryBatch) GetAckedConfigHash() string {
+	if x != nil {
+		return x.AckedConfigHash
+	}
+	return ""
+}
+
 // BatchAck signals receipt and successful persistence of a segment batch.
 type BatchAck struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -132,6 +166,7 @@ type BatchAck struct {
 	Success       bool                   `protobuf:"varint,4,opt,name=success,proto3" json:"success,omitempty"`
 	ErrorMessage  string                 `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	Config        *NodeConfig            `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"`
+	LogAckedSeq   uint64                 `protobuf:"varint,7,opt,name=log_acked_seq,json=logAckedSeq,proto3" json:"log_acked_seq,omitempty"` // highest persisted log sequence number acked by collector
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -206,6 +241,13 @@ func (x *BatchAck) GetConfig() *NodeConfig {
 		return x.Config
 	}
 	return nil
+}
+
+func (x *BatchAck) GetLogAckedSeq() uint64 {
+	if x != nil {
+		return x.LogAckedSeq
+	}
+	return 0
 }
 
 // PollRequest queries a pull-mode daemon for buffered samples since last ACK.
@@ -289,7 +331,7 @@ var File_madtom_v1_ingest_proto protoreflect.FileDescriptor
 
 const file_madtom_v1_ingest_proto_rawDesc = "" +
 	"\n" +
-	"\x16madtom/v1/ingest.proto\x12\tmadtom.v1\x1a\x17madtom/v1/metrics.proto\x1a\x16madtom/v1/config.proto\"\xb7\x02\n" +
+	"\x16madtom/v1/ingest.proto\x12\tmadtom.v1\x1a\x17madtom/v1/metrics.proto\x1a\x16madtom/v1/config.proto\x1a\x14madtom/v1/logs.proto\"\xed\x03\n" +
 	"\x0eTelemetryBatch\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1f\n" +
 	"\vsequence_id\x18\x02 \x01(\x03R\n" +
@@ -301,7 +343,13 @@ const file_madtom_v1_ingest_proto_rawDesc = "" +
 	"is_backlog\x18\x05 \x01(\bR\tisBacklog\x122\n" +
 	"\asamples\x18\x06 \x03(\v2\x18.madtom.v1.SystemMetricsR\asamples\x12#\n" +
 	"\ris_compressed\x18\a \x01(\bR\fisCompressed\x12-\n" +
-	"\x12compressed_payload\x18\b \x01(\fR\x11compressedPayload\"\xd7\x01\n" +
+	"\x12compressed_payload\x18\b \x01(\fR\x11compressedPayload\x122\n" +
+	"\n" +
+	"log_chunks\x18\t \x03(\v2\x13.madtom.v1.LogChunkR\tlogChunks\x12%\n" +
+	"\x0edaemon_version\x18\n" +
+	" \x01(\tR\rdaemonVersion\x12-\n" +
+	"\x12supported_features\x18\v \x03(\tR\x11supportedFeatures\x12*\n" +
+	"\x11acked_config_hash\x18\f \x01(\tR\x0fackedConfigHash\"\xfb\x01\n" +
 	"\bBatchAck\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n" +
 	"\n" +
@@ -309,7 +357,8 @@ const file_madtom_v1_ingest_proto_rawDesc = "" +
 	"\x0esegment_offset\x18\x03 \x01(\x03R\rsegmentOffset\x12\x18\n" +
 	"\asuccess\x18\x04 \x01(\bR\asuccess\x12#\n" +
 	"\rerror_message\x18\x05 \x01(\tR\ferrorMessage\x12-\n" +
-	"\x06config\x18\x06 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xd5\x01\n" +
+	"\x06config\x18\x06 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\x12\"\n" +
+	"\rlog_acked_seq\x18\a \x01(\x04R\vlogAckedSeq\"\xd5\x01\n" +
 	"\vPollRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x121\n" +
 	"\x15last_acked_segment_id\x18\x02 \x01(\tR\x12lastAckedSegmentId\x12*\n" +
@@ -340,23 +389,25 @@ var file_madtom_v1_ingest_proto_goTypes = []any{
 	(*BatchAck)(nil),       // 1: madtom.v1.BatchAck
 	(*PollRequest)(nil),    // 2: madtom.v1.PollRequest
 	(*SystemMetrics)(nil),  // 3: madtom.v1.SystemMetrics
-	(*NodeConfig)(nil),     // 4: madtom.v1.NodeConfig
+	(*LogChunk)(nil),       // 4: madtom.v1.LogChunk
+	(*NodeConfig)(nil),     // 5: madtom.v1.NodeConfig
 }
 var file_madtom_v1_ingest_proto_depIdxs = []int32{
 	3, // 0: madtom.v1.TelemetryBatch.samples:type_name -> madtom.v1.SystemMetrics
-	4, // 1: madtom.v1.BatchAck.config:type_name -> madtom.v1.NodeConfig
-	4, // 2: madtom.v1.PollRequest.config:type_name -> madtom.v1.NodeConfig
-	0, // 3: madtom.v1.IngestService.PushBatchStream:input_type -> madtom.v1.TelemetryBatch
-	2, // 4: madtom.v1.IngestService.PollTelemetry:input_type -> madtom.v1.PollRequest
-	1, // 5: madtom.v1.IngestService.ReceiveBatchStream:input_type -> madtom.v1.BatchAck
-	1, // 6: madtom.v1.IngestService.PushBatchStream:output_type -> madtom.v1.BatchAck
-	0, // 7: madtom.v1.IngestService.PollTelemetry:output_type -> madtom.v1.TelemetryBatch
-	0, // 8: madtom.v1.IngestService.ReceiveBatchStream:output_type -> madtom.v1.TelemetryBatch
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 1: madtom.v1.TelemetryBatch.log_chunks:type_name -> madtom.v1.LogChunk
+	5, // 2: madtom.v1.BatchAck.config:type_name -> madtom.v1.NodeConfig
+	5, // 3: madtom.v1.PollRequest.config:type_name -> madtom.v1.NodeConfig
+	0, // 4: madtom.v1.IngestService.PushBatchStream:input_type -> madtom.v1.TelemetryBatch
+	2, // 5: madtom.v1.IngestService.PollTelemetry:input_type -> madtom.v1.PollRequest
+	1, // 6: madtom.v1.IngestService.ReceiveBatchStream:input_type -> madtom.v1.BatchAck
+	1, // 7: madtom.v1.IngestService.PushBatchStream:output_type -> madtom.v1.BatchAck
+	0, // 8: madtom.v1.IngestService.PollTelemetry:output_type -> madtom.v1.TelemetryBatch
+	0, // 9: madtom.v1.IngestService.ReceiveBatchStream:output_type -> madtom.v1.TelemetryBatch
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_ingest_proto_init() }
@@ -366,6 +417,7 @@ func file_madtom_v1_ingest_proto_init() {
 	}
 	file_madtom_v1_metrics_proto_init()
 	file_madtom_v1_config_proto_init()
+	file_madtom_v1_logs_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

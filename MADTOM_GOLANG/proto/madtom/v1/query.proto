@@ -3,6 +3,7 @@ syntax = "proto3";
 package madtom.v1;
 
 import "madtom/v1/metrics.proto";
+import "madtom/v1/logs.proto";
 
 option go_package = "github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1";
 option csharp_namespace = "MADTOM.Plugins.Telemetry.Proto.V1";
@@ -17,6 +18,11 @@ service QueryService {
 
   // Real-time 1Hz streaming feed for actively viewed cards/nodes.
   rpc SubscribeLive(LiveSubscriptionRequest) returns (stream LiveTelemetryEvent);
+
+  // System logs query and streaming endpoints.
+  rpc GetLogStats(LogStatsRequest) returns (LogStatsResponse);
+  rpc QueryLogChunks(LogChunkQuery) returns (LogChunkResponse);
+  rpc SubscribeLogs(LogSubscription) returns (stream LogChunk);
 }
 
 message ListNodesRequest {}
@@ -29,6 +35,9 @@ message NodeInfo {
   string status = 5; // "ONLINE", "STALE", "OFFLINE"
   int64 last_seen_unix_nano = 6;
   string connection_mode = 7; // "PUSH", "PULL"
+  string daemon_version = 8;
+  repeated string supported_features = 9;
+  string config_sync_status = 10;
 }
 
 message ListNodesResponse {
@@ -93,3 +102,45 @@ message TransportCompressionStats {
   uint64 raw_bytes = 8; // Serialized samples in frames sent without zstd.
   bool raw_bytes_supported = 9;
 }
+
+message LogStatsRequest {
+  string node_id = 1;
+}
+
+message LogStatsResponse {
+  // Negotiated response envelope; decoded content is this same message type.
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
+  string node_id = 1;
+  uint64 first_seq = 2;
+  uint64 last_seq = 3;
+  uint64 total_records = 4;
+  int64 oldest_ts_unix_nano = 5;
+  int64 newest_ts_unix_nano = 6;
+  uint64 total_bytes = 7;
+}
+
+message LogChunkQuery {
+  string node_id = 1;
+  uint64 start_chunk_id = 2;
+  uint32 max_chunks = 3;              // e.g. 8 chunks = up to 2048 records
+  int64 seek_timestamp_unix_nano = 4; // if > 0, collector seeks closest chunk
+  bool forward = 5;                   // direction for range traversal
+}
+
+message LogChunkResponse {
+  // Negotiated response envelope; decoded content is this same message type.
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
+  string node_id = 1;
+  repeated LogChunk chunks = 2;
+  bool has_more = 3;
+}
+
+message LogSubscription {
+  string node_id = 1;
+  uint64 from_seq = 2;        // 0 = subscribe to live only; >0 = catch up from seq
+  repeated string units = 3;  // optional filter
+  uint32 max_priority = 4;    // optional filter (0 = any)
+}
+

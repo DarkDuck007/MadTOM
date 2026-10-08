@@ -4,6 +4,7 @@ package madtom.v1;
 
 import "madtom/v1/metrics.proto";
 import "madtom/v1/config.proto";
+import "madtom/v1/logs.proto";
 
 option go_package = "github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1";
 option csharp_namespace = "MADTOM.Plugins.Telemetry.Proto.V1";
@@ -32,6 +33,14 @@ message TelemetryBatch {
   // Optional compressed payload (e.g. zstd)
   bool is_compressed = 7;
   bytes compressed_payload = 8;
+
+  // Log chunks (compressed independently with zstd, either live or from log spool)
+  repeated LogChunk log_chunks = 9;
+
+  // Daemon telemetry capabilities and acknowledgement
+  string daemon_version = 10;
+  repeated string supported_features = 11;
+  string acked_config_hash = 12;
 }
 
 // BatchAck signals receipt and successful persistence of a segment batch.
@@ -42,6 +51,7 @@ message BatchAck {
   bool success = 4;
   string error_message = 5;
   NodeConfig config = 6;
+  uint64 log_acked_seq = 7; // highest persisted log sequence number acked by collector
 }
 
 // PollRequest queries a pull-mode daemon for buffered samples since last ACK.

@@ -40,18 +40,20 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Background="{DynamicResource CardBgBrush}"
+    <Border x:Name="KeyboardCard"
+            Background="{DynamicResource CardBgBrush}"
             BorderBrush="{DynamicResource BorderBrush}"
-            BorderThickness="1,1,1,0"
-            CornerRadius="16,16,0,0"
-            BoxShadow="0 -8 32 #A0000000"
-            MaxWidth="960"
-            HorizontalAlignment="Stretch"
+            BorderThickness="1"
+            CornerRadius="16"
+            BoxShadow="0 8 32 #C0000000"
+            Width="660"
+            HorizontalAlignment="Center"
             VerticalAlignment="Bottom"
-            Padding="12,10,12,12">
-        <StackPanel Spacing="6">
+            Margin="0,0,0,16"
+            Padding="10,8,10,10">
+        <StackPanel Spacing="5">
             <!-- OSK Drag / Header Bar -->
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,0,4,4">
+            <Grid x:Name="HeaderBar" ColumnDefinitions="Auto,*,Auto" Margin="4,0,4,4" Background="Transparent" Cursor="SizeAll">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="⌨" FontSize="14" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
                     <TextBlock Text="ON-SCREEN KEYBOARD"
@@ -62,11 +64,23 @@
                                Foreground="{DynamicResource TextMutedBrush}"
                                VerticalAlignment="Center"/>
                 </StackPanel>
+
+                <TextBlock Grid.Column="1"
+                           Text="⋮⋮ DRAG TO MOVE"
+                           FontSize="9"
+                           FontWeight="Bold"
+                           LetterSpacing="1"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Opacity="0.5"/>
+
                 <Button Grid.Column="2"
                         Classes="osk-key special"
                         Command="{Binding ToggleVisibilityCommand}"
                         Padding="8,2"
-                        MinHeight="26"
+                        Height="24"
+                        Width="30"
                         CornerRadius="4"
                         Cursor="Hand"
                         ToolTip.Tip="Close keyboard">
@@ -78,7 +92,7 @@
             <ItemsControl ItemsSource="{Binding Row1Keys}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -86,7 +100,7 @@
                         <Button Classes="osk-key"
                                 Classes.special="{Binding IsSpecial}"
                                 Classes.active="{Binding IsActive}"
-                                Width="52"
+                                Width="{Binding KeyWidth}"
                                 Command="{Binding $parent[ItemsControl].((vm:OnScreenKeyboardViewModel)DataContext).HandleKeyPressCommand}"
                                 CommandParameter="{Binding}"
                                 Content="{Binding DisplayText}"/>
@@ -98,7 +112,7 @@
             <ItemsControl ItemsSource="{Binding Row2Keys}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -106,7 +120,7 @@
                         <Button Classes="osk-key"
                                 Classes.special="{Binding IsSpecial}"
                                 Classes.active="{Binding IsActive}"
-                                Width="52"
+                                Width="{Binding KeyWidth}"
                                 Command="{Binding $parent[ItemsControl].((vm:OnScreenKeyboardViewModel)DataContext).HandleKeyPressCommand}"
                                 CommandParameter="{Binding}"
                                 Content="{Binding DisplayText}"/>
@@ -118,7 +132,7 @@
             <ItemsControl ItemsSource="{Binding Row3Keys}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -126,7 +140,7 @@
                         <Button Classes="osk-key"
                                 Classes.special="{Binding IsSpecial}"
                                 Classes.active="{Binding IsActive}"
-                                Width="52"
+                                Width="{Binding KeyWidth}"
                                 Command="{Binding $parent[ItemsControl].((vm:OnScreenKeyboardViewModel)DataContext).HandleKeyPressCommand}"
                                 CommandParameter="{Binding}"
                                 Content="{Binding DisplayText}"/>
@@ -138,7 +152,7 @@
             <ItemsControl ItemsSource="{Binding Row4Keys}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -146,7 +160,7 @@
                         <Button Classes="osk-key"
                                 Classes.special="{Binding IsSpecial}"
                                 Classes.active="{Binding IsActive}"
-                                Width="52"
+                                Width="{Binding KeyWidth}"
                                 Command="{Binding $parent[ItemsControl].((vm:OnScreenKeyboardViewModel)DataContext).HandleKeyPressCommand}"
                                 CommandParameter="{Binding}"
                                 Content="{Binding DisplayText}"/>

@@ -63,11 +63,19 @@ func receivePushSession(ctx context.Context, p *Pipeline, nodeID, address string
 			log.Printf("[ReversePush] Node ID mismatch from %s: got %q", nodeID, batch.NodeId)
 			return
 		}
-		if err = p.ProcessBatch(batch, "REVERSE_PUSH"); err != nil {
+		summary, err := p.ProcessBatchWithSummary(batch, "REVERSE_PUSH")
+		if err != nil {
 			log.Printf("[ReversePush] Ingestion failed for %s segment %s: %v", nodeID, batch.SegmentId, err)
 			return
 		}
-		if err = stream.Send(&madtomv1.BatchAck{NodeId: nodeID, SegmentId: batch.SegmentId, SegmentOffset: batch.SegmentOffset, Success: true, Config: p.reg.TransportConfig(nodeID)}); err != nil {
+		if err = stream.Send(&madtomv1.BatchAck{
+			NodeId:        nodeID,
+			SegmentId:     batch.SegmentId,
+			SegmentOffset: batch.SegmentOffset,
+			Success:       true,
+			Config:        p.reg.TransportConfig(nodeID),
+			LogAckedSeq:   summary.lastAckedLogSeq,
+		}); err != nil {
 			log.Printf("[ReversePush] Ack send failed for %s: %v", nodeID, err)
 			return
 		}

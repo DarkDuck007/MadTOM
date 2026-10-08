@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -15,6 +16,8 @@ public sealed partial class KeyboardKeyViewModel : ObservableObject
     public double FlexWidth { get; }
     public bool IsSpecial { get; }
     public bool IsActive { get; }
+
+    public double KeyWidth => FlexWidth * 56.0;
 
     public KeyboardKeyViewModel(string displayText, string outputValue, double flexWidth = 1.0, bool isSpecial = false, bool isActive = false)
     {
@@ -29,6 +32,7 @@ public sealed partial class KeyboardKeyViewModel : ObservableObject
 public sealed partial class OnScreenKeyboardViewModel : ObservableObject
 {
     private TextBox? _targetTextBox;
+    private TopLevel? _topLevel;
 
     [ObservableProperty]
     private bool _isVisible;
@@ -60,9 +64,25 @@ public sealed partial class OnScreenKeyboardViewModel : ObservableObject
 
     public void AttachToTopLevel(TopLevel topLevel)
     {
+        _topLevel = topLevel;
+
         topLevel.AddHandler(InputElement.GotFocusEvent, (sender, e) =>
         {
-            if (e.Source is TextBox tb)
+            var tb = e.Source as TextBox ?? (e.Source as Visual)?.FindAncestorOfType<TextBox>();
+            if (tb != null)
+            {
+                _targetTextBox = tb;
+                if (IsAutoPopupEnabled && !IsVisible)
+                {
+                    IsVisible = true;
+                }
+            }
+        }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+
+        topLevel.AddHandler(InputElement.PointerPressedEvent, (sender, e) =>
+        {
+            var tb = e.Source as TextBox ?? (e.Source as Visual)?.FindAncestorOfType<TextBox>();
+            if (tb != null)
             {
                 _targetTextBox = tb;
                 if (IsAutoPopupEnabled && !IsVisible)
@@ -171,6 +191,14 @@ public sealed partial class OnScreenKeyboardViewModel : ObservableObject
     [RelayCommand]
     public void HandleKeyPress(KeyboardKeyViewModel key)
     {
+        if (key == null) return;
+
+        if (_targetTextBox == null && _topLevel != null)
+        {
+            var focused = _topLevel.FocusManager?.GetFocusedElement();
+            _targetTextBox = focused as TextBox ?? (focused as Visual)?.FindAncestorOfType<TextBox>();
+        }
+
         switch (key.OutputValue)
         {
             case "SHIFT":

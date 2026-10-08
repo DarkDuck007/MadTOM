@@ -161,7 +161,15 @@ public class UniversalModalControl : ContentControl
 
     public UniversalModalControl()
     {
+        HorizontalAlignment = HorizontalAlignment.Stretch;
+        VerticalAlignment = VerticalAlignment.Stretch;
         IsVisible = IsOpen;
+
+        Template = new Avalonia.Controls.Templates.FuncControlTemplate((control, scope) =>
+        {
+            var parent = (UniversalModalControl)control;
+            return parent.CreateModalTemplate();
+        });
 
         AddHandler(KeyDownEvent, (s, e) =>
         {
@@ -203,26 +211,12 @@ public class UniversalModalControl : ContentControl
         }
     }
 
-    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+    private Control CreateModalTemplate()
     {
-        base.OnApplyTemplate(e);
-        RebuildModalVisualTree();
-    }
-
-    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnAttachedToVisualTree(e);
-        RebuildModalVisualTree();
-    }
-
-    private void RebuildModalVisualTree()
-    {
-        if (_scrimGrid != null) return;
-
-        // Scrim Grid
+        // Full-screen dimmed backdrop scrim (#B3000000)
         _scrimGrid = new Grid
         {
-            Background = new SolidColorBrush(Color.FromArgb(0xC0, 0x00, 0x00, 0x00)),
+            Background = new SolidColorBrush(Color.FromArgb(0xB3, 0x00, 0x00, 0x00)),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch
         };
@@ -236,22 +230,25 @@ public class UniversalModalControl : ContentControl
             }
         };
 
-        // Dialog Container Card
+        // Dialog Container Card (Centered, rounded, theme-aware)
         _dialogContainer = new Border
         {
             CornerRadius = new CornerRadius(16),
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            Width = DialogWidth,
-            Height = DialogHeight,
-            MinWidth = DialogMinWidth,
-            MinHeight = DialogMinHeight,
             BoxShadow = BoxShadows.Parse("0 14 36 #C0000000")
         };
 
         _dialogContainer.Bind(Border.BackgroundProperty, this.GetResourceObservable("CardBgBrush"));
         _dialogContainer.Bind(Border.BorderBrushProperty, this.GetResourceObservable("BorderBrush"));
+
+        _dialogContainer.Bind(Border.WidthProperty, this.GetObservable(DialogWidthProperty));
+        _dialogContainer.Bind(Border.HeightProperty, this.GetObservable(DialogHeightProperty));
+        _dialogContainer.Bind(Border.MinWidthProperty, this.GetObservable(DialogMinWidthProperty));
+        _dialogContainer.Bind(Border.MinHeightProperty, this.GetObservable(DialogMinHeightProperty));
+        _dialogContainer.Bind(Border.MaxWidthProperty, this.GetObservable(DialogMaxWidthProperty));
+        _dialogContainer.Bind(Border.MaxHeightProperty, this.GetObservable(DialogMaxHeightProperty));
 
         var containerPanel = new Panel();
 
@@ -358,8 +355,12 @@ public class UniversalModalControl : ContentControl
         Grid.SetRow(headerGrid, 0);
 
         // Content Presenter for Dialog Body
-        var bodyPresenter = new ContentPresenter();
+        var bodyPresenter = new ContentPresenter
+        {
+            Name = "PART_ContentPresenter"
+        };
         bodyPresenter.Bind(ContentPresenter.ContentProperty, this.GetObservable(ContentProperty));
+        bodyPresenter.Bind(ContentPresenter.ContentTemplateProperty, this.GetObservable(ContentTemplateProperty));
         layoutGrid.Children.Add(bodyPresenter);
         Grid.SetRow(bodyPresenter, 1);
 
@@ -421,9 +422,6 @@ public class UniversalModalControl : ContentControl
         _dialogContainer.Child = containerPanel;
         _scrimGrid.Children.Add(_dialogContainer);
 
-        VisualChildren.Clear();
-        VisualChildren.Add(_scrimGrid);
-        LogicalChildren.Clear();
-        LogicalChildren.Add(_scrimGrid);
+        return _scrimGrid;
     }
 }

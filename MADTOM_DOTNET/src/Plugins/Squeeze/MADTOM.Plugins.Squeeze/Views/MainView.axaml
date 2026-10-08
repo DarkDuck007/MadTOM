@@ -432,11 +432,11 @@
                                             <StackPanel Spacing="8">
                                                 <Grid Classes="form-row" ColumnDefinitions="120,*">
                                                     <TextBlock Text="Width" VerticalAlignment="Center" />
-                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.Width}" Minimum="0" Maximum="7680" Increment="2" FormatString="0" AutomationProperties.Name="Output width" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.Width}" Minimum="0" Maximum="7680" Increment="2" FormatString="0" ClipValueToMinMax="True" PlaceholderText="0" AutomationProperties.Name="Output width" />
                                                 </Grid>
                                                 <Grid Classes="form-row" ColumnDefinitions="120,*">
                                                     <TextBlock Text="Height" VerticalAlignment="Center" />
-                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.Height}" Minimum="0" Maximum="4320" Increment="2" FormatString="0" AutomationProperties.Name="Output height" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.Height}" Minimum="0" Maximum="4320" Increment="2" FormatString="0" ClipValueToMinMax="True" PlaceholderText="0" AutomationProperties.Name="Output height" />
                                                 </Grid>
                                             </StackPanel>
                                         </StackPanel>
@@ -457,19 +457,19 @@
                                             <StackPanel Spacing="8">
                                                 <Grid Classes="form-row" ColumnDefinitions="120,*">
                                                     <TextBlock Text="Top" VerticalAlignment="Center" />
-                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropTop}" Minimum="0" Maximum="4096" FormatString="0" AutomationProperties.Name="Crop top" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropTop}" Minimum="0" Maximum="4096" FormatString="0" ClipValueToMinMax="True" PlaceholderText="0" AutomationProperties.Name="Crop top" />
                                                 </Grid>
                                                 <Grid Classes="form-row" ColumnDefinitions="120,*">
                                                     <TextBlock Text="Bottom" VerticalAlignment="Center" />
-                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropBottom}" Minimum="0" Maximum="4096" FormatString="0" AutomationProperties.Name="Crop bottom" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropBottom}" Minimum="0" Maximum="4096" FormatString="0" ClipValueToMinMax="True" PlaceholderText="0" AutomationProperties.Name="Crop bottom" />
                                                 </Grid>
                                                 <Grid Classes="form-row" ColumnDefinitions="120,*">
                                                     <TextBlock Text="Left" VerticalAlignment="Center" />
-                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropLeft}" Minimum="0" Maximum="4096" FormatString="0" AutomationProperties.Name="Crop left" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropLeft}" Minimum="0" Maximum="4096" FormatString="0" ClipValueToMinMax="True" PlaceholderText="0" AutomationProperties.Name="Crop left" />
                                                 </Grid>
                                                 <Grid Classes="form-row" ColumnDefinitions="120,*">
                                                     <TextBlock Text="Right" VerticalAlignment="Center" />
-                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropRight}" Minimum="0" Maximum="4096" FormatString="0" AutomationProperties.Name="Crop right" />
+                                                    <NumericUpDown Grid.Column="1" Value="{Binding TranscodeParams.CropRight}" Minimum="0" Maximum="4096" FormatString="0" ClipValueToMinMax="True" PlaceholderText="0" AutomationProperties.Name="Crop right" />
                                                 </Grid>
                                             </StackPanel>
                                         </StackPanel>

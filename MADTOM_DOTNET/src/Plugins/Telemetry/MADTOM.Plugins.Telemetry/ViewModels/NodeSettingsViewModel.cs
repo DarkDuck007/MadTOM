@@ -174,25 +174,118 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasUnappliedChanges))]
-    private int _processSnapshotLimit = 1000;
+    private int? _processSnapshotLimit = 1000;
+
+    public string ProcessModeGroupName { get; } = "ProcMode_" + Guid.NewGuid().ToString("N");
+    public string LogModeGroupName { get; } = "LogMode_" + Guid.NewGuid().ToString("N");
 
     public bool IsProcessDisabled
     {
         get => ProcessMode == ProcessTelemetryMode.ProcessModeDisabled;
-        set { if (value) ProcessMode = ProcessTelemetryMode.ProcessModeDisabled; }
+        set
+        {
+            if (value && ProcessMode != ProcessTelemetryMode.ProcessModeDisabled)
+            {
+                ProcessMode = ProcessTelemetryMode.ProcessModeDisabled;
+                OnPropertyChanged(nameof(IsProcessLiveOnly));
+                OnPropertyChanged(nameof(IsProcessStored));
+            }
+        }
     }
 
     public bool IsProcessLiveOnly
     {
         get => ProcessMode == ProcessTelemetryMode.ProcessModeLiveOnly;
-        set { if (value) ProcessMode = ProcessTelemetryMode.ProcessModeLiveOnly; }
+        set
+        {
+            if (value && ProcessMode != ProcessTelemetryMode.ProcessModeLiveOnly)
+            {
+                ProcessMode = ProcessTelemetryMode.ProcessModeLiveOnly;
+                OnPropertyChanged(nameof(IsProcessDisabled));
+                OnPropertyChanged(nameof(IsProcessStored));
+            }
+        }
     }
 
     public bool IsProcessStored
     {
         get => ProcessMode == ProcessTelemetryMode.ProcessModeProbedAndStored;
-        set { if (value) ProcessMode = ProcessTelemetryMode.ProcessModeProbedAndStored; }
+        set
+        {
+            if (value && ProcessMode != ProcessTelemetryMode.ProcessModeProbedAndStored)
+            {
+                ProcessMode = ProcessTelemetryMode.ProcessModeProbedAndStored;
+                OnPropertyChanged(nameof(IsProcessDisabled));
+                OnPropertyChanged(nameof(IsProcessLiveOnly));
+            }
+        }
     }
+
+    // --- Log Streaming & Retention Configuration ---
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedChanges))]
+    [NotifyPropertyChangedFor(nameof(IsLogOff))]
+    [NotifyPropertyChangedFor(nameof(IsLogMonitorOnly))]
+    [NotifyPropertyChangedFor(nameof(IsLogStored))]
+    private TelemetryOptInMode _logMode = TelemetryOptInMode.OptInOff;
+
+    public bool IsLogOff
+    {
+        get => LogMode == TelemetryOptInMode.OptInOff;
+        set
+        {
+            if (value && LogMode != TelemetryOptInMode.OptInOff)
+            {
+                LogMode = TelemetryOptInMode.OptInOff;
+                OnPropertyChanged(nameof(IsLogMonitorOnly));
+                OnPropertyChanged(nameof(IsLogStored));
+            }
+        }
+    }
+
+    public bool IsLogMonitorOnly
+    {
+        get => LogMode == TelemetryOptInMode.OptInMonitorOnly;
+        set
+        {
+            if (value && LogMode != TelemetryOptInMode.OptInMonitorOnly)
+            {
+                LogMode = TelemetryOptInMode.OptInMonitorOnly;
+                OnPropertyChanged(nameof(IsLogOff));
+                OnPropertyChanged(nameof(IsLogStored));
+            }
+        }
+    }
+
+    public bool IsLogStored
+    {
+        get => LogMode == TelemetryOptInMode.OptInMonitorAndStore;
+        set
+        {
+            if (value && LogMode != TelemetryOptInMode.OptInMonitorAndStore)
+            {
+                LogMode = TelemetryOptInMode.OptInMonitorAndStore;
+                OnPropertyChanged(nameof(IsLogOff));
+                OnPropertyChanged(nameof(IsLogMonitorOnly));
+            }
+        }
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedChanges))]
+    private uint? _logRateLimitPerSec = 500;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedChanges))]
+    private uint? _logRetentionHours = 168;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedChanges))]
+    private uint? _logRetentionMB = 512;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnappliedChanges))]
+    private string _logUnits = "";
 
     // --- Tier 2: Viewing Opt-in (Client UI Level) ---
     [ObservableProperty]
@@ -230,13 +323,18 @@ public partial class NodeSettingsViewModel : ViewModelBase
         bool TwampClocksSynchronized,
         ProcessTelemetryMode ProcessMode,
         int TopNProcesses,
-        int ProcessSnapshotLimit,
+        int? ProcessSnapshotLimit,
         bool IsViewingEnabled,
         bool ViewCpuMatrix,
         bool ViewSwapZram,
         bool ViewPowerBattery,
         bool ViewNetworkCounters,
-        string MetricModesHash
+        string MetricModesHash,
+        TelemetryOptInMode LogMode,
+        uint? LogRateLimitPerSec,
+        uint? LogRetentionHours,
+        uint? LogRetentionMB,
+        string LogUnits
     );
 
     private ConfigSnapshot? _baseline;
@@ -323,7 +421,12 @@ public partial class NodeSettingsViewModel : ViewModelBase
         ViewSwapZram,
         ViewPowerBattery,
         ViewNetworkCounters,
-        ComputeModesHash()
+        ComputeModesHash(),
+        LogMode,
+        LogRateLimitPerSec,
+        LogRetentionHours,
+        LogRetentionMB,
+        LogUnits
     );
 
     public void CaptureBaseline()
@@ -354,6 +457,11 @@ public partial class NodeSettingsViewModel : ViewModelBase
             ViewSwapZram = b.ViewSwapZram;
             ViewPowerBattery = b.ViewPowerBattery;
             ViewNetworkCounters = b.ViewNetworkCounters;
+            LogMode = b.LogMode;
+            LogRateLimitPerSec = b.LogRateLimitPerSec;
+            LogRetentionHours = b.LogRetentionHours;
+            LogRetentionMB = b.LogRetentionMB;
+            LogUnits = b.LogUnits;
 
             // Revert metric item modes from hash
             var modeDict = b.MetricModesHash.Split(';', StringSplitOptions.RemoveEmptyEntries)
@@ -542,7 +650,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
             if (_client != null)
             {
                 var config = await _client.GetNodeConfigAsync(_node.Id);
-                if (config != null)
+                if (config != null && !HasUnappliedChanges)
                 {
                     _loadedConfig = config;
                     TwampTarget = config.TwampTarget ?? "";
@@ -557,11 +665,16 @@ public partial class NodeSettingsViewModel : ViewModelBase
                     ProcessMode = config.ProcessMode;
                     TopNProcesses = (int)(config.TopNProcesses > 0 ? config.TopNProcesses : 5);
                     ProcessSnapshotLimit = (int)(config.ProcessSnapshotLimit == 0 ? 1000 : Math.Clamp(config.ProcessSnapshotLimit, 1u, 1000u));
+                    LogMode = config.LogMode;
+                    LogRateLimitPerSec = config.LogRateLimitPerSec > 0 ? config.LogRateLimitPerSec : 500;
+                    LogRetentionHours = config.LogRetentionHours > 0 ? config.LogRetentionHours : 168;
+                    LogRetentionMB = config.LogRetentionBytes > 0 ? (uint)(config.LogRetentionBytes / (1024 * 1024)) : 512;
+                    LogUnits = string.Join(", ", config.LogUnits);
 
                     BuildMetricGroups();
+                    CaptureBaseline();
                 }
             }
-            CaptureBaseline();
         }
         finally
         {
@@ -612,22 +725,51 @@ public partial class NodeSettingsViewModel : ViewModelBase
             cfg.CollectPowerBattery = cfg.PowerMode != TelemetryOptInMode.OptInOff;
             cfg.CollectNetworkInterfaces = cfg.NetworkMode != TelemetryOptInMode.OptInOff;
 
+            int snapLimit = Math.Clamp(ProcessSnapshotLimit ?? 1000, 1, 1000);
+            uint rateLimit = (LogRateLimitPerSec ?? 500) > 0 ? (LogRateLimitPerSec ?? 500) : 500;
+            uint retHours = LogRetentionHours ?? 168;
+            uint retMB = LogRetentionMB ?? 512;
+
             cfg.ProcessMode = ProcessMode;
             cfg.TopNProcesses = (uint)Math.Clamp(TopNProcesses, 1, 10);
-            cfg.ProcessSnapshotLimit = (uint)Math.Clamp(ProcessSnapshotLimit, 1, 1000);
+            cfg.ProcessSnapshotLimit = (uint)snapLimit;
             cfg.TwampTarget = TwampTarget.Trim();
             cfg.TwampClocksSynchronized = TwampClocksSynchronized;
 
-            bool success = await _client.UpdateNodeConfigAsync(_node.Id, cfg);
-            if (success)
+            cfg.LogMode = LogMode;
+            cfg.LogRateLimitPerSec = rateLimit;
+            cfg.LogRetentionHours = retHours;
+            cfg.LogRetentionBytes = (ulong)retMB * 1024 * 1024;
+            cfg.LogUnits.Clear();
+
+            ProcessSnapshotLimit = snapLimit;
+            LogRateLimitPerSec = rateLimit;
+            LogRetentionHours = retHours;
+            LogRetentionMB = retMB;
+            if (!string.IsNullOrWhiteSpace(LogUnits))
+            {
+                foreach (var u in LogUnits.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    cfg.LogUnits.Add(u);
+            }
+
+            StatusMessage = "Applying changes and awaiting daemon confirmation...";
+            var ack = await _client.UpdateNodeConfigAsync(_node.Id, cfg);
+            if (ack != null && ack.Success)
             {
                 _loadedConfig = cfg;
                 CaptureBaseline();
-                StatusMessage = "Configuration saved; delivered on the next daemon exchange.";
+                if (ack.DaemonConfirmed)
+                {
+                    StatusMessage = $"✓ {ack.Message}";
+                }
+                else
+                {
+                    StatusMessage = $"⚠ {ack.Message}";
+                }
             }
             else
             {
-                StatusMessage = "Failed to reach Collector.";
+                StatusMessage = ack != null ? $"✗ {ack.Message}" : "Failed to reach Collector.";
             }
         }
         else

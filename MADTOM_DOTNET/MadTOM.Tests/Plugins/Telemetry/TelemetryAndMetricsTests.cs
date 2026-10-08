@@ -1570,11 +1570,11 @@ public class TelemetryAndMetricsTests
             return Task.FromResult<NodeConfig?>(cfg);
         }
 
-        public Task<bool> UpdateNodeConfigAsync(string hostId, NodeConfig config, CancellationToken ct = default)
+        public Task<ConfigAck?> UpdateNodeConfigAsync(string hostId, NodeConfig config, CancellationToken ct = default)
         {
             Configs[hostId] = config;
             UpdatedConfigs.Add((hostId, config));
-            return Task.FromResult(true);
+            return Task.FromResult<ConfigAck?>(new ConfigAck { Success = true });
         }
     }
 

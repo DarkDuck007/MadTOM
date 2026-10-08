@@ -44,13 +44,33 @@ func main() {
 	}
 	defer tsdb.Close()
 
-	// 2. Initialize Node Registry & Ingest Pipeline
+	// 2. Initialize Node Registry, Log Store & Ingest Pipeline
 	reg := registry.NewRegistry(*collectorName, *dataDir)
-	pipeline := ingest.NewPipeline(tsdb, reg, *collectorName)
+	logStore := storage.NewLogStore(tsdb.DB())
+	pipeline := ingest.NewPipeline(tsdb, reg, *collectorName, logStore)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var receivers sync.WaitGroup
 	defer func() { cancel(); receivers.Wait() }()
+
+	// Background log retention enforcement worker
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				for _, n := range reg.ListNodes() {
+					cfg := reg.GetConfig(n.NodeId)
+					if cfg != nil && cfg.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
+						_ = logStore.EnforceRetention(n.NodeId, cfg.LogRetentionBytes, cfg.LogRetentionHours)
+					}
+				}
+			}
+		}
+	}()
 	if *reverseTargets != "" {
 		for _, target := range strings.Split(*reverseTargets, ",") {
 			node, address, ok := strings.Cut(strings.TrimSpace(target), "@")

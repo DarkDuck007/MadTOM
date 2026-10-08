@@ -12,13 +12,21 @@ import (
 const stateFile = "wal-state.json"
 
 type walState struct {
-	Version      int              `json:"version"`
-	LastSequence int64            `json:"last_sequence"`
-	Acked        map[string]int64 `json:"acked_offsets"`
+	Version         int              `json:"version"`
+	LastSequence    int64            `json:"last_sequence"`
+	Acked           map[string]int64 `json:"acked_offsets"`
+	LastLogSequence uint64           `json:"last_log_sequence,omitempty"`
+	LogCursor       string           `json:"log_cursor,omitempty"`
 }
 
 func (s walState) clone() walState {
-	next := walState{Version: s.Version, LastSequence: s.LastSequence, Acked: make(map[string]int64, len(s.Acked))}
+	next := walState{
+		Version:         s.Version,
+		LastSequence:    s.LastSequence,
+		Acked:           make(map[string]int64, len(s.Acked)),
+		LastLogSequence: s.LastLogSequence,
+		LogCursor:       s.LogCursor,
+	}
 	for name, offset := range s.Acked {
 		next.Acked[name] = offset
 	}
@@ -206,3 +214,28 @@ func recordBoundary(path string, start, end int64) (bool, error) {
 	}
 	return start == end, nil
 }
+
+// GetLogState returns the persisted last log sequence number and cursor.
+func (w *WALManager) GetLogState() (uint64, string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.state.LastLogSequence, w.state.LogCursor
+}
+
+// SetLogState persists the last log sequence number and cursor.
+func (w *WALManager) SetLogState(lastLogSeq uint64, cursor string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return fmt.Errorf("WAL is closed")
+	}
+	next := w.state.clone()
+	next.LastLogSequence = lastLogSeq
+	next.LogCursor = cursor
+	if err := w.persistState(next); err != nil {
+		return err
+	}
+	w.state = next
+	return nil
+}
+

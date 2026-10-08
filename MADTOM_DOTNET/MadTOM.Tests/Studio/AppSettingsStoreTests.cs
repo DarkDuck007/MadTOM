@@ -132,5 +132,41 @@ public class AppSettingsStoreTests : IDisposable
         Assert.Contains("Icon", itemProps);
         Assert.Contains("ToolTipText", trayProps);
     }
+
+    [Fact]
+    public void SaveAndLoad_StudioSidebarState_PersistsCorrectly()
+    {
+        var settings = new AppSettings
+        {
+            ConsoleSidebarState = StudioSidebarState.Hidden,
+            EnableSidebarExpandedState = true,
+            EnableSidebarCollapsedState = false,
+            EnableSidebarHiddenState = true
+        };
+        AppSettingsStore.Save(settings, _tempFile);
+
+        var loaded = AppSettingsStore.Load(_tempFile);
+        Assert.Equal(StudioSidebarState.Hidden, loaded.ConsoleSidebarState);
+        Assert.True(loaded.EnableSidebarExpandedState);
+        Assert.False(loaded.EnableSidebarCollapsedState);
+        Assert.True(loaded.EnableSidebarHiddenState);
+    }
+
+    [Fact]
+    public void Load_WhenAllSidebarStatesDisabled_ResetsAllToTrue()
+    {
+        var settings = new AppSettings
+        {
+            EnableSidebarExpandedState = false,
+            EnableSidebarCollapsedState = false,
+            EnableSidebarHiddenState = false
+        };
+        AppSettingsStore.Save(settings, _tempFile);
+
+        var loaded = AppSettingsStore.Load(_tempFile);
+        Assert.True(loaded.EnableSidebarExpandedState);
+        Assert.True(loaded.EnableSidebarCollapsedState);
+        Assert.True(loaded.EnableSidebarHiddenState);
+    }
 }
 

@@ -18,6 +18,8 @@ public sealed class TelemetryCacheSettingsStore
         if (settings.LiveLimitMiB is < 1 or > 4096) settings.LiveLimitMiB = 64;
         if (settings.StoredLimitMiB is < 1 or > 4096) settings.StoredLimitMiB = 32;
         if (settings.StoredRetentionSeconds is < 1 or > 86400) settings.StoredRetentionSeconds = 30;
+        if (settings.LogCacheLimitMiB is < 16 or > 4096) settings.LogCacheLimitMiB = 128;
+        if (settings.LogDecodedChunkLimit is < 4 or > 256) settings.LogDecodedChunkLimit = 32;
         return settings;
     }
     public int LoadMinutes() => Load().RetentionMinutes;
@@ -30,7 +32,8 @@ public sealed class TelemetryCacheSettingsStore
     public void Save(Settings settings)
     {
         if (settings.RetentionMinutes is < 1 or > 1440 || settings.LiveLimitMiB is < 1 or > 4096 ||
-            settings.StoredLimitMiB is < 1 or > 4096 || settings.StoredRetentionSeconds is < 1 or > 86400)
+            settings.StoredLimitMiB is < 1 or > 4096 || settings.StoredRetentionSeconds is < 1 or > 86400 ||
+            settings.LogCacheLimitMiB is < 16 or > 4096 || settings.LogDecodedChunkLimit is < 4 or > 256)
             throw new ArgumentOutOfRangeException(nameof(settings));
         var directory = Path.GetDirectoryName(_path);
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
@@ -43,5 +46,7 @@ public sealed class TelemetryCacheSettingsStore
         public int LiveLimitMiB { get; set; } = 64;
         public int StoredLimitMiB { get; set; } = 32;
         public int StoredRetentionSeconds { get; set; } = 30;
+        public int LogCacheLimitMiB { get; set; } = 128;
+        public int LogDecodedChunkLimit { get; set; } = 32;
     }
 }

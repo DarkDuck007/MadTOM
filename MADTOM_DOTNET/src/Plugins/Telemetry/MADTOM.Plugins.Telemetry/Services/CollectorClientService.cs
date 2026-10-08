@@ -24,10 +24,12 @@ public sealed class CollectorClientService : IAsyncDisposable
     private readonly ClientPayloadCounter _historyPayloads = new();
     private readonly ClientPayloadCounter _livePayloads = new();
     private readonly ClientPayloadCounter _configPayloads = new();
+    private readonly ClientPayloadCounter _logPayloads = new();
     public IReadOnlyList<(string Name, ClientPayloadCounter Counter)> ReceivedPayloads => new[]
     {
         ("inventory RX", _inventoryPayloads), ("history RX", _historyPayloads),
-        ("live RX", _livePayloads), ("configuration RX", _configPayloads)
+        ("live RX", _livePayloads), ("configuration RX", _configPayloads),
+        ("logs RX", _logPayloads)
     };
 
     private CompressionDiagnosticRow[] _transportDiagnostics = Array.Empty<CompressionDiagnosticRow>();
@@ -51,16 +53,18 @@ public sealed class CollectorClientService : IAsyncDisposable
         _configClient = new ConfigService.ConfigServiceClient(_channel);
     }
 
+    private long _lastResetTicks = 0;
+
     private static GrpcChannel CreateChannel(string httpEndpoint)
     {
         var handler = new SocketsHttpHandler
         {
-            KeepAlivePingDelay = TimeSpan.FromSeconds(5),
-            KeepAlivePingTimeout = TimeSpan.FromSeconds(3),
-            KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
-            ConnectTimeout = TimeSpan.FromSeconds(5),
-            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(15),
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+            KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
+            KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
+            ConnectTimeout = TimeSpan.FromSeconds(10),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
             EnableMultipleHttp2Connections = true
         };
 
@@ -73,8 +77,20 @@ public sealed class CollectorClientService : IAsyncDisposable
 
     public void ResetChannel()
     {
+        var nowTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (_lastResetTicks != 0 && System.Diagnostics.Stopwatch.GetElapsedTime(_lastResetTicks, nowTicks) < TimeSpan.FromSeconds(15))
+        {
+            return;
+        }
+
         lock (_channelLock)
         {
+            if (_lastResetTicks != 0 && System.Diagnostics.Stopwatch.GetElapsedTime(_lastResetTicks, System.Diagnostics.Stopwatch.GetTimestamp()) < TimeSpan.FromSeconds(15))
+            {
+                return;
+            }
+            _lastResetTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+
             try { _channel.Dispose(); } catch { }
             _channel = CreateChannel(_httpEndpoint);
             _queryClient = new QueryService.QueryServiceClient(_channel);
@@ -121,7 +137,6 @@ public sealed class CollectorClientService : IAsyncDisposable
         }
         catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
         {
-            ResetChannel();
             return Array.Empty<FleetNodeModel>();
         }
         catch
@@ -166,7 +181,6 @@ public sealed class CollectorClientService : IAsyncDisposable
         }
         catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
         {
-            ResetChannel();
             throw;
         }
     }
@@ -192,7 +206,6 @@ public sealed class CollectorClientService : IAsyncDisposable
         }
         catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
         {
-            ResetChannel();
             return null;
         }
         catch
@@ -201,7 +214,7 @@ public sealed class CollectorClientService : IAsyncDisposable
         }
     }
 
-    public async Task<bool> UpdateNodeConfigAsync(string nodeId, NodeConfig config, CancellationToken ct = default)
+    public async Task<ConfigAck?> UpdateNodeConfigAsync(string nodeId, NodeConfig config, CancellationToken ct = default)
     {
         try
         {
@@ -211,17 +224,89 @@ public sealed class CollectorClientService : IAsyncDisposable
                 NodeId = nodeId,
                 Config = config
             }, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
-            res = ClientResponseCompression.Decode(res, _configPayloads);
-            return res.Success;
+            return ClientResponseCompression.Decode(res, _configPayloads);
         }
         catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
         {
-            ResetChannel();
-            return false;
+            return null;
         }
         catch
         {
-            return false;
+            return null;
+        }
+    }
+
+    public async Task<LogStatsResponse?> GetLogStatsAsync(string nodeId, CancellationToken ct = default)
+    {
+        try
+        {
+            var (queryClient, _) = GetClients();
+            var res = await queryClient.GetLogStatsAsync(new LogStatsRequest { NodeId = nodeId }, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(5), cancellationToken: ct);
+            return ClientResponseCompression.Decode(res, _logPayloads);
+        }
+        catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
+        {
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<LogChunkResponse?> QueryLogChunksAsync(string nodeId, ulong startChunkId, uint maxChunks, long seekTs = 0, bool forward = true, CancellationToken ct = default)
+    {
+        try
+        {
+            var (queryClient, _) = GetClients();
+            var req = new LogChunkQuery
+            {
+                NodeId = nodeId,
+                StartChunkId = startChunkId,
+                MaxChunks = maxChunks,
+                SeekTimestampUnixNano = seekTs,
+                Forward = forward
+            };
+            var res = await queryClient.QueryLogChunksAsync(req, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(10), cancellationToken: ct);
+            var decoded = ClientResponseCompression.Decode(res, _logPayloads);
+            if (decoded?.Chunks != null && decoded.Chunks.Count > 0)
+            {
+                foreach (var chunk in decoded.Chunks)
+                {
+                    if (chunk.ZstdRecords != null && !chunk.ZstdRecords.IsEmpty)
+                    {
+                        _logPayloads.RecordCompressed((int)chunk.RawSize, chunk.ZstdRecords.Length);
+                    }
+                }
+            }
+            return decoded;
+        }
+        catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.DeadlineExceeded)
+        {
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async IAsyncEnumerable<LogChunk> SubscribeLogsAsync(string nodeId, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var (queryClient, _) = GetClients();
+        using var call = queryClient.SubscribeLogs(new LogSubscription { NodeId = nodeId }, cancellationToken: ct);
+        while (await call.ResponseStream.MoveNext(ct))
+        {
+            var chunk = call.ResponseStream.Current;
+            if (chunk.ZstdRecords != null && !chunk.ZstdRecords.IsEmpty)
+            {
+                _logPayloads.RecordCompressed((int)chunk.RawSize, chunk.ZstdRecords.Length);
+            }
+            else
+            {
+                _logPayloads.Record(chunk.CalculateSize());
+            }
+            yield return chunk;
         }
     }
 

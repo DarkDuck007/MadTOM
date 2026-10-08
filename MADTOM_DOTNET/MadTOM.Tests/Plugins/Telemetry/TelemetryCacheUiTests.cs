@@ -141,4 +141,83 @@ public class TelemetryCacheUiTests
         }
         finally { Directory.Delete(directory, true); }
     }
+
+    [Fact]
+    public void CollectorSettings_ErasedInputValues_FallbackToDefaultsWithoutExceptions()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "madtom_safeguard_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var store = new TelemetryCacheSettingsStore(Path.Combine(directory, "cache.json"));
+            using var provider = new CachedProvider();
+            var vm = new CollectorSettingsViewModel(
+                new MultiCollectorManager(":memory:"),
+                provider,
+                new NodeGroupStore(Path.Combine(directory, "groups.json")),
+                new GlobalMetricsStore(Path.Combine(directory, "metrics.json")),
+                store);
+
+            // Simulate user backspacing all characters in numeric fields (null value in TwoWay binding)
+            vm.LiveCacheLimitMiB = null;
+            vm.StoredCacheLimitMiB = null;
+            vm.StoredCacheRetentionSeconds = null;
+            vm.LogCacheLimitMiB = null;
+            vm.LogDecodedChunkLimit = null;
+            vm.GraphPointsPerPixel = null;
+            vm.HistoryPointsPerPixel = null;
+
+            // Refresh should not throw and use sensible defaults for forecasts
+            vm.RefreshCacheStats();
+            Assert.NotNull(vm.CacheMemoryEstimate);
+            Assert.Contains("64 MiB", vm.CacheMemoryEstimate);
+            Assert.Contains("32 MiB", vm.StoredCacheEstimate);
+
+            // ApplyGraphPerformance with nulls should apply defaults (1.0 and 3.0) and restore properties
+            vm.ApplyGraphPerformance();
+            Assert.Equal(1.0, vm.GraphPointsPerPixel);
+            Assert.Equal(3.0, vm.HistoryPointsPerPixel);
+            Assert.Contains("saved", vm.StatusMessage);
+
+            // Re-null and ApplyCacheRetention with nulls should apply defaults (64, 32, 30, 128, 32)
+            vm.LiveCacheLimitMiB = null;
+            vm.StoredCacheLimitMiB = null;
+            vm.StoredCacheRetentionSeconds = null;
+            vm.LogCacheLimitMiB = null;
+            vm.LogDecodedChunkLimit = null;
+
+            vm.ApplyCacheRetention();
+            Assert.Equal(64, vm.LiveCacheLimitMiB);
+            Assert.Equal(32, vm.StoredCacheLimitMiB);
+            Assert.Equal(30, vm.StoredCacheRetentionSeconds);
+            Assert.Equal(128, vm.LogCacheLimitMiB);
+            Assert.Equal(32, vm.LogDecodedChunkLimit);
+            Assert.Contains("saved and applied", vm.StatusMessage);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public void NodeSettings_ErasedInputValues_FallbackToDefaultsWithoutExceptions()
+    {
+        var node = new MadTOM.Models.FleetNodeModel { Id = "test-node", CollectorName = "Local" };
+        var vm = new NodeSettingsViewModel(node, null);
+
+        // Simulate user erasing numeric inputs
+        vm.ProcessSnapshotLimit = null;
+        vm.LogRateLimitPerSec = null;
+        vm.LogRetentionHours = null;
+        vm.LogRetentionMB = null;
+
+        // Baseline capture and snapshot comparison shouldn't throw
+        Assert.True(vm.HasUnappliedChanges);
+
+        // Reverting restores baseline
+        vm.RevertChanges();
+        Assert.Equal(1000, vm.ProcessSnapshotLimit);
+        Assert.Equal(500u, vm.LogRateLimitPerSec);
+        Assert.Equal(168u, vm.LogRetentionHours);
+        Assert.Equal(512u, vm.LogRetentionMB);
+        Assert.False(vm.HasUnappliedChanges);
+    }
 }

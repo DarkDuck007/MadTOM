@@ -261,8 +261,15 @@ type NodeConfig struct {
 	TwampMode        TelemetryOptInMode            `protobuf:"varint,32,opt,name=twamp_mode,json=twampMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"twamp_mode,omitempty"`
 	// Individual PIDs in live snapshots; 0 preserves the legacy default of 1000.
 	ProcessSnapshotLimit uint32 `protobuf:"varint,33,opt,name=process_snapshot_limit,json=processSnapshotLimit,proto3" json:"process_snapshot_limit,omitempty"` // 1..1000; independent of stored top_n_processes
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// System Log Streaming & Retention Configuration
+	LogMode            TelemetryOptInMode `protobuf:"varint,34,opt,name=log_mode,json=logMode,proto3,enum=madtom.v1.TelemetryOptInMode" json:"log_mode,omitempty"`      // OPT_IN_OFF (default), OPT_IN_MONITOR_ONLY, OPT_IN_MONITOR_AND_STORE
+	LogUnits           []string           `protobuf:"bytes,35,rep,name=log_units,json=logUnits,proto3" json:"log_units,omitempty"`                                      // Filter units (empty = all units)
+	LogMaxPriority     uint32             `protobuf:"varint,36,opt,name=log_max_priority,json=logMaxPriority,proto3" json:"log_max_priority,omitempty"`                 // Max syslog priority (0=emerg..7=debug; 0=default/all)
+	LogRateLimitPerSec uint32             `protobuf:"varint,37,opt,name=log_rate_limit_per_sec,json=logRateLimitPerSec,proto3" json:"log_rate_limit_per_sec,omitempty"` // Max records/sec token bucket (0=unlimited/default 500)
+	LogRetentionBytes  uint64             `protobuf:"varint,38,opt,name=log_retention_bytes,json=logRetentionBytes,proto3" json:"log_retention_bytes,omitempty"`        // Max log bytes per node on collector (default 512MB)
+	LogRetentionHours  uint32             `protobuf:"varint,39,opt,name=log_retention_hours,json=logRetentionHours,proto3" json:"log_retention_hours,omitempty"`        // Max log age in hours on collector (default 168 = 7 days)
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *NodeConfig) Reset() {
@@ -540,15 +547,61 @@ func (x *NodeConfig) GetProcessSnapshotLimit() uint32 {
 	return 0
 }
 
+func (x *NodeConfig) GetLogMode() TelemetryOptInMode {
+	if x != nil {
+		return x.LogMode
+	}
+	return TelemetryOptInMode_OPT_IN_OFF
+}
+
+func (x *NodeConfig) GetLogUnits() []string {
+	if x != nil {
+		return x.LogUnits
+	}
+	return nil
+}
+
+func (x *NodeConfig) GetLogMaxPriority() uint32 {
+	if x != nil {
+		return x.LogMaxPriority
+	}
+	return 0
+}
+
+func (x *NodeConfig) GetLogRateLimitPerSec() uint32 {
+	if x != nil {
+		return x.LogRateLimitPerSec
+	}
+	return 0
+}
+
+func (x *NodeConfig) GetLogRetentionBytes() uint64 {
+	if x != nil {
+		return x.LogRetentionBytes
+	}
+	return 0
+}
+
+func (x *NodeConfig) GetLogRetentionHours() uint32 {
+	if x != nil {
+		return x.LogRetentionHours
+	}
+	return 0
+}
+
 type ConfigAck struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Negotiated response envelope; decoded content is this same message type.
-	ZstdPayload   []byte `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
-	DecodedSize   uint32 `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
-	Success       bool   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message       string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ZstdPayload       []byte   `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
+	DecodedSize       uint32   `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
+	Success           bool     `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message           string   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	DaemonConfirmed   bool     `protobuf:"varint,3,opt,name=daemon_confirmed,json=daemonConfirmed,proto3" json:"daemon_confirmed,omitempty"`
+	DaemonStatus      string   `protobuf:"bytes,4,opt,name=daemon_status,json=daemonStatus,proto3" json:"daemon_status,omitempty"`
+	DaemonVersion     string   `protobuf:"bytes,5,opt,name=daemon_version,json=daemonVersion,proto3" json:"daemon_version,omitempty"`
+	SupportedFeatures []string `protobuf:"bytes,6,rep,name=supported_features,json=supportedFeatures,proto3" json:"supported_features,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ConfigAck) Reset() {
@@ -609,6 +662,34 @@ func (x *ConfigAck) GetMessage() string {
 	return ""
 }
 
+func (x *ConfigAck) GetDaemonConfirmed() bool {
+	if x != nil {
+		return x.DaemonConfirmed
+	}
+	return false
+}
+
+func (x *ConfigAck) GetDaemonStatus() string {
+	if x != nil {
+		return x.DaemonStatus
+	}
+	return ""
+}
+
+func (x *ConfigAck) GetDaemonVersion() string {
+	if x != nil {
+		return x.DaemonVersion
+	}
+	return ""
+}
+
+func (x *ConfigAck) GetSupportedFeatures() []string {
+	if x != nil {
+		return x.SupportedFeatures
+	}
+	return nil
+}
+
 var File_madtom_v1_config_proto protoreflect.FileDescriptor
 
 const file_madtom_v1_config_proto_rawDesc = "" +
@@ -618,7 +699,7 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"a\n" +
 	"\x17UpdateNodeConfigRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12-\n" +
-	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\xf9\x14\n" +
+	"\x06config\x18\x02 \x01(\v2\x15.madtom.v1.NodeConfigR\x06config\"\x8e\x17\n" +
 	"\n" +
 	"NodeConfig\x12!\n" +
 	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
@@ -660,7 +741,13 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\x12power_metric_modes\x18\x1f \x03(\v2+.madtom.v1.NodeConfig.PowerMetricModesEntryR\x10powerMetricModes\x12<\n" +
 	"\n" +
 	"twamp_mode\x18  \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\ttwampMode\x124\n" +
-	"\x16process_snapshot_limit\x18! \x01(\rR\x14processSnapshotLimit\x1a[\n" +
+	"\x16process_snapshot_limit\x18! \x01(\rR\x14processSnapshotLimit\x128\n" +
+	"\blog_mode\x18\" \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\alogMode\x12\x1b\n" +
+	"\tlog_units\x18# \x03(\tR\blogUnits\x12(\n" +
+	"\x10log_max_priority\x18$ \x01(\rR\x0elogMaxPriority\x122\n" +
+	"\x16log_rate_limit_per_sec\x18% \x01(\rR\x12logRateLimitPerSec\x12.\n" +
+	"\x13log_retention_bytes\x18& \x01(\x04R\x11logRetentionBytes\x12.\n" +
+	"\x13log_retention_hours\x18' \x01(\rR\x11logRetentionHours\x1a[\n" +
 	"\x0eCoreModesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
 	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1aa\n" +
@@ -678,12 +765,16 @@ const file_madtom_v1_config_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\x1ab\n" +
 	"\x15PowerMetricModesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
-	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\"\x85\x01\n" +
+	"\x05value\x18\x02 \x01(\x0e2\x1d.madtom.v1.TelemetryOptInModeR\x05value:\x028\x01\"\xab\x02\n" +
 	"\tConfigAck\x12!\n" +
 	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
 	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*q\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12)\n" +
+	"\x10daemon_confirmed\x18\x03 \x01(\bR\x0fdaemonConfirmed\x12#\n" +
+	"\rdaemon_status\x18\x04 \x01(\tR\fdaemonStatus\x12%\n" +
+	"\x0edaemon_version\x18\x05 \x01(\tR\rdaemonVersion\x12-\n" +
+	"\x12supported_features\x18\x06 \x03(\tR\x11supportedFeatures*q\n" +
 	"\x14ProcessTelemetryMode\x12\x19\n" +
 	"\x15PROCESS_MODE_DISABLED\x10\x00\x12\x1a\n" +
 	"\x16PROCESS_MODE_LIVE_ONLY\x10\x01\x12\"\n" +
@@ -743,21 +834,22 @@ var file_madtom_v1_config_proto_depIdxs = []int32{
 	1,  // 14: madtom.v1.NodeConfig.power_mode:type_name -> madtom.v1.TelemetryOptInMode
 	11, // 15: madtom.v1.NodeConfig.power_metric_modes:type_name -> madtom.v1.NodeConfig.PowerMetricModesEntry
 	1,  // 16: madtom.v1.NodeConfig.twamp_mode:type_name -> madtom.v1.TelemetryOptInMode
-	1,  // 17: madtom.v1.NodeConfig.CoreModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
-	1,  // 18: madtom.v1.NodeConfig.SwapDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
-	1,  // 19: madtom.v1.NodeConfig.ZramDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
-	1,  // 20: madtom.v1.NodeConfig.NicModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
-	1,  // 21: madtom.v1.NodeConfig.DiskDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
-	1,  // 22: madtom.v1.NodeConfig.PowerMetricModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
-	2,  // 23: madtom.v1.ConfigService.GetNodeConfig:input_type -> madtom.v1.GetNodeConfigRequest
-	3,  // 24: madtom.v1.ConfigService.UpdateNodeConfig:input_type -> madtom.v1.UpdateNodeConfigRequest
-	4,  // 25: madtom.v1.ConfigService.GetNodeConfig:output_type -> madtom.v1.NodeConfig
-	5,  // 26: madtom.v1.ConfigService.UpdateNodeConfig:output_type -> madtom.v1.ConfigAck
-	25, // [25:27] is the sub-list for method output_type
-	23, // [23:25] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	1,  // 17: madtom.v1.NodeConfig.log_mode:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 18: madtom.v1.NodeConfig.CoreModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 19: madtom.v1.NodeConfig.SwapDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 20: madtom.v1.NodeConfig.ZramDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 21: madtom.v1.NodeConfig.NicModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 22: madtom.v1.NodeConfig.DiskDeviceModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	1,  // 23: madtom.v1.NodeConfig.PowerMetricModesEntry.value:type_name -> madtom.v1.TelemetryOptInMode
+	2,  // 24: madtom.v1.ConfigService.GetNodeConfig:input_type -> madtom.v1.GetNodeConfigRequest
+	3,  // 25: madtom.v1.ConfigService.UpdateNodeConfig:input_type -> madtom.v1.UpdateNodeConfigRequest
+	4,  // 26: madtom.v1.ConfigService.GetNodeConfig:output_type -> madtom.v1.NodeConfig
+	5,  // 27: madtom.v1.ConfigService.UpdateNodeConfig:output_type -> madtom.v1.ConfigAck
+	26, // [26:28] is the sub-list for method output_type
+	24, // [24:26] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_config_proto_init() }

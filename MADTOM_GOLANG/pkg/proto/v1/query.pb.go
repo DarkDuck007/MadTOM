@@ -58,16 +58,19 @@ func (*ListNodesRequest) Descriptor() ([]byte, []int) {
 }
 
 type NodeInfo struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	NodeId           string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	Hostname         string                 `protobuf:"bytes,2,opt,name=hostname,proto3" json:"hostname,omitempty"`
-	Os               string                 `protobuf:"bytes,3,opt,name=os,proto3" json:"os,omitempty"`
-	Arch             string                 `protobuf:"bytes,4,opt,name=arch,proto3" json:"arch,omitempty"`
-	Status           string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"` // "ONLINE", "STALE", "OFFLINE"
-	LastSeenUnixNano int64                  `protobuf:"varint,6,opt,name=last_seen_unix_nano,json=lastSeenUnixNano,proto3" json:"last_seen_unix_nano,omitempty"`
-	ConnectionMode   string                 `protobuf:"bytes,7,opt,name=connection_mode,json=connectionMode,proto3" json:"connection_mode,omitempty"` // "PUSH", "PULL"
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	NodeId            string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Hostname          string                 `protobuf:"bytes,2,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	Os                string                 `protobuf:"bytes,3,opt,name=os,proto3" json:"os,omitempty"`
+	Arch              string                 `protobuf:"bytes,4,opt,name=arch,proto3" json:"arch,omitempty"`
+	Status            string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"` // "ONLINE", "STALE", "OFFLINE"
+	LastSeenUnixNano  int64                  `protobuf:"varint,6,opt,name=last_seen_unix_nano,json=lastSeenUnixNano,proto3" json:"last_seen_unix_nano,omitempty"`
+	ConnectionMode    string                 `protobuf:"bytes,7,opt,name=connection_mode,json=connectionMode,proto3" json:"connection_mode,omitempty"` // "PUSH", "PULL"
+	DaemonVersion     string                 `protobuf:"bytes,8,opt,name=daemon_version,json=daemonVersion,proto3" json:"daemon_version,omitempty"`
+	SupportedFeatures []string               `protobuf:"bytes,9,rep,name=supported_features,json=supportedFeatures,proto3" json:"supported_features,omitempty"`
+	ConfigSyncStatus  string                 `protobuf:"bytes,10,opt,name=config_sync_status,json=configSyncStatus,proto3" json:"config_sync_status,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *NodeInfo) Reset() {
@@ -145,6 +148,27 @@ func (x *NodeInfo) GetLastSeenUnixNano() int64 {
 func (x *NodeInfo) GetConnectionMode() string {
 	if x != nil {
 		return x.ConnectionMode
+	}
+	return ""
+}
+
+func (x *NodeInfo) GetDaemonVersion() string {
+	if x != nil {
+		return x.DaemonVersion
+	}
+	return ""
+}
+
+func (x *NodeInfo) GetSupportedFeatures() []string {
+	if x != nil {
+		return x.SupportedFeatures
+	}
+	return nil
+}
+
+func (x *NodeInfo) GetConfigSyncStatus() string {
+	if x != nil {
+		return x.ConfigSyncStatus
 	}
 	return ""
 }
@@ -694,12 +718,386 @@ func (x *TransportCompressionStats) GetRawBytesSupported() bool {
 	return false
 }
 
+type LogStatsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogStatsRequest) Reset() {
+	*x = LogStatsRequest{}
+	mi := &file_madtom_v1_query_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogStatsRequest) ProtoMessage() {}
+
+func (x *LogStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_query_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogStatsRequest.ProtoReflect.Descriptor instead.
+func (*LogStatsRequest) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_query_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *LogStatsRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+type LogStatsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Negotiated response envelope; decoded content is this same message type.
+	ZstdPayload      []byte `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
+	DecodedSize      uint32 `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
+	NodeId           string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	FirstSeq         uint64 `protobuf:"varint,2,opt,name=first_seq,json=firstSeq,proto3" json:"first_seq,omitempty"`
+	LastSeq          uint64 `protobuf:"varint,3,opt,name=last_seq,json=lastSeq,proto3" json:"last_seq,omitempty"`
+	TotalRecords     uint64 `protobuf:"varint,4,opt,name=total_records,json=totalRecords,proto3" json:"total_records,omitempty"`
+	OldestTsUnixNano int64  `protobuf:"varint,5,opt,name=oldest_ts_unix_nano,json=oldestTsUnixNano,proto3" json:"oldest_ts_unix_nano,omitempty"`
+	NewestTsUnixNano int64  `protobuf:"varint,6,opt,name=newest_ts_unix_nano,json=newestTsUnixNano,proto3" json:"newest_ts_unix_nano,omitempty"`
+	TotalBytes       uint64 `protobuf:"varint,7,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *LogStatsResponse) Reset() {
+	*x = LogStatsResponse{}
+	mi := &file_madtom_v1_query_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogStatsResponse) ProtoMessage() {}
+
+func (x *LogStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_query_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogStatsResponse.ProtoReflect.Descriptor instead.
+func (*LogStatsResponse) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_query_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *LogStatsResponse) GetZstdPayload() []byte {
+	if x != nil {
+		return x.ZstdPayload
+	}
+	return nil
+}
+
+func (x *LogStatsResponse) GetDecodedSize() uint32 {
+	if x != nil {
+		return x.DecodedSize
+	}
+	return 0
+}
+
+func (x *LogStatsResponse) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *LogStatsResponse) GetFirstSeq() uint64 {
+	if x != nil {
+		return x.FirstSeq
+	}
+	return 0
+}
+
+func (x *LogStatsResponse) GetLastSeq() uint64 {
+	if x != nil {
+		return x.LastSeq
+	}
+	return 0
+}
+
+func (x *LogStatsResponse) GetTotalRecords() uint64 {
+	if x != nil {
+		return x.TotalRecords
+	}
+	return 0
+}
+
+func (x *LogStatsResponse) GetOldestTsUnixNano() int64 {
+	if x != nil {
+		return x.OldestTsUnixNano
+	}
+	return 0
+}
+
+func (x *LogStatsResponse) GetNewestTsUnixNano() int64 {
+	if x != nil {
+		return x.NewestTsUnixNano
+	}
+	return 0
+}
+
+func (x *LogStatsResponse) GetTotalBytes() uint64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+type LogChunkQuery struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	NodeId                string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	StartChunkId          uint64                 `protobuf:"varint,2,opt,name=start_chunk_id,json=startChunkId,proto3" json:"start_chunk_id,omitempty"`
+	MaxChunks             uint32                 `protobuf:"varint,3,opt,name=max_chunks,json=maxChunks,proto3" json:"max_chunks,omitempty"`                                         // e.g. 8 chunks = up to 2048 records
+	SeekTimestampUnixNano int64                  `protobuf:"varint,4,opt,name=seek_timestamp_unix_nano,json=seekTimestampUnixNano,proto3" json:"seek_timestamp_unix_nano,omitempty"` // if > 0, collector seeks closest chunk
+	Forward               bool                   `protobuf:"varint,5,opt,name=forward,proto3" json:"forward,omitempty"`                                                              // direction for range traversal
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *LogChunkQuery) Reset() {
+	*x = LogChunkQuery{}
+	mi := &file_madtom_v1_query_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogChunkQuery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogChunkQuery) ProtoMessage() {}
+
+func (x *LogChunkQuery) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_query_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogChunkQuery.ProtoReflect.Descriptor instead.
+func (*LogChunkQuery) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_query_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *LogChunkQuery) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *LogChunkQuery) GetStartChunkId() uint64 {
+	if x != nil {
+		return x.StartChunkId
+	}
+	return 0
+}
+
+func (x *LogChunkQuery) GetMaxChunks() uint32 {
+	if x != nil {
+		return x.MaxChunks
+	}
+	return 0
+}
+
+func (x *LogChunkQuery) GetSeekTimestampUnixNano() int64 {
+	if x != nil {
+		return x.SeekTimestampUnixNano
+	}
+	return 0
+}
+
+func (x *LogChunkQuery) GetForward() bool {
+	if x != nil {
+		return x.Forward
+	}
+	return false
+}
+
+type LogChunkResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Negotiated response envelope; decoded content is this same message type.
+	ZstdPayload   []byte      `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
+	DecodedSize   uint32      `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
+	NodeId        string      `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Chunks        []*LogChunk `protobuf:"bytes,2,rep,name=chunks,proto3" json:"chunks,omitempty"`
+	HasMore       bool        `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogChunkResponse) Reset() {
+	*x = LogChunkResponse{}
+	mi := &file_madtom_v1_query_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogChunkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogChunkResponse) ProtoMessage() {}
+
+func (x *LogChunkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_query_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogChunkResponse.ProtoReflect.Descriptor instead.
+func (*LogChunkResponse) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_query_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *LogChunkResponse) GetZstdPayload() []byte {
+	if x != nil {
+		return x.ZstdPayload
+	}
+	return nil
+}
+
+func (x *LogChunkResponse) GetDecodedSize() uint32 {
+	if x != nil {
+		return x.DecodedSize
+	}
+	return 0
+}
+
+func (x *LogChunkResponse) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *LogChunkResponse) GetChunks() []*LogChunk {
+	if x != nil {
+		return x.Chunks
+	}
+	return nil
+}
+
+func (x *LogChunkResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type LogSubscription struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	FromSeq       uint64                 `protobuf:"varint,2,opt,name=from_seq,json=fromSeq,proto3" json:"from_seq,omitempty"`             // 0 = subscribe to live only; >0 = catch up from seq
+	Units         []string               `protobuf:"bytes,3,rep,name=units,proto3" json:"units,omitempty"`                                 // optional filter
+	MaxPriority   uint32                 `protobuf:"varint,4,opt,name=max_priority,json=maxPriority,proto3" json:"max_priority,omitempty"` // optional filter (0 = any)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogSubscription) Reset() {
+	*x = LogSubscription{}
+	mi := &file_madtom_v1_query_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogSubscription) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogSubscription) ProtoMessage() {}
+
+func (x *LogSubscription) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_query_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogSubscription.ProtoReflect.Descriptor instead.
+func (*LogSubscription) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_query_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *LogSubscription) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *LogSubscription) GetFromSeq() uint64 {
+	if x != nil {
+		return x.FromSeq
+	}
+	return 0
+}
+
+func (x *LogSubscription) GetUnits() []string {
+	if x != nil {
+		return x.Units
+	}
+	return nil
+}
+
+func (x *LogSubscription) GetMaxPriority() uint32 {
+	if x != nil {
+		return x.MaxPriority
+	}
+	return 0
+}
+
 var File_madtom_v1_query_proto protoreflect.FileDescriptor
 
 const file_madtom_v1_query_proto_rawDesc = "" +
 	"\n" +
-	"\x15madtom/v1/query.proto\x12\tmadtom.v1\x1a\x17madtom/v1/metrics.proto\"\x12\n" +
-	"\x10ListNodesRequest\"\xd3\x01\n" +
+	"\x15madtom/v1/query.proto\x12\tmadtom.v1\x1a\x17madtom/v1/metrics.proto\x1a\x14madtom/v1/logs.proto\"\x12\n" +
+	"\x10ListNodesRequest\"\xd7\x02\n" +
 	"\bNodeInfo\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n" +
 	"\bhostname\x18\x02 \x01(\tR\bhostname\x12\x0e\n" +
@@ -707,7 +1105,11 @@ const file_madtom_v1_query_proto_rawDesc = "" +
 	"\x04arch\x18\x04 \x01(\tR\x04arch\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12-\n" +
 	"\x13last_seen_unix_nano\x18\x06 \x01(\x03R\x10lastSeenUnixNano\x12'\n" +
-	"\x0fconnection_mode\x18\a \x01(\tR\x0econnectionMode\"\xb6\x02\n" +
+	"\x0fconnection_mode\x18\a \x01(\tR\x0econnectionMode\x12%\n" +
+	"\x0edaemon_version\x18\b \x01(\tR\rdaemonVersion\x12-\n" +
+	"\x12supported_features\x18\t \x03(\tR\x11supportedFeatures\x12,\n" +
+	"\x12config_sync_status\x18\n" +
+	" \x01(\tR\x10configSyncStatus\"\xb6\x02\n" +
 	"\x11ListNodesResponse\x12!\n" +
 	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
 	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12%\n" +
@@ -753,12 +1155,46 @@ const file_madtom_v1_query_proto_rawDesc = "" +
 	"\x12decoded_zstd_bytes\x18\x06 \x01(\x04R\x10decodedZstdBytes\x12-\n" +
 	"\x13last_seen_unix_nano\x18\a \x01(\x03R\x10lastSeenUnixNano\x12\x1b\n" +
 	"\traw_bytes\x18\b \x01(\x04R\brawBytes\x12.\n" +
-	"\x13raw_bytes_supported\x18\t \x01(\bR\x11rawBytesSupported2\xf7\x01\n" +
+	"\x13raw_bytes_supported\x18\t \x01(\bR\x11rawBytesSupported\"*\n" +
+	"\x0fLogStatsRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"\xcd\x02\n" +
+	"\x10LogStatsResponse\x12!\n" +
+	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
+	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1b\n" +
+	"\tfirst_seq\x18\x02 \x01(\x04R\bfirstSeq\x12\x19\n" +
+	"\blast_seq\x18\x03 \x01(\x04R\alastSeq\x12#\n" +
+	"\rtotal_records\x18\x04 \x01(\x04R\ftotalRecords\x12-\n" +
+	"\x13oldest_ts_unix_nano\x18\x05 \x01(\x03R\x10oldestTsUnixNano\x12-\n" +
+	"\x13newest_ts_unix_nano\x18\x06 \x01(\x03R\x10newestTsUnixNano\x12\x1f\n" +
+	"\vtotal_bytes\x18\a \x01(\x04R\n" +
+	"totalBytes\"\xc0\x01\n" +
+	"\rLogChunkQuery\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12$\n" +
+	"\x0estart_chunk_id\x18\x02 \x01(\x04R\fstartChunkId\x12\x1d\n" +
+	"\n" +
+	"max_chunks\x18\x03 \x01(\rR\tmaxChunks\x127\n" +
+	"\x18seek_timestamp_unix_nano\x18\x04 \x01(\x03R\x15seekTimestampUnixNano\x12\x18\n" +
+	"\aforward\x18\x05 \x01(\bR\aforward\"\xb9\x01\n" +
+	"\x10LogChunkResponse\x12!\n" +
+	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
+	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12+\n" +
+	"\x06chunks\x18\x02 \x03(\v2\x13.madtom.v1.LogChunkR\x06chunks\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"~\n" +
+	"\x0fLogSubscription\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x19\n" +
+	"\bfrom_seq\x18\x02 \x01(\x04R\afromSeq\x12\x14\n" +
+	"\x05units\x18\x03 \x03(\tR\x05units\x12!\n" +
+	"\fmax_priority\x18\x04 \x01(\rR\vmaxPriority2\xcc\x03\n" +
 	"\fQueryService\x12F\n" +
 	"\tListNodes\x12\x1b.madtom.v1.ListNodesRequest\x1a\x1c.madtom.v1.ListNodesResponse\x12I\n" +
 	"\n" +
 	"QueryRange\x12\x1c.madtom.v1.RangeQueryRequest\x1a\x1d.madtom.v1.RangeQueryResponse\x12T\n" +
-	"\rSubscribeLive\x12\".madtom.v1.LiveSubscriptionRequest\x1a\x1d.madtom.v1.LiveTelemetryEvent0\x01BYZ3github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1\xaa\x02!MADTOM.Plugins.Telemetry.Proto.V1b\x06proto3"
+	"\rSubscribeLive\x12\".madtom.v1.LiveSubscriptionRequest\x1a\x1d.madtom.v1.LiveTelemetryEvent0\x01\x12F\n" +
+	"\vGetLogStats\x12\x1a.madtom.v1.LogStatsRequest\x1a\x1b.madtom.v1.LogStatsResponse\x12G\n" +
+	"\x0eQueryLogChunks\x12\x18.madtom.v1.LogChunkQuery\x1a\x1b.madtom.v1.LogChunkResponse\x12B\n" +
+	"\rSubscribeLogs\x12\x1a.madtom.v1.LogSubscription\x1a\x13.madtom.v1.LogChunk0\x01BYZ3github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1\xaa\x02!MADTOM.Plugins.Telemetry.Proto.V1b\x06proto3"
 
 var (
 	file_madtom_v1_query_proto_rawDescOnce sync.Once
@@ -772,7 +1208,7 @@ func file_madtom_v1_query_proto_rawDescGZIP() []byte {
 	return file_madtom_v1_query_proto_rawDescData
 }
 
-var file_madtom_v1_query_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_madtom_v1_query_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_madtom_v1_query_proto_goTypes = []any{
 	(*ListNodesRequest)(nil),          // 0: madtom.v1.ListNodesRequest
 	(*NodeInfo)(nil),                  // 1: madtom.v1.NodeInfo
@@ -783,24 +1219,37 @@ var file_madtom_v1_query_proto_goTypes = []any{
 	(*LiveSubscriptionRequest)(nil),   // 6: madtom.v1.LiveSubscriptionRequest
 	(*LiveTelemetryEvent)(nil),        // 7: madtom.v1.LiveTelemetryEvent
 	(*TransportCompressionStats)(nil), // 8: madtom.v1.TransportCompressionStats
-	(*SystemMetrics)(nil),             // 9: madtom.v1.SystemMetrics
+	(*LogStatsRequest)(nil),           // 9: madtom.v1.LogStatsRequest
+	(*LogStatsResponse)(nil),          // 10: madtom.v1.LogStatsResponse
+	(*LogChunkQuery)(nil),             // 11: madtom.v1.LogChunkQuery
+	(*LogChunkResponse)(nil),          // 12: madtom.v1.LogChunkResponse
+	(*LogSubscription)(nil),           // 13: madtom.v1.LogSubscription
+	(*SystemMetrics)(nil),             // 14: madtom.v1.SystemMetrics
+	(*LogChunk)(nil),                  // 15: madtom.v1.LogChunk
 }
 var file_madtom_v1_query_proto_depIdxs = []int32{
-	1, // 0: madtom.v1.ListNodesResponse.nodes:type_name -> madtom.v1.NodeInfo
-	8, // 1: madtom.v1.ListNodesResponse.transport_stats:type_name -> madtom.v1.TransportCompressionStats
-	4, // 2: madtom.v1.RangeQueryResponse.points:type_name -> madtom.v1.TimeSeriesPoint
-	9, // 3: madtom.v1.LiveTelemetryEvent.metrics:type_name -> madtom.v1.SystemMetrics
-	0, // 4: madtom.v1.QueryService.ListNodes:input_type -> madtom.v1.ListNodesRequest
-	3, // 5: madtom.v1.QueryService.QueryRange:input_type -> madtom.v1.RangeQueryRequest
-	6, // 6: madtom.v1.QueryService.SubscribeLive:input_type -> madtom.v1.LiveSubscriptionRequest
-	2, // 7: madtom.v1.QueryService.ListNodes:output_type -> madtom.v1.ListNodesResponse
-	5, // 8: madtom.v1.QueryService.QueryRange:output_type -> madtom.v1.RangeQueryResponse
-	7, // 9: madtom.v1.QueryService.SubscribeLive:output_type -> madtom.v1.LiveTelemetryEvent
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1,  // 0: madtom.v1.ListNodesResponse.nodes:type_name -> madtom.v1.NodeInfo
+	8,  // 1: madtom.v1.ListNodesResponse.transport_stats:type_name -> madtom.v1.TransportCompressionStats
+	4,  // 2: madtom.v1.RangeQueryResponse.points:type_name -> madtom.v1.TimeSeriesPoint
+	14, // 3: madtom.v1.LiveTelemetryEvent.metrics:type_name -> madtom.v1.SystemMetrics
+	15, // 4: madtom.v1.LogChunkResponse.chunks:type_name -> madtom.v1.LogChunk
+	0,  // 5: madtom.v1.QueryService.ListNodes:input_type -> madtom.v1.ListNodesRequest
+	3,  // 6: madtom.v1.QueryService.QueryRange:input_type -> madtom.v1.RangeQueryRequest
+	6,  // 7: madtom.v1.QueryService.SubscribeLive:input_type -> madtom.v1.LiveSubscriptionRequest
+	9,  // 8: madtom.v1.QueryService.GetLogStats:input_type -> madtom.v1.LogStatsRequest
+	11, // 9: madtom.v1.QueryService.QueryLogChunks:input_type -> madtom.v1.LogChunkQuery
+	13, // 10: madtom.v1.QueryService.SubscribeLogs:input_type -> madtom.v1.LogSubscription
+	2,  // 11: madtom.v1.QueryService.ListNodes:output_type -> madtom.v1.ListNodesResponse
+	5,  // 12: madtom.v1.QueryService.QueryRange:output_type -> madtom.v1.RangeQueryResponse
+	7,  // 13: madtom.v1.QueryService.SubscribeLive:output_type -> madtom.v1.LiveTelemetryEvent
+	10, // 14: madtom.v1.QueryService.GetLogStats:output_type -> madtom.v1.LogStatsResponse
+	12, // 15: madtom.v1.QueryService.QueryLogChunks:output_type -> madtom.v1.LogChunkResponse
+	15, // 16: madtom.v1.QueryService.SubscribeLogs:output_type -> madtom.v1.LogChunk
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_query_proto_init() }
@@ -809,13 +1258,14 @@ func file_madtom_v1_query_proto_init() {
 		return
 	}
 	file_madtom_v1_metrics_proto_init()
+	file_madtom_v1_logs_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_madtom_v1_query_proto_rawDesc), len(file_madtom_v1_query_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -32,7 +32,8 @@ func (s *PushServer) PushBatchStream(stream madtomv1.IngestService_PushBatchStre
 			return err
 		}
 
-		if err := s.pipeline.ProcessBatch(batch, "PUSH"); err != nil {
+		summary, err := s.pipeline.ProcessBatchWithSummary(batch, "PUSH")
+		if err != nil {
 			log.Printf("[PushServer] Error processing batch from %s: %v", batch.NodeId, err)
 			_ = stream.Send(&madtomv1.BatchAck{
 				NodeId:        batch.NodeId,
@@ -51,6 +52,7 @@ func (s *PushServer) PushBatchStream(stream madtomv1.IngestService_PushBatchStre
 			SegmentOffset: batch.SegmentOffset,
 			Success:       true,
 			Config:        s.pipeline.reg.TransportConfig(batch.NodeId),
+			LogAckedSeq:   summary.lastAckedLogSeq,
 		}); err != nil {
 			return err
 		}
