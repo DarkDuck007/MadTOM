@@ -8,7 +8,7 @@ namespace MadTOM.Services;
 /// <summary>One process-owned codec pair. Serialized access bounds retained workspaces.</summary>
 public static class ZstdCodec
 {
-    public const int MaxDecodedBytes = 16 * 1024 * 1024;
+    public const int MaxDecodedBytes = 128 * 1024 * 1024;
     private static readonly object Gate = new();
     private static readonly Compressor Encoder = new(1);
     private static readonly Decompressor Decoder = new();
@@ -16,7 +16,7 @@ public static class ZstdCodec
     static ZstdCodec()
     {
         Encoder.SetParameter(ZSTD_cParameter.ZSTD_c_windowLog, 20);
-        Decoder.SetParameter(ZSTD_dParameter.ZSTD_d_windowLogMax, 24);
+        Decoder.SetParameter(ZSTD_dParameter.ZSTD_d_windowLogMax, 27);
     }
 
     public static byte[]? CompressIfUseful(byte[] raw)

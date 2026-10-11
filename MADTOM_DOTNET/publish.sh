@@ -63,6 +63,9 @@ ${BOLD}Options:${NC}
                               - audiosync-app   (MADTOM.Plugins.AudioSync.App)
                               - vna-app         (MADTOM.Plugins.VNA.App)
                               - connection-app  (MADTOM.Plugins.ConnectionToolkit.App)
+                              - videofeedcenter-app (MADTOM.Plugins.VideoFeedCenter.App)
+                              - ipcam-app       (MADTOM.Plugins.IPCam.App)
+                              - feedd           (MADTOM.Feed.Daemon - madtom-feedd)
                               - all             (all runnable projects, default)
 
   -c, --config CONFIG         Build configuration: Release | Debug (default: Release)
@@ -140,6 +143,9 @@ PROJECTS["MADTOM.Plugins.NoxAI.App"]="$SCRIPT_DIR/src/Plugins/NoxAI/MADTOM.Plugi
 PROJECTS["MADTOM.Plugins.AudioSync.App"]="$SCRIPT_DIR/src/Plugins/AudioSync/MADTOM.Plugins.AudioSync.App/MADTOM.Plugins.AudioSync.App.csproj"
 PROJECTS["MADTOM.Plugins.VNA.App"]="$SCRIPT_DIR/src/Plugins/VNA/MADTOM.Plugins.VNA.App/MADTOM.Plugins.VNA.App.csproj"
 PROJECTS["MADTOM.Plugins.ConnectionToolkit.App"]="$SCRIPT_DIR/src/Plugins/ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit.App/MADTOM.Plugins.ConnectionToolkit.App.csproj"
+PROJECTS["MADTOM.Plugins.VideoFeedCenter.App"]="$SCRIPT_DIR/src/Plugins/VideoFeedCenter/MADTOM.Plugins.VideoFeedCenter.App/MADTOM.Plugins.VideoFeedCenter.App.csproj"
+PROJECTS["MADTOM.Plugins.IPCam.App"]="$SCRIPT_DIR/src/Plugins/IPCam/MADTOM.Plugins.IPCam.App/MADTOM.Plugins.IPCam.App.csproj"
+PROJECTS["madtom-feedd"]="$SCRIPT_DIR/src/Plugins/VideoFeedCenter/MADTOM.Feed.Daemon/MADTOM.Feed.Daemon.csproj"
 
 # Filter projects to build
 declare -A SELECTED_PROJECTS
@@ -171,13 +177,22 @@ case "$PROJECT_SEL" in
     connection-app)
         SELECTED_PROJECTS["MADTOM.Plugins.ConnectionToolkit.App"]="${PROJECTS["MADTOM.Plugins.ConnectionToolkit.App"]}"
         ;;
+    videofeedcenter-app)
+        SELECTED_PROJECTS["MADTOM.Plugins.VideoFeedCenter.App"]="${PROJECTS["MADTOM.Plugins.VideoFeedCenter.App"]}"
+        ;;
+    ipcam-app)
+        SELECTED_PROJECTS["MADTOM.Plugins.IPCam.App"]="${PROJECTS["MADTOM.Plugins.IPCam.App"]}"
+        ;;
+    feedd|madtom-feedd)
+        SELECTED_PROJECTS["madtom-feedd"]="${PROJECTS["madtom-feedd"]}"
+        ;;
     all)
         for p in "${!PROJECTS[@]}"; do
             SELECTED_PROJECTS["$p"]="${PROJECTS["$p"]}"
         done
         ;;
     *)
-        echo -e "${RED}Error: Unknown project '$PROJECT_SEL'. Choose 'studio', 'telemetry-app', 'squeeze-app', 'android-app', 'mediacenter-app', 'noxai-app', 'audiosync-app', 'vna-app', 'connection-app', or 'all'.${NC}" >&2
+        echo -e "${RED}Error: Unknown project '$PROJECT_SEL'. Choose 'studio', 'telemetry-app', 'squeeze-app', 'android-app', 'mediacenter-app', 'noxai-app', 'audiosync-app', 'vna-app', 'connection-app', 'videofeedcenter-app', 'ipcam-app', 'feedd', or 'all'.${NC}" >&2
         exit 1
         ;;
 esac

@@ -2,6 +2,10 @@
   <Folder Name="/src/" />
   <Folder Name="/src/Core/">
     <Project Path="src/Core/MADTOM.PluginContracts/MADTOM.PluginContracts.csproj" />
+    <Project Path="src/Core/MADTOM.Protocol/MADTOM.Protocol.csproj" />
+    <Project Path="src/Core/MADTOM.Ipc/MADTOM.Ipc.csproj" />
+    <Project Path="src/Core/MADTOM.Identity/MADTOM.Identity.csproj" />
+    <Project Path="src/Core/MADTOM.Media.Contracts/MADTOM.Media.Contracts.csproj" />
   </Folder>
   <Folder Name="/src/Host/">
     <Project Path="src/Host/MADTOM.Studio/MADTOM.Studio.csproj" />
@@ -32,6 +36,25 @@
     <Project Path="src/Plugins/AudioSync/MADTOM.Plugins.AudioSync.App/MADTOM.Plugins.AudioSync.App.csproj" />
     <Project Path="src/Plugins/AudioSync/MADTOM.Plugins.AudioSync/MADTOM.Plugins.AudioSync.csproj" />
   </Folder>
+  <Folder Name="/src/Plugins/VNA/">
+    <Project Path="src/Plugins/VNA/MADTOM.Plugins.VNA.App/MADTOM.Plugins.VNA.App.csproj" />
+    <Project Path="src/Plugins/VNA/MADTOM.Plugins.VNA/MADTOM.Plugins.VNA.csproj" />
+  </Folder>
+  <Folder Name="/src/Plugins/ConnectionToolkit/">
+    <Project Path="src/Plugins/ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit.App/MADTOM.Plugins.ConnectionToolkit.App.csproj" />
+    <Project Path="src/Plugins/ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit.csproj" />
+  </Folder>
+  <Folder Name="/src/Plugins/VideoFeedCenter/">
+    <Project Path="src/Plugins/VideoFeedCenter/MADTOM.Feed.Engine/MADTOM.Feed.Engine.csproj" />
+    <Project Path="src/Plugins/VideoFeedCenter/MADTOM.Feed.Daemon/MADTOM.Feed.Daemon.csproj" />
+    <Project Path="src/Plugins/VideoFeedCenter/MADTOM.Plugins.VideoFeedCenter/MADTOM.Plugins.VideoFeedCenter.csproj" />
+    <Project Path="src/Plugins/VideoFeedCenter/MADTOM.Plugins.VideoFeedCenter.App/MADTOM.Plugins.VideoFeedCenter.App.csproj" />
+  </Folder>
+  <Folder Name="/src/Plugins/IPCam/">
+    <Project Path="src/Plugins/IPCam/MADTOM.Plugins.IPCam/MADTOM.Plugins.IPCam.csproj" />
+    <Project Path="src/Plugins/IPCam/MADTOM.Plugins.IPCam.App/MADTOM.Plugins.IPCam.App.csproj" />
+    <Project Path="src/Plugins/IPCam/MADTOM.Plugins.IPCam.Android/MADTOM.Plugins.IPCam.Android.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="MadTOM.Tests/Studio/MadTOM.Studio.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/Telemetry/MADTOM.Plugins.Telemetry.Tests.csproj" />
@@ -40,5 +63,10 @@
     <Project Path="MadTOM.Tests/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/NoxAI/MADTOM.Plugins.NoxAI.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/AudioSync/MADTOM.Plugins.AudioSync.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/VNA/MADTOM.Plugins.VNA.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Core/MADTOM.Core.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/VideoFeedCenter/MADTOM.Feed.Engine.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/IPCam/MADTOM.Plugins.IPCam.Tests.csproj" />
   </Folder>
 </Solution>

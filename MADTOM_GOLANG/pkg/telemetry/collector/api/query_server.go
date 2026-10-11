@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"math"
 	"net"
 	"strings"
 	"time"
@@ -55,15 +56,21 @@ func (s *Server) ListNodes(ctx context.Context, req *madtomv1.ListNodesRequest) 
 
 // QueryRange performs a resolution-adaptive downsampled query over a historical range.
 func (s *Server) QueryRange(ctx context.Context, req *madtomv1.RangeQueryRequest) (*madtomv1.RangeQueryResponse, error) {
-	if req.StartTimeUnixNano < 0 || req.EndTimeUnixNano <= req.StartTimeUnixNano || req.TargetPoints > 100000 {
+	rawMode := req.TargetPoints == math.MaxUint32
+	if req.StartTimeUnixNano < 0 || req.EndTimeUnixNano <= req.StartTimeUnixNano || (!rawMode && req.TargetPoints > 100000) {
 		return nil, status.Error(codes.InvalidArgument, "invalid time range or point budget")
 	}
-	targetPoints := int(req.TargetPoints)
-	if targetPoints == 0 {
-		targetPoints = 1200
-	}
-	if targetPoints < 4 {
-		return nil, status.Error(codes.InvalidArgument, "point budget must be zero (default) or 4–100000")
+	var targetPoints int
+	if rawMode {
+		targetPoints = 0
+	} else {
+		targetPoints = int(req.TargetPoints)
+		if targetPoints == 0 {
+			targetPoints = 1200
+		}
+		if targetPoints < 4 {
+			return nil, status.Error(codes.InvalidArgument, "point budget must be zero (default 1200), 4–100000, or 0xFFFFFFFF (raw)")
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, HistoryQueryTimeout)
 	defer cancel()

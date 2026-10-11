@@ -71,7 +71,9 @@ public sealed class CollectorClientService : IAsyncDisposable
         return GrpcChannel.ForAddress(httpEndpoint, new GrpcChannelOptions
         {
             HttpHandler = handler,
-            DisposeHttpClient = true
+            DisposeHttpClient = true,
+            MaxReceiveMessageSize = 256 * 1024 * 1024,
+            MaxSendMessageSize = 256 * 1024 * 1024
         });
     }
 
@@ -160,13 +162,14 @@ public sealed class CollectorClientService : IAsyncDisposable
             MetricName = metricName,
             StartTimeUnixNano = new DateTimeOffset(start).ToUnixTimeMilliseconds() * 1_000_000,
             EndTimeUnixNano = new DateTimeOffset(end).ToUnixTimeMilliseconds() * 1_000_000,
-            TargetPoints = (uint)Math.Clamp(targetPoints, 4, 100000)
+            TargetPoints = targetPoints == int.MaxValue ? uint.MaxValue : (uint)Math.Clamp(targetPoints, 4, 100000)
         };
 
         try
         {
             var (queryClient, _) = GetClients();
-            var response = await queryClient.QueryRangeAsync(req, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: ct);
+            int deadlineSec = targetPoints == int.MaxValue ? 60 : 15;
+            var response = await queryClient.QueryRangeAsync(req, headers: ClientResponseCompression.AcceptHeaders(), deadline: DateTime.UtcNow.AddSeconds(deadlineSec), cancellationToken: ct);
             timing?.Mark("response", $"points={response.Points.Count}; zstdBytes={response.ZstdPayload.Length}; decodedBytes={response.DecodedSize}");
             response = ClientResponseCompression.Decode(response, _historyPayloads);
             timing?.Mark("decoded", $"points={response.Points.Count}");

@@ -25,7 +25,7 @@ public class VNALifecycleTests
         var module = new VNAPluginModule();
         Assert.Equal("vna", module.Id);
         Assert.Equal("VNA", module.DisplayName);
-        Assert.Equal(70, module.OrderWeight);
+        Assert.Equal(140, module.OrderWeight);
         Assert.Equal("Network", module.Category);
         Assert.Equal("🌐", module.IconGlyph);
     }

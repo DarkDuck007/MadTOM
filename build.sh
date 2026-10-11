@@ -37,7 +37,7 @@ usage() {
     echo "                         (default: host architecture)"
     echo "  --release              Build both Go and .NET projects with Release optimizations"
     echo "  --debug                Build projects in Debug configuration (default)"
-    echo "  --test-plugin NAME     Run targeted tests for a plugin (telemetry, squeeze, android, mediacenter, noxai, audiosync, vna, connection, studio)"
+    echo "  --test-plugin NAME     Run targeted tests for a plugin (telemetry, squeeze, videofeedcenter, ipcam, android, mediacenter, noxai, audiosync, vna, connection, studio)"
     echo "  --clean                Clean previous build artifacts before compiling"
     echo "  -h, --help             Display this help message"
     exit 0
@@ -168,6 +168,8 @@ if [[ "$RUN_TESTS" == true ]]; then
     TEST_PROJECTS["console"]="$DOTNET_DIR/MadTOM.Tests/Studio/MadTOM.Studio.Tests.csproj"
     TEST_PROJECTS["telemetry"]="$DOTNET_DIR/MadTOM.Tests/Plugins/Telemetry/MADTOM.Plugins.Telemetry.Tests.csproj"
     TEST_PROJECTS["squeeze"]="$DOTNET_DIR/MadTOM.Tests/Plugins/Squeeze/MADTOM.Plugins.Squeeze.Tests.csproj"
+    TEST_PROJECTS["videofeedcenter"]="$DOTNET_DIR/MadTOM.Tests/Plugins/VideoFeedCenter/MADTOM.Feed.Engine.Tests.csproj"
+    TEST_PROJECTS["ipcam"]="$DOTNET_DIR/MadTOM.Tests/Plugins/IPCam/MADTOM.Plugins.IPCam.Tests.csproj"
     TEST_PROJECTS["android"]="$DOTNET_DIR/MadTOM.Tests/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit.Tests.csproj"
     TEST_PROJECTS["mediacenter"]="$DOTNET_DIR/MadTOM.Tests/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter.Tests.csproj"
     TEST_PROJECTS["noxai"]="$DOTNET_DIR/MadTOM.Tests/Plugins/NoxAI/MADTOM.Plugins.NoxAI.Tests.csproj"

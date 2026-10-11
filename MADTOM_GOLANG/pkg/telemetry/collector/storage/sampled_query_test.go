@@ -93,6 +93,63 @@ func TestSampledQueryInclusiveMaxTimestampAndSmallBudgets(t *testing.T) {
 	}
 }
 
+func TestSampledQueryUnixEpochClamp(t *testing.T) {
+	db, err := OpenTSDB(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	// Real-world unix timestamps (> 1e18 ns)
+	baseTs := int64(1728000000000000000)
+	points := make([]Point, 10000)
+	for i := range points {
+		points[i] = Point{baseTs + int64(i)*1000000000, float64(i)}
+	}
+	if err := db.PutMetricsBatch("node1", "cpu.total", points); err != nil {
+		t.Fatal(err)
+	}
+
+	// Query with start=0 (Unix epoch) to now
+	end := baseTs + 10000*1000000000
+	got, err := db.QueryRangeSampled(context.Background(), "node1", "cpu.total", 0, end, 750, 50000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Before the fix, start=0 gave span of 56 years and only 2-4 points were returned.
+	// With the clamp to firstTs, points are sampled across all buckets (~373 points for strictly monotonic values).
+	if len(got) < 300 || len(got) > 750 {
+		t.Fatalf("expected 300-750 sampled points when querying with start=0, got %d", len(got))
+	}
+}
+
+func TestSampledQueryRawNoDownsample(t *testing.T) {
+	db, err := OpenTSDB(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	baseTs := int64(1728000000000000000)
+	points := make([]Point, 5000)
+	for i := range points {
+		points[i] = Point{baseTs + int64(i)*1000000000, float64(i * 3)}
+	}
+	if err := db.PutMetricsBatch("node-raw", "cpu.total", points); err != nil {
+		t.Fatal(err)
+	}
+
+	// target=0 requests raw data without downsampling
+	got, err := db.QueryRangeSampled(context.Background(), "node-raw", "cpu.total", baseTs, baseTs+5000*1000000000, 0, 100000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 5000 {
+		t.Fatalf("expected exactly 5000 raw points, got %d", len(got))
+	}
+	if got[0] != points[0] || got[4999] != points[4999] {
+		t.Fatalf("first or last point mismatch: got[0]=%+v, got[4999]=%+v", got[0], got[4999])
+	}
+}
+
 func BenchmarkHistoryQueryMemory(b *testing.B) {
 	db, err := OpenTSDB(b.TempDir())
 	if err != nil {

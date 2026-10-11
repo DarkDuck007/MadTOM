@@ -57,8 +57,24 @@ public partial class HostLogsTabViewModel : ViewModelBase
     [ObservableProperty]
     private int _cacheRevision;
 
+    private bool _isSeqRangeInitialized;
+
     public LogChunkCache? LogCache => _telemetryProvider.LogCache;
     public Func<ulong, bool> IsChunkUnavailablePredicate => IsChunkUnavailable;
+
+    private void UpdateStatsSummary()
+    {
+        long nodeBytes = _telemetryProvider.LogCache?.GetNodeCompressedBytes(_targetHostId) ?? 0;
+        double kb = nodeBytes / 1024.0;
+        if (LogMode == TelemetryOptInMode.OptInMonitorAndStore)
+        {
+            StatsSummary = $"{TotalRecords:N0} records · {kb:F1} KB cache";
+        }
+        else if (LogMode == TelemetryOptInMode.OptInMonitorOnly)
+        {
+            StatsSummary = $"{TotalRecords:N0} live records · {kb:F1} KB cache";
+        }
+    }
 
     public HostLogsTabViewModel(ITelemetryDataProvider telemetryProvider)
     {
@@ -105,18 +121,33 @@ public partial class HostLogsTabViewModel : ViewModelBase
         if (LogMode == TelemetryOptInMode.OptInMonitorAndStore)
         {
             var stats = await _telemetryProvider.GetLogStatsAsync(_targetHostId);
+            ulong cachedMin = 0, cachedMax = 0;
+            bool hasCache = _telemetryProvider.LogCache?.TryGetNodeSequenceRange(_targetHostId, out cachedMin, out cachedMax) == true;
+
             if (stats != null && stats.TotalRecords > 0)
             {
                 FirstSeq = stats.FirstSeq;
                 LastSeq = stats.LastSeq;
-                TotalRecords = stats.TotalRecords;
-                StatsSummary = $"{stats.TotalRecords:N0} records · {stats.TotalBytes / 1024.0:F1} KB";
+                if (hasCache && cachedMax > LastSeq) LastSeq = cachedMax;
+                if (hasCache && cachedMin < FirstSeq && (stats.FirstSeq == 0 || cachedMin > 0)) FirstSeq = Math.Min(stats.FirstSeq, cachedMin);
+                TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : stats.TotalRecords;
+                _isSeqRangeInitialized = true;
+                UpdateStatsSummary();
+            }
+            else if (hasCache)
+            {
+                FirstSeq = cachedMin;
+                LastSeq = cachedMax;
+                TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : 0;
+                _isSeqRangeInitialized = true;
+                UpdateStatsSummary();
             }
             else
             {
                 FirstSeq = 0;
                 LastSeq = 0;
                 TotalRecords = 0;
+                _isSeqRangeInitialized = false;
                 StatsSummary = "Awaiting stored records";
             }
         }
@@ -127,13 +158,15 @@ public partial class HostLogsTabViewModel : ViewModelBase
                 FirstSeq = minSeq;
                 LastSeq = maxSeq;
                 TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : 0;
-                StatsSummary = $"{TotalRecords:N0} live records | {_telemetryProvider.LogCache.TotalCompressedBytes / 1024.0:F1} KB cache";
+                _isSeqRangeInitialized = true;
+                UpdateStatsSummary();
             }
             else
             {
                 FirstSeq = 0;
                 LastSeq = 0;
                 TotalRecords = 0;
+                _isSeqRangeInitialized = false;
                 StatsSummary = "Live ring buffer";
             }
         }
@@ -161,12 +194,14 @@ public partial class HostLogsTabViewModel : ViewModelBase
         {
             _inFlightChunks.Clear();
             _chunkFetchFailures.Clear();
+            _chunkFetchRequests.Clear();
         }
 
         _targetHostId = hostId ?? string.Empty;
         CollectorEndpoint = collectorEndpoint ?? string.Empty;
         HostId = _targetHostId;
         HasNewLogs = false;
+        _isSeqRangeInitialized = false;
 
         if (string.IsNullOrEmpty(hostId) || hostId.Equals("aggregated", StringComparison.OrdinalIgnoreCase) || hostId.Equals("all", StringComparison.OrdinalIgnoreCase))
         {
@@ -206,18 +241,33 @@ public partial class HostLogsTabViewModel : ViewModelBase
         if (LogMode == TelemetryOptInMode.OptInMonitorAndStore)
         {
             var stats = await _telemetryProvider.GetLogStatsAsync(hostId);
+            ulong cachedMin = 0, cachedMax = 0;
+            bool hasCache = _telemetryProvider.LogCache?.TryGetNodeSequenceRange(hostId, out cachedMin, out cachedMax) == true;
+
             if (stats != null && stats.TotalRecords > 0)
             {
                 FirstSeq = stats.FirstSeq;
                 LastSeq = stats.LastSeq;
-                TotalRecords = stats.TotalRecords;
-                StatsSummary = $"{stats.TotalRecords:N0} records · {stats.TotalBytes / 1024.0:F1} KB";
+                if (hasCache && cachedMax > LastSeq) LastSeq = cachedMax;
+                if (hasCache && cachedMin < FirstSeq && (stats.FirstSeq == 0 || cachedMin > 0)) FirstSeq = Math.Min(stats.FirstSeq, cachedMin);
+                TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : stats.TotalRecords;
+                _isSeqRangeInitialized = true;
+                UpdateStatsSummary();
+            }
+            else if (hasCache)
+            {
+                FirstSeq = cachedMin;
+                LastSeq = cachedMax;
+                TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : 0;
+                _isSeqRangeInitialized = true;
+                UpdateStatsSummary();
             }
             else
             {
                 FirstSeq = 0;
                 LastSeq = 0;
                 TotalRecords = 0;
+                _isSeqRangeInitialized = false;
                 StatsSummary = "Awaiting stored records";
             }
         }
@@ -228,13 +278,15 @@ public partial class HostLogsTabViewModel : ViewModelBase
                 FirstSeq = minSeq;
                 LastSeq = maxSeq;
                 TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : 0;
-                StatsSummary = $"{TotalRecords:N0} live records | {_telemetryProvider.LogCache.TotalCompressedBytes / 1024.0:F1} KB cache";
+                _isSeqRangeInitialized = true;
+                UpdateStatsSummary();
             }
             else
             {
                 FirstSeq = 0;
                 LastSeq = 0;
                 TotalRecords = 0;
+                _isSeqRangeInitialized = false;
                 StatsSummary = "Live ring buffer";
             }
         }
@@ -266,23 +318,42 @@ public partial class HostLogsTabViewModel : ViewModelBase
                             FirstSeq = minSeq;
                             LastSeq = maxSeq;
                             TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : 0;
+                            _isSeqRangeInitialized = true;
                         }
                         else
                         {
-                            FirstSeq = chunk.FirstSeq;
-                            LastSeq = chunk.LastSeq;
-                            TotalRecords = chunk.RecordCount;
+                            if (!_isSeqRangeInitialized)
+                            {
+                                FirstSeq = chunk.FirstSeq;
+                                LastSeq = chunk.LastSeq;
+                                _isSeqRangeInitialized = true;
+                            }
+                            else
+                            {
+                                if (chunk.FirstSeq < FirstSeq) FirstSeq = chunk.FirstSeq;
+                                if (chunk.LastSeq > LastSeq) LastSeq = chunk.LastSeq;
+                            }
+                            TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : 0;
                         }
                     }
                     else
                     {
-                        if (FirstSeq == 0 || chunk.FirstSeq < FirstSeq)
+                        if (!_isSeqRangeInitialized)
                         {
                             FirstSeq = chunk.FirstSeq;
-                        }
-                        if (chunk.LastSeq > LastSeq)
-                        {
                             LastSeq = chunk.LastSeq;
+                            _isSeqRangeInitialized = true;
+                        }
+                        else
+                        {
+                            if (chunk.FirstSeq < FirstSeq)
+                            {
+                                FirstSeq = chunk.FirstSeq;
+                            }
+                            if (chunk.LastSeq > LastSeq)
+                            {
+                                LastSeq = chunk.LastSeq;
+                            }
                         }
 
                         TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : 0;
@@ -295,11 +366,7 @@ public partial class HostLogsTabViewModel : ViewModelBase
 
                     CacheRevision++;
                     StatusText = "Streaming active";
-
-                    if (_telemetryProvider.LogCache is { } cache)
-                    {
-                        StatsSummary = $"{TotalRecords:N0} records | {cache.TotalCompressedBytes / 1024.0:F1} KB cache";
-                    }
+                    UpdateStatsSummary();
                 });
             }
         }
@@ -318,7 +385,9 @@ public partial class HostLogsTabViewModel : ViewModelBase
 
     private readonly System.Collections.Generic.HashSet<ulong> _inFlightChunks = new();
     private readonly System.Collections.Generic.Dictionary<ulong, DateTime> _chunkFetchFailures = new();
+    private readonly System.Collections.Generic.Dictionary<ulong, DateTime> _chunkFetchRequests = new();
     private static readonly TimeSpan RetryCooldown = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan RequestCooldown = TimeSpan.FromSeconds(2.5);
 
     public async void HandleNeedChunk(ulong chunkId)
     {
@@ -327,11 +396,17 @@ public partial class HostLogsTabViewModel : ViewModelBase
         lock (_inFlightChunks)
         {
             if (_inFlightChunks.Contains(chunkId)) return;
-            if (_chunkFetchFailures.TryGetValue(chunkId, out var lastFail) && DateTime.UtcNow - lastFail < RetryCooldown)
+            var now = DateTime.UtcNow;
+            if (_chunkFetchRequests.TryGetValue(chunkId, out var lastReq) && now - lastReq < RequestCooldown)
+            {
+                return;
+            }
+            if (_chunkFetchFailures.TryGetValue(chunkId, out var lastFail) && now - lastFail < RetryCooldown)
             {
                 return;
             }
             _inFlightChunks.Add(chunkId);
+            _chunkFetchRequests[chunkId] = now;
         }
 
         ulong queryStart = chunkId > 0 ? chunkId - 1 : 0;
@@ -340,14 +415,17 @@ public partial class HostLogsTabViewModel : ViewModelBase
         try
         {
             var res = await _telemetryProvider.QueryLogChunksAsync(_targetHostId, queryStart, 6);
-            bool hasChunks = false;
+            bool requestedChunkFound = false;
             if (res != null && res.Chunks != null && res.Chunks.Count > 0)
             {
                 Console.WriteLine($"[MADTOM.Logs] QueryLogChunks success: node={_targetHostId}, returned {res.Chunks.Count} chunks");
                 foreach (var chunk in res.Chunks)
                 {
                     _telemetryProvider.LogCache?.PutChunk(CollectorEndpoint, _targetHostId, chunk);
-                    hasChunks = true;
+                    if (chunk.ChunkId == chunkId)
+                    {
+                        requestedChunkFound = true;
+                    }
                 }
             }
             else
@@ -358,22 +436,26 @@ public partial class HostLogsTabViewModel : ViewModelBase
             lock (_inFlightChunks)
             {
                 _inFlightChunks.Remove(chunkId);
-                if (!hasChunks)
+                if (!requestedChunkFound)
                 {
                     _chunkFetchFailures[chunkId] = DateTime.UtcNow;
+                    _telemetryProvider.LogCache?.RecordChunkError(
+                        _targetHostId,
+                        chunkId,
+                        "NOT_FOUND",
+                        $"Chunk #{chunkId} was not found in collector TSDB for node {_targetHostId} (query returned {res?.Chunks?.Count ?? 0} chunks). Records may be unsealed, dropped, or beyond stored retention.",
+                        Environment.StackTrace);
                 }
                 else
                 {
                     _chunkFetchFailures.Remove(chunkId);
-                    // Also clear previous chunk failure if it was fetched in this window
-                    if (chunkId > 0) _chunkFetchFailures.Remove(chunkId - 1);
-                    _chunkFetchFailures.Remove(chunkId + 1);
                 }
             }
 
             Dispatcher.UIThread.Post(() =>
             {
                 CacheRevision++;
+                UpdateStatsSummary();
             });
         }
         catch (Exception ex)
@@ -383,6 +465,12 @@ public partial class HostLogsTabViewModel : ViewModelBase
             {
                 _inFlightChunks.Remove(chunkId);
                 _chunkFetchFailures[chunkId] = DateTime.UtcNow;
+                _telemetryProvider.LogCache?.RecordChunkError(
+                    _targetHostId,
+                    chunkId,
+                    ex.GetType().Name,
+                    ex.Message,
+                    ex.ToString());
             }
             Dispatcher.UIThread.Post(() =>
             {
@@ -395,7 +483,7 @@ public partial class HostLogsTabViewModel : ViewModelBase
     {
         lock (_inFlightChunks)
         {
-            return _chunkFetchFailures.ContainsKey(chunkId);
+            return _chunkFetchFailures.TryGetValue(chunkId, out var failTime) && (DateTime.UtcNow - failTime < RetryCooldown);
         }
     }
 

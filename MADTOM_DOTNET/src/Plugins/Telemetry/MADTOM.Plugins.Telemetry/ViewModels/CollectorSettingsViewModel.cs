@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MadTOM.Models;
@@ -97,6 +99,370 @@ public partial class CollectorSettingsViewModel : ViewModelBase
     [RelayCommand] public void ClearStoredCache() { _dataProvider.HistoryCache?.ClearStored(); RefreshCacheEstimate(); }
     [RelayCommand] public void ClearLogCache() { _dataProvider.LogCache?.Clear(); RefreshCacheEstimate(); }
 
+    [ObservableProperty] private string _gcLastRunText = "Never executed";
+    [ObservableProperty] private string _gcMemoryFreedText = "--";
+    [ObservableProperty] private string _gcHeapSummaryText = "--";
+    [ObservableProperty] private string _gcGenCountsText = "--";
+
+    [RelayCommand]
+    public void ForceGcCollect()
+    {
+        long memBefore = GC.GetTotalMemory(false);
+        long wsBefore = Environment.WorkingSet;
+        int gen0Before = GC.CollectionCount(0);
+        int gen1Before = GC.CollectionCount(1);
+        int gen2Before = GC.CollectionCount(2);
+
+        GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+
+        long memAfter = GC.GetTotalMemory(false);
+        long wsAfter = Environment.WorkingSet;
+        int gen0After = GC.CollectionCount(0);
+        int gen1After = GC.CollectionCount(1);
+        int gen2After = GC.CollectionCount(2);
+
+        long freedBytes = Math.Max(0, memBefore - memAfter);
+        double freedMiB = freedBytes / 1048576.0;
+        double heapMiB = memAfter / 1048576.0;
+        double wsMiB = wsAfter / 1048576.0;
+
+        GcLastRunText = $"{DateTime.Now:HH:mm:ss} (Freed {freedMiB:F2} MiB)";
+        GcMemoryFreedText = $"{freedMiB:F2} MiB ({memBefore / 1048576.0:F2} MiB → {memAfter / 1048576.0:F2} MiB)";
+        GcHeapSummaryText = $"Heap: {heapMiB:F2} MiB · Working Set: {wsMiB:F2} MiB";
+        GcGenCountsText = $"Gen0: {gen0After} (+{gen0After - gen0Before}) · Gen1: {gen1After} (+{gen1After - gen1Before}) · Gen2: {gen2After} (+{gen2After - gen2Before})";
+
+        RefreshCacheStats();
+    }
+
+    [ObservableProperty] private ObservableCollection<string> _preloadScopes = new()
+    {
+        "1 Hour (1H)",
+        "6 Hours (6H)",
+        "24 Hours (24H)",
+        "7 Days (7D)",
+        "Entire History"
+    };
+    [ObservableProperty] private string _selectedPreloadScope = "24 Hours (24H)";
+
+    [ObservableProperty] private ObservableCollection<string> _preloadBucketingModes = new()
+    {
+        "Standard (2,400 pts)",
+        "High Density (5,000 pts)",
+        "Ultra Density (10,000 pts)",
+        "Stress Test (50,000 pts)",
+        "Raw (All Points / No Downsampling)",
+        "Custom Budget"
+    };
+    [ObservableProperty] private string _selectedPreloadBucketingMode = "Standard (2,400 pts)";
+    [ObservableProperty] private int? _preloadCustomBudget = 10000;
+    public bool IsCustomBudgetVisible => SelectedPreloadBucketingMode == "Custom Budget";
+    partial void OnSelectedPreloadBucketingModeChanged(string value) => OnPropertyChanged(nameof(IsCustomBudgetVisible));
+
+    [ObservableProperty] private int? _preloadConcurrency = Environment.ProcessorCount;
+
+    private void UpdatePreloadStatus(string text)
+    {
+        if (Dispatcher.UIThread != null && !Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => PreloadStatusText = text);
+        }
+        else
+        {
+            PreloadStatusText = text;
+        }
+    }
+
+    [ObservableProperty] private bool _isPreloading;
+    [ObservableProperty] private string _preloadStatusText = "Idle";
+    [ObservableProperty] private string _preloadSummaryText = "No preload executed yet.";
+
+    public bool CanForceLoad => !IsPreloading;
+
+    partial void OnIsPreloadingChanged(bool value) => OnPropertyChanged(nameof(CanForceLoad));
+
+    [RelayCommand]
+    public async Task ForceLoadLogs()
+    {
+        if (IsPreloading) return;
+        IsPreloading = true;
+        PreloadStatusText = "Initializing log preload...";
+
+        try
+        {
+            DateTime now = DateTime.UtcNow;
+            DateTime? startTime = SelectedPreloadScope switch
+            {
+                "1 Hour (1H)" => now.AddHours(-1),
+                "6 Hours (6H)" => now.AddHours(-6),
+                "24 Hours (24H)" => now.AddHours(-24),
+                "7 Days (7D)" => now.AddDays(-7),
+                "Entire History" => null,
+                _ => now.AddHours(-24)
+            };
+
+            long seekTs = startTime.HasValue ? new DateTimeOffset(startTime.Value).ToUnixTimeMilliseconds() * 1_000_000L : 0;
+            var nodes = _dataProvider.GetFleetNodes();
+            int totalChunksLoaded = 0;
+            long totalRecordsLoaded = 0;
+            int nodesLoaded = 0;
+
+            foreach (var node in nodes)
+            {
+                PreloadStatusText = $"Checking {node.Id} log records...";
+                var stats = await _dataProvider.GetLogStatsAsync(node.Id);
+                if (stats == null || stats.TotalRecords == 0) continue;
+
+                ulong currentChunk = 0;
+                if (seekTs > 0)
+                {
+                    var initialRes = await _dataProvider.QueryLogChunksAsync(node.Id, 0, 1, seekTs: seekTs, forward: true);
+                    if (initialRes?.Chunks != null && initialRes.Chunks.Count > 0)
+                    {
+                        currentChunk = initialRes.Chunks[0].ChunkId;
+                    }
+                }
+
+                int nodeChunks = 0;
+                while (true)
+                {
+                    PreloadStatusText = $"Loading {node.Id} logs (chunk #{currentChunk}, {nodeChunks} chunks)...";
+                    try
+                    {
+                        var res = await _dataProvider.QueryLogChunksAsync(node.Id, currentChunk, 16, seekTs: 0, forward: true);
+                        if (res?.Chunks == null || res.Chunks.Count == 0)
+                        {
+                            if (currentChunk * 256 <= stats.LastSeq)
+                            {
+                                _dataProvider.LogCache?.RecordChunkError(
+                                    node.Id,
+                                    currentChunk,
+                                    "NOT_FOUND",
+                                    $"Chunk #{currentChunk} not found in collector TSDB for node {node.Id} during preload.",
+                                    Environment.StackTrace);
+                            }
+                            break;
+                        }
+
+                        ulong maxChunkInBatch = currentChunk;
+                        foreach (var chunk in res.Chunks)
+                        {
+                            _dataProvider.LogCache?.PutChunk(node.CollectorEndpoint, node.Id, chunk);
+                            nodeChunks++;
+                            totalChunksLoaded++;
+                            totalRecordsLoaded += chunk.RecordCount;
+                            if (chunk.ChunkId > maxChunkInBatch) maxChunkInBatch = chunk.ChunkId;
+                        }
+
+                        if (!res.HasMore || res.Chunks.Count < 16) break;
+                        currentChunk = maxChunkInBatch + 1;
+                        if (currentChunk * 256 > stats.LastSeq) break;
+                    }
+                    catch (Exception chunkEx)
+                    {
+                        _dataProvider.LogCache?.RecordChunkError(
+                            node.Id,
+                            currentChunk,
+                            chunkEx.GetType().Name,
+                            chunkEx.Message,
+                            chunkEx.ToString());
+                        break;
+                    }
+                }
+
+                if (nodeChunks > 0) nodesLoaded++;
+            }
+
+            PreloadStatusText = "Preload completed successfully";
+            PreloadSummaryText = $"{totalChunksLoaded:N0} chunks ({totalRecordsLoaded:N0} records) loaded across {nodesLoaded} nodes ({SelectedPreloadScope}).";
+            RefreshCacheStats();
+        }
+        catch (Exception ex)
+        {
+            PreloadStatusText = $"Preload error: {ex.Message}";
+        }
+        finally
+        {
+            IsPreloading = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task ForceLoadTelemetry()
+    {
+        if (IsPreloading) return;
+        IsPreloading = true;
+        UpdatePreloadStatus("Initializing telemetry preload...");
+
+        try
+        {
+            DateTime end = DateTime.UtcNow;
+            DateTime start = SelectedPreloadScope switch
+            {
+                "1 Hour (1H)" => end.AddHours(-1),
+                "6 Hours (6H)" => end.AddHours(-6),
+                "24 Hours (24H)" => end.AddHours(-24),
+                "7 Days (7D)" => end.AddDays(-7),
+                "Entire History" => DateTime.UnixEpoch,
+                _ => end.AddHours(-24)
+            };
+
+            var nodes = DetectedNodes.Count > 0 ? DetectedNodes.ToList() : _dataProvider.GetFleetNodes().ToList();
+            if (nodes.Count == 0)
+            {
+                await RefreshAllAsync();
+                nodes = DetectedNodes.Count > 0 ? DetectedNodes.ToList() : _dataProvider.GetFleetNodes().ToList();
+            }
+
+            int targetBudget = SelectedPreloadBucketingMode switch
+            {
+                "Standard (2,400 pts)" => 2400,
+                "High Density (5,000 pts)" => 5000,
+                "Ultra Density (10,000 pts)" => 10000,
+                "Stress Test (50,000 pts)" => 50000,
+                "Raw (All Points / No Downsampling)" => int.MaxValue,
+                "Custom Budget" => Math.Clamp(PreloadCustomBudget ?? 10000, 4, 100000),
+                _ => 2400
+            };
+
+            int concurrency = Math.Clamp(PreloadConcurrency ?? Environment.ProcessorCount, 1, 128);
+
+            // Collect all candidate metric targets across all active nodes
+            var targets = new List<(FleetNodeModel Node, CollectorClientService Client, string Metric)>();
+            for (int nIdx = 0; nIdx < nodes.Count; nIdx++)
+            {
+                var node = nodes[nIdx];
+                var client = _manager.GetClientForNode(node);
+                if (client == null) continue;
+
+                var metricsToQuery = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "cpu.total",
+                    "cpu.user",
+                    "cpu.system",
+                    "cpu.iowait",
+                    "memory.total",
+                    "memory.available",
+                    "memory.used",
+                    "memory.swap_total",
+                    "memory.swap_used",
+                    "disk.io.read_bytes",
+                    "disk.io.write_bytes",
+                    "disk.io.read_ops",
+                    "disk.io.write_ops",
+                    "twamp.rtt"
+                };
+
+                int cores = Math.Max(node.Cores, node.CoreLoads?.Length ?? 0);
+                for (int c = 0; c < Math.Min(cores, 64); c++)
+                {
+                    metricsToQuery.Add($"cpu.core.{c}");
+                }
+
+                if (node.Interfaces != null && node.Interfaces.Count > 0)
+                {
+                    foreach (var iface in node.Interfaces)
+                    {
+                        metricsToQuery.Add($"nic.{iface.Name}.rx_bytes");
+                        metricsToQuery.Add($"nic.{iface.Name}.tx_bytes");
+                    }
+                }
+                else
+                {
+                    metricsToQuery.Add("nic.eth0.rx_bytes");
+                    metricsToQuery.Add("nic.eth0.tx_bytes");
+                }
+
+                if (node.Disks != null && node.Disks.Count > 0)
+                {
+                    foreach (var d in node.Disks)
+                    {
+                        metricsToQuery.Add($"disk.io.{d.Name}.read_bytes");
+                        metricsToQuery.Add($"disk.io.{d.Name}.write_bytes");
+                    }
+                }
+
+                if (node.HasBattery)
+                {
+                    metricsToQuery.Add("power.battery_pct");
+                    metricsToQuery.Add("power.rate_watts");
+                }
+
+                foreach (var metric in metricsToQuery)
+                {
+                    targets.Add((node, client, metric));
+                }
+            }
+
+            int totalTargets = targets.Count;
+            if (totalTargets == 0)
+            {
+                UpdatePreloadStatus("No target metrics discovered");
+                PreloadSummaryText = "No active nodes or metrics to preload.";
+                return;
+            }
+
+            UpdatePreloadStatus($"Starting concurrent preload of {totalTargets} series ({concurrency} workers)...");
+
+            int totalSeries = 0;
+            int totalPoints = 0;
+            int totalErrors = 0;
+            int completedCount = 0;
+
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = concurrency
+            };
+
+            await Parallel.ForEachAsync(targets, parallelOptions, async (target, ct) =>
+            {
+                try
+                {
+                    var points = await target.Client.QueryRangeAsync(target.Node.Id, target.Metric, start, end, targetPoints: targetBudget, ct: ct);
+                    if (points != null && points.Count > 0)
+                    {
+                        var rangeStart = SelectedPreloadScope == "Entire History" && points[0].TimestampUnixNano > 0
+                            ? DateTimeOffset.FromUnixTimeMilliseconds(points[0].TimestampUnixNano / 1_000_000).UtcDateTime
+                            : start;
+                        _dataProvider.HistoryCache?.PutRemoteRange(target.Node.CollectorEndpoint, target.Node.Id, target.Metric, rangeStart, end, points, targetBudget, retentionSeconds: 3600);
+                        Interlocked.Increment(ref totalSeries);
+                        Interlocked.Add(ref totalPoints, points.Count);
+                    }
+                }
+                catch (Exception qEx)
+                {
+                    Interlocked.Increment(ref totalErrors);
+                    Console.WriteLine($"[ForceLoadTelemetry] Query failed for {target.Node.Id}.{target.Metric}: {qEx.Message}");
+                }
+                finally
+                {
+                    int done = Interlocked.Increment(ref completedCount);
+                    if (done % Math.Max(1, concurrency / 2) == 0 || done == totalTargets)
+                    {
+                        UpdatePreloadStatus($"[{done}/{totalTargets}] ({done * 100 / totalTargets}%) Fetching concurrently ({concurrency} workers)...");
+                    }
+                }
+            });
+
+            UpdatePreloadStatus("Telemetry preload completed");
+            string errorSuffix = totalErrors > 0 ? $" ({totalErrors} queries failed)" : "";
+            string budgetLabel = SelectedPreloadBucketingMode == "Raw (All Points / No Downsampling)"
+                ? "raw/no downsample"
+                : (SelectedPreloadBucketingMode == "Custom Budget" ? $"{targetBudget:N0} pts" : SelectedPreloadBucketingMode);
+            PreloadSummaryText = $"{totalPoints:N0} points across {totalSeries:N0} series loaded across {nodes.Count} nodes into stored cache ({SelectedPreloadScope}, {budgetLabel}, {concurrency} workers){errorSuffix}.";
+            RefreshCacheStats();
+        }
+        catch (Exception ex)
+        {
+            UpdatePreloadStatus($"Preload error: {ex.Message}");
+        }
+        finally
+        {
+            IsPreloading = false;
+        }
+    }
+
     public bool IsCacheAvailable => _dataProvider.HistoryCache != null || _dataProvider.LogCache != null;
 
     partial void OnCacheRetentionMinutesChanged(string value) => RefreshCacheEstimate();
@@ -119,6 +485,14 @@ public partial class CollectorSettingsViewModel : ViewModelBase
         }
         long logBytes = _dataProvider.LogCache?.TotalCompressedBytes ?? 0;
         TotalCacheUsage = $"{(usage.TotalBytes + logBytes) / 1048576.0:F2} MiB";
+
+        if (GcHeapSummaryText == "--")
+        {
+            double heapMiB = GC.GetTotalMemory(false) / 1048576.0;
+            double wsMiB = Environment.WorkingSet / 1048576.0;
+            GcHeapSummaryText = $"Heap: {heapMiB:F2} MiB · Working Set: {wsMiB:F2} MiB";
+            GcGenCountsText = $"Gen0: {GC.CollectionCount(0)} · Gen1: {GC.CollectionCount(1)} · Gen2: {GC.CollectionCount(2)}";
+        }
 
         int liveLimit = LiveCacheLimitMiB ?? 64;
         int storedLimit = StoredCacheLimitMiB ?? 32;

@@ -13,6 +13,8 @@ public class DeepDiveTransitionTimingTests : IDisposable
 
     public DeepDiveTransitionTimingTests()
     {
+        DeepDiveTransitionTracker.Cancel();
+        _records.Clear();
         DeepDiveTransitionTracker.SetEnabledForTesting(true);
         DeepDiveTransitionTracker.OutputSink = obj =>
         {
@@ -25,6 +27,7 @@ public class DeepDiveTransitionTimingTests : IDisposable
 
     public void Dispose()
     {
+        DeepDiveTransitionTracker.Cancel();
         DeepDiveTransitionTracker.OutputSink = null;
         DeepDiveTransitionTracker.SetEnabledForTesting(false);
     }

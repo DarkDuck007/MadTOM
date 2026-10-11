@@ -8,7 +8,7 @@ This guide covers the **MADTOM Studio** desktop host shell, dynamic layout scali
 
 - [Desktop UI Shell Overview](#desktop-ui-shell-overview)
   - [Executable & Launching](#executable--launching)
-  - [Interactive Resizable Sidebars](#interactive-resizable-sidebars)
+  - [Interactive Resizable Sidebars & 3-State Cycling](#interactive-resizable-sidebars--3-state-cycling)
   - [Universal Modal Control &amp; Touchscreen Resizing](#universal-modal-control--touchscreen-resizing)
 - [Settings Screen](#settings-screen)
 - [Hardware Display Brightness Controls (Bare-Metal)](#hardware-display-brightness-controls-bare-metal)

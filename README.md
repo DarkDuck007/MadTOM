@@ -48,6 +48,8 @@ Comprehensive guides, manuals, and technical deep-dives are organized into modul
 
 ### Modular Plugins
 - 🗜️ **[MADTOM: SQUEEZE](Documentation/Plugins/Squeeze/README.md)**: Hardware-accelerated media transcode toolkit, remote daemon distribution, queue prioritization, and transcode telemetry.
+- 🎥 **[MADTOM: Video Feed Center](Documentation/Plugins/VideoFeedCenter/README.md)**: Multi-source video ingest, SRT monitoring, proxy recording hub, low-latency live preview, and unauthenticated OBS listener.
+- 📷 **[MADTOM: IPCam](Documentation/Plugins/IPCam/README.md)**: Direct video capture source, Android foreground service streamer, hardware encoder feedback (AT8), live zoom control (AT7), and time sync probes.
 - 📱 **[MADTOM: Android Toolkit](Documentation/Plugins/AndroidToolkit/README.md)**: Device backup, ADB command dispatching, package deployment, and battery/storage health telemetry.
 - 📺 **[MADTOM: MediaCenter](Documentation/Plugins/MediaCenter/README.md)**: Local & network NAS streaming, direct play library indexer, and DLNA/UPnP playback control.
 - 🧠 **[MADTOM: NOX AI Control Center](Documentation/Plugins/NoxAI/README.md)**: Local LLM orchestrator, GPU inference daemon monitor (Ollama/vLLM), and context memory pipeline.
@@ -152,6 +154,8 @@ MADTOM/
 │   └── Plugins/                  # Modular Plugin Documentation
 │       ├── Telemetry/            # Telemetry Plugin guides
 │       ├── Squeeze/              # SQUEEZE transcode toolkit guides & architecture
+│       ├── VideoFeedCenter/      # Video Feed Center ingest, recorder, and viewer guides
+│       ├── IPCam/                # IPCam capture source and control client guides
 │       ├── AndroidToolkit/       # Android Toolkit guide
 │       ├── MediaCenter/          # MediaCenter guide
 │       ├── NoxAI/                # NOX AI Control Center guide
@@ -170,11 +174,13 @@ MADTOM/
     ├── MADTOM.sln / MADTOM.slnx  # Visual Studio / .NET Solution files
     ├── publish.sh                # Linux self-contained publishing script
     ├── src/
-    │   ├── Core/                 # Plugin contracts & interfaces (MADTOM.PluginContracts)
+    │   ├── Core/                 # Protocols, IPC, Identity, Media contracts, and Plugin contracts
     │   ├── Host/MADTOM.Studio/   # Main Avalonia desktop UI executable & tray host
     │   └── Plugins/              # Modular plugins & standalone runners
     │       ├── Telemetry/        # Telemetry views, charts, and standalone app
     │       ├── Squeeze/          # SQUEEZE transcode engine, views, and app
+    │       ├── VideoFeedCenter/  # Ingest engine, daemon (madtom-feedd), and studio plugin
+    │       ├── IPCam/            # Camera capture source, session client, and Android head
     │       ├── AndroidToolkit/   # Android toolkit views and standalone app
     │       ├── MediaCenter/      # MediaCenter views and standalone app
     │       ├── NoxAI/            # NOX AI control center views and standalone app
@@ -182,10 +188,13 @@ MADTOM/
     │       ├── VNA/              # Visual Network Analyzer views and standalone app
     │       └── ConnectionToolkit/# Connection Toolkit views and standalone app
     └── MadTOM.Tests/             # Decoupled targeted test suites
+        ├── Core/                 # Protocol, IPC, Identity, and MPEG-TS muxer tests
         ├── Studio/               # Host settings, theming, lexicon, tray menu tests
         └── Plugins/              # Targeted per-plugin test projects
             ├── Telemetry/        # Telemetry cache, LTTB, Zstd, metrics tests
             ├── Squeeze/          # Transcode queue, preset, stager, transfer tests
+            ├── VideoFeedCenter/  # FeedManager, synthetic ingest, and SRT listener tests
+            ├── IPCam/            # Capture engine, zoom echo, and control session tests
             ├── AndroidToolkit/   # Lifecycle & ADB model tests
             ├── MediaCenter/      # Lifecycle & streaming model tests
             ├── NoxAI/            # Lifecycle & LLM inference model tests

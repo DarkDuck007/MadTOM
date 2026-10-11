@@ -22,7 +22,7 @@ public sealed class ConnectionToolkitPluginModule : IPluginModule
     public string IconGlyph => "🔌";
     public string Category => "Connectivity";
     public Version Version => new(1, 0, 0);
-    public int OrderWeight => 80;
+    public int OrderWeight => 150;
 
     public Task InitializeAsync(IPluginHostContext hostContext, CancellationToken cancellationToken = default)
     {

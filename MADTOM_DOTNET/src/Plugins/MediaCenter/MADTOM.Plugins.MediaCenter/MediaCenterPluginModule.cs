@@ -22,7 +22,7 @@ public sealed class MediaCenterPluginModule : IPluginModule
     public string IconGlyph => "📺";
     public string Category => "Media";
     public Version Version => new(1, 0, 0);
-    public int OrderWeight => 40;
+    public int OrderWeight => 110;
 
     public Task InitializeAsync(IPluginHostContext hostContext, CancellationToken cancellationToken = default)
     {

@@ -11,6 +11,7 @@ namespace MadTOM.Services;
 public sealed class TelemetryHistoryCache
 {
     public const int MaxStoredQueryPoints = 64 * 1024;
+    public const int MaxPreloadPoints = 2 * 1024 * 1024;
     private readonly object _gate = new();
     private readonly Func<DateTime> _utcNow;
     private readonly Dictionary<(string Collector, string Node, string Metric), Series> _live = new();
@@ -554,6 +555,41 @@ public sealed class TelemetryHistoryCache
         return result;
     }
 
+    /// <summary>
+    /// Explicitly inserts a historical LOD query range into the stored query cache.
+    /// Used by force-preload operations to warm the cache and allow instant graph rendering.
+    /// </summary>
+    public void PutRemoteRange(string collector, string node, string metric, DateTime start, DateTime end, IReadOnlyList<LODPoint> points, int targetPoints, int? retentionSeconds = null)
+    {
+        if (points == null || points.Count == 0 || points.Count > MaxPreloadPoints) return;
+        long from = Nano(start), to = Nano(end);
+        if (from >= to) return;
+        var key = Key(collector, node, metric);
+        var block = new CompressedPointBlock(points);
+        int sec = retentionSeconds ?? Math.Max(_storedRetentionSeconds, 3600);
+        var expires = _utcNow().AddSeconds(sec);
+        var range = new RemoteRange(key, from, to, expires, block, targetPoints);
+
+        lock (_gate)
+        {
+            if (RangeBytes(range) > _storedLimitBytes) return;
+            PruneExpiredRemoteLocked(_utcNow());
+
+            for (int i = _remote.Count - 1; i >= 0; i--)
+            {
+                if (_remote[i].Key == key && _remote[i].Start == range.Start && _remote[i].End == range.End)
+                {
+                    var r = _remote[i];
+                    _remote.RemoveAt(i);
+                    RemoveRemoteRangeLocked(r);
+                }
+            }
+
+            AddRemoteRangeLocked(range);
+            EnforceLimitsLocked();
+        }
+    }
+
     private static void LogCoverage(HistoryTiming timing, CompressedPointHistory? points, long start, long end, string interval)
     {
         var result = points?.InspectCoverage(start, end) ?? new CompressedPointHistory.Coverage(false, "empty", 0, 0, 0);
@@ -561,7 +597,7 @@ public sealed class TelemetryHistoryCache
     }
 
     private static bool HasResolution(RemoteRange range, long start, long end, int targetPoints) =>
-        targetPoints <= 0 || (range.PointBudget >= targetPoints &&
+        targetPoints <= 0 || range.PointBudget == int.MaxValue || (range.PointBudget >= targetPoints &&
             (decimal)range.PointBudget * Math.Max(1m, (decimal)end - start) * 1.05m >=
             (decimal)targetPoints * Math.Max(1m, (decimal)range.End - range.Start));
 
@@ -580,6 +616,7 @@ public sealed class TelemetryHistoryCache
     {
         _lastPruneUtc = _utcNow();
         long cutoff = Cutoff();
+        long nowNano = Nano(_utcNow());
         _deadKeysBuffer.Clear();
 
         foreach (var (key, series) in _live)
@@ -591,6 +628,7 @@ public sealed class TelemetryHistoryCache
             long oldCompRaw = series.Points.CompressedRawBytes;
 
             series.Points.RemoveBefore(cutoff);
+            series.Points.CompactBuckets(nowNano);
 
             _liveStorageBytes += (series.Points.StorageBytes - oldStorage);
             _livePoints += (series.Points.Count - oldCount);

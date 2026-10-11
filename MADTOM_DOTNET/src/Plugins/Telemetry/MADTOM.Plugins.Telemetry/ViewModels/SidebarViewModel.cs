@@ -48,7 +48,9 @@ public partial class SidebarViewModel : ViewModelBase
     public void RefreshCompressionSummary()
     {
         var usage = _telemetryProvider.HistoryCache?.GetUsage(1);
-        if (usage != null) ZstdSummary = ClientCompressionSnapshot.FormatBytes(usage.LiveZstdBytes + usage.StoredZstdBytes);
+        long logBytes = _telemetryProvider.LogCache?.TotalCompressedBytes ?? 0;
+        long total = (usage?.LiveZstdBytes ?? 0) + (usage?.StoredZstdBytes ?? 0) + logBytes;
+        ZstdSummary = ClientCompressionSnapshot.FormatBytes(total);
     }
 
     [ObservableProperty]

@@ -114,6 +114,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
 {
     private readonly CollectorClientService? _client;
     private readonly FleetNodeModel _node;
+    private readonly NodeVisualSettingsStore _visualStore;
     private NodeConfig? _loadedConfig;
 
     [ObservableProperty]
@@ -309,6 +310,45 @@ public partial class NodeSettingsViewModel : ViewModelBase
     private bool _viewNetworkCounters = true;
 
     [ObservableProperty]
+    private CpuVisualMode _cpuVisualMode = CpuVisualMode.CoreMatrix;
+
+    public string VisualModeGroupName => $"VisualMode_{_node.Id}";
+
+    public bool IsVisualCoreMatrix
+    {
+        get => CpuVisualMode == CpuVisualMode.CoreMatrix;
+        set { if (value) CpuVisualMode = CpuVisualMode.CoreMatrix; }
+    }
+
+    public bool IsVisualPerCoreGraphs
+    {
+        get => CpuVisualMode == CpuVisualMode.PerCoreGraphs;
+        set { if (value) CpuVisualMode = CpuVisualMode.PerCoreGraphs; }
+    }
+
+    public bool IsVisualOverallGraph
+    {
+        get => CpuVisualMode == CpuVisualMode.OverallGraph;
+        set { if (value) CpuVisualMode = CpuVisualMode.OverallGraph; }
+    }
+
+    public bool IsVisualAggregatedPerCore
+    {
+        get => CpuVisualMode == CpuVisualMode.AggregatedPerCore;
+        set { if (value) CpuVisualMode = CpuVisualMode.AggregatedPerCore; }
+    }
+
+    partial void OnCpuVisualModeChanged(CpuVisualMode value)
+    {
+        _node.CpuVisualMode = value;
+        _visualStore?.SetVisualMode(_node.Id, value);
+        OnPropertyChanged(nameof(IsVisualCoreMatrix));
+        OnPropertyChanged(nameof(IsVisualPerCoreGraphs));
+        OnPropertyChanged(nameof(IsVisualOverallGraph));
+        OnPropertyChanged(nameof(IsVisualAggregatedPerCore));
+    }
+
+    [ObservableProperty]
     private string _statusMessage = string.Empty;
 
     public record struct ConfigSnapshot(
@@ -487,15 +527,18 @@ public partial class NodeSettingsViewModel : ViewModelBase
         }
     }
 
-    public NodeSettingsViewModel(FleetNodeModel node, CollectorClientService? client)
+    public NodeSettingsViewModel(FleetNodeModel node, CollectorClientService? client, NodeVisualSettingsStore? visualStore = null)
     {
         _node = node;
         _client = client;
+        _visualStore = visualStore ?? new NodeVisualSettingsStore();
         _isViewingEnabled = node.IsViewingOptedIn;
         ViewCpuMatrix = node.ViewCpuMatrix;
         ViewSwapZram = node.ViewSwapZram;
         ViewPowerBattery = node.ViewPowerBattery;
         ViewNetworkCounters = node.ViewNetworkCounters;
+        CpuVisualMode = _visualStore.GetVisualMode(node.Id);
+        _node.CpuVisualMode = CpuVisualMode;
 
         BuildMetricGroups();
         CaptureBaseline();
@@ -691,6 +734,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
         _node.ViewSwapZram = ViewSwapZram;
         _node.ViewPowerBattery = ViewPowerBattery;
         _node.ViewNetworkCounters = ViewNetworkCounters;
+        _node.CpuVisualMode = CpuVisualMode;
 
         // 2. Dispatch Collection opt-in upstream to Collector & Daemon
         if (_client != null)

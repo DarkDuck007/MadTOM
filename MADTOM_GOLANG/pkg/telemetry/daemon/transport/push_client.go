@@ -34,6 +34,7 @@ type PushClient struct {
 	tailer                *logs.JournalTailer
 	liveChunks            []*madtomv1.LogChunk
 	lastCursor            string
+	buffer                *spool.MemoryBuffer
 }
 
 func NewPushClient(address, nodeID string, wal *spool.WALManager, engine *collector.Engine, cfg *madtomv1.NodeConfig, spoolDir ...string) *PushClient {
@@ -67,10 +68,19 @@ func NewPushClient(address, nodeID string, wal *spool.WALManager, engine *collec
 		cancel:        cancel,
 		chunker:       chunker,
 		lastCursor:    lastCur,
+		buffer:        spool.NewMemoryBuffer(wal, spool.DefaultMaxMemoryBufferBytes),
 	}
 
 	p.tailer = logs.NewJournalTailer(p.onLogRecord)
 	return p
+}
+
+func (p *PushClient) SetMemoryBufferBytes(bytes int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.buffer != nil {
+		p.buffer.SetMaxBytes(bytes)
+	}
 }
 
 func (p *PushClient) onLogRecord(rec *madtomv1.LogRecord, cur string) {
@@ -90,11 +100,13 @@ func (p *PushClient) onLogRecord(rec *madtomv1.LogRecord, cur string) {
 
 	if sealed != nil {
 		if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
-			if p.wal != nil {
-				if _, err := p.wal.WriteBatch(nil, []*madtomv1.LogChunk{sealed}); err != nil {
-					log.Printf("[PushClient] WAL log append failed: %v", err)
+			if p.buffer != nil {
+				if err := p.buffer.Enqueue(nil, []*madtomv1.LogChunk{sealed}); err != nil {
+					log.Printf("[PushClient] Spool log append failed: %v", err)
 				}
-				_ = p.wal.SetLogState(p.chunker.CurrentSeq(), cur)
+				if p.wal != nil {
+					_ = p.wal.SetLogState(p.chunker.CurrentSeq(), cur)
+				}
 			}
 		}
 		if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY || p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
@@ -123,12 +135,17 @@ func (p *PushClient) Stop() {
 	defer p.mu.Unlock()
 	if p.chunker != nil {
 		if sealed, _ := p.chunker.SealCurrent(); sealed != nil {
-			if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE && p.wal != nil {
-				_, _ = p.wal.WriteBatch(nil, []*madtomv1.LogChunk{sealed})
-				_ = p.wal.SetLogState(p.chunker.CurrentSeq(), p.lastCursor)
+			if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE && p.buffer != nil {
+				_ = p.buffer.Enqueue(nil, []*madtomv1.LogChunk{sealed})
+				if p.wal != nil {
+					_ = p.wal.SetLogState(p.chunker.CurrentSeq(), p.lastCursor)
+				}
 			}
 		}
 		p.chunker.Close()
+	}
+	if p.buffer != nil {
+		_ = p.buffer.FlushToDisk()
 	}
 }
 func (p *PushClient) sampleLoop() {
@@ -147,8 +164,10 @@ func (p *PushClient) sampleLoop() {
 			optin.StripMonitorOnlyMetrics(sample, cfg)
 		}
 
-		if _, err := p.wal.WriteMetrics([]*madtomv1.SystemMetrics{sample}); err != nil {
-			log.Printf("[PushClient] WAL append failed: %v", err)
+		if p.buffer != nil {
+			if err := p.buffer.Enqueue([]*madtomv1.SystemMetrics{sample}, nil); err != nil {
+				log.Printf("[PushClient] Spool append failed: %v", err)
+			}
 		}
 		if !wait(p.ctx, pollInterval(cfg)) {
 			return
@@ -206,7 +225,7 @@ func (p *PushClient) connect() bool {
 	}
 	hadActivity := false
 	for ctx.Err() == nil {
-		batch, err := p.wal.ReadBatchChunk(spool.DefaultChunkMaxSamples)
+		batch, fromDisk, err := p.buffer.PopBatch(spool.DefaultChunkMaxSamples)
 		if err != nil {
 			return hadActivity
 		}
@@ -216,6 +235,7 @@ func (p *PushClient) connect() bool {
 			}
 			continue
 		}
+		batch.NodeId = p.nodeID
 		// Attach live monitor chunks if in MONITOR_ONLY or MONITOR_AND_STORE mode
 		p.mu.Lock()
 		if p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_ONLY || p.config.LogMode == madtomv1.TelemetryOptInMode_OPT_IN_MONITOR_AND_STORE {
@@ -243,7 +263,7 @@ func (p *PushClient) connect() bool {
 			return hadActivity
 		}
 		hadActivity = true
-		if err = p.wal.AcknowledgeSegment(ack.SegmentId, ack.SegmentOffset); err != nil {
+		if err = p.buffer.Acknowledge(fromDisk, ack.SegmentId, ack.SegmentOffset); err != nil {
 			return hadActivity
 		}
 		p.mu.Lock()

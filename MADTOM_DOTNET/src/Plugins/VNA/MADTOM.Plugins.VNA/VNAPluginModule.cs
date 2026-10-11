@@ -22,7 +22,7 @@ public sealed class VNAPluginModule : IPluginModule
     public string IconGlyph => "🌐";
     public string Category => "Network";
     public Version Version => new(1, 0, 0);
-    public int OrderWeight => 70;
+    public int OrderWeight => 140;
 
     public Task InitializeAsync(IPluginHostContext hostContext, CancellationToken cancellationToken = default)
     {

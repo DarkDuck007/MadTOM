@@ -103,6 +103,8 @@ func main() {
 	defer lis.Close()
 
 	grpcServer := grpc.NewServer(
+		grpc.MaxSendMsgSize(256 * 1024 * 1024),
+		grpc.MaxRecvMsgSize(256 * 1024 * 1024),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime:             3 * time.Second, // Allow clients to ping as frequently as every 3s
 			PermitWithoutStream: true,            // Allow pings even when there are no active streams

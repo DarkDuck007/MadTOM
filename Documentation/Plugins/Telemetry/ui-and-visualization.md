@@ -26,7 +26,7 @@ This guide covers the **MADTOM Telemetry Plugin** (`MADTOM.Plugins.Telemetry`) a
     - [Adding, Editing, and Removing Collectors](#adding-editing-and-removing-collectors)
     - [Collector Persistence (`collectors.json`)](#collector-persistence-collectorsjson)
     - [Opt-In Global Metrics \& Top-Bar Pinning](#opt-in-global-metrics--top-bar-pinning)
-    - [Node Opt-In Settings \& Safe Apply Workflow](#node-opt-in-settings--safe-apply-workflow)
+    - [Node Configuration \& Safe Apply Workflow](#node-configuration--safe-apply-workflow)
   - [Process Monitoring \& Storage Modes](#process-monitoring--storage-modes)
     - [Three-Tier Collection Policy](#three-tier-collection-policy)
     - [Top-N Process Count Configuration](#top-n-process-count-configuration)
@@ -35,6 +35,8 @@ This guide covers the **MADTOM Telemetry Plugin** (`MADTOM.Plugins.Telemetry`) a
   - [System Journal Log Streaming \& Virtual Viewer](#system-journal-log-streaming--virtual-viewer)
     - [Three-Tier Opt-In Policy](#three-tier-opt-in-policy)
     - [Monospace Virtual Log Viewer (`VirtualLogViewControl`)](#monospace-virtual-log-viewer-virtuallogviewcontrol)
+    - [Touch Gestures \& Mouse Text Selection](#touch-gestures--mouse-text-selection)
+    - [On-Demand Decompression \& `LogChunkCache`](#on-demand-decompression--logchunkcache)
     - [Client Cache \& Performance Settings](#client-cache--performance-settings)
   - [Diagnostics \& Performance Tuning](#diagnostics--performance-tuning)
     - [Background Ingestion Worker \& Coalesced UI Drains](#background-ingestion-worker--coalesced-ui-drains)
@@ -208,10 +210,16 @@ Operators can pin cluster-wide aggregate metrics (e.g. total fleet CPU, collecti
 - Configured in the Collector Settings panel.
 - Saved to `~/.local/share/MADTOM/global-metrics.json`.
 
-### Node Opt-In Settings & Safe Apply Workflow
+### Node Configuration & Safe Apply Workflow
 
-When changing telemetry collection settings on remote daemons (e.g., process monitoring tier, per-core CPU, disk devices):
-- Changes are staged in the UI.
+Under **Collector Settings ➔ Node Configuration**, operators can stage and apply both collection and viewing settings for individual nodes:
+- **Collection Opt-in (Tier 1)**: Granular per-metric probing and storage policies (Off, Monitor, Store), process limits, and journald stream quotas.
+- **Viewing Opt-in (Tier 2)**: Client-side UI rendering toggles (Card View, Core Matrix, Swap & ZRAM, Battery, NIC counters).
+- **Visuals (CPU Display Mode)**: Choose how CPU load is visualized inside the host card container:
+  - **CPU Core Matrix**: Per-thread heatmap blocks with adaptive aspect-ratio packing and single-line layout for 12-core and low-core systems.
+  - **Per-Core Graphs**: Tiny individual sparklines per logical core arranged in an even-numbered grid.
+  - **Overall Graph**: Single unified sparkline graph showing overall node CPU load with gradient fill.
+  - **Aggregated Per-Core Graph**: Multi-series graph overlaying all cores simultaneously using mathematically-calculated, non-overlapping colors with byte overflow protection.
 - The **Apply Changes** button triggers a safe RPC push to the collector and target daemon, confirming successful application before persisting to `~/.local/share/MADTOM/optin-settings.json`.
 
 ---
@@ -346,10 +354,31 @@ To handle tens of thousands of lines of log entries without UI lag or memory blo
 - **Chunk Prefetching**: When scrolling into unbuffered history ranges, the control emits prefetch requests via `NeedChunk` to retrieve missing chunks seamlessly from the collector without freezing UI frames.
 - **Follow Mode & Floating Jump Chip**: Follow mode auto-scrolls to the newest log entries as they arrive. When the user scrolls up to review history, follow mode pauses; if new entries arrive, a floating **"Jump to latest (↓)"** chip appears to return to live head with one tap.
 
+### Touch Gestures & Mouse Text Selection
+
+The virtual log canvas supports intuitive direct interaction across both touch devices and traditional workstations:
+- **Touch-Friendly Drag Scrolling**: Operators on touchscreen tablets and appliances can touch-drag anywhere on the viewport canvas to scroll naturally. Velocity and delta movement directly adjust the sequence projection, allowing smooth single-finger flick and drag navigation.
+- **Mouse Click-Drag Selection**: Click and drag across log rows to highlight lines with a high-contrast accent scrim.
+- **Clipboard Copy Support**: Selected rows can be copied instantly to the system clipboard using the standard `Ctrl+C` keyboard shortcut or the right-click context menu ("Copy Selected Rows"). The clipboard output preserves full timestamps, priority prefixes, and raw syslog messages without clipping.
+
+### On-Demand Decompression & `LogChunkCache`
+
+To maintain a zero-allocation, sub-millisecond frame rendering budget:
+- **Compressed Stream Ingestion**: The daemon compresses 256-line log batches into Zstandard frames and sends them over gRPC. The client receives these byte blobs and stores them directly into the `LogChunkCache` without premature decompression.
+- **Lazy Viewport Decoding**: Decompression occurs strictly on-demand only for the chunk IDs intersecting the active viewport plus a small overscan buffer (±2 chunks).
+- **LRU Cache & Memory Bounds**: The `LogChunkCache` enforces thread-safe LRU eviction for both compressed bytes (default 128 MiB) and decoded chunk instances (default 32 chunks), preventing memory expansion even over multi-day monitoring sessions.
+- **Non-Blocking Background Tasks**: Viewport chunk requests that encounter a cache miss immediately schedule asynchronous background decompression tasks to avoid blocking Avalonia UI dispatcher frames.
+
 ### Client Cache & Performance Settings
 
 Under **Collector Settings → Performance**, operators can configure:
 - **Log Compressed Cache Quota**: Memory limit (default `128 MiB`, 16–4096 MiB) for raw zstd-compressed chunks across all nodes.
 - **Decoded Chunks Pool**: Limit (default `32 chunks`, 4–256 chunks) of decompressed chunk lists retained in hot memory for viewport rendering.
 - **Clear Log Cache**: One-click purge of all local client log chunks without interrupting running collector streams.
+- **Force GC Collection**: Diagnostics trigger that runs aggressive Generation 0/1/2 garbage collection with heap compaction and displays freed heap statistics.
+- **Cache Preloading & Stress Test**: Allows force-loading historical logs and time-series telemetry into the local cache across all registered nodes:
+  - **Time Scope**: 1H, 6H, 24H (default), 7D, or Entire History.
+  - **Bucketing / Downsampling**: Choose between *Standard (2,400 pts)*, *High Density (5,000 pts)*, *Ultra Density (10,000 pts)*, *Stress Test (50,000 pts)*, *Raw (All Points / No Downsampling)*, or *Custom Budget* (4–100,000 points).
+  - **Raw Mode**: Sets `TargetPoints = 0xFFFFFFFF` (raw), instructing the TSDB storage engine to bypass bucketing decimation and return all recorded data points up to scan limits. Cached raw ranges automatically satisfy all graph resolution requirements.
+  - **Concurrent Fetching & Workers**: Parallelizes range queries across all discovered metrics using configurable worker threads (default: logical CPU core count via `Environment.ProcessorCount`, 1–128 threads), dramatically accelerating multi-series and multi-node preload operations.
 

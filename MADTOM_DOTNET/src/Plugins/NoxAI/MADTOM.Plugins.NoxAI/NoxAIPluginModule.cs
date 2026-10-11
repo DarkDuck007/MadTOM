@@ -22,7 +22,7 @@ public sealed class NoxAIPluginModule : IPluginModule
     public string IconGlyph => "🧠";
     public string Category => "AI";
     public Version Version => new(1, 0, 0);
-    public int OrderWeight => 50;
+    public int OrderWeight => 120;
 
     public Task InitializeAsync(IPluginHostContext hostContext, CancellationToken cancellationToken = default)
     {

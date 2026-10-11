@@ -2,11 +2,13 @@ package api
 
 import (
 	"context"
+	"math"
+	"testing"
+
 	"github.com/DarkDuck007/madtom/pkg/telemetry/collector/storage"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"testing"
 )
 
 func TestQueryAdmissionCancellationAndBudget(t *testing.T) {
@@ -38,5 +40,9 @@ func TestQueryAdmissionCancellationAndBudget(t *testing.T) {
 	req.TargetPoints = 2
 	if _, err = s.QueryRange(context.Background(), req); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("budget: %v", err)
+	}
+	req.TargetPoints = math.MaxUint32
+	if _, err = s.QueryRange(context.Background(), req); err != nil {
+		t.Fatalf("raw budget rejected: %v", err)
 	}
 }

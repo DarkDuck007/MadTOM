@@ -22,7 +22,7 @@ public sealed class AndroidToolkitPluginModule : IPluginModule
     public string IconGlyph => "📱";
     public string Category => "Mobile";
     public Version Version => new(1, 0, 0);
-    public int OrderWeight => 30;
+    public int OrderWeight => 100;
 
     public Task InitializeAsync(IPluginHostContext hostContext, CancellationToken cancellationToken = default)
     {

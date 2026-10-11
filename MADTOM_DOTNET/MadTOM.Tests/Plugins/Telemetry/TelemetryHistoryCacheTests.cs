@@ -213,4 +213,102 @@ public class TelemetryHistoryCacheTests
         Assert.Equal(1, collectorFetches);
         Assert.Equal(2, second.Count);
     }
+
+    [Fact]
+    public async Task LiveHistoryCache_ProgressiveBucketing_ReducesPointCount_WhileMaintainingCoverage()
+    {
+        var cache = new TelemetryHistoryCache(240, () => _now); // 4 hour retention
+        var startTime = _now.AddHours(-3); // 3 hours ago
+
+        // Record 3 hours of 1-second data (10,800 points)
+        for (int i = 0; i <= 10800; i++)
+        {
+            var t = startTime.AddSeconds(i);
+            cache.Record("a", "node", Nano(t), new Dictionary<string, double> { ["cpu.total"] = 50.0 });
+        }
+
+        // Initially without bucketing, 10800 points were raw.
+        // During compaction, older blocks (>30m to 10s, >2h to 60s) are bucketed.
+        cache.Prune();
+
+        var queryResult = await cache.QueryAsync("a", "node", "cpu.total", startTime, _now, true,
+            (_, _, _) => Task.FromResult<IReadOnlyList<LODPoint>>(Array.Empty<LODPoint>()));
+
+        // Verification:
+        // 1. Coverage is fully maintained across the entire 3 hours!
+        Assert.NotEmpty(queryResult);
+        Assert.True(queryResult[0].TimestampUnixNano <= Nano(startTime.AddSeconds(60)));
+        Assert.True(queryResult[^1].TimestampUnixNano >= Nano(_now.AddSeconds(-5)));
+
+        // 2. Count is significantly reduced from 10,800 to < 3,000 points!
+        Assert.True(queryResult.Count < 3500, $"Expected < 3500 points after bucketing, got {queryResult.Count}");
+        Assert.True(queryResult.Count > 1500, $"Expected > 1500 points after bucketing, got {queryResult.Count}");
+    }
+
+    [Fact]
+    public async Task PutRemoteRange_PreloadsStoredQueryCache_And_ServesInstantHits()
+    {
+        var cache = new TelemetryHistoryCache(60, () => _now);
+        var start = _now.AddHours(-24);
+        var end = _now;
+
+        var preloadedPoints = new List<LODPoint>
+        {
+            new LODPoint(Nano(start), 25.0, 20.0, 30.0),
+            new LODPoint(Nano(start.AddHours(12)), 50.0, 45.0, 55.0),
+            new LODPoint(Nano(end), 75.0, 70.0, 80.0)
+        };
+
+        // Put preloaded points into stored query cache
+        cache.PutRemoteRange("collector-1", "node-tp1", "cpu.total", start, end, preloadedPoints, 2400);
+
+        var usage = cache.GetUsage(60);
+        Assert.Equal(1, usage.StoredRanges);
+        Assert.Equal(3, usage.StoredPoints);
+        Assert.True(usage.StoredBytes > 0);
+
+        // Querying this range must hit the stored query cache without calling remote fetch!
+        int fetchCalls = 0;
+        var result = await cache.QueryAsync("collector-1", "node-tp1", "cpu.total", start, end, false,
+            (_, _, _) => { fetchCalls++; return Task.FromResult<IReadOnlyList<LODPoint>>(Array.Empty<LODPoint>()); },
+            targetPoints: 2400);
+
+        Assert.Equal(0, fetchCalls);
+        Assert.Equal(3, result.Count);
+        Assert.Equal(25.0, result[0].Value);
+        Assert.Equal(75.0, result[2].Value);
+    }
+
+    [Fact]
+    public async Task PutRemoteRange_RawNoDownsample_ServesAllSubsequentResolutions()
+    {
+        var cache = new TelemetryHistoryCache(60, () => _now);
+        var start = _now.AddHours(-1);
+        var end = _now;
+
+        var rawPoints = new List<LODPoint>();
+        for (int i = 0; i < 3600; i++)
+        {
+            rawPoints.Add(new LODPoint(Nano(start.AddSeconds(i)), i % 100, (i % 100) - 1, (i % 100) + 1));
+        }
+
+        // Put raw un-downsampled points into cache with int.MaxValue budget
+        cache.PutRemoteRange("collector-1", "node-tp1", "cpu.total", start, end, rawPoints, int.MaxValue, retentionSeconds: 3600);
+
+        var usage = cache.GetUsage(60);
+        Assert.Equal(1, usage.StoredRanges);
+        Assert.Equal(3600, usage.StoredPoints);
+
+        // Subsequent queries with ANY target budget (2400, 1200, 5000) must hit the raw cache
+        int fetchCalls = 0;
+        foreach (int requestedBudget in new[] { 1200, 2400, 5000 })
+        {
+            var result = await cache.QueryAsync("collector-1", "node-tp1", "cpu.total", start, end, false,
+                (_, _, _) => { fetchCalls++; return Task.FromResult<IReadOnlyList<LODPoint>>(Array.Empty<LODPoint>()); },
+                targetPoints: requestedBudget);
+
+            Assert.Equal(0, fetchCalls);
+            Assert.Equal(3600, result.Count);
+        }
+    }
 }

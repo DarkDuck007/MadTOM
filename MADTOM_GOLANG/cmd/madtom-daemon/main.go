@@ -24,6 +24,7 @@ func main() {
 	listenPort := flag.Int("listen-port", 50052, "Listening port for collector scraper (for pull mode)")
 	spoolDir := flag.String("spool-dir", filepath.Join(os.TempDir(), "madtom", "wal"), "Directory for local bounded disk spooling")
 	maxSpoolMB := flag.Int64("max-spool-mb", 1024, "Maximum disk spool capacity in megabytes (default 1024 MB = 1 GB)")
+	memBufferMB := flag.Int64("mem-buffer-mb", 8, "Maximum in-memory spool buffer capacity in megabytes (default 8 MB)")
 	migrate := flag.Bool("migrate", false, "Run pending WAL migrations before starting the daemon")
 	enableZstd := flag.Bool("zstd", false, "Enable zstd compression on disk and in-flight batches")
 
@@ -92,6 +93,7 @@ func main() {
 
 	if *mode == "push" {
 		pushClient = transport.NewPushClient(*collectorAddr, *nodeID, wal, engine, cfg, *spoolDir)
+		pushClient.SetMemoryBufferBytes(*memBufferMB * 1024 * 1024)
 		pushClient.Start()
 		defer pushClient.Stop()
 	} else {

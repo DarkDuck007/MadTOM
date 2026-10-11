@@ -85,6 +85,11 @@ func TestEndToEndDaemonToCollector(t *testing.T) {
 	// Wait for connection and at least 2 samples to ingest
 	time.Sleep(350 * time.Millisecond)
 
+	// Verify that while connected, WAL spool writes are bypassed (zero disk backlog)
+	if wal.HasPendingBacklog() {
+		t.Fatal("expected 0 disk backlog while connected to online collector")
+	}
+
 	// Verify ListNodes
 	listResp, err := queryClient.ListNodes(context.Background(), &madtomv1.ListNodesRequest{})
 	if err != nil {

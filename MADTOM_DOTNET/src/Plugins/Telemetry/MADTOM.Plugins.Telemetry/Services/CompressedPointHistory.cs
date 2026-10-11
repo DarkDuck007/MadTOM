@@ -246,6 +246,157 @@ public sealed class CompressedPointHistory : IEnumerable<LODPoint>
         TrimExcess();
     }
 
+    /// <summary>
+    /// Progressively buckets older blocks as data ages:
+    /// - Blocks older than 15 minutes are compacted into 10s buckets
+    /// - Blocks older than 2 hours are compacted into 60s buckets
+    /// Adjacent bucketed blocks are coalesced up to BlockSize to minimize block overhead.
+    /// </summary>
+    public void CompactBuckets(long nowNano)
+    {
+        if (_blocks.Count == 0) return;
+
+        const long thirtyMinutesNano = 30L * 60 * 1_000_000_000;
+        const long twoHoursNano = 2L * 3600 * 1_000_000_000;
+        const long fiveSecNano = 5L * 1_000_000_000;
+        const long thirtySecNano = 30L * 1_000_000_000;
+        const long tenSecNano = 10L * 1_000_000_000;
+        const long sixtySecNano = 60L * 1_000_000_000;
+
+        var node = _blocks.First;
+        while (node != null)
+        {
+            var next = node.Next;
+            var block = node.Value;
+            long ageNano = nowNano - block.Last;
+
+            long targetBucketSpan = 0;
+            if (ageNano > twoHoursNano)
+            {
+                long avgInterval = block.Count > 1 ? (block.Last - block.First) / (block.Count - 1) : 0;
+                if (avgInterval < thirtySecNano && block.Count > 4)
+                {
+                    targetBucketSpan = sixtySecNano;
+                }
+            }
+            else if (ageNano > thirtyMinutesNano)
+            {
+                long avgInterval = block.Count > 1 ? (block.Last - block.First) / (block.Count - 1) : 0;
+                if (avgInterval < fiveSecNano && block.Count > 10)
+                {
+                    targetBucketSpan = tenSecNano;
+                }
+            }
+
+            if (targetBucketSpan > 0)
+            {
+                var points = block.Decode();
+                var bucketed = DownsampleToSpan(points, targetBucketSpan);
+                if (bucketed.Count < points.Length)
+                {
+                    var newBlock = new CompressedPointBlock(bucketed);
+                    _blocksStorageBytes -= block.StorageBytes + 32;
+                    _blocksCompressedBytes -= block.CompressedBytes;
+                    if (block.IsCompressed) _blocksCompressedRawBytes -= block.RawBytes;
+                    Count -= (points.Length - bucketed.Count);
+
+                    _blocksStorageBytes += newBlock.StorageBytes + 32;
+                    _blocksCompressedBytes += newBlock.CompressedBytes;
+                    if (newBlock.IsCompressed) _blocksCompressedRawBytes += newBlock.RawBytes;
+
+                    node.Value = newBlock;
+                }
+            }
+
+            node = next;
+        }
+
+        CoalesceSmallBlocks(nowNano - thirtyMinutesNano);
+    }
+
+    public static List<LODPoint> DownsampleToSpan(IReadOnlyList<LODPoint> points, long spanNano)
+    {
+        if (points.Count <= 1 || spanNano <= 0) return new List<LODPoint>(points);
+        var result = new List<LODPoint>();
+
+        long currentBucketStart = (points[0].TimestampUnixNano / spanNano) * spanNano;
+        long currentBucketEnd = currentBucketStart + spanNano;
+
+        double sum = 0;
+        int count = 0;
+        double min = double.MaxValue;
+        double max = double.MinValue;
+        long lastTs = points[0].TimestampUnixNano;
+
+        for (int i = 0; i < points.Count; i++)
+        {
+            var p = points[i];
+            if (p.TimestampUnixNano >= currentBucketEnd && count > 0)
+            {
+                result.Add(new LODPoint(lastTs, sum / count, min, max));
+                currentBucketStart = (p.TimestampUnixNano / spanNano) * spanNano;
+                currentBucketEnd = currentBucketStart + spanNano;
+                sum = 0;
+                count = 0;
+                min = double.MaxValue;
+                max = double.MinValue;
+            }
+
+            sum += p.Value;
+            count++;
+            if (p.Min < min) min = p.Min;
+            if (p.Max > max) max = p.Max;
+            lastTs = p.TimestampUnixNano;
+        }
+
+        if (count > 0)
+        {
+            result.Add(new LODPoint(lastTs, sum / count, min, max));
+        }
+
+        return result;
+    }
+
+    private void CoalesceSmallBlocks(long olderThanNano)
+    {
+        var node = _blocks.First;
+        while (node != null && node.Next != null)
+        {
+            var next = node.Next;
+            var b1 = node.Value;
+            var b2 = next.Value;
+
+            if (b1.Last < olderThanNano && b2.Last < olderThanNano && b1.Count + b2.Count <= BlockSize)
+            {
+                var p1 = b1.Decode();
+                var p2 = b2.Decode();
+                var merged = new List<LODPoint>(p1.Length + p2.Length);
+                merged.AddRange(p1);
+                merged.AddRange(p2);
+
+                var mergedBlock = new CompressedPointBlock(merged);
+
+                _blocksStorageBytes -= (b1.StorageBytes + 32 + b2.StorageBytes + 32);
+                _blocksCompressedBytes -= (b1.CompressedBytes + b2.CompressedBytes);
+                if (b1.IsCompressed) _blocksCompressedRawBytes -= b1.RawBytes;
+                if (b2.IsCompressed) _blocksCompressedRawBytes -= b2.RawBytes;
+                _blocksCount -= 2;
+
+                _blocksStorageBytes += mergedBlock.StorageBytes + 32;
+                _blocksCompressedBytes += mergedBlock.CompressedBytes;
+                if (mergedBlock.IsCompressed) _blocksCompressedRawBytes += mergedBlock.RawBytes;
+                _blocksCount += 1;
+
+                node.Value = mergedBlock;
+                _blocks.Remove(next);
+            }
+            else
+            {
+                node = next;
+            }
+        }
+    }
+
     public (long StorageBytes, long CompressedBytes, long CompressedRawBytes, int BlocksCount) RecalculateSlow()
     {
         long storage = _blocks.Sum(b => b.StorageBytes + 32) + 32L * (_head.EnsureCapacity(0) + _tail.EnsureCapacity(0));
@@ -327,24 +478,33 @@ public sealed class CompressedPointHistory : IEnumerable<LODPoint>
     // metadata checks and may fall outside the requested part of that block.
     public Coverage InspectCoverage(long start, long end)
     {
-        const long gap = 5_000_000_000;
+        const long defaultGap = 5_000_000_000L;
         if (Count == 0) return new(false, "empty", 0, 0, 0);
         if (FirstTimestamp > start) return new(false, "missing-start", FirstTimestamp - start, start, FirstTimestamp);
         long previous = FirstTimestamp;
+        long previousAllowedGap = defaultGap;
         var result = new Coverage(true, "covered", 0, 0, 0);
-        void Visit(long first, long last, long maxGap)
+
+        void Visit(long first, long last, long maxGap, int count)
         {
-            if (result.Covered && first >= start && previous <= end && first - previous > gap)
+            long blockAvg = count > 1 ? (last - first) / (count - 1) : 0;
+            long allowedGap = Math.Max(defaultGap, (long)(blockAvg * 2.5));
+            long betweenAllowed = Math.Max(previousAllowedGap, allowedGap);
+
+            if (result.Covered && first >= start && previous <= end && first - previous > betweenAllowed)
                 result = new(false, "sample-gap", first - previous, previous, first);
-            if (result.Covered && last >= start && first <= end && maxGap > gap)
+            if (result.Covered && last >= start && first <= end && maxGap > allowedGap)
                 result = new(false, "block-max-gap", maxGap, first, last);
             previous = last;
+            previousAllowedGap = allowedGap;
         }
-        foreach (var p in _head) Visit(p.TimestampUnixNano, p.TimestampUnixNano, 0);
-        foreach (var b in _blocks) Visit(b.First, b.Last, b.MaxGap);
-        foreach (var p in _tail) Visit(p.TimestampUnixNano, p.TimestampUnixNano, 0);
+
+        foreach (var p in _head) Visit(p.TimestampUnixNano, p.TimestampUnixNano, 0, 1);
+        foreach (var b in _blocks) Visit(b.First, b.Last, b.MaxGap, b.Count);
+        foreach (var p in _tail) Visit(p.TimestampUnixNano, p.TimestampUnixNano, 0, 1);
+
         if (!result.Covered) return result;
-        return end - previous <= gap ? result : new(false, "stale-end", end - previous, previous, end);
+        return end - previous <= previousAllowedGap ? result : new(false, "stale-end", end - previous, previous, end);
     }
     public IEnumerator<LODPoint> GetEnumerator() => Read(long.MinValue, long.MaxValue).GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

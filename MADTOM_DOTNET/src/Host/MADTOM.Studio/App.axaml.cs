@@ -39,6 +39,8 @@ public partial class App : Application
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AudioSync.AudioSyncPluginModule()).GetAwaiter().GetResult();
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.VNA.VNAPluginModule()).GetAwaiter().GetResult();
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.ConnectionToolkit.ConnectionToolkitPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.VideoFeedCenter.VideoFeedCenterPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.IPCam.IPCamPluginModule()).GetAwaiter().GetResult();
 
         // Register placeholder plugins at bottom of rail
         _pluginManager.RegisterModuleAsync(new SysadminPlaceholderPluginModule()).GetAwaiter().GetResult();

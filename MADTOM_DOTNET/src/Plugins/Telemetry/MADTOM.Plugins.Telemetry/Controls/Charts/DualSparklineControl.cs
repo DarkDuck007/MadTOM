@@ -99,7 +99,7 @@ public sealed class DualSparklineControl : Control
         var s2 = Series2 ?? Array.Empty<double>();
         int count = Math.Max(s1.Length, s2.Length);
 
-        const double yAxisWidth = 26.0;
+        const double yAxisWidth = 28.0;
         double chartW = w - yAxisWidth - 2.0;
 
         // Calculate combined bounds for y-axis range
@@ -130,8 +130,8 @@ public sealed class DualSparklineControl : Control
         context.DrawLine(GridPen, new Point(yAxisWidth, h - 4), new Point(w, h - 4));
 
         // Format Y-axis labels
-        string maxLabel = Mode == SparklineMode.Network ? $"{maxVal:0.0}G" : $"{maxVal:0}%";
-        string minLabel = Mode == SparklineMode.Network ? $"{minVal:0.0}G" : $"{minVal:0}%";
+        string maxLabel = Mode == SparklineMode.Network ? FormatNetworkAxis(maxVal) : $"{maxVal:0}%";
+        string minLabel = Mode == SparklineMode.Network ? FormatNetworkAxis(minVal) : $"{minVal:0}%";
 
         var topText = new FormattedText(
             maxLabel,
@@ -183,7 +183,7 @@ public sealed class DualSparklineControl : Control
 
             // Format hover tooltip
             string info = Mode == SparklineMode.Network
-                ? $"TX:{v1:0.00}G RX:{v2:0.00}G"
+                ? $"TX:{FormatNetworkTooltipValue(v1)} RX:{FormatNetworkTooltipValue(v2)}"
                 : $"CPU:{v1:0.0}% RAM:{v2:0.0}%";
 
             var tooltipText = new FormattedText(
@@ -205,6 +205,26 @@ public sealed class DualSparklineControl : Control
             context.DrawRectangle(TooltipBg, TooltipBorder, tipRect);
             context.DrawText(tooltipText, new Point(tipX + 4, tipY + 2));
         }
+    }
+
+    private static string FormatNetworkAxis(double valKiB)
+    {
+        if (valKiB >= 1024.0 * 1024.0)
+            return $"{valKiB / (1024.0 * 1024.0):0.0}G";
+        if (valKiB >= 1024.0)
+            return $"{valKiB / 1024.0:0.0}M";
+        if (valKiB >= 100.0)
+            return $"{valKiB:0}K";
+        return $"{valKiB:0.0}K";
+    }
+
+    private static string FormatNetworkTooltipValue(double valKiB)
+    {
+        if (valKiB >= 1024.0 * 1024.0)
+            return $"{valKiB / (1024.0 * 1024.0):0.00} GB/s";
+        if (valKiB >= 1024.0)
+            return $"{valKiB / 1024.0:0.00} MB/s";
+        return $"{valKiB:0.00} KB/s";
     }
 
     private static double ComputeY(double val, double min, double range, double h, bool isSecondary)

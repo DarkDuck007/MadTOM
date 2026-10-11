@@ -16,7 +16,7 @@ var responseCodec struct {
 }
 
 const compressionHeader = "madtom-accept-zstd"
-const maxCompressedResponse = 16 * 1024 * 1024
+const maxCompressedResponse = 128 * 1024 * 1024
 
 func encodeResponse[T proto.Message](ctx context.Context, message T) (T, error) {
 	md, _ := metadata.FromIncomingContext(ctx)

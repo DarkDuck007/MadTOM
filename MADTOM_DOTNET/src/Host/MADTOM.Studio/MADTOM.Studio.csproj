@@ -21,6 +21,8 @@
     <ProjectReference Include="..\..\Plugins\AudioSync\MADTOM.Plugins.AudioSync\MADTOM.Plugins.AudioSync.csproj" />
     <ProjectReference Include="..\..\Plugins\VNA\MADTOM.Plugins.VNA\MADTOM.Plugins.VNA.csproj" />
     <ProjectReference Include="..\..\Plugins\ConnectionToolkit\MADTOM.Plugins.ConnectionToolkit\MADTOM.Plugins.ConnectionToolkit.csproj" />
+    <ProjectReference Include="..\..\Plugins\VideoFeedCenter\MADTOM.Plugins.VideoFeedCenter\MADTOM.Plugins.VideoFeedCenter.csproj" />
+    <ProjectReference Include="..\..\Plugins\IPCam\MADTOM.Plugins.IPCam\MADTOM.Plugins.IPCam.csproj" />
   </ItemGroup>
 
   <ItemGroup>

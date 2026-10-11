@@ -15,7 +15,7 @@ var ErrQueryScanLimit = errors.New("historical query scan limit exceeded; narrow
 // preserve original endpoints/extrema and do not shift when a fixed-width window moves.
 // Unlike LTTB this is an extrema envelope, not triangle-area selection.
 func (t *TSDB) QueryRangeSampled(ctx context.Context, node, metric string, start, end int64, target, maxScan int) ([]Point, error) {
-	if start < 0 || end <= start || target < 4 || target > 100000 || maxScan < 1 {
+	if start < 0 || end <= start || (target != 0 && target < 4) || maxScan < 1 {
 		return nil, errors.New("invalid sampled query limits")
 	}
 	if err := ctx.Err(); err != nil {
@@ -30,11 +30,61 @@ func (t *TSDB) QueryRangeSampled(ctx context.Context, node, metric string, start
 		return nil, err
 	}
 	defer iter.Close()
+
+	if !iter.First() {
+		if err := iter.Error(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	key := iter.Key()
+	if len(key) >= 8 {
+		firstTs := int64(binary.BigEndian.Uint64(key[len(key)-8:]))
+		// If start is 0 (Unix epoch) or far before the earliest recorded data, clamp start to firstTs
+		// to avoid degenerate bucket spans (e.g. 56-year buckets returning only 4-8 points).
+		if firstTs > 1_000_000_000_000_000_000 && (start <= 0 || (start < firstTs && (end-start) > 2*(end-firstTs))) {
+			start = firstTs
+		}
+	}
+
+	if target <= 0 {
+		raw := make([]Point, 0, 1024)
+		scanned := 0
+		for ; iter.Valid(); iter.Next() {
+			if scanned%256 == 0 {
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
+			}
+			scanned++
+			if scanned > maxScan {
+				return nil, ErrQueryScanLimit
+			}
+			k, val := iter.Key(), iter.Value()
+			if len(k) < 8 || len(val) != 8 {
+				continue
+			}
+			p := Point{int64(binary.BigEndian.Uint64(k[len(k)-8:])), math.Float64frombits(binary.BigEndian.Uint64(val))}
+			raw = append(raw, p)
+		}
+		if err := iter.Error(); err != nil {
+			return nil, err
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return raw, nil
+	}
+
 	buckets := target/4 - 1
 	if buckets < 1 {
 		buckets = 1
 	}
 	span := end - start
+	if span < 1 {
+		span = 1
+	}
 	width := span / int64(buckets)
 	if span%int64(buckets) != 0 {
 		width++
@@ -65,7 +115,7 @@ func (t *TSDB) QueryRangeSampled(ctx context.Context, node, metric string, start
 		}
 	}
 	scanned := 0
-	for iter.First(); iter.Valid(); iter.Next() {
+	for ; iter.Valid(); iter.Next() {
 		if scanned%256 == 0 {
 			if err := ctx.Err(); err != nil {
 				return nil, err

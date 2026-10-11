@@ -103,11 +103,12 @@
                 </StackPanel>
             </Border>
 
-            <!-- Fluid Micro-Core Strip -->
+            <!-- Fluid Micro-Core Strip / CPU Activity Display -->
             <StackPanel IsVisible="{Binding Node.ViewCpuMatrix}" Spacing="3">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
-                        <Run Text="Flock ("/>
+                        <Run Text="{Binding Node.CpuVisualTitle, Mode=OneWay}"/>
+                        <Run Text=" ("/>
                         <Run Text="{Binding Node.Cores, Mode=OneWay}"/>
                         <Run Text=" Threads)"/>
                     </TextBlock>
@@ -127,7 +128,10 @@
                         Padding="2">
                     <core:MicroCoreStripControl CoreCount="{Binding Node.Cores}"
                                                 CoreLoads="{Binding Node.CoreLoads}"
-                                                HostId="{Binding Node.Id}"/>
+                                                HostId="{Binding Node.Id}"
+                                                VisualMode="{Binding Node.CpuVisualMode}"
+                                                SparkCpu="{Binding Node.SparkCpu}"
+                                                SparkCoreLoads="{Binding Node.SparkCoreLoads}"/>
                 </Border>
             </StackPanel>
 

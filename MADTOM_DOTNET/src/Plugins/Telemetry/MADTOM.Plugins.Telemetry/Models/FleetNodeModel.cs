@@ -102,6 +102,57 @@ public sealed partial class FleetNodeModel : ObservableObject
     private float[] _coreLoads = Array.Empty<float>();
 
     [ObservableProperty]
+    private CpuVisualMode _cpuVisualMode = CpuVisualMode.CoreMatrix;
+
+    partial void OnCpuVisualModeChanged(CpuVisualMode value) => OnPropertyChanged(nameof(CpuVisualTitle));
+
+    public string CpuVisualTitle => CpuVisualMode switch
+    {
+        CpuVisualMode.CoreMatrix => "CORE MATRIX",
+        CpuVisualMode.PerCoreGraphs => "PER-CORE CPU",
+        CpuVisualMode.OverallGraph => "OVERALL CPU",
+        CpuVisualMode.AggregatedPerCore => "AGGREGATED CPU",
+        _ => "CORE MATRIX"
+    };
+
+    [ObservableProperty]
+    private double[][] _sparkCoreLoads = Array.Empty<double[]>();
+
+    partial void OnCoreLoadsChanged(float[] value)
+    {
+        if (value == null || value.Length == 0) return;
+        int n = value.Length;
+        var existing = _sparkCoreLoads;
+        double[][] nextHistory;
+        if (existing == null || existing.Length != n)
+        {
+            nextHistory = new double[n][];
+            for (int i = 0; i < n; i++)
+            {
+                nextHistory[i] = new double[60];
+                nextHistory[i][^1] = Math.Clamp(Math.Round(value[i] * 100.0, 1), 0.0, 100.0);
+            }
+        }
+        else
+        {
+            nextHistory = new double[n][];
+            for (int i = 0; i < n; i++)
+            {
+                var prev = existing[i];
+                var arr = new double[60];
+                if (prev != null && prev.Length > 0)
+                {
+                    int copyLen = Math.Min(prev.Length, 59);
+                    Array.Copy(prev, prev.Length - copyLen, arr, 59 - copyLen, copyLen);
+                }
+                arr[^1] = Math.Clamp(Math.Round(value[i] * 100.0, 1), 0.0, 100.0);
+                nextHistory[i] = arr;
+            }
+        }
+        SparkCoreLoads = nextHistory;
+    }
+
+    [ObservableProperty]
     private string _collectorName = "Local Collector";
 
     [ObservableProperty]

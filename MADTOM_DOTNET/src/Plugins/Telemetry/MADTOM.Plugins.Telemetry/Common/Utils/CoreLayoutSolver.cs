@@ -43,9 +43,31 @@ public static class CoreLayoutSolver
                 double fillW = gridW / availW;
                 double fillH = gridH / availH;
 
-                double score = fillH * 200.0 + fillW * 150.0 + s;
-                if (fillH < 0.75) score -= (0.75 - fillH) * 500.0;
-                if (fillW < 0.75) score -= (0.75 - fillW) * 500.0;
+                int emptySlots = (cols * rows) - coreCount;
+
+                double score = fillH * 100.0 + fillW * 100.0 + (s * 5.0);
+
+                // Heavy penalty for empty orphan slots
+                score -= emptySlots * 60.0;
+
+                // Bonus for completely filled grid (zero orphan slots)
+                if (emptySlots == 0)
+                {
+                    score += 80.0;
+                }
+
+                // If all cores fit comfortably in a single row with adequate size, prefer single line
+                if (rows == 1 && s >= 10.0)
+                {
+                    score += 200.0;
+                }
+
+                // Penalize very low fills when multiple rows are used
+                if (rows > 1)
+                {
+                    if (fillH < 0.5) score -= (0.5 - fillH) * 80.0;
+                    if (fillW < 0.5) score -= (0.5 - fillW) * 80.0;
+                }
 
                 if (score > bestScore)
                 {

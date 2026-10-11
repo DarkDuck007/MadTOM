@@ -265,12 +265,103 @@
                             </Border>
                             <TextBlock Text="Oldest streamed samples and least-recently-used stored ranges are evicted at the size limit. Age limits also apply. Estimates exclude charts/runtime; stored forecasts depend on queries. Clear affects this client only. Updates every 2 seconds."
                                        FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}"/>
+
+                            <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="GARBAGE COLLECTION (DIAGNOSTICS)" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Content="Force GC Collect" Padding="6,2" Command="{Binding ForceGcCollectCommand}"/>
+                            </Grid>
+                            <Border Background="{DynamicResource DarkBaseBrush}" Padding="8,6" CornerRadius="4">
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                                        <TextBlock Text="Last Collection:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding GcLastRunText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+
+                                        <TextBlock Grid.Row="1" Text="Memory Freed:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GcMemoryFreedText}" FontSize="10" FontWeight="SemiBold" FontFamily="{StaticResource MonoFontFamily}"/>
+
+                                        <TextBlock Grid.Row="2" Text="Process Memory:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GcHeapSummaryText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+
+                                        <TextBlock Grid.Row="3" Text="GC Generations:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding GcGenCountsText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    </Grid>
+                                    <TextBlock Text="Forces aggressive full blocking collection across Gen 0, 1, and 2 with heap compaction and finalizer drain to diagnose runtime memory retention." FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="CACHE PRELOADING &amp; STRESS TEST" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6" Grid.Column="1">
+                                    <Button Content="Force Load Logs" Padding="8,2" Command="{Binding ForceLoadLogsCommand}" IsEnabled="{Binding CanForceLoad}"/>
+                                    <Button Content="Force Load Telemetry" Padding="8,2" Command="{Binding ForceLoadTelemetryCommand}" IsEnabled="{Binding CanForceLoad}"/>
+                                </StackPanel>
+                            </Grid>
+                            <Border Background="{DynamicResource DarkBaseBrush}" Padding="8,6" CornerRadius="4">
+                                <StackPanel Spacing="6">
+                                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                        <!-- Time Scope -->
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,4">
+                                            <TextBlock Text="Scope:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                            <ComboBox ItemsSource="{Binding PreloadScopes}"
+                                                      SelectedItem="{Binding SelectedPreloadScope, Mode=TwoWay}"
+                                                      Width="130"
+                                                      FontSize="11"/>
+                                        </StackPanel>
+
+                                        <!-- Bucketing / Downsampling Mode -->
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,4">
+                                            <TextBlock Text="Bucketing:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                            <ComboBox ItemsSource="{Binding PreloadBucketingModes}"
+                                                      SelectedItem="{Binding SelectedPreloadBucketingMode, Mode=TwoWay}"
+                                                      Width="230"
+                                                      FontSize="11"/>
+                                        </StackPanel>
+
+                                        <!-- Custom Budget Field (only visible when Custom Budget selected) -->
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" IsVisible="{Binding IsCustomBudgetVisible}" Margin="0,0,12,4">
+                                            <TextBlock Text="Pts:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                            <NumericUpDown Classes="performance-number"
+                                                           Value="{Binding PreloadCustomBudget, Mode=TwoWay}"
+                                                           Minimum="4" Maximum="100000" Increment="1000"
+                                                           FormatString="0"
+                                                           Width="85" Height="26"
+                                                           FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                        </StackPanel>
+
+                                        <!-- Concurrency Workers Field -->
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,0,4">
+                                            <TextBlock Text="Threads:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                            <NumericUpDown Classes="performance-number"
+                                                           Value="{Binding PreloadConcurrency, Mode=TwoWay}"
+                                                           Minimum="1" Maximum="128" Increment="1"
+                                                           FormatString="0"
+                                                           Width="70" Height="26"
+                                                           ToolTip.Tip="Concurrent worker threads for parallel metric querying (default: CPU logical cores)"
+                                                           FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                        </StackPanel>
+                                    </WrapPanel>
+
+                                    <Border Height="1" Background="{DynamicResource BorderBrush}" Opacity="0.3"/>
+
+                                    <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
+                                        <TextBlock Text="Preload Status:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding PreloadStatusText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+
+                                        <TextBlock Grid.Row="1" Text="Last Preload Summary:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PreloadSummaryText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    </Grid>
+                                    <ProgressBar IsIndeterminate="True" Height="2" Margin="0,2,0,0" IsVisible="{Binding IsPreloading}"/>
+                                    <TextBlock Text="Proactively pulls historical data from collectors directly into the local client cache. Raw mode loads all recorded points without downsampling." FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                         </ScrollViewer>
                     </TabItem>
 
-                    <!-- TAB 2: Node Opt-In Settings -->
-                    <TabItem Header="Node Opt-in Configuration" FontSize="12">
+                    <!-- TAB 2: Node Settings -->
+                    <TabItem Header="Node Configuration" FontSize="12">
                         <Grid RowDefinitions="Auto,*" Margin="0,12,0,0">
                             <!-- Target Node Selector (Pinned outside ScrollViewer) -->
                             <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,12">
@@ -343,8 +434,8 @@
 
                                     <!-- Node Settings Panel -->
                                     <Panel IsVisible="{Binding SelectedNodeSettings, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                        <Border DataContext="{Binding SelectedNodeSettings}"
-                                                Background="{DynamicResource DarkBaseBrush}"
+                                        <StackPanel DataContext="{Binding SelectedNodeSettings}" Spacing="12">
+                                            <Border Background="{DynamicResource DarkBaseBrush}"
                                                 BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"
                                                 CornerRadius="8"
@@ -694,7 +785,69 @@
                                                 </Grid>
                                             </StackPanel>
                                         </Border>
-                                    </Panel>
+
+                                        <!-- Card 2: Client-Side Display & Visuals (Outside / Below Daemon Settings) -->
+                                        <Border Background="{DynamicResource DarkBaseBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="14">
+                                            <StackPanel Spacing="8">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Spacing="2">
+                                                        <TextBlock Text="CLIENT-SIDE DISPLAY &amp; VISUALS"
+                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                   FontSize="10"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource AccentBrush}"/>
+                                                        <TextBlock Text="Choose how CPU activity is rendered in this host card. Saved locally in Studio (does not alter node daemon)."
+                                                                   FontSize="10"
+                                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    </StackPanel>
+                                                    <Border Grid.Column="1"
+                                                            Background="{DynamicResource CardBaseBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            Padding="6,2"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="Local Client Setting"
+                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                   FontSize="9"
+                                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    </Border>
+                                                </Grid>
+
+                                                <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <RadioButton Content="CPU Core Matrix"
+                                                                 GroupName="{Binding VisualModeGroupName}"
+                                                                 IsChecked="{Binding IsVisualCoreMatrix, Mode=TwoWay}"
+                                                                 FontSize="11"
+                                                                 Margin="0,0,16,6"
+                                                                 ToolTip.Tip="Heatmap blocks per thread/core"/>
+                                                    <RadioButton Content="Per-Core Graphs"
+                                                                 GroupName="{Binding VisualModeGroupName}"
+                                                                 IsChecked="{Binding IsVisualPerCoreGraphs, Mode=TwoWay}"
+                                                                 FontSize="11"
+                                                                 Margin="0,0,16,6"
+                                                                 ToolTip.Tip="One tiny graph per core arranged evenly across the available area"/>
+                                                    <RadioButton Content="Overall Graph"
+                                                                 GroupName="{Binding VisualModeGroupName}"
+                                                                 IsChecked="{Binding IsVisualOverallGraph, Mode=TwoWay}"
+                                                                 FontSize="11"
+                                                                 Margin="0,0,16,6"
+                                                                 ToolTip.Tip="Unified single sparkline showing overall node CPU load"/>
+                                                    <RadioButton Content="Aggregated Per-Core Graph"
+                                                                 GroupName="{Binding VisualModeGroupName}"
+                                                                 IsChecked="{Binding IsVisualAggregatedPerCore, Mode=TwoWay}"
+                                                                 FontSize="11"
+                                                                 Margin="0,0,16,6"
+                                                                 ToolTip.Tip="All cores plotted together with mathematically non-overlapping, overflow-safe colors"/>
+                                                </WrapPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Panel>
                                 </Panel>
                             </ScrollViewer>
                         </Grid>

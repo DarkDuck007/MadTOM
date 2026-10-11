@@ -111,7 +111,7 @@ def check_markdown_links(root_dir):
                         target_path_str, anchor = link_target, None
 
                     if target_path_str:
-                        target_path = (doc.parent / target_path_str).resolve()
+                        target_path = (doc.parent / unquote(target_path_str)).resolve()
                     else:
                         target_path = doc.resolve()
 

@@ -25,7 +25,7 @@ public class NoxAILifecycleTests
         var module = new NoxAIPluginModule();
         Assert.Equal("nox-ai", module.Id);
         Assert.Equal("NOX AI", module.DisplayName);
-        Assert.Equal(50, module.OrderWeight);
+        Assert.Equal(120, module.OrderWeight);
         Assert.Equal("AI", module.Category);
         Assert.Equal("🧠", module.IconGlyph);
     }

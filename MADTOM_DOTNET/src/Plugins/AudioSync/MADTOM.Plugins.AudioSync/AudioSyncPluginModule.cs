@@ -22,7 +22,7 @@ public sealed class AudioSyncPluginModule : IPluginModule
     public string IconGlyph => "🔊";
     public string Category => "Audio";
     public Version Version => new(1, 0, 0);
-    public int OrderWeight => 60;
+    public int OrderWeight => 130;
 
     public Task InitializeAsync(IPluginHostContext hostContext, CancellationToken cancellationToken = default)
     {

@@ -25,7 +25,7 @@ public class ConnectionToolkitLifecycleTests
         var module = new ConnectionToolkitPluginModule();
         Assert.Equal("connection-toolkit", module.Id);
         Assert.Equal("Connection Toolkit", module.DisplayName);
-        Assert.Equal(80, module.OrderWeight);
+        Assert.Equal(150, module.OrderWeight);
         Assert.Equal("Connectivity", module.Category);
         Assert.Equal("🔌", module.IconGlyph);
     }

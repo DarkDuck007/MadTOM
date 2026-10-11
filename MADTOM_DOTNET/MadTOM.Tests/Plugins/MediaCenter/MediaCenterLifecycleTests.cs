@@ -25,7 +25,7 @@ public class MediaCenterLifecycleTests
         var module = new MediaCenterPluginModule();
         Assert.Equal("media-center", module.Id);
         Assert.Equal("MediaCenter", module.DisplayName);
-        Assert.Equal(40, module.OrderWeight);
+        Assert.Equal(110, module.OrderWeight);
         Assert.Equal("Media", module.Category);
         Assert.Equal("📺", module.IconGlyph);
     }

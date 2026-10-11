@@ -26,7 +26,7 @@ public class AndroidToolkitLifecycleTests
         var module = new AndroidToolkitPluginModule();
         Assert.Equal("android-toolkit", module.Id);
         Assert.Equal("Android Toolkit", module.DisplayName);
-        Assert.Equal(30, module.OrderWeight);
+        Assert.Equal(100, module.OrderWeight);
         Assert.Equal("Mobile", module.Category);
         Assert.Equal("📱", module.IconGlyph);
     }

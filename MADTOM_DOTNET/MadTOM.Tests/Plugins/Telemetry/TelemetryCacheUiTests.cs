@@ -220,4 +220,35 @@ public class TelemetryCacheUiTests
         Assert.Equal(512u, vm.LogRetentionMB);
         Assert.False(vm.HasUnappliedChanges);
     }
+
+    [Fact]
+    public void PreloadConcurrency_DefaultsToProcessorCount_And_IsConfigurable()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "madtom-preload-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var provider = new CachedProvider();
+            var settings = new GraphPerformanceSettings(Path.Combine(directory, "performance.json"));
+            var vm = new CollectorSettingsViewModel(
+                new MultiCollectorManager(":memory:"),
+                provider,
+                new NodeGroupStore(Path.Combine(directory, "groups.json")),
+                new GlobalMetricsStore(Path.Combine(directory, "metrics.json")),
+                new TelemetryCacheSettingsStore(Path.Combine(directory, "cache.json")),
+                settings);
+
+            Assert.Equal(Environment.ProcessorCount, vm.PreloadConcurrency);
+
+            vm.PreloadConcurrency = 16;
+            Assert.Equal(16, vm.PreloadConcurrency);
+
+            vm.PreloadConcurrency = 1;
+            Assert.Equal(1, vm.PreloadConcurrency);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
 }

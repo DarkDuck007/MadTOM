@@ -31,6 +31,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
 
     public TelemetryHistoryCache HistoryCache { get; }
     public LogChunkCache LogCache { get; } = new();
+    private readonly NodeVisualSettingsStore _visualStore = new();
     private readonly HistoryQueryCoordinator _historyQueries = new();
     private readonly ConcurrentDictionary<(string, string), (NodeConfig Config, DateTime Expires)> _configs = new();
     private readonly SemaphoreSlim _configGate = new(1, 1);
@@ -89,6 +90,7 @@ public sealed class CollectorTelemetryDataProvider : ITelemetryDataProvider
             {
                 if (_nodes.TryAdd(node.Id, node))
                 {
+                    node.CpuVisualMode = _visualStore.GetVisualMode(node.Id);
                     // Start live subscription for newly discovered node
                     StartNodeLiveStream(node);
                     Dispatcher.UIThread.Post(() => NodeTelemetryUpdated?.Invoke(this, node));

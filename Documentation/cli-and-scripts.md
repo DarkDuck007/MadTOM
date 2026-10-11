@@ -42,6 +42,13 @@ This guide provides an exhaustive reference for all executables, build scripts, 
       - [Running](#running-1)
     - [6. `MADTOM.Plugins.Squeeze.App` — Standalone SQUEEZE Client](#6-madtompluginssqueezeapp--standalone-squeeze-client)
       - [Running](#running-2)
+    - [7. `madtom-feedd` — Headless Video Feed Engine Daemon](#7-madtom-feedd--headless-video-feed-engine-daemon)
+      - [Command Arguments](#command-arguments-3)
+      - [Execution Examples](#execution-examples-3)
+    - [8. `MADTOM.Plugins.VideoFeedCenter.App` — Standalone Video Feed Center Client](#8-madtompluginsvideofeedcenterapp--standalone-video-feed-center-client)
+      - [Running](#running-3)
+    - [9. `MADTOM.Plugins.IPCam.App` — Standalone IPCam Client](#9-madtompluginsipcamapp--standalone-ipcam-client)
+      - [Running](#running-4)
 
 ---
 
@@ -63,7 +70,7 @@ Located at the repository root. Compiles the Go backend daemons (`madtom-collect
 | `--release` | *(none)* | Build Go and .NET with release optimizations (strips Go debug symbols) |
 | `--debug` | *(none)* | Build projects in Debug configuration (default) |
 | `--test` | *(none)* | Run full Go test suite (`go test ./...`) and all decoupled .NET test projects |
-| `--test-plugin` | `NAME` | Run targeted tests for a plugin (`telemetry`, `squeeze`, `android`, `mediacenter`, `noxai`, `audiosync`, `vna`, `connection`, `studio`) |
+| `--test-plugin` | `NAME` | Run targeted tests for a plugin (`telemetry`, `squeeze`, `videofeedcenter`, `ipcam`, `android`, `mediacenter`, `noxai`, `audiosync`, `vna`, `connection`, `studio`) |
 | `--clean` | *(none)* | Remove previous build artifacts prior to compiling |
 | `-h`, `--help` | *(none)* | Display help message and exit |
 
@@ -108,7 +115,7 @@ Located at `MADTOM_DOTNET/publish.sh` and symlinked to root `./publish.sh`. Prod
 | Option | Argument | Description |
 |---|---|---|
 | `-a`, `--arch`, `-r`, `--rid` | `linux-x64` \| `linux-arm64` \| `linux-arm` \| `all` | Target Linux RID/architecture (default: host RID). Aliases: `x64`, `amd64`, `arm64`, `aarch64`, `arm`, `armv7` |
-| `-p`, `--project` | `studio` \| `telemetry-app` \| `squeeze-app` \| `android-app` \| `mediacenter-app` \| `noxai-app` \| `audiosync-app` \| `vna-app` \| `connection-app` \| `all` | Project to publish (default: `all`). `console` accepted as legacy alias for `studio`. |
+| `-p`, `--project` | `studio` \| `telemetry-app` \| `squeeze-app` \| `videofeedcenter-app` \| `ipcam-app` \| `feedd` \| `android-app` \| `mediacenter-app` \| `noxai-app` \| `audiosync-app` \| `vna-app` \| `connection-app` \| `all` | Project to publish (default: `all`). `console` accepted as legacy alias for `studio`. |
 | `-c`, `--config` | `Release` \| `Debug` | Build configuration (default: `Release`) |
 | `--single-file` | *(none)* | Package into single-file executable (default: enabled) |
 | `--no-single-file` | *(none)* | Output loose directory of assemblies and native shared libraries |
@@ -485,4 +492,61 @@ A standalone, focused media transcoding client packaging the SQUEEZE plugin dire
 ```bash
 dotnet run --project MADTOM_DOTNET/src/Plugins/Squeeze/MADTOM.Plugins.Squeeze.App/MADTOM.Plugins.Squeeze.App.csproj
 ```
+
+---
+
+### 7. `madtom-feedd` — Headless Video Feed Engine Daemon
+
+The dedicated background engine daemon powering multi-channel video feed ingestion, SRT/RTP packet routing, GPU frame hardware decoding (via VAAPI / NVDEC), and local IPC distribution.
+
+- **Technology**: .NET 10 Daemon / Avalonia-decoupled headless service
+- **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/madtom-feedd/madtom-feedd`
+- **Default IPC Socket**: `/tmp/madtom-feedd.sock`
+- **Default Network Port**: `7443` (TCP/mTLS)
+
+#### Command Arguments
+| Argument | Type | Default | Description |
+|---|---|---|---|
+| `[port]` | `int` | `7443` | Optional TCP port to bind the remote mTLS video management endpoint |
+
+#### Execution Examples
+```bash
+# Start the daemon with default port 7443 and UNIX domain socket IPC
+./MADTOM_DOTNET/publish/linux-x64/madtom-feedd/madtom-feedd
+
+# Run daemon with custom network port 8443
+./MADTOM_DOTNET/publish/linux-x64/madtom-feedd/madtom-feedd 8443
+
+# Run from source via dotnet CLI
+dotnet run --project MADTOM_DOTNET/src/Plugins/VideoFeedCenter/MADTOM.Feed.Daemon/MADTOM.Feed.Daemon.csproj
+```
+
+---
+
+### 8. `MADTOM.Plugins.VideoFeedCenter.App` — Standalone Video Feed Center Client
+
+A standalone, focused multi-camera and stream grid monitoring client packaging the Video Feed Center plugin directly without the full MADTOM Studio shell.
+
+- **Technology**: Avalonia UI (.NET 10)
+- **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Plugins.VideoFeedCenter.App/MADTOM.Plugins.VideoFeedCenter.App`
+
+#### Running
+```bash
+dotnet run --project MADTOM_DOTNET/src/Plugins/VideoFeedCenter/MADTOM.Plugins.VideoFeedCenter.App/MADTOM.Plugins.VideoFeedCenter.App.csproj
+```
+
+---
+
+### 9. `MADTOM.Plugins.IPCam.App` — Standalone IPCam Client
+
+A standalone, focused camera configuration and streaming utility packaging the IPCam plugin directly, supporting on-device camera discovery, RTSP/SRT streaming parameters, resolution adjustments, and device health inspection.
+
+- **Technology**: Avalonia UI (.NET 10)
+- **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Plugins.IPCam.App/MADTOM.Plugins.IPCam.App`
+
+#### Running
+```bash
+dotnet run --project MADTOM_DOTNET/src/Plugins/IPCam/MADTOM.Plugins.IPCam.App/MADTOM.Plugins.IPCam.App.csproj
+```
+
 

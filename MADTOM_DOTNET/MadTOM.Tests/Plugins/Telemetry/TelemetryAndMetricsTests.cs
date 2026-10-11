@@ -1444,6 +1444,75 @@ public class TelemetryAndMetricsTests
     }
 
     [Fact]
+    public void NodeSettingsViewModel_VisualModes_ImmediateAndPersistent()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"node-visuals-test-{Guid.NewGuid():N}.json");
+        try
+        {
+            var store = new NodeVisualSettingsStore(tempFile);
+            var node = new FleetNodeModel { Id = "test-node", CpuVisualMode = CpuVisualMode.CoreMatrix };
+            var vm = new NodeSettingsViewModel(node, null, store);
+
+            Assert.Equal(CpuVisualMode.CoreMatrix, vm.CpuVisualMode);
+            Assert.True(vm.IsVisualCoreMatrix);
+            Assert.False(vm.IsVisualPerCoreGraphs);
+            Assert.False(vm.IsVisualOverallGraph);
+            Assert.False(vm.IsVisualAggregatedPerCore);
+            Assert.False(vm.HasUnappliedChanges);
+
+            // Switch to Per-Core Graphs: applied immediately to node & persisted, without flagging HasUnappliedChanges
+            vm.IsVisualPerCoreGraphs = true;
+            Assert.Equal(CpuVisualMode.PerCoreGraphs, vm.CpuVisualMode);
+            Assert.Equal(CpuVisualMode.PerCoreGraphs, node.CpuVisualMode);
+            Assert.False(vm.HasUnappliedChanges); // Client-side setting: does not flag unapplied changes for node daemon
+            Assert.Equal(CpuVisualMode.PerCoreGraphs, store.GetVisualMode("test-node"));
+
+            // Switch to Aggregated Per-Core
+            vm.IsVisualAggregatedPerCore = true;
+            Assert.Equal(CpuVisualMode.AggregatedPerCore, vm.CpuVisualMode);
+            Assert.Equal(CpuVisualMode.AggregatedPerCore, node.CpuVisualMode);
+            Assert.False(vm.HasUnappliedChanges);
+            Assert.Equal(CpuVisualMode.AggregatedPerCore, store.GetVisualMode("test-node"));
+
+            // Reverting daemon changes does NOT reset local visual mode
+            vm.RevertChanges();
+            Assert.Equal(CpuVisualMode.AggregatedPerCore, vm.CpuVisualMode);
+            Assert.Equal(CpuVisualMode.AggregatedPerCore, node.CpuVisualMode);
+
+            // New VM instance (e.g. reopening modal or app restart) loads persisted mode
+            var node2 = new FleetNodeModel { Id = "test-node", CpuVisualMode = CpuVisualMode.CoreMatrix };
+            var store2 = new NodeVisualSettingsStore(tempFile);
+            var vm2 = new NodeSettingsViewModel(node2, null, store2);
+            Assert.Equal(CpuVisualMode.AggregatedPerCore, vm2.CpuVisualMode);
+            Assert.Equal(CpuVisualMode.AggregatedPerCore, node2.CpuVisualMode);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void FleetNodeModel_CoreLoads_MaintainsSparkHistory()
+    {
+        var node = new FleetNodeModel { Id = "host-1", Cores = 4 };
+        Assert.Empty(node.SparkCoreLoads);
+
+        node.CoreLoads = new float[] { 0.25f, 0.50f, 0.75f, 1.0f };
+        Assert.Equal(4, node.SparkCoreLoads.Length);
+        Assert.Equal(60, node.SparkCoreLoads[0].Length);
+        Assert.Equal(25.0, node.SparkCoreLoads[0][^1]);
+        Assert.Equal(50.0, node.SparkCoreLoads[1][^1]);
+        Assert.Equal(75.0, node.SparkCoreLoads[2][^1]);
+        Assert.Equal(100.0, node.SparkCoreLoads[3][^1]);
+
+        // Push another sample
+        node.CoreLoads = new float[] { 0.30f, 0.60f, 0.80f, 0.90f };
+        Assert.Equal(30.0, node.SparkCoreLoads[0][^1]);
+        Assert.Equal(25.0, node.SparkCoreLoads[0][^2]);
+    }
+
+    [Fact]
     public void CollectorSettingsViewModel_HandlesUnappliedChangesAndDefaultSelection()
     {
         var manager = new MultiCollectorManager();

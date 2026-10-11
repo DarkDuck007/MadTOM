@@ -235,6 +235,8 @@ public class UniversalModalControl : ContentControl
         {
             CornerRadius = new CornerRadius(16),
             BorderThickness = new Thickness(1),
+            Background = new SolidColorBrush(Color.Parse("#181B20")),
+            BorderBrush = new SolidColorBrush(Color.Parse("#323846")),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             BoxShadow = BoxShadows.Parse("0 14 36 #C0000000")

@@ -25,7 +25,7 @@ public class AudioSyncLifecycleTests
         var module = new AudioSyncPluginModule();
         Assert.Equal("audio-sync", module.Id);
         Assert.Equal("AUDIOSYNC", module.DisplayName);
-        Assert.Equal(60, module.OrderWeight);
+        Assert.Equal(130, module.OrderWeight);
         Assert.Equal("Audio", module.Category);
         Assert.Equal("🔊", module.IconGlyph);
     }

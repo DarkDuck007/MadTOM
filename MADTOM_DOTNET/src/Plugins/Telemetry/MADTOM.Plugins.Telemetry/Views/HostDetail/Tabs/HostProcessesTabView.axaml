@@ -248,7 +248,7 @@
                                                TextAlignment="Center"
                                                MaxWidth="450"
                                                TextWrapping="Wrap"/>
-                                    <TextBlock Text="To enable live process snapshots or historical charting, open Collector Settings ➔ Node Opt-in Configuration and choose 'Live Only' or 'Probed &amp; Stored'."
+                                    <TextBlock Text="To enable live process snapshots or historical charting, open Collector Settings ➔ Node Configuration and choose 'Live Only' or 'Probed &amp; Stored'."
                                                FontSize="10"
                                                Foreground="{DynamicResource TextMutedBrush}"
                                                HorizontalAlignment="Center"
@@ -366,7 +366,7 @@
                                            TextAlignment="Center"
                                            MaxWidth="450"
                                            TextWrapping="Wrap"/>
-                                <TextBlock Text="To enable live process snapshots or historical charting, open Collector Settings ➔ Node Opt-in Configuration and choose 'Live Only' or 'Probed &amp; Stored'."
+                                <TextBlock Text="To enable live process snapshots or historical charting, open Collector Settings ➔ Node Configuration and choose 'Live Only' or 'Probed &amp; Stored'."
                                            FontSize="10"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            HorizontalAlignment="Center"
