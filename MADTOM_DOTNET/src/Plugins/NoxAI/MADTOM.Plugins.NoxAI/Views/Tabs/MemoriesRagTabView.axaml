@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.MemoriesRagTabView"
+             x:DataType="vm:MemoriesRagTabViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="16" RowSpacing="12">
+        <!-- Hot Memory Live Ribbon -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12">
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="🔥 HOT CONVERSATION SCRATCHPAD (ACTIVE TOPICS &amp; THREAD NOTES)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                    <Button Grid.Column="1" Command="{Binding RefreshMemoriesCommand}" Content="Refresh" Padding="6,2" FontSize="10"/>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding HotMemories}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:HotMemoryItemModel">
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,4"
+                                    Margin="0,0,8,6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text=":" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding Content}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- Long-Term Atomic Memories Table -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource DarkBaseBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12">
+            <Grid RowDefinitions="Auto,*">
+                <TextBlock Grid.Row="0" Text="🧠 LONG-TERM ATOMIC MEMORIES (SQLITE + QDRANT HYBRID RAG)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" Margin="0,0,0,8"/>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Memories}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MemoryItemModel">
+                                <Border Background="{DynamicResource CardBgBrush}"
+                                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10,6"
+                                        Margin="0,3">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding Category}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding Content}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="2" Command="{Binding $parent[UserControl].((vm:MemoriesRagTabViewModel)DataContext).DeleteMemoryCommand}" CommandParameter="{Binding Id}" Content="Forget" Padding="6,2" FontSize="10" Foreground="{DynamicResource CriticalBrush}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Add Memory Form -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12">
+            <Grid ColumnDefinitions="100,*,Auto" ColumnSpacing="8">
+                <TextBox Grid.Column="0" Text="{Binding NewMemoryCategory, Mode=TwoWay}" PlaceholderText="Category (e.g. fact, preference)"/>
+                <TextBox Grid.Column="1" Text="{Binding NewMemoryContent, Mode=TwoWay}" PlaceholderText="Add new atomic memory / fact..."/>
+                <Button Grid.Column="2" Command="{Binding AddMemoryCommand}" Content="+ Add Memory" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

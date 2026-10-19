@@ -55,6 +55,7 @@ public sealed class NoxAIPluginModule : IPluginModule
     public ValueTask DisposeAsync()
     {
         _trayRegistration?.Dispose();
+        _mainViewModel?.Dispose();
         return ValueTask.CompletedTask;
     }
 }
@@ -80,10 +81,12 @@ public sealed class NoxAITrayMenuSection : ITrayMenuSection
 
     public IReadOnlyList<TrayMenuItemDescriptor> GetItems()
     {
+        var nodeName = _mainViewModel.SelectedNode?.Alias ?? _mainViewModel.SelectedNode?.HostEndpoint ?? "No Node";
         return new List<TrayMenuItemDescriptor>
         {
-            TrayMenuItemDescriptor.TextItem("Inference: " + _mainViewModel.InferenceEngineState),
-            TrayMenuItemDescriptor.TextItem("GPU: " + _mainViewModel.GpuStats)
+            TrayMenuItemDescriptor.TextItem("Active Node: " + nodeName),
+            TrayMenuItemDescriptor.TextItem("Status: " + _mainViewModel.ConnectionStatusBadge),
+            TrayMenuItemDescriptor.TextItem("Compression: " + _mainViewModel.LiveCompressionRatio)
         };
     }
 }

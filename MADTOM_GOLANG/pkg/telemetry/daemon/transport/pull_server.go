@@ -11,6 +11,7 @@ import (
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/collector"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/config"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/logs"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/network"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/spool"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
@@ -160,6 +161,7 @@ func (s *PullServer) Start() error {
 		}),
 	)
 	madtomv1.RegisterIngestServiceServer(s.server, s)
+	madtomv1.RegisterNetworkInspectionServiceServer(s.server, network.NewNetworkInspectionServer(s.nodeID))
 
 	go func() {
 		_ = s.server.Serve(lis)

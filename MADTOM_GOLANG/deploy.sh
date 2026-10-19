@@ -65,6 +65,7 @@ PROJECT_SPECS=(
     "madtom-collector:collector::bin/madtom-collector:madtom-collector.service:/opt/madtom-collector:systemd/madtom-collector.service"
     "squeeze-server:squeeze:madtom-squeeze:bin/squeeze-server:squeeze-server.service:/opt/squeeze-server:systemd/squeeze-server.service"
     "madtom-tsdb-merge:merge:tsdb-merge:bin/madtom-tsdb-merge:madtom-tsdb-merge.service:/opt/madtom-tsdb-merge:systemd/madtom-tsdb-merge.service"
+    "noxchat-probe:probe:noxchat:bin/noxchat-probe:noxchat-probe.service:/opt/noxchat-probe:systemd/noxchat-probe.service"
 )
 
 resolve_project_spec() {

@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package madtom.video.v1;
+
+option csharp_namespace = "MADTOM.Protocol.Video.V1";
+option go_package = "github.com/DarkDuck007/madtom/pkg/protocol/video/v1;videov1";
+
+service VideoSourceControl {
+  // Bi-directional stream opened by the source (phone/app) toward the hub.
+  rpc Session(stream SourceMessage) returns (stream HubMessage);
+}
+
+message SourceMessage {
+  oneof body {
+    Hello hello = 1;
+    CapabilityReport capabilities = 2;
+    Ack ack = 3;
+    Stats stats = 4;
+    PropertyState state = 5;
+    TimeProbe time_probe = 6;
+  }
+}
+
+message HubMessage {
+  oneof body {
+    Welcome welcome = 1;
+    StartStream start = 2;
+    StopStream stop = 3;
+    SetProperty set = 4;
+    TimeReply time_reply = 5;
+  }
+}
+
+message Hello {
+  string source_id = 1;
+  string display_name = 2;
+  string platform = 3;
+  string client_version = 4;
+}
+
+message Welcome {
+  string hub_id = 1;
+  string hub_name = 2;
+  string session_id = 3;
+}
+
+message CameraInfo {
+  string camera_id = 1;
+  string facing = 2; // "back", "front", "external"
+  repeated ResolutionFps supported_modes = 3;
+}
+
+message ResolutionFps {
+  uint32 width = 1;
+  uint32 height = 2;
+  uint32 max_fps = 3;
+}
+
+message EncoderInfo {
+  string name = 1;
+  bool is_hardware = 2;
+  repeated string supported_codecs = 3; // "hevc", "avc"
+}
+
+enum PropType {
+  PROP_TYPE_UNSPECIFIED = 0;
+  PROP_TYPE_DOUBLE = 1;
+  PROP_TYPE_INT = 2;
+  PROP_TYPE_BOOL = 3;
+  PROP_TYPE_STRING = 4;
+}
+
+message Property {
+  string id = 1; // e.g. "camera.zoom_ratio"
+  PropType type = 2;
+  double min = 3;
+  double max = 4;
+  double step = 5;
+  bool writable = 6;
+  string unit = 7;
+  double value = 8;
+  string string_value = 9;
+}
+
+message CapabilityReport {
+  repeated CameraInfo cameras = 1;
+  repeated EncoderInfo encoders = 2;
+  repeated Property properties = 3;
+}
+
+message StreamProfile {
+  string camera_id = 1;
+  string codec = 2;        // "hevc" | "avc"
+  uint32 width = 3;
+  uint32 height = 4;
+  uint32 fps = 5;
+  uint32 bitrate_bps = 6;
+  string rate_control = 7; // "cbr" | "vbr"
+  uint32 idr_interval_ms = 8;
+  map<string, string> extra = 9;
+}
+
+message SrtTarget {
+  string host = 1;
+  uint32 port = 2;
+  string stream_id = 3;
+  string passphrase = 4;
+  uint32 latency_ms = 5;
+}
+
+message StartStream {
+  string request_id = 1;
+  string feed_id = 2;
+  StreamProfile profile = 3;
+  SrtTarget target = 4;
+}
+
+message StopStream {
+  string request_id = 1;
+  string feed_id = 2;
+  string reason = 3;
+}
+
+message SetProperty {
+  string request_id = 1;
+  string property_id = 2;
+  double value = 3;
+  string string_value = 4;
+}
+
+message PropertyState {
+  string property_id = 1;
+  double value = 2;
+  string string_value = 3;
+  int64 timestamp_utc_ms = 4;
+}
+
+message Ack {
+  string request_id = 1;
+  bool ok = 2;
+  string message = 3;
+  StreamProfile granted = 4; // what the encoder actually accepted
+}
+
+message Stats {
+  string feed_id = 1;
+  uint64 frames_encoded = 2;
+  uint64 bytes_sent = 3;
+  double current_fps = 4;
+  uint32 current_bitrate_bps = 5;
+  uint32 rtt_ms = 6;
+  uint64 packets_lost = 7;
+}
+
+message TimeProbe {
+  int64 client_send_utc_ms = 1;
+  uint64 probe_sequence = 2;
+}
+
+message TimeReply {
+  int64 client_send_utc_ms = 1;
+  int64 server_receive_utc_ms = 2;
+  int64 server_reply_utc_ms = 3;
+  uint64 probe_sequence = 4;
+}

@@ -18,6 +18,7 @@ public sealed class CollectorClientService : IAsyncDisposable
     private GrpcChannel _channel;
     private QueryService.QueryServiceClient _queryClient;
     private ConfigService.ConfigServiceClient _configClient;
+    private NetworkInspectionService.NetworkInspectionServiceClient _inspectionClient;
 
     // Negotiated zstd response envelopes; counters exclude gRPC framing/TLS.
     private readonly ClientPayloadCounter _inventoryPayloads = new();
@@ -51,6 +52,7 @@ public sealed class CollectorClientService : IAsyncDisposable
         _channel = CreateChannel(_httpEndpoint);
         _queryClient = new QueryService.QueryServiceClient(_channel);
         _configClient = new ConfigService.ConfigServiceClient(_channel);
+        _inspectionClient = new NetworkInspectionService.NetworkInspectionServiceClient(_channel);
     }
 
     private long _lastResetTicks = 0;
@@ -97,6 +99,18 @@ public sealed class CollectorClientService : IAsyncDisposable
             _channel = CreateChannel(_httpEndpoint);
             _queryClient = new QueryService.QueryServiceClient(_channel);
             _configClient = new ConfigService.ConfigServiceClient(_channel);
+            _inspectionClient = new NetworkInspectionService.NetworkInspectionServiceClient(_channel);
+        }
+    }
+
+    public NetworkInspectionService.NetworkInspectionServiceClient InspectionClient
+    {
+        get
+        {
+            lock (_channelLock)
+            {
+                return _inspectionClient;
+            }
         }
     }
 

@@ -2,13 +2,16 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/collector"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/config"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/logs"
+	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/network"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/daemon/spool"
 	"github.com/DarkDuck007/madtom/pkg/telemetry/optin"
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
@@ -35,6 +38,9 @@ type PushClient struct {
 	liveChunks            []*madtomv1.LogChunk
 	lastCursor            string
 	buffer                *spool.MemoryBuffer
+
+	server                *grpc.Server
+	listener              net.Listener
 }
 
 func NewPushClient(address, nodeID string, wal *spool.WALManager, engine *collector.Engine, cfg *madtomv1.NodeConfig, spoolDir ...string) *PushClient {
@@ -122,11 +128,33 @@ func (p *PushClient) onLogRecord(rec *madtomv1.LogRecord, cur string) {
 func (p *PushClient) Start() {
 	p.wg.Add(2)
 	p.tailer.Start(p.config, p.lastCursor)
+	p.startInspectionServer(50052)
 	go p.sampleLoop()
 	go p.runLoop()
 }
 
+func (p *PushClient) startInspectionServer(port int) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Printf("[PushClient] Inspection server notice (port %d unavailable, skipping local listener): %v", port, err)
+		return
+	}
+	p.listener = lis
+	p.server = grpc.NewServer()
+	madtomv1.RegisterNetworkInspectionServiceServer(p.server, network.NewNetworkInspectionServer(p.nodeID))
+	go func() {
+		_ = p.server.Serve(lis)
+	}()
+	log.Printf("[PushClient] Inspection server listening on port :%d for node %s", port, p.nodeID)
+}
+
 func (p *PushClient) Stop() {
+	if p.server != nil {
+		p.server.Stop()
+	}
+	if p.listener != nil {
+		_ = p.listener.Close()
+	}
 	p.tailer.Stop()
 	p.cancel()
 	p.wg.Wait()

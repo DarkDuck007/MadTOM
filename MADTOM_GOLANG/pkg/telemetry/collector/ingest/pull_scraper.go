@@ -51,6 +51,9 @@ func (p *PullScraper) AddTarget(nodeID, address string, interval time.Duration) 
 		Address:  address,
 		Interval: interval,
 	})
+	if p.pipeline != nil && p.pipeline.Reg() != nil {
+		p.pipeline.Reg().SetNodeAddress(nodeID, address)
+	}
 }
 
 // Start initiates scraping loops for all configured targets.

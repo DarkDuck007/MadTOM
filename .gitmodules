@@ -1,0 +1,3 @@
+[submodule "NoxChat"]
+	path = NoxChat
+	url = https://github.com/DarkDuck007/NoxChat

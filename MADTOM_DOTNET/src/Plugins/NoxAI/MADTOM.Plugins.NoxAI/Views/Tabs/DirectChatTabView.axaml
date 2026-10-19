@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.DirectChatTabView"
+             x:DataType="vm:DirectChatTabViewModel">
+
+    <Grid RowDefinitions="*,Auto" Margin="16">
+        <!-- Message History Scroller -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource DarkBaseBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,0,0,12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="10">
+                    <ItemsControl ItemsSource="{Binding Messages}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ChatMessageItem">
+                                <Border Background="{DynamicResource CardBgBrush}"
+                                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10,8"
+                                        Margin="0,4">
+                                    <Grid RowDefinitions="Auto,Auto">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="{Binding Sender}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding TimeFormatted}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </Grid>
+                                        <TextBlock Grid.Row="1" Text="{Binding Text}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Real-time Thinking Bubble -->
+                    <Border IsVisible="{Binding HasActiveThought}"
+                            Background="{DynamicResource WarningSubtleBrush}"
+                            BorderBrush="{DynamicResource WarningBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,8"
+                            Margin="0,6">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="💭 NOX REASONING TRACE (LIVE STREAM)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                            <TextBlock Text="{Binding LiveThoughtStream}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Input Bar -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+            <TextBox Grid.Column="0"
+                     Text="{Binding InputMessage, Mode=TwoWay}"
+                     PlaceholderText="Message Nox as MADTOM (Control Center)... [Enter to send]"
+                     FontSize="12"
+                     Margin="0,0,8,0"/>
+            <Button Grid.Column="1"
+                    Command="{Binding SendMessageCommand}"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="White"
+                    CornerRadius="6"
+                    Padding="16,8"
+                    IsEnabled="{Binding !IsSending}">
+                <TextBlock Text="Send" FontWeight="Bold"/>
+            </Button>
+        </Grid>
+    </Grid>
+</UserControl>

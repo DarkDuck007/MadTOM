@@ -36,6 +36,14 @@ public partial class HostLogsTabViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isFollowMode = true;
 
+    partial void OnIsFollowModeChanged(bool value)
+    {
+        if (value)
+        {
+            HasNewLogs = false;
+        }
+    }
+
     [ObservableProperty]
     private bool _hasNewLogs;
 

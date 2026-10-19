@@ -417,3 +417,9 @@ func (p *Pipeline) LogStore() *storage.LogStore {
 	return p.logStore
 }
 
+// Reg returns the underlying Registry.
+func (p *Pipeline) Reg() *registry.Registry {
+	return p.reg
+}
+
+

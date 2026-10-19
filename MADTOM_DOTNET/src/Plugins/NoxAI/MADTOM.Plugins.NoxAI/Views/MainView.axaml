@@ -3,79 +3,132 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             xmlns:tabs="using:MADTOM.Plugins.NoxAI.Views.Tabs"
+             xmlns:modals="using:MADTOM.Plugins.NoxAI.Views.Modals"
+             xmlns:charts="clr-namespace:MadTOM.Controls.Charts;assembly=MADTOM.Plugins.Telemetry"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="MADTOM.Plugins.NoxAI.Views.MainView"
              x:DataType="vm:MainViewModel"
              Background="{DynamicResource AppBgBrush}">
 
-    <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32">
-        <Border Background="{DynamicResource CardBgBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="12"
-                Padding="40,36"
-                MaxWidth="560"
-                BoxShadow="0 8 32 #30000000">
-            <StackPanel Spacing="20" HorizontalAlignment="Center">
-                <!-- Big Icon -->
-                <Border Background="{DynamicResource DarkBaseBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="16"
-                        Width="72" Height="72"
-                        HorizontalAlignment="Center">
-                    <TextBlock Text="🧠" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Border>
+    <Panel>
+        <Grid RowDefinitions="Auto,*" Margin="0">
+            <!-- Top Header Bar (Compact & Slim) -->
+            <Border Background="{DynamicResource HeaderBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <!-- Title & Badge -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="NOX AI CONTROL CENTER" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                            <TextBlock Text="NoxChat" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                        </Border>
+                    </StackPanel>
 
-                <!-- Title & Status Badge -->
-                <StackPanel Spacing="8" HorizontalAlignment="Center">
-                    <TextBlock Text="{Binding ModuleTitle}"
-                               FontSize="18"
-                               FontWeight="Bold"
-                               LetterSpacing="1.5"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center" />
+                    <!-- Top Right Controls: [Nodes Dropdown] [Live Activity Sparkline] [Settings Button] [Status Badge] -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <!-- Connected Nodes Dropdown -->
+                        <ComboBox ItemsSource="{Binding ActiveNodes}"
+                                  SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                                  MinWidth="140"
+                                  Height="26"
+                                  Padding="6,2"
+                                  FontSize="11"
+                                  VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
 
-                    <!-- Coming Soon Badge -->
-                    <Border Background="{DynamicResource WarningSubtleBrush}"
-                            BorderBrush="{DynamicResource WarningBrush}"
-                            BorderThickness="1"
-                            CornerRadius="12"
-                            Padding="12,3"
-                            HorizontalAlignment="Center">
-                        <TextBlock Text="• COMING SOON"
-                                   FontSize="10"
+                        <!-- Clickable Slim Live Activity (Zstd Diagnostics) -->
+                        <Button Command="{Binding OpenZstdDiagnosticsCommand}"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="6,1"
+                                Height="26"
+                                VerticalAlignment="Center"
+                                Cursor="Hand"
+                                ToolTip.Tip="View ZSTD compression &amp; transport diagnostics">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding LiveCompressionRatio}"
+                                           FontSize="10"
+                                           FontFamily="{StaticResource MonoFontFamily}"
+                                           Foreground="{DynamicResource AccentTextBrush}"
+                                           VerticalAlignment="Center"/>
+                                <charts:DualSparklineControl Width="60" Height="14" Mode="Resources" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Settings Button -->
+                        <Button Command="{Binding OpenSettingsCommand}"
+                                Content="⚙ Settings"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                Foreground="{DynamicResource TextPrimaryBrush}"
+                                CornerRadius="4"
+                                Padding="8,4"
+                                Height="26"
+                                FontSize="11"
+                                VerticalAlignment="Center"/>
+
+                        <!-- Connection Status Badge -->
+                        <TextBlock Text="{Binding ConnectionStatusBadge}"
                                    FontWeight="Bold"
-                                   LetterSpacing="1.2"
-                                   Foreground="{DynamicResource WarningBrush}" />
-                    </Border>
-                </StackPanel>
+                                   FontSize="11"
+                                   Foreground="{DynamicResource HealthyBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="4,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                <!-- Description -->
-                <TextBlock Text="{Binding ModuleSubtitle}"
-                           FontSize="12"
-                           Foreground="{DynamicResource TextSecondaryBrush}"
-                           TextAlignment="Center"
-                           TextWrapping="Wrap"
-                           MaxWidth="460"
-                           LineHeight="18" />
+            <!-- Main Content Sub-Tabs (Full Width) -->
+            <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedWorkspaceTabIndex}">
+                <!-- Tab 1: Telemetry & Usage -->
+                <TabItem Header="📈 Telemetry &amp; Usage" FontSize="12">
+                    <tabs:NoxTelemetryTabView DataContext="{Binding TelemetryTab}"/>
+                </TabItem>
 
-                <Separator Height="1" Background="{DynamicResource BorderSubtleBrush}" Margin="0,4" />
+                <!-- Tab 2: Direct Chat -->
+                <TabItem Header="💬 Direct Chat" FontSize="12">
+                    <tabs:DirectChatTabView DataContext="{Binding DirectChatTab}"/>
+                </TabItem>
 
-                <!-- Note -->
-                <Border Background="{DynamicResource DarkBaseBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="6"
-                        Padding="14,10">
-                    <TextBlock Text="{Binding ComingSoonMessage}"
-                               FontSize="11"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               TextAlignment="Center"
-                               TextWrapping="Wrap" />
-                </Border>
-            </StackPanel>
-        </Border>
-    </Grid>
+                <!-- Tab 3: RAG & Memories -->
+                <TabItem Header="🧠 RAG &amp; Memories" FontSize="12">
+                    <tabs:MemoriesRagTabView DataContext="{Binding MemoriesRagTab}"/>
+                </TabItem>
+
+                <!-- Tab 4: Stickers & GIFs -->
+                <TabItem Header="🎨 Stickers &amp; GIFs" FontSize="12">
+                    <tabs:MediaLibraryTabView DataContext="{Binding MediaLibraryTab}"/>
+                </TabItem>
+
+                <!-- Tab 5: Active Jobs -->
+                <TabItem Header="⚡ Active Jobs" FontSize="12">
+                    <tabs:ActiveJobsTabView DataContext="{Binding ActiveJobsTab}"/>
+                </TabItem>
+
+                <!-- Tab 6: Raw Logs & API Calls -->
+                <TabItem Header="📜 Raw Logs &amp; API" FontSize="12">
+                    <tabs:RawLogsApiTabView DataContext="{Binding RawLogsApiTab}"/>
+                </TabItem>
+            </TabControl>
+        </Grid>
+
+        <!-- Settings Modal Overlay -->
+        <Panel IsVisible="{Binding IsSettingsModalOpen}">
+            <modals:NoxSettingsModal DataContext="{Binding SettingsViewModel}"/>
+        </Panel>
+
+        <!-- Zstd Diagnostics Modal Overlay -->
+        <Panel IsVisible="{Binding IsZstdDiagnosticsOpen}">
+            <modals:NoxZstdDiagnosticsModal/>
+        </Panel>
+    </Panel>
 </UserControl>

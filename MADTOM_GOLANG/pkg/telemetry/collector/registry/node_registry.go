@@ -19,6 +19,7 @@ import (
 )
 
 const ConfigsFileName = "node_configs.json"
+const AddressesFileName = "node_addresses.json"
 
 type NodeEntry struct {
 	Info            *madtomv1.NodeInfo
@@ -27,6 +28,7 @@ type NodeEntry struct {
 	DaemonVersion   string
 	DaemonFeatures  []string
 	DaemonAckedHash string
+	DaemonAddress   string
 	LastAckUnixNano int64
 	AckListeners    []chan struct{}
 }
@@ -52,14 +54,27 @@ func NewRegistry(collectorName string, storageDirs ...string) *Registry {
 	return r
 }
 
+// getEntryLocked finds an existing entry case-insensitively, returning the entry and canonical key.
+func (r *Registry) getEntryLocked(nodeID string) (*NodeEntry, string) {
+	if entry, ok := r.nodes[nodeID]; ok {
+		return entry, nodeID
+	}
+	for k, entry := range r.nodes {
+		if strings.EqualFold(k, nodeID) {
+			return entry, k
+		}
+	}
+	return nil, ""
+}
+
 // RegisterOrTouch updates or registers a node upon telemetry or handshake receipt.
 func (r *Registry) RegisterOrTouch(nodeID string, mode string, optInfo *madtomv1.NodeInfo) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	now := time.Now().UnixNano()
-	entry, exists := r.nodes[nodeID]
-	if !exists {
+	entry, key := r.getEntryLocked(nodeID)
+	if entry == nil {
 		info := &madtomv1.NodeInfo{
 			NodeId:           nodeID,
 			Hostname:         nodeID,
@@ -93,6 +108,18 @@ func (r *Registry) RegisterOrTouch(nodeID string, mode string, optInfo *madtomv1
 	if mode != "" {
 		entry.Info.ConnectionMode = mode
 	}
+	if optInfo != nil {
+		if optInfo.Hostname != "" {
+			entry.Info.Hostname = optInfo.Hostname
+		}
+		if optInfo.Os != "" {
+			entry.Info.Os = optInfo.Os
+		}
+		if optInfo.Arch != "" {
+			entry.Info.Arch = optInfo.Arch
+		}
+	}
+	_ = key
 }
 
 // RecordBatch updates topology, staleness, and daemon capabilities from an incoming batch.
@@ -105,8 +132,8 @@ func (r *Registry) RecordBatch(batch *madtomv1.TelemetryBatch, mode string) {
 
 	nodeID := batch.NodeId
 	now := time.Now().UnixNano()
-	entry, exists := r.nodes[nodeID]
-	if !exists {
+	entry, _ := r.getEntryLocked(nodeID)
+	if entry == nil {
 		info := &madtomv1.NodeInfo{
 			NodeId:           nodeID,
 			Hostname:         nodeID,
@@ -162,8 +189,8 @@ func (r *Registry) RecordBatch(batch *madtomv1.TelemetryBatch, mode string) {
 // WaitForConfigSync waits up to timeout for the node's daemon to confirm applying the config.
 func (r *Registry) WaitForConfigSync(nodeID string, timeout time.Duration) (confirmed bool, daemonStatus string, version string, features []string, msg string) {
 	r.mu.Lock()
-	entry, exists := r.nodes[nodeID]
-	if !exists {
+	entry, _ := r.getEntryLocked(nodeID)
+	if entry == nil {
 		r.mu.Unlock()
 		return false, "NOT_FOUND", "", nil, "Node is not registered"
 	}
@@ -293,7 +320,7 @@ func (r *Registry) GetConfig(nodeID string) *madtomv1.NodeConfig {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if entry, exists := r.nodes[nodeID]; exists {
+	if entry, _ := r.getEntryLocked(nodeID); entry != nil {
 		return proto.Clone(entry.Config).(*madtomv1.NodeConfig)
 	}
 	return defaultConfig(nodeID)
@@ -304,7 +331,7 @@ func (r *Registry) SetConfig(nodeID string, cfg *madtomv1.NodeConfig) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if entry, exists := r.nodes[nodeID]; exists {
+	if entry, _ := r.getEntryLocked(nodeID); entry != nil {
 		entry.Config = proto.Clone(cfg).(*madtomv1.NodeConfig)
 		entry.Configured = true
 	} else {
@@ -362,6 +389,8 @@ func (r *Registry) loadFromDisk() {
 		}
 	}
 	log.Printf("[Registry] Restored %d node configuration(s) from %s", len(rawMap), path)
+
+	r.loadAddressesFromDisk()
 }
 
 func (r *Registry) saveToDiskLocked() {
@@ -434,8 +463,118 @@ func defaultConfig(nodeID string) *madtomv1.NodeConfig {
 func (r *Registry) TransportConfig(nodeID string) *madtomv1.NodeConfig {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	if entry, ok := r.nodes[nodeID]; ok && entry.Configured {
+	if entry, _ := r.getEntryLocked(nodeID); entry != nil && entry.Configured {
 		return proto.Clone(entry.Config).(*madtomv1.NodeConfig)
 	}
 	return nil
 }
+
+func (r *Registry) loadAddressesFromDisk() {
+	if r.storageDir == "" {
+		return
+	}
+	path := filepath.Join(r.storageDir, AddressesFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("[Registry] Warning: failed to read %s: %v", path, err)
+		}
+		return
+	}
+
+	var addrMap map[string]string
+	if err := json.Unmarshal(data, &addrMap); err != nil {
+		log.Printf("[Registry] Warning: failed to parse %s: %v", path, err)
+		return
+	}
+
+	for nodeID, addr := range addrMap {
+		if addr == "" {
+			continue
+		}
+		if entry, _ := r.getEntryLocked(nodeID); entry != nil {
+			entry.DaemonAddress = addr
+		} else {
+			r.nodes[nodeID] = &NodeEntry{
+				Info: &madtomv1.NodeInfo{
+					NodeId:           nodeID,
+					Hostname:         nodeID,
+					Status:           "OFFLINE",
+					LastSeenUnixNano: 0,
+				},
+				Config:        defaultConfig(nodeID),
+				DaemonAddress: addr,
+			}
+		}
+	}
+	log.Printf("[Registry] Restored %d node daemon address(es) from %s", len(addrMap), path)
+}
+
+func (r *Registry) saveAddressesToDiskLocked() {
+	if r.storageDir == "" {
+		return
+	}
+	addrMap := make(map[string]string)
+	for nodeID, entry := range r.nodes {
+		if entry.DaemonAddress != "" {
+			addrMap[nodeID] = entry.DaemonAddress
+		}
+	}
+
+	data, err := json.MarshalIndent(addrMap, "", "  ")
+	if err != nil {
+		log.Printf("[Registry] Warning: failed to encode %s: %v", AddressesFileName, err)
+		return
+	}
+
+	if err := os.MkdirAll(r.storageDir, 0755); err != nil {
+		log.Printf("[Registry] Warning: failed to create storage dir %s: %v", r.storageDir, err)
+		return
+	}
+
+	targetPath := filepath.Join(r.storageDir, AddressesFileName)
+	tmpPath := targetPath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		log.Printf("[Registry] Warning: failed to write %s: %v", tmpPath, err)
+		return
+	}
+	if err := os.Rename(tmpPath, targetPath); err != nil {
+		_ = os.Remove(tmpPath)
+		log.Printf("[Registry] Warning: failed to commit %s: %v", targetPath, err)
+	}
+}
+
+func (r *Registry) SetNodeAddress(nodeID, address string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if entry, _ := r.getEntryLocked(nodeID); entry != nil {
+		if entry.DaemonAddress != address {
+			entry.DaemonAddress = address
+			r.saveAddressesToDiskLocked()
+		}
+		return
+	}
+	r.nodes[nodeID] = &NodeEntry{
+		Info: &madtomv1.NodeInfo{
+			NodeId:           nodeID,
+			Hostname:         nodeID,
+			Status:           "ONLINE",
+			LastSeenUnixNano: time.Now().UnixNano(),
+		},
+		Config:        defaultConfig(nodeID),
+		DaemonAddress: address,
+	}
+	r.saveAddressesToDiskLocked()
+}
+
+func (r *Registry) GetNodeAddress(nodeID string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if entry, _ := r.getEntryLocked(nodeID); entry != nil {
+		return entry.DaemonAddress
+	}
+	return ""
+}
+

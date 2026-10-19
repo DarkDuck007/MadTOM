@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package madtom.core.v1;
+
+option csharp_namespace = "MADTOM.Protocol.Core.V1";
+option go_package = "github.com/DarkDuck007/madtom/pkg/protocol/core/v1;corev1";
+
+message CapabilityDescriptor {
+  string capability = 1; // e.g. "madtom.video.feed.v1"
+  string version = 2;    // e.g. "1.0"
+}
+
+message EndpointDescriptor {
+  string transport = 1; // "uds", "pipe", "tcp-mtls"
+  string address = 2;   // socket path, pipe name, or host:port
+  bool enabled = 3;
+}
+
+message ProcessManifest {
+  string id = 1;
+  string version = 2;
+  int32 pid = 3;
+  repeated EndpointDescriptor endpoints = 4;
+  repeated CapabilityDescriptor provides = 5;
+  repeated CapabilityDescriptor consumes = 6;
+}

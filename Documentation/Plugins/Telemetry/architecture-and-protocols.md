@@ -29,6 +29,15 @@ This document provides a technical brief on the internal architecture, transport
     - [Opt-In Operating Modes](#opt-in-operating-modes)
     - [Swap \& Multi-Device ZRAM Storage](#swap--multi-device-zram-storage)
     - [Per-Core CPU Visualization](#per-core-cpu-visualization)
+  - [System Journal Log Streaming Protocol \& Pebble TSDB Storage](#system-journal-log-streaming-protocol--pebble-tsdb-storage)
+    - [Protobuf Message Specification](#protobuf-message-specification)
+    - [Zero-Disk Monitor Only vs. Stored Policy](#zero-disk-monitor-only-vs-stored-policy)
+    - [Pebble Storage Key Schema](#pebble-storage-key-schema)
+    - [Retention Enforcement](#retention-enforcement)
+  - [Network Inspection \& Topology Protocol](#network-inspection--topology-protocol)
+    - [Protocol Contract: `NetworkInspectionService`](#protocol-contract-networkinspectionservice)
+    - [Staged Progressive Event Streaming](#staged-progressive-event-streaming)
+    - [Linux Kernel Probers \& Data Sources](#linux-kernel-probers--data-sources)
 
 ---
 
@@ -293,3 +302,78 @@ A 60-second background worker runs in `madtom-collector`:
 2. Iterates the time index `T\x00<nodeId>\x00...` to delete all chunks older than the configured cutoff timestamp.
 3. If total stored byte volume exceeds `log_retention_bytes`, evicts oldest chunks in FIFO order until within quota.
 4. Deletes chunk keys, time index keys, and atomically updates metadata stats.
+
+---
+
+## Network Inspection & Topology Protocol
+
+MADTOM Telemetry implements an on-demand, low-overhead network topology, routing, and firewall introspection system defined in `proto/madtom/v1/network_topology.proto`.
+
+### Protocol Contract: `NetworkInspectionService`
+
+```protobuf
+service NetworkInspectionService {
+  // Streams progressive stages of network topology, followed by live 1Hz traffic counters.
+  rpc StreamNetworkTopology (TopologyStreamRequest) returns (stream TopologyEvent);
+
+  // Renews an active inspection lease (heartbeat sent by visible UI every ~5s).
+  rpc RenewInspectionLease (LeaseRenewalRequest) returns (LeaseRenewalResponse);
+
+  // Actively runs bounded, sandboxed read-only probes (Ping, Traceroute, Route Lookup).
+  rpc StreamDiagnosticProbe (DiagnosticProbeRequest) returns (stream DiagnosticProbeOutput);
+}
+```
+
+### Staged Progressive Event Streaming
+
+Inspection events are streamed sequentially via `TopologyEvent`:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Desktop Client (Studio)
+    participant C as madtom-collector
+    participant D as madtom-daemon
+
+    UI->>C: StreamNetworkTopology(node_id, lease_seconds=15)
+    Note over C: Resolves daemon address from registry (reverse-push target, pull scraper, or push peer IP:50052)
+    C->>D: Relays via gRPC NetworkInspectionService
+    D-->>UI: Stage 1: Capabilities (netlink, nftables, tcp_available_cc)
+    D-->>UI: Stage 2: Interfaces (RTM_GETLINK dump, carrier, speeds, MTU)
+    D-->>UI: Stage 3: Addresses & Neighbors (RTM_GETADDR, RTM_GETNEIGH ARP/NDP)
+    D-->>UI: Stage 4: Routing (RTM_GETROUTE, next-hops, policy FIB rules)
+    D-->>UI: Stage 5: Firewall (nft -j -a list ruleset JSON)
+    D-->>UI: Stage 6: Sockets (TCP sock_diag /proc/net/tcp, BBR metrics)
+    D-->>UI: Stage 7: Complete (Initial dump complete; continuous 1Hz delta active)
+    
+    loop Every 5 seconds while Flight Tab is active
+        UI->>C: RenewInspectionLease(session_id, lease_seconds=15)
+        C->>D: Lease Renewed
+    end
+    
+    opt User closes tab or navigates away
+        Note over UI,D: Leases expire in 15s; daemon halts probers and frees memory
+    end
+```
+
+#### Inspection Server & Address Resolution Architecture
+- **Collector Address Discovery & Persistence**:
+  - For **Reverse-Push** targets (`--reverse-push-targets=node@host:port`), the collector registers the dial target address directly into the node registry.
+  - For **Pull** targets (`--pull-targets=node@host:port`), the scraper target address is registered.
+  - For **Push** daemons dialing into the collector (`:50051`), the collector automatically extracts the peer transport IP from the incoming gRPC stream context and registers `<peer_ip>:50052` in the node registry using `net.JoinHostPort` (supporting both IPv4 and IPv6). Loopback addresses (`127.0.0.1`, `::1`) are strictly guarded using `isLocalCollectorNode` (fuzzy matching short and FQDN hostnames, e.g. `lbw` and `dani-lbw`) so remote nodes connecting over SSH tunnels or loopback proxies are never misrouted to the collector's local daemon.
+  - **Disk Persistence (`node_addresses.json`)**: All discovered and registered node daemon addresses are atomically persisted to `<storage_dir>/node_addresses.json`. When the collector restarts or reloads, all previously known daemon addresses are restored immediately, eliminating intermittent "node address not registered" errors for push clients before their next batch arrives.
+  - **Dead Channel Eviction**: The collector's `NetworkInspectionRelayServer` caches active gRPC connections to node daemons. If a stream or lease renewal encounters a transport error (e.g. daemon restarted or client closed connection), the stale channel is immediately evicted and closed via `removeConn(addr)`, ensuring subsequent inspection attempts dial a fresh gRPC connection.
+  - When inspecting the local workstation node, MADTOM Studio connects directly to `127.0.0.1:50052`, bypassing the remote collector and SSH tunnel overhead entirely.
+- **Case-Insensitive Resolution**: Node ID lookups in the collector registry are case-insensitive across all operations (`RegisterOrTouch`, `RecordBatch`, `GetConfig`, `SetNodeAddress`, and `GetNodeAddress`), ensuring case mismatches between CLI targets, daemon hostnames, and UI requests never lead to missing daemon addresses.
+
+### Linux Kernel Probers & Data Sources
+
+| Stage | Kernel / OS Source | Extracted Attributes |
+|---|---|---|
+| **Capabilities** | `/proc/version`, `/proc/sys/net/ipv4/tcp_available_congestion_control` | Kernel version, `NETLINK_INET_DIAG` availability, nftables binary support, accessible namespaces. |
+| **Interfaces** | `vishvananda/netlink` (`RTM_GETLINK`), `/sys/class/net/*` | Ifindex, interface name, MAC address, MTU, carrier state, link speeds, duplex, driver, PCI bus slot. |
+| **Addresses & Neighbors** | `vishvananda/netlink` (`RTM_GETADDR`, `RTM_GETNEIGH`) | CIDR addresses, primary/secondary flags, scope, ARP/NDP neighbor cache states (`REACHABLE`, `STALE`, `PERMANENT`). |
+| **Routing Table** | `vishvananda/netlink` (`RTM_GETROUTE`, `RTM_GETRULE`) | Destination CIDRs, next-hop gateways, table IDs (254/255/custom), protocols (`kernel`, `dhcp`, `bgp`), route metrics. |
+| **Firewall Rules** | `nft -j -a list ruleset` | Structured tables, chains, hooks (`input`, `forward`, `prerouting`), policy, verdicts (`accept`, `drop`, `masquerade`), packet/byte counters. |
+| **Sockets (TCP)** | `sock_diag` (`INET_DIAG_REQ_V2`), `/proc/net/tcp` | Local/remote endpoints, socket cookies, queue bytes, congestion algorithms (`bbr`, `cubic`), delivery rates, smoothed RTT. |
+| **Read-Only Diagnostics** | Non-shell `/bin/ping`, `/usr/bin/traceroute`, `ip route get` | Bounded execution (ping: 4 packets, traceroute: max 30 hops), strict target sanitization regexes, real-time line streaming. |

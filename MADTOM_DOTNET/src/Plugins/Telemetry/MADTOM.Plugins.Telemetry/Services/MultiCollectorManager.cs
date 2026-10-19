@@ -188,9 +188,38 @@ public sealed class MultiCollectorManager : IAsyncDisposable
         }
     }
 
+    private CollectorClientService? _localDaemonClient;
+    private readonly object _localDaemonLock = new();
+
+    public CollectorClientService GetLocalDaemonClient()
+    {
+        lock (_localDaemonLock)
+        {
+            return _localDaemonClient ??= new CollectorClientService("127.0.0.1:50052", "Local Node Daemon");
+        }
+    }
+
+    public static bool IsLocalNode(string? nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId)) return false;
+        var machine = Environment.MachineName;
+        if (nodeId.Equals(machine, StringComparison.OrdinalIgnoreCase)) return true;
+        if (machine.Contains(nodeId, StringComparison.OrdinalIgnoreCase)) return true;
+        if (nodeId.Contains(machine, StringComparison.OrdinalIgnoreCase)) return true;
+        var envId = Environment.GetEnvironmentVariable("MADTOM_LOCAL_NODE_ID") ?? Environment.GetEnvironmentVariable("MADTOM_NODE_ID");
+        if (!string.IsNullOrEmpty(envId) && nodeId.Equals(envId, StringComparison.OrdinalIgnoreCase)) return true;
+        if (nodeId.Equals("yoga", StringComparison.OrdinalIgnoreCase)) return true;
+        if (nodeId.Equals("localhost", StringComparison.OrdinalIgnoreCase) || nodeId.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
     public async ValueTask DisposeAsync()
     {
         _cts.Cancel();
+        if (_localDaemonClient != null)
+        {
+            await _localDaemonClient.DisposeAsync();
+        }
         foreach (var client in _clients.Values)
         {
             await client.DisposeAsync();

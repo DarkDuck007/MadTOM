@@ -66,6 +66,7 @@ internal sealed class Program
             catch (Exception ex)
             {
                 global::System.Console.Error.WriteLine($"[MADTOM Studio] Fatal error during desktop execution: {ex.Message}");
+                global::System.Console.Error.WriteLine(ex.ToString());
                 return 1;
             }
         }

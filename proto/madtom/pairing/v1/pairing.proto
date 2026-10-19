@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package madtom.pairing.v1;
+
+option csharp_namespace = "MADTOM.Protocol.Pairing.V1";
+option go_package = "github.com/DarkDuck007/madtom/pkg/protocol/pairing/v1;pairingv1";
+
+service Pairing {
+  rpc Begin(BeginRequest) returns (BeginResponse);
+  rpc Complete(CompleteRequest) returns (CompleteResponse);
+}
+
+message BeginRequest {
+  string session_id = 1;
+  bytes device_cert_der = 2; // device's self-signed P-256 cert in DER
+  string device_name = 3;
+  string platform = 4;       // android, linux, windows, macos
+  bytes nonce_device = 5;
+  bytes token = 6;           // present on the QR path only
+}
+
+message BeginResponse {
+  bytes hub_cert_der = 1;    // hub's self-signed P-256 cert in DER
+  bytes nonce_hub = 2;       // both sides derive the 4-digit comparison code
+  string comparison_code = 3; // formatted 4-digit PIN for display
+}
+
+message CompleteRequest {
+  string session_id = 1;
+  bool sas_confirmed = 2;    // manual path: user confirmed comparison code
+}
+
+message CompleteResponse {
+  bool accepted = 1;
+  repeated string granted_scopes = 2;
+  string trust_id = 3;
+  string message = 4;
+}

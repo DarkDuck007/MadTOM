@@ -1,0 +1,28 @@
+[Unit]
+Description=MADTOM NoxChat Probe Daemon
+After=network.target noxchat.service
+Wants=noxchat.service
+
+[Service]
+Type=simple
+User=danial
+Group=danial
+WorkingDirectory=/opt/noxchat-probe
+ExecStart=/opt/noxchat-probe/bin/noxchat-probe \
+    -node-id %H \
+    -listen :50055 \
+    -bridge-host 127.0.0.1 \
+    -bridge-port 50056 \
+    -config /opt/noxchat/config.yaml \
+    -auth-key-file /opt/noxchat/.env
+Restart=always
+RestartSec=3s
+LimitNOFILE=65536
+
+# Security hardening
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

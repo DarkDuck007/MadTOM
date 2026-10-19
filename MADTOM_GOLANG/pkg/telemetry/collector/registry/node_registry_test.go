@@ -59,4 +59,11 @@ func TestRegistry_PersistenceAcrossRestarts(t *testing.T) {
 	if afterTouchCfg.TwampTarget != "collector" {
 		t.Errorf("expected twamp target to remain 'collector' after touch, got %s", afterTouchCfg.TwampTarget)
 	}
+
+	// Address persistence test
+	reg2.SetNodeAddress("node-persist-1", "192.168.1.100:50052")
+	reg3 := NewRegistry("Collector-1", tempDir)
+	if addr := reg3.GetNodeAddress("node-persist-1"); addr != "192.168.1.100:50052" {
+		t.Errorf("expected daemon address to persist across restart, got %q", addr)
+	}
 }

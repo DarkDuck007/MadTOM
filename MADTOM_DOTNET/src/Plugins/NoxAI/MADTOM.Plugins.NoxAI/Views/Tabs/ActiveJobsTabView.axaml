@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.ActiveJobsTabView"
+             x:DataType="vm:ActiveJobsTabViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="12">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding JobsSummary}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <Button Grid.Column="1" Command="{Binding RefreshJobsCommand}" Content="🔄 Refresh Jobs" Padding="8,4"/>
+        </Grid>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource DarkBaseBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Jobs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ActiveJobItemModel">
+                            <Border Background="{DynamicResource CardBgBrush}"
+                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="12,8"
+                                    Margin="0,4">
+                                <Grid ColumnDefinitions="140,*,100">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding JobType}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                                        <TextBlock Text="{Binding Status}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                        <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="1" Height="6"/>
+                                        <TextBlock Text="{Binding Details}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="{Binding ElapsedFormatted}" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

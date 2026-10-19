@@ -1,0 +1,245 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             xmlns:logs="clr-namespace:MadTOM.Controls.Logs;assembly=MADTOM.Plugins.Telemetry"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.RawLogsApiTabView"
+             x:DataType="vm:RawLogsApiTabViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="12">
+        <!-- Read-Only Status & Server WAL Spool Ribbon (Mode is configured per-node in Settings) -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,8">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="12" VerticalAlignment="Center">
+                <!-- Per-Node Mode Badge -->
+                <Border Grid.Column="0"
+                        Background="{DynamicResource AccentSubtleBrush}"
+                        CornerRadius="4"
+                        Padding="8,4"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ModeBadgeText}"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource AccentTextBrush}"/>
+                </Border>
+
+                <!-- Live Stream Status -->
+                <Border Grid.Column="1"
+                        Background="{DynamicResource DarkBaseBrush}"
+                        CornerRadius="4"
+                        Padding="8,4"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="{Binding LogStreamStatus}"
+                               FontSize="11"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </Border>
+
+                <!-- WAL Spool Status Summary -->
+                <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="SERVER WAL SPOOL (1GB CAP · CONFIGURE IN ⚙ SETTINGS)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                    <TextBlock Text="{Binding SpoolStatusSummary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right"/>
+                </StackPanel>
+
+                <Button Grid.Column="3" Command="{Binding RefreshSpoolStatusCommand}" Content="🔄 Refresh" Padding="8,4" FontSize="11" ToolTip.Tip="Query server spool usage stats"/>
+                <Button Grid.Column="4" Command="{Binding LoadSpooledChunksCommand}" Content="📂 Load Spool" Padding="8,4" FontSize="11" ToolTip.Tip="Download stored logs and API calls from server spool into view"/>
+            </Grid>
+        </Border>
+
+        <!-- Sub Tabs: Bot Virtual Logs & Raw API Calls -->
+        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedSubViewIndex, Mode=TwoWay}">
+            <!-- Sub-Tab 1: Bot System Logs (Zstd Virtual Log View) -->
+            <TabItem Header="📜 Bot Logs (Virtual Zstd)" FontSize="11">
+                <Panel Margin="0,8,0,0">
+                    <Border Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="4">
+                        <logs:VirtualLogViewControl x:Name="LogViewer"
+                                                    NodeId="{Binding NodeId}"
+                                                    CollectorEndpoint="noxchat"
+                                                    LogMode="{Binding LogMode}"
+                                                    TotalRecords="{Binding TotalRecords}"
+                                                    FirstSeq="{Binding FirstSeq}"
+                                                    LastSeq="{Binding LastSeq}"
+                                                    IsFollowMode="{Binding IsFollowMode, Mode=TwoWay}"
+                                                    LogCache="{Binding LogCache}"
+                                                    CacheRevision="{Binding CacheRevision}"/>
+                    </Border>
+
+                    <!-- Floating "Jump to latest (↓)" button -->
+                    <Button Command="{Binding ScrollToLatestCommand}"
+                            IsVisible="{Binding HasNewLogs}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,0,16"
+                            Background="{DynamicResource AccentBrush}"
+                            Foreground="White"
+                            CornerRadius="14"
+                            Padding="14,6"
+                            Cursor="Hand">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="↓" FontWeight="Bold" FontSize="12"/>
+                            <TextBlock Text="Jump to latest" FontFamily="{StaticResource MonoFontFamily}" FontSize="11" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Button>
+                </Panel>
+            </TabItem>
+
+            <!-- Sub-Tab 2: Raw LLM API Calls -->
+            <TabItem Header="🧠 Raw API Calls &amp; Payloads" FontSize="11">
+                <Grid ColumnDefinitions="340,*" ColumnSpacing="12" Margin="0,8,0,0">
+                    <!-- Left: Calls timeline -->
+                    <Border Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="8">
+                        <Grid RowDefinitions="Auto,*">
+                            <TextBlock Text="{Binding RecentApiCalls.Count, StringFormat='Intercepted API Calls ({0})'}"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Margin="4,2,4,6"/>
+                            <ListBox Grid.Row="1"
+                                     ItemsSource="{Binding RecentApiCalls}"
+                                     SelectedItem="{Binding SelectedApiCall, Mode=TwoWay}"
+                                     Background="Transparent"
+                                     BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:RawApiCallItemModel">
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8"
+                                                Margin="0,2">
+                                            <StackPanel Spacing="3">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Text="{Binding Caller}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding DurationMs, StringFormat='{}{0}ms'}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                </Grid>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Text="{Binding Model}" FontSize="10" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding TimestampText}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                </Grid>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Text="{Binding PromptTokens, StringFormat='In: {0} tok'}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding CompletionTokens, StringFormat='Out: {0} tok'}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Right: Payload / Images Detail -->
+                    <Border Grid.Column="1"
+                            Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <Panel>
+                            <!-- Empty selection placeholder -->
+                            <TextBlock IsVisible="{Binding SelectedApiCall, Converter={x:Static ObjectConverters.IsNull}}"
+                                       Text="Select a raw LLM API call on the left to inspect syntax prompt JSON and multimodal payloads."
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+
+                            <!-- Active item details -->
+                            <Grid IsVisible="{Binding SelectedApiCall, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                  RowDefinitions="Auto,*"
+                                  RowSpacing="10">
+                                <!-- Call Header Summary -->
+                                <Border Background="{DynamicResource CardBgBrush}"
+                                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10">
+                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="16" VerticalAlignment="Center">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding SelectedApiCall.Caller, FallbackValue=''}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                            <TextBlock Text="{Binding SelectedApiCall.Model, FallbackValue=''}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <TextBlock Text="LATENCY" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding SelectedApiCall.DurationMs, FallbackValue=0, StringFormat='{}{0} ms'}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="2">
+                                            <TextBlock Text="PROMPT TOKENS" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding SelectedApiCall.PromptTokens, FallbackValue=0}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3" Spacing="2">
+                                            <TextBlock Text="COMPLETION TOKENS" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding SelectedApiCall.CompletionTokens, FallbackValue=0}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- JSON & Image Payloads -->
+                                <TabControl Grid.Row="1">
+                                    <TabItem Header="Prompt Request JSON" FontSize="11">
+                                        <TextBox Text="{Binding SelectedApiCall.RequestJson, FallbackValue=''}"
+                                                 IsReadOnly="True"
+                                                 FontFamily="{StaticResource MonoFontFamily}"
+                                                 FontSize="11"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="Wrap"
+                                                 Margin="0,8,0,0"/>
+                                    </TabItem>
+                                    <TabItem Header="LLM Response JSON" FontSize="11">
+                                        <TextBox Text="{Binding SelectedApiCall.ResponseJson, FallbackValue=''}"
+                                                 IsReadOnly="True"
+                                                 FontFamily="{StaticResource MonoFontFamily}"
+                                                 FontSize="11"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="Wrap"
+                                                 Margin="0,8,0,0"/>
+                                    </TabItem>
+                                    <TabItem Header="Multimodal Images" FontSize="11">
+                                        <ScrollViewer Margin="0,8,0,0">
+                                            <ItemsControl ItemsSource="{Binding SelectedApiCall.Images}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel Orientation="Horizontal"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:RawApiCallImageItem">
+                                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="8"
+                                                                Padding="8"
+                                                                Margin="0,0,10,10">
+                                                            <StackPanel Spacing="6">
+                                                                <Image Source="{Binding Preview}" Width="180" Height="180" Stretch="Uniform"/>
+                                                                <TextBlock Text="{Binding Label}" FontSize="10" HorizontalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </TabItem>
+                                </TabControl>
+                            </Grid>
+                        </Panel>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

@@ -77,6 +77,7 @@ func main() {
 			if !ok || node == "" || address == "" {
 				log.Fatalf("Invalid reverse push target %q", target)
 			}
+			reg.SetNodeAddress(node, address)
 			receivers.Add(1)
 			go func() { defer receivers.Done(); ingest.ReceivePush(ctx, pipeline, node, address) }()
 		}
@@ -126,6 +127,7 @@ func main() {
 	apiServer := api.NewServer(*collectorName, tsdb, reg, pipeline)
 	madtomv1.RegisterQueryServiceServer(grpcServer, apiServer)
 	madtomv1.RegisterConfigServiceServer(grpcServer, apiServer)
+	madtomv1.RegisterNetworkInspectionServiceServer(grpcServer, api.NewNetworkInspectionRelayServer(reg))
 
 	go func() {
 		log.Printf("gRPC services listening on :%d", *port)

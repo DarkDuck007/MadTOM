@@ -42,8 +42,8 @@ Comprehensive guides, manuals, and technical deep-dives are organized into modul
 - 🔌 **[Plugin Architecture Reference](Documentation/Studio/plugin-architecture.md)**: Extensible plugin system contracts (`MADTOM.PluginContracts`), `IPluginModule`, `ITrayMenuService`, host context, and step-by-step guide for creating new plugins in `src/Plugins/`.
 
 ### MADTOM Telemetry Plugin
-- 📊 **[Telemetry UI & Visualization Guide](Documentation/Plugins/Telemetry/ui-and-visualization.md)**: Fleet dashboard, live 1Hz sparklines, node detail, graph scopes, LTTB downsampling, process monitoring & breakdown charts, TWAMP latency radar, cache diagnostics, and configs (`graphs.json`, `collectors.json`).
-- ⚙️ **[Architecture & Protocols Reference](Documentation/Plugins/Telemetry/architecture-and-protocols.md)**: Ingestion topologies (Push, Pull, Reverse-Push), Write-Ahead Log (WAL) disk spooling, CockroachDB Pebble TSDB layout, and TWAMP Light probing (RFC 5357).
+- 📊 **[Telemetry UI & Visualization Guide](Documentation/Plugins/Telemetry/ui-and-visualization.md)**: Fleet dashboard, live 1Hz sparklines, node detail, graph scopes, LTTB downsampling, process monitoring & breakdown charts, 2D interactive network topology & firewall visualizer, TWAMP latency radar, cache diagnostics, and configs (`graphs.json`, `collectors.json`).
+- ⚙️ **[Architecture & Protocols Reference](Documentation/Plugins/Telemetry/architecture-and-protocols.md)**: Ingestion topologies (Push, Pull, Reverse-Push), Write-Ahead Log (WAL) disk spooling, CockroachDB Pebble TSDB layout, network inspection protocol (`NetworkInspectionService`), and TWAMP Light probing (RFC 5357).
 - 🚀 **[Deployment & Services Guide](Documentation/Plugins/Telemetry/deployment-and-services.md)**: Remote SSH deployment automation (`deploy.sh`), architecture auto-detection, systemd units, and security sandboxing (`CAP_NET_BIND_SERVICE`).
 
 ### Modular Plugins
@@ -52,7 +52,7 @@ Comprehensive guides, manuals, and technical deep-dives are organized into modul
 - 📷 **[MADTOM: IPCam](Documentation/Plugins/IPCam/README.md)**: Direct video capture source, Android foreground service streamer, hardware encoder feedback (AT8), live zoom control (AT7), and time sync probes.
 - 📱 **[MADTOM: Android Toolkit](Documentation/Plugins/AndroidToolkit/README.md)**: Device backup, ADB command dispatching, package deployment, and battery/storage health telemetry.
 - 📺 **[MADTOM: MediaCenter](Documentation/Plugins/MediaCenter/README.md)**: Local & network NAS streaming, direct play library indexer, and DLNA/UPnP playback control.
-- 🧠 **[MADTOM: NOX AI Control Center](Documentation/Plugins/NoxAI/README.md)**: Local LLM orchestrator, GPU inference daemon monitor (Ollama/vLLM), and context memory pipeline.
+- 🧠 **[MADTOM: NOX AI Control Center](Documentation/Plugins/NoxAI/README.md)**: Real-time control plane, RAG/memory explorer, WAL spool manager, raw LLM API call inspector, direct operator chat, and Python runtime telemetry for NoxChat.
 - 🔊 **[MADTOM: AUDIOSYNC](Documentation/Plugins/AudioSync/README.md)**: Precision multi-room audio synchronization, PTP master clock disciplining, and latency buffer calibration.
 - 🌐 **[MADTOM: VNA](Documentation/Plugins/VNA/README.md)**: Visual Network Analyzer for real-time topology mapping, latency graphs, interface load metrics, and packet flow diagnostics.
 - 🔌 **[MADTOM: Connection Toolkit](Documentation/Plugins/ConnectionToolkit/README.md)**: Unified connection manager and proxy utility for tunneling, SSH key management, port forwarding, and protocol bridges.

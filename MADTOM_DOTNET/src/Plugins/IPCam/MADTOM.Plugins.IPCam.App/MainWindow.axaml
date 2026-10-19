@@ -1,0 +1,9 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:MADTOM.Plugins.IPCam.Views"
+        x:Class="MADTOM.Plugins.IPCam.App.MainWindow"
+        Title="MADTOM IPCam Source (Standalone Runner)"
+        Width="800" Height="680"
+        Background="{DynamicResource BackgroundBrush}">
+    <views:IPCamView x:Name="CameraView" />
+</Window>

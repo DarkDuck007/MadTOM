@@ -1,0 +1,22 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="MADTOM.Plugins.VideoFeedCenter.App.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+
+    <Application.Resources>
+        <SolidColorBrush x:Key="AppBgBrush" Color="#0B0E14" />
+        <SolidColorBrush x:Key="CardBrush" Color="#131722" />
+        <SolidColorBrush x:Key="CardHoverBgBrush" Color="#1E2333" />
+        <SolidColorBrush x:Key="DarkBaseBrush" Color="#0E121B" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#2A3142" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#3B82F6" />
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F3F4F6" />
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9CA3AF" />
+        <SolidColorBrush x:Key="HealthyBrush" Color="#22C55E" />
+        <SolidColorBrush x:Key="WarningBrush" Color="#F59E0B" />
+        <SolidColorBrush x:Key="ErrorBrush" Color="#EF4444" />
+    </Application.Resources>
+</Application>

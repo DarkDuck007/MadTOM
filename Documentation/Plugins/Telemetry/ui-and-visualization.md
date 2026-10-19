@@ -31,6 +31,10 @@ This guide covers the **MADTOM Telemetry Plugin** (`MADTOM.Plugins.Telemetry`) a
     - [Three-Tier Collection Policy](#three-tier-collection-policy)
     - [Top-N Process Count Configuration](#top-n-process-count-configuration)
     - [Processes Manager: Sub-Tabs \& Breakdown Charting](#processes-manager-sub-tabs--breakdown-charting)
+  - [Network Topology \& Firewall Visualizer](#network-topology--firewall-visualizer)
+    - [2D Interactive Map Canvas (`TopologyCanvasControl`)](#2d-interactive-map-canvas-topologycanvascontrol)
+    - [Staged Progressive Rendering \& Lifecycle](#staged-progressive-rendering--lifecycle)
+    - [Dense Inspector Drawer](#dense-inspector-drawer)
   - [TWAMP Flight \& Latency Radar](#twamp-flight--latency-radar)
   - [System Journal Log Streaming \& Virtual Viewer](#system-journal-log-streaming--virtual-viewer)
     - [Three-Tier Opt-In Policy](#three-tier-opt-in-policy)
@@ -246,6 +250,46 @@ Configure how many top CPU/memory consuming processes the endpoint tracks (from 
 - **True Top N Overview**: View the active process hierarchy sorted by CPU%, RSS Memory, or Disk Write Rate.
 - **Process Breakdown Chart**: Stacked multi-series charts showing individual process consumption over the selected historical time scope.
 - **Lazy Query Scheduling**: To preserve collector gRPC query slots for active metric charts, historical process queries are only scheduled when the Process Overview tab is actively visible.
+
+---
+
+## Network Topology & Firewall Visualizer
+
+Under the host deep-dive **Flight** tab (`HostFlightTabView`), MADTOM provides a live, interactive 2D network routing map and comprehensive firewall visualizer.
+
+### 2D Interactive Map Canvas (`TopologyCanvasControl`)
+
+- **Interactive Navigation**: Supports smooth mouse-wheel zooming (0.4x to 3.0x) and click-and-drag infinite canvas panning.
+- **Draggable Node Cards**: Interface cards (`eth0`, `wlan0`, `wg0`, etc.) and next-hop gateway routers can be repositioned across the canvas.
+- **Persistent Layouts**: Node coordinates automatically persist per-node to `~/.local/share/MADTOM/topology_layouts.json` and restore cleanly across tab re-entry.
+- **Dynamic Routing Edges**: Displays cubic Bezier connection lines joining interfaces to next-hop gateways, annotated with destination CIDRs and routing metrics (highlighting the default route in high-contrast green).
+- **Live Throughput Counters**: Cards display real-time RX/TX bitrates and hardware carrier status (`UP`, `ADMIN-DOWN`, `NO-CARRIER`).
+
+### Staged Progressive Rendering & Lifecycle
+
+To ensure zero background idle overhead on monitored Linux hosts, network inspection operates under a strict on-demand lifecycle:
+- **Active UI Bound**: Inspection streaming activates **only** when an operator navigates to the Flight tab of a specific node.
+- **Progressive Stage Subtitles**: The top loading bar immediately reports each stage of kernel interrogation with live operation subtitles:
+  1. `Capabilities · Checking netlink and firewall support`
+  2. `Interfaces · RTM_GETLINK dump`
+  3. `Addresses & Neighbors · RTM_GETADDR and RTM_GETNEIGH dump`
+  4. `Routing · RTM_GETROUTE dump`
+  5. `Firewall · Running nft -j -a list ruleset`
+  6. `Sockets · Scanning active TCP socket descriptors`
+  7. `Live · Active streaming (1Hz delta updates)`
+- **Lease Heartbeat Safety**: MADTOM Studio sends an ephemeral lease renewal every 5 seconds. If the tab is closed or the operator switches views, the node daemon terminates inspection and frees all kernel probers within 15 seconds.
+
+### Dense Inspector Drawer
+
+The Flight tab features a collapsible, resizable inspector drawer with horizontal drag resizing (`GridSplitter`, 320px to 900px):
+- **Drawer Toggle & Status Badges**: The top action bar displays the true kernel TCP congestion control badge (e.g. `CC: bbr`), firewall backend detection badge (`NFTABLES` with version tooltip, `IPTABLES (LEGACY)`, or `NONE`), and a drawer toggle button.
+- **Contextual View**: When a specific interface or gateway node card is selected, the inspector presents card-focused details with a `Deselect` action. When no specific node is selected, the inspector defaults to host-wide routing, firewall, and socket statistics under the title **Host Network Tables & Rules**.
+- **Inspection Routing**: In multi-host topologies, inspection requests automatically relay through the designated collector. When interrogating the local workstation node, MADTOM Studio connects directly to the local daemon at `127.0.0.1:50052`, eliminating round-trip latency and avoiding tunnel loopback proxy masking.
+- **Routes**: Lists all IPv4/IPv6 routing table entries with destination CIDR, gateway next-hop, protocol, scope, metric, and routing table ID.
+- **Firewall Rules**: Displays structured nftables or iptables chains and rules with color-coded verdict badges (`accept`, `drop`, `reject`, `masquerade`), statement expressions, human comments, and packet/byte counters.
+- **Sockets (TCP)**: Real-time socket table displaying local/remote endpoints, process names, PIDs, active TCP congestion control algorithm (`bbr`, `cubic`, `reno`), kernel delivery rate, and smoothed RTT.
+- **ARP / Neighbors**: Live neighbor cache entries with MAC addresses, interfaces, and reachability states (`REACHABLE`, `STALE`, `PERMANENT`).
+- **Read-Only Diagnostics**: Interactive console supporting bounded `ping` (max 10 packets), `traceroute` (max 30 hops), and `ip route get` with strict server-side sanitization.
 
 ---
 

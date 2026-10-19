@@ -1,0 +1,371 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:MADTOM.Plugins.IPCam.ViewModels"
+             xmlns:contracts="clr-namespace:MADTOM.PluginContracts.Controls;assembly=MADTOM.PluginContracts"
+             xmlns:ipcam="clr-namespace:MADTOM.Plugins.IPCam"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.IPCam.Views.IPCamView"
+             x:DataType="vm:IPCamViewModel"
+             Background="{DynamicResource BackgroundBrush}">
+
+    <Panel>
+        <!-- Main Content -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16" Margin="20" MaxWidth="1100" HorizontalAlignment="Stretch">
+
+                <!-- Header Bar -->
+                <Border Background="{DynamicResource SurfaceBrush}"
+                        CornerRadius="8"
+                        Padding="16"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <TextBlock Text="IP Camera Source"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <Border Background="{DynamicResource AccentBrush}"
+                                        CornerRadius="4"
+                                        Padding="6,2"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="White" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Hardware capture and low-latency MPEG-TS streaming client for MADTOM Hub"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+
+                        <!-- Header Right Actions & Badges -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <!-- Pairing Badge / Button -->
+                            <Button Content="+ Pair with Hub (QR / URI)"
+                                    Command="{Binding OpenPairingModalCommand}"
+                                    Background="{DynamicResource AccentBrush}"
+                                    Foreground="White"
+                                    FontWeight="SemiBold"
+                                    CornerRadius="6"
+                                    Padding="12,6" />
+
+                            <Button Content="Unpair"
+                                    Command="{Binding UnpairCommand}"
+                                    IsVisible="{Binding IsPaired}"
+                                    Background="{DynamicResource SurfaceHighlightBrush}"
+                                    Foreground="{DynamicResource TextSecondaryBrush}"
+                                    CornerRadius="6"
+                                    Padding="10,6" />
+
+                            <!-- Status Pill -->
+                            <Border CornerRadius="6"
+                                    Padding="12,6"
+                                    Background="{DynamicResource SurfaceHighlightBrush}">
+                                <TextBlock Text="{Binding StatusText}"
+                                           FontWeight="SemiBold"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource AccentBrush}" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Two-Column Grid: Left (Viewfinder & Zoom), Right (Camera Selection & Profiles) -->
+                <Grid ColumnDefinitions="*,380">
+
+                    <!-- Left Column: Live Viewfinder & On-Screen Zoom Controls -->
+                    <StackPanel Grid.Column="0" Spacing="12" Margin="0,0,16,0">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Start preview" Command="{Binding StartPreviewCommand}" />
+                            <Button Content="Stop preview" Command="{Binding StopPreviewCommand}" />
+                        </StackPanel>
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="8"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                ClipToBounds="True">
+                            <StackPanel Spacing="0">
+                                <!-- Viewfinder Viewer Control -->
+                                <contracts:VideoFeedViewerControl x:Name="ViewfinderControl"
+                                                                  Height="380"
+                                                                  FeedTitle="{Binding SelectedCamera.DisplayName, FallbackValue='Camera Viewfinder'}"
+                                                                  StatusText="{Binding StatusText}"
+                                                                  IsLive="{Binding IsStreaming}"
+                                                                  ResolutionText="640×360"
+                                                                  FpsText="15 fps preview" />
+
+                                <!-- Viewfinder Control Bar -->
+                                <Border Background="{DynamicResource SurfaceHighlightBrush}"
+                                        Padding="14,10"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="0,1,0,0">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="Optical / Digital Zoom"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   Margin="0,0,12,0" />
+
+                                        <Slider Grid.Column="1"
+                                                Minimum="{Binding MinZoom}"
+                                                Maximum="{Binding MaxZoom}"
+                                                Value="{Binding ZoomRatio, Mode=TwoWay}"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,12,0" />
+
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ZoomRatio, StringFormat='{}{0:F1}x'}"
+                                                       FontWeight="Bold"
+                                                       FontSize="13"
+                                                       Foreground="{DynamicResource AccentBrush}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,8,0" />
+
+                                            <Button Content="1.0x" Padding="8,4" CornerRadius="4" Command="{Binding ApplyZoomCommand}">
+                                                <Button.CommandParameter><x:Double>1.0</x:Double></Button.CommandParameter>
+                                            </Button>
+                                            <Button Content="2.0x" Padding="8,4" CornerRadius="4" Command="{Binding ApplyZoomCommand}">
+                                                <Button.CommandParameter><x:Double>2.0</x:Double></Button.CommandParameter>
+                                            </Button>
+                                            <Button Content="5.0x" Padding="8,4" CornerRadius="4" Command="{Binding ApplyZoomCommand}">
+                                                <Button.CommandParameter><x:Double>5.0</x:Double></Button.CommandParameter>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Stream Connection Quick Controls -->
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="8"
+                                Padding="16"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Hub Connection Endpoint"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="{Binding HubAddress}"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                    <Button Content="Connect to Hub"
+                                            Command="{Binding ConnectHubCommand}"
+                                            IsVisible="{Binding !IsConnected}"
+                                            Background="{DynamicResource AccentBrush}"
+                                            Foreground="White"
+                                            FontWeight="Bold"
+                                            CornerRadius="6"
+                                            Padding="16,8" />
+
+                                    <Button Content="Disconnect"
+                                            Command="{Binding DisconnectHubCommand}"
+                                            IsVisible="{Binding IsConnected}"
+                                            Background="{DynamicResource SurfaceHighlightBrush}"
+                                            Foreground="{DynamicResource TextPrimaryBrush}"
+                                            CornerRadius="6"
+                                            Padding="16,8" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Right Column: Settings & Diagnostics -->
+                    <StackPanel Grid.Column="1" Spacing="12">
+
+                        <!-- Card 1: Camera Selection -->
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="8"
+                                Padding="16"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Camera Sensor Selection"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                <ComboBox ItemsSource="{Binding AvailableCameras}"
+                                          SelectedItem="{Binding SelectedCamera, Mode=TwoWay}"
+                                          HorizontalAlignment="Stretch">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="ipcam:CameraDeviceInfo">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="📷" FontSize="13" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Facing, StringFormat='({0})'}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Facing:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,2,8,2" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedCamera.Facing, FallbackValue='-'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,2" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Zoom Range:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,2,8,2" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1"
+                                               Text="{Binding MaxZoom, StringFormat='1.0x - {0:F1}x'}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,2" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card 2: Stream Profile & Codec Settings -->
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="8"
+                                Padding="16"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Stream Profile &amp; Encoder"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,4,0,0">
+                                    <!-- Codec -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Codec:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,12,8" />
+                                    <ComboBox Grid.Row="0" Grid.Column="1"
+                                              ItemsSource="{Binding AvailableCodecs}"
+                                              SelectedItem="{Binding SelectedCodec, Mode=TwoWay}"
+                                              HorizontalAlignment="Stretch"
+                                              Margin="0,0,0,8" />
+
+                                    <!-- Resolution -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Resolution:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,12,8" />
+                                    <ComboBox Grid.Row="1" Grid.Column="1"
+                                              ItemsSource="{Binding AvailableResolutions}"
+                                              SelectedItem="{Binding SelectedResolution, Mode=TwoWay}"
+                                              HorizontalAlignment="Stretch"
+                                              Margin="0,0,0,8" />
+
+                                    <!-- Framerate -->
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Framerate:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,12,8" />
+                                    <ComboBox Grid.Row="2" Grid.Column="1"
+                                              ItemsSource="{Binding AvailableFramerates}"
+                                              SelectedItem="{Binding SelectedFramerate, Mode=TwoWay}"
+                                              HorizontalAlignment="Stretch"
+                                              Margin="0,0,0,8" />
+
+                                    <!-- Target Bitrate -->
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Bitrate:" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="0,0,12,0" />
+                                    <Grid Grid.Row="3" Grid.Column="1" ColumnDefinitions="*,Auto">
+                                        <Slider Minimum="1.0" Maximum="20.0" Value="{Binding BitrateMbps, Mode=TwoWay}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding BitrateMbps, StringFormat='{}{0:F1} Mbps'}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                    </Grid>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card 3: Stream Diagnostics & Verification -->
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="8"
+                                Padding="16"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Diagnostics &amp; Verification (AT7/AT8)"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                                <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,4,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Encoder Granted:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,3" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding GrantedResolution}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,3" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Granted Codec:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,3" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GrantedCodec}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,3" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Clock Offset:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,3" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ClockOffsetMs, StringFormat='{}{0:F1} ms'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" Margin="0,3" />
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Round-Trip Time:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,3" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RttMs, StringFormat='{}{0:F1} ms'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11" Margin="0,3" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Universal Modal for Hub Pairing (QR Scan & Manual PIN) -->
+        <contracts:UniversalModalControl IsOpen="{Binding IsPairingModalOpen}"
+                                         Title="Pair Camera with MADTOM Hub"
+                                         Subtitle="Scan the hub QR code or paste its pairing URI"
+                                         Icon="🔑"
+                                         DialogWidth="620"
+                                         DialogHeight="520"
+                                         CloseCommand="{Binding ClosePairingModalCommand}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="18">
+
+                    <!-- Option A: QR Code / URI Scanning -->
+                    <Border Background="{DynamicResource SurfaceHighlightBrush}"
+                            CornerRadius="8"
+                            Padding="14"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Method 1: Scan Hub QR Code or Paste URI"
+                                       FontWeight="Bold"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+
+                            <TextBlock Text="Paste the madtom://pair link from Video Feed Center, or use live camera detection."
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                <TextBox Text="{Binding PairingQrUriInput, Mode=TwoWay}"
+                                         PlaceholderText="madtom://pair?host=...&amp;port=7443&amp;fp=..."
+                                         FontSize="12"
+                                         Margin="0,0,8,0" />
+
+                                <Button Grid.Column="1"
+                                        Content="{Binding IsScanningQr, Converter={x:Null}, FallbackValue='📷 Scan with Camera'}"
+                                        Command="{Binding ToggleQrScannerCommand}"
+                                        Padding="12,6"
+                                        CornerRadius="4" />
+                            </Grid>
+
+                            <Button Content="Pair Using QR Code / URI"
+                                    Command="{Binding PairWithQrUriCommand}"
+                                    IsEnabled="{Binding !IsPairingBusy}"
+                                    Background="{DynamicResource AccentBrush}"
+                                    Foreground="White"
+                                    FontWeight="SemiBold"
+                                    HorizontalAlignment="Left"
+                                    Padding="14,8"
+                                    CornerRadius="6" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Pairing Status Feedback -->
+                    <TextBlock Text="{Binding PairingStatusMessage}"
+                               IsVisible="{Binding PairingStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentBrush}"
+                               HorizontalAlignment="Center" />
+
+                </StackPanel>
+            </ScrollViewer>
+        </contracts:UniversalModalControl>
+
+    </Panel>
+</UserControl>

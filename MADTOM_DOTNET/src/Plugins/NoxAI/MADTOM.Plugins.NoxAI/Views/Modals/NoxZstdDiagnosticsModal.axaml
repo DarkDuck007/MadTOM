@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             xmlns:services="using:MadTOM.Services"
+             xmlns:controls="clr-namespace:MadTOM.Controls;assembly=MADTOM.Plugins.Telemetry"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Modals.NoxZstdDiagnosticsModal"
+             x:DataType="vm:MainViewModel">
+
+    <UserControl.Styles>
+        <controls:ModalDialogStyles/>
+        <Style Selector="TextBlock.mono-val">
+            <Setter Property="FontFamily" Value="{DynamicResource MonoFontFamily}"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Modal Scrim Backdrop -->
+    <Grid Classes="modal-scrim" PointerPressed="OnBackdropPointerPressed">
+        <!-- Dialog Container -->
+        <Border Classes="modal-container"
+                Width="680" Height="580"
+                MinWidth="380" MinHeight="300"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                PointerPressed="OnContainerPointerPressed">
+            <Grid Margin="24" RowDefinitions="Auto,*">
+                <!-- Modal Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Border Classes="modal-icon-badge">
+                            <TextBlock Text="🗜️" FontSize="12" FontFamily="{StaticResource EmojiFontFamily}" Foreground="White"/>
+                        </Border>
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="ZSTD Compression Diagnostics"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       FontWeight="Bold"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Real-time frame compression, in-memory buffers &amp; transport statistics"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Classes="modal-close-btn"
+                            Command="{Binding CloseZstdDiagnosticsCommand}"
+                            ToolTip.Tip="Close diagnostics"
+                            AutomationProperties.Name="Close diagnostics">
+                        <TextBlock Text="✕" FontSize="14" FontWeight="Bold"/>
+                    </Button>
+                </Grid>
+
+                <!-- Modal Content -->
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="ZSTD · CLIENT MEMORY" FontWeight="Bold" FontSize="12" FontFamily="{StaticResource MonoFontFamily}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ZstdSummary}" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}"/>
+                        </Grid>
+                        <TextBlock Text="Retained compressed payloads · excludes codec overhead."
+                                   FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+
+                        <ItemsControl ItemsSource="{Binding CompressionRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="services:CompressionDiagnosticRow">
+                                    <StackPanel Margin="0,3" Spacing="2">
+                                        <TextBlock Text="{Binding Scope}" TextWrapping="Wrap" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11"/>
+                                        <Grid ColumnDefinitions="1.6*,1.2*,*,0.8*,1.1*" RowDefinitions="Auto,Auto">
+                                            <TextBlock Text="Status" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="1" Text="Decoded" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="2" Text="Zstd" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="3" Text="Ratio" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="4" Text="Items/RX" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Row="1" Text="{Binding State}" TextWrapping="Wrap" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Raw}" TextWrapping="Wrap" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Zstd}" TextWrapping="Wrap" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding Ratio}" TextWrapping="Wrap" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding Count}" TextWrapping="Wrap" Classes="mono-val"/>
+                                        </Grid>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="Retained (est.)" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Text="{Binding TotalPayload}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="ZSTD · TRANSPORT" FontWeight="Bold" FontSize="12" Margin="0,12,0,2" FontFamily="{StaticResource MonoFontFamily}"/>
+                        <TextBlock Text="Bot → Probe → Client: observed payloads since Probe startup. Decoded and ratio cover zstd frames only; counts show zstd/all messages." FontSize="10" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding TransportCompressionRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="services:CompressionDiagnosticRow">
+                                    <StackPanel Margin="0,3" Spacing="2">
+                                        <TextBlock Text="{Binding Scope}" TextWrapping="Wrap" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11"/>
+                                        <Grid ColumnDefinitions="1.6*,1.2*,*,0.8*,1.1*" RowDefinitions="Auto,Auto">
+                                            <TextBlock Text="Status" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="1" Text="Decoded" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="2" Text="Zstd" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="3" Text="Ratio" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="4" Text="Count" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Row="1" Text="{Binding State}" TextWrapping="Wrap" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Raw}" TextWrapping="Wrap" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding Zstd}" TextWrapping="Wrap" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding Ratio}" TextWrapping="Wrap" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding Count}" TextWrapping="Wrap" Classes="mono-val"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="RAW · UNCOMPRESSED TRAFFIC" FontWeight="Bold" FontSize="12" Margin="0,12,0,2" FontFamily="{StaticResource MonoFontFamily}"/>
+                        <TextBlock Text="Bytes passed without zstd, plus total transferred payload (raw + compressed)." FontSize="10" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding TransportCompressionRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="services:CompressionDiagnosticRow">
+                                    <StackPanel Spacing="2" Margin="0,3">
+                                        <TextBlock Text="{Binding Scope}" TextWrapping="Wrap" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" FontSize="11"/>
+                                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                            <TextBlock Text="Raw passed" FontSize="9" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Column="1" Text="Total payload" FontSize="9" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Grid.Row="1" Text="{Binding RawPassed}" Classes="mono-val"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TotalPayload}" Classes="mono-val"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

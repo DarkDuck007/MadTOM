@@ -1,0 +1,313 @@
+syntax = "proto3";
+
+package madtom.v1;
+
+option go_package = "github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1";
+option csharp_namespace = "MADTOM.Plugins.Telemetry.Proto.V1";
+
+// NetworkInspectionService coordinates on-demand, staged topology queries,
+// lease-based visibility heartbeats, and strictly read-only active diagnostics.
+service NetworkInspectionService {
+  // Streams progressive stages of network topology, followed by live 1Hz traffic counters.
+  rpc StreamNetworkTopology(TopologyStreamRequest) returns (stream TopologyEvent);
+
+  // Renews an active inspection lease (heartbeat sent by visible UI every ~5s).
+  rpc RenewInspectionLease(LeaseRenewalRequest) returns (LeaseRenewalResponse);
+
+  // Actively runs bounded, sandboxed read-only probes (Ping, Traceroute, Route Lookup).
+  rpc StreamDiagnosticProbe(DiagnosticProbeRequest) returns (stream DiagnosticProbeOutput);
+}
+
+// ---------------------------------------------------------------------------
+// 1. Staging & Session Lifecycle
+// ---------------------------------------------------------------------------
+
+enum TopologyStage {
+  TOPOLOGY_STAGE_UNSPECIFIED = 0;
+  TOPOLOGY_STAGE_CAPABILITIES = 1;        // Capabilities check, namespace permissions
+  TOPOLOGY_STAGE_INTERFACES = 2;          // Physical/virtual interfaces, link status, MTU
+  TOPOLOGY_STAGE_ADDRESSES_NEIGHBORS = 3; // IP CIDRs, MACs, ARP/NDP neighbors
+  TOPOLOGY_STAGE_ROUTING = 4;             // IPv4/IPv6 routing tables, gateways, FIB rules
+  TOPOLOGY_STAGE_FIREWALL = 5;            // nftables tables, chains, hooks, verdicts, rules
+  TOPOLOGY_STAGE_SOCKETS = 6;             // Active TCP sockets, BBR/CUBIC info, cwnd, RTT
+  TOPOLOGY_STAGE_COMPLETE = 7;            // Initial dump complete; continuous 1Hz delta active
+}
+
+enum SectionState {
+  SECTION_STATE_UNSPECIFIED = 0;
+  SECTION_STATE_LOADING = 1;
+  SECTION_STATE_READY = 2;
+  SECTION_STATE_PARTIAL = 3;
+  SECTION_STATE_UNAVAILABLE = 4;          // Kernel or permissions limitation (e.g. CAP_NET_ADMIN missing)
+  SECTION_STATE_ERROR = 5;
+}
+
+message TopologyStreamRequest {
+  string node_id = 1;
+  string session_id = 2;                  // Unique client session GUID
+  uint32 lease_seconds = 3;               // Lease duration (default: 15s)
+  bool include_sockets = 4;               // Socket inspection enabled
+  bool include_firewall = 5;              // Firewall inspection enabled
+  uint32 max_sockets = 6;                 // Bounded limit for sockets (default: 500)
+}
+
+message LeaseRenewalRequest {
+  string node_id = 1;
+  string session_id = 2;
+  uint32 lease_seconds = 3;
+}
+
+message LeaseRenewalResponse {
+  string session_id = 1;
+  bool active = 2;
+  int64 expires_unix_nano = 3;
+}
+
+message TopologyEvent {
+  string session_id = 1;
+  string node_id = 2;
+  TopologyStage stage = 3;
+  string stage_description = 4;           // Exact node-side operation: e.g. "Interfaces · RTM_GETLINK dump"
+  double progress_pct = 5;                // Progress estimate (0.0 - 100.0)
+  int64 timestamp_unix_nano = 6;
+  uint64 sequence_number = 7;
+
+  oneof payload {
+    CapabilitiesStagePayload capabilities = 10;
+    InterfaceStagePayload interfaces = 11;
+    AddressesNeighborsStagePayload addresses_neighbors = 12;
+    RoutingStagePayload routing = 13;
+    FirewallStagePayload firewall = 14;
+    SocketsStagePayload sockets = 15;
+    TrafficDeltaPayload traffic = 16;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Stage Payloads
+// ---------------------------------------------------------------------------
+
+message CapabilitiesStagePayload {
+  bool has_netlink = 1;
+  bool has_sock_diag = 2;
+  bool has_nftables = 3;
+  bool has_legacy_iptables = 4;
+  string nftables_version = 5;
+  string default_congestion_control = 6;
+  repeated string available_congestion_controls = 7;
+  string root_namespace = 8;
+  repeated string accessible_namespaces = 9;
+  map<string, string> section_limitations = 10; // section -> reason (e.g. "firewall": "CAP_NET_ADMIN required")
+}
+
+message InterfaceStagePayload {
+  repeated InterfaceNode interfaces = 1;
+}
+
+message InterfaceNode {
+  int32 ifindex = 1;
+  string name = 2;
+  string mac_address = 3;
+  string kind = 4;                       // "ethernet", "wifi", "wireguard", "bridge", "veth", "loopback", "bond", "vlan"
+  bool carrier_up = 5;
+  bool is_up = 6;                        // Admin UP flag
+  uint32 mtu = 7;
+  uint32 link_speed_mbps = 8;
+  string duplex = 9;                     // "full", "half", "unknown"
+  int32 master_ifindex = 10;             // Bridge / bond master ifindex (0 if none)
+  string parent_interface = 11;          // e.g. parent device for VLAN
+  string namespace = 12;
+  
+  // Real-time rates
+  double rx_bytes_per_sec = 13;
+  double tx_bytes_per_sec = 14;
+  uint64 rx_packets = 15;
+  uint64 tx_packets = 16;
+  uint64 rx_dropped = 17;
+  uint64 tx_dropped = 18;
+  uint64 rx_errors = 19;
+  uint64 tx_errors = 20;
+
+  repeated string ip_addresses = 21;     // Populated in Stage 1/2
+}
+
+message AddressesNeighborsStagePayload {
+  repeated InterfaceAddress addresses = 1;
+  repeated NeighborEntry neighbors = 2;
+}
+
+message InterfaceAddress {
+  int32 ifindex = 1;
+  string interface_name = 2;
+  string cidr = 3;                       // "192.168.1.50/24", "fe80::1/64"
+  string scope = 4;                      // "global", "link", "host"
+  bool is_ipv6 = 5;
+  bool is_primary = 6;
+}
+
+message NeighborEntry {
+  int32 ifindex = 1;
+  string interface_name = 2;
+  string ip_address = 3;
+  string mac_address = 4;
+  string state = 5;                      // "REACHABLE", "STALE", "PERMANENT", "DELAY", "FAILED"
+  bool is_router = 6;
+}
+
+message RoutingStagePayload {
+  repeated RouteEntry routes = 1;
+  repeated RoutingPolicyRule policy_rules = 2;
+}
+
+message RouteEntry {
+  string destination = 1;                // "default", "192.168.1.0/24", "10.8.0.0/24"
+  string gateway = 2;                    // Gateway next-hop (e.g. "192.168.1.1")
+  int32 ifindex = 3;
+  string interface_name = 4;
+  string protocol = 5;                   // "kernel", "dhcp", "static", "boot", "bird"
+  string scope = 6;                      // "global", "link", "host"
+  uint32 metric = 7;
+  uint32 table = 8;                      // 254 (main), 255 (local), custom
+  bool is_ipv6 = 9;
+  bool is_default = 10;
+  string type = 11;                      // "unicast", "local", "broadcast", "unreachable", "blackhole"
+  string preferred_source = 12;
+  repeated string flags = 13;
+}
+
+message RoutingPolicyRule {
+  uint32 priority = 1;
+  string source = 2;
+  string destination = 3;
+  uint32 table = 4;
+  string interface_name = 5;
+  string action = 6;
+}
+
+message FirewallStagePayload {
+  string backend = 1;                    // "nftables" or "iptables-legacy"
+  string ruleset_version = 2;
+  repeated NftTable tables = 3;
+  uint32 total_rule_count = 4;
+}
+
+message NftTable {
+  string name = 1;                       // "filter", "nat", "mangle", "fw4"
+  string family = 2;                     // "inet", "ip", "ip6"
+  repeated NftChain chains = 3;
+}
+
+message NftChain {
+  string name = 1;                       // "input", "forward", "output", "prerouting", "postrouting"
+  string type = 2;                       // "filter", "nat", "route"
+  string hook = 3;                       // "prerouting", "input", "forward", "output", "postrouting", "ingress"
+  int32 priority = 4;
+  string policy = 5;                     // "accept", "drop"
+  repeated NftRule rules = 6;
+}
+
+message NftRule {
+  uint64 handle = 1;
+  string statement = 2;                  // Formatted human-readable rule
+  string verdict = 3;                    // "accept", "drop", "reject", "masquerade", "dnat", "snat", "jump", "goto"
+  string verdict_target = 4;             // Target chain if jump/goto
+  uint64 packet_count = 5;
+  uint64 byte_count = 6;
+  string comment = 7;
+  repeated string match_interfaces = 8;  // Interfaces matched via iifname / oifname
+  repeated string match_ports = 9;
+  string raw_json = 10;
+}
+
+message SocketsStagePayload {
+  repeated SocketEntry sockets = 1;
+  TcpCongestionSummary congestion_summary = 2;
+  uint32 total_established = 3;
+  uint32 total_listening = 4;
+  uint32 total_time_wait = 5;
+}
+
+message SocketEntry {
+  string socket_cookie = 1;              // Unique kernel socket identifier
+  string local_address = 2;
+  uint32 local_port = 3;
+  string remote_address = 4;
+  uint32 remote_port = 5;
+  string state = 6;                      // "ESTABLISHED", "LISTEN", "TIME_WAIT", "CLOSE_WAIT", "SYN_SENT"
+  string process_name = 7;
+  int32 pid = 8;
+  string interface_name = 9;
+  string congestion_algorithm = 10;      // "bbr", "cubic", "reno"
+  
+  // TCP Info metrics
+  double delivery_rate_bps = 11;         // Kernel delivery rate
+  double pacing_rate_bps = 12;           // Kernel pacing rate
+  double rtt_ms = 13;                    // Smoothed RTT
+  double min_rtt_ms = 14;
+  double rtt_var_ms = 15;
+  uint32 cwnd = 16;                      // Congestion window (packets)
+  uint32 ssthresh = 17;
+  uint32 retransmits = 18;
+  uint64 bytes_acked = 19;
+  uint64 bytes_received = 20;
+  string ca_state = 21;                  // "Open", "Disorder", "CWR", "Recovery", "Loss"
+}
+
+message TcpCongestionSummary {
+  string default_algorithm = 1;          // e.g. "bbr"
+  repeated string available_algorithms = 2;
+  map<string, uint32> sockets_per_algorithm = 3;
+}
+
+message TrafficDeltaPayload {
+  int64 elapsed_ms = 1;
+  map<string, InterfaceTrafficRate> interface_rates = 2; // ifname -> rate
+}
+
+message InterfaceTrafficRate {
+  double rx_bytes_per_sec = 1;
+  double tx_bytes_per_sec = 2;
+  double rx_packets_per_sec = 3;
+  double tx_packets_per_sec = 4;
+  uint64 rx_dropped_delta = 5;
+  uint64 tx_dropped_delta = 6;
+  uint64 rx_errors_delta = 7;
+  uint64 tx_errors_delta = 8;
+}
+
+// ---------------------------------------------------------------------------
+// 3. Read-Only Diagnostics
+// ---------------------------------------------------------------------------
+
+enum DiagnosticProbeType {
+  PROBE_TYPE_UNSPECIFIED = 0;
+  PROBE_PING = 1;
+  PROBE_TRACEROUTE = 2;
+  PROBE_ROUTE_GET = 3;
+}
+
+message DiagnosticProbeRequest {
+  string node_id = 1;
+  DiagnosticProbeType type = 2;
+  string target = 3;                     // IP address or hostname (strictly validated)
+  string source_interface = 4;           // Optional bind interface
+  string source_address = 5;             // Optional bind source IP
+  uint32 packet_count = 6;               // Bounded (1 - 10)
+  uint32 timeout_seconds = 7;            // Hard deadline (1 - 15s)
+}
+
+message DiagnosticProbeOutput {
+  string node_id = 1;
+  DiagnosticProbeType type = 2;
+  int64 timestamp_unix_nano = 3;
+  string raw_line = 4;
+  bool is_complete = 5;
+  int32 exit_code = 6;
+  string error_message = 7;
+
+  // Parsed metrics for UI sparklines / hop graph
+  double rtt_ms = 8;
+  uint32 hop_number = 9;
+  string hop_address = 10;
+  string hop_host = 11;
+}

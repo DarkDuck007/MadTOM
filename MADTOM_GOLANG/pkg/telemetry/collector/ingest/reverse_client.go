@@ -53,6 +53,7 @@ func receivePushSession(ctx context.Context, p *Pipeline, nodeID, address string
 	}
 
 	log.Printf("[ReversePush] Connected and streaming from %s at %s", nodeID, address)
+	p.reg.SetNodeAddress(nodeID, address)
 	for {
 		batch, err := stream.Recv()
 		if err != nil {
@@ -63,6 +64,7 @@ func receivePushSession(ctx context.Context, p *Pipeline, nodeID, address string
 			log.Printf("[ReversePush] Node ID mismatch from %s: got %q", nodeID, batch.NodeId)
 			return
 		}
+		p.reg.SetNodeAddress(batch.NodeId, address)
 		summary, err := p.ProcessBatchWithSummary(batch, "REVERSE_PUSH")
 		if err != nil {
 			log.Printf("[ReversePush] Ingestion failed for %s segment %s: %v", nodeID, batch.SegmentId, err)

@@ -8,6 +8,7 @@ public interface ITelemetryDataProvider : IDisposable
 {
     TelemetryHistoryCache? HistoryCache => null;
     LogChunkCache? LogCache => null;
+    MultiCollectorManager? CollectorManager => null;
     ClientCompressionSnapshot GetCompressionDiagnostics() => ClientCompressionSnapshot.Unavailable;
     IReadOnlyList<FleetNodeModel> GetFleetNodes();
     FleetNodeModel? GetNode(string hostId);

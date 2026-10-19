@@ -1,0 +1,377 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.MediaLibraryTabView"
+             x:DataType="vm:MediaLibraryTabViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*" Margin="16" RowSpacing="12">
+        <!-- Filter and Search Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,110,160,*,Auto" ColumnSpacing="10">
+            <Button Command="{Binding RefreshMediaCommand}" Content="🔄 Refresh" Padding="10,5"/>
+            <Button Grid.Column="1" Command="{Binding ToggleForceAddPanelCommand}" Content="➕ Add Sticker" Background="{DynamicResource AccentSubtleBrush}" Foreground="{DynamicResource AccentTextBrush}" FontWeight="Bold" Padding="10,5"/>
+            <ComboBox Grid.Column="2" SelectedItem="{Binding SelectedFilter}" HorizontalAlignment="Stretch" ToolTip.Tip="Filter by media type">
+                <x:String>All</x:String>
+                <x:String>Stickers</x:String>
+                <x:String>GIFs</x:String>
+            </ComboBox>
+            <ComboBox Grid.Column="3" SelectedItem="{Binding SelectedLibraryFilter}" HorizontalAlignment="Stretch" ToolTip.Tip="Filter between all captioned stickers in the pack vs only those added to Nox's active library">
+                <x:String>All in Pack</x:String>
+                <x:String>In Nox's Library</x:String>
+                <x:String>Not in Library</x:String>
+            </ComboBox>
+            <TextBox Grid.Column="4" Text="{Binding SearchQuery, Mode=TwoWay}" PlaceholderText="Search sticker captions, packs, or emojis..."/>
+            <TextBlock Grid.Column="5" Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+        </Grid>
+
+        <!-- Force Add Sticker Collapsible Form -->
+        <Border Grid.Row="1"
+                IsVisible="{Binding IsForceAddPanelOpen}"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource AccentBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="14">
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="FORCE ADD STICKER / GIF TO LIBRARY" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                    <Button Grid.Column="1" Command="{Binding ToggleForceAddPanelCommand}" Content="✕ Close" FontSize="10" Padding="6,2"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,*,100,120" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+                    <TextBlock Text="Telegram File ID (Required)" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock Grid.Column="1" Text="Sticker Pack / Set Name" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock Grid.Column="2" Text="Emoji" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock Grid.Column="3" Text="Media Kind" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+
+                    <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding NewStickerFileId, Mode=TwoWay}" PlaceholderText="e.g. CAACAgIAAxkBAAE..."/>
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewStickerSetName, Mode=TwoWay}" PlaceholderText="e.g. animated_cats"/>
+                    <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding NewStickerEmoji, Mode=TwoWay}" PlaceholderText="⭐"/>
+                    <ComboBox Grid.Row="1" Grid.Column="3" SelectedItem="{Binding NewStickerKind}" HorizontalAlignment="Stretch">
+                        <x:String>sticker</x:String>
+                        <x:String>animation</x:String>
+                    </ComboBox>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBox Text="{Binding NewStickerCaption, Mode=TwoWay}" PlaceholderText="Caption / semantic description for RAG search indexing..."/>
+                    <Button Grid.Column="1" Command="{Binding SubmitForceAddStickerCommand}" Content="✓ Add to Library" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold" Padding="14,6"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Media Container: Active Pack Header, Paged Sticker View & Bottom Docked Pack Strip -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource DarkBaseBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                ClipToBounds="True">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <!-- Top Header: Active Pack Info & Paging Bar -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="14,10">
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="10" VerticalAlignment="Center">
+                        <!-- Pack Title -->
+                        <TextBlock Text="{Binding SelectedPack.Title, FallbackValue='No Pack Selected'}"
+                                   FontSize="15"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+
+                        <!-- Pack Set Name Badge -->
+                        <Border Grid.Column="1"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                CornerRadius="4"
+                                Padding="6,2"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding SelectedPack, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="{Binding SelectedPack.SetName, FallbackValue=''}"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                        </Border>
+
+                        <!-- Library vs Total Pack Count Badge -->
+                        <Border Grid.Column="2"
+                                Background="{DynamicResource AccentSubtleBrush}"
+                                CornerRadius="10"
+                                Padding="8,2"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding SelectedPack, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="{Binding SelectedPack.CountSummary, FallbackValue=''}"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource AccentTextBrush}"
+                                       FontWeight="SemiBold"/>
+                        </Border>
+
+                        <!-- Reindex Pack Action -->
+                        <Button Grid.Column="4"
+                                IsVisible="{Binding SelectedPack.IsGifGroup, FallbackValue=False, Converter={x:Static BoolConverters.Not}}"
+                                Command="{Binding SelectedPack.ReindexCommand, FallbackValue=null}"
+                                Content="🔄 Reindex Pack"
+                                FontSize="10"
+                                Padding="8,4"
+                                BorderBrush="{DynamicResource AccentBrush}"
+                                BorderThickness="1"
+                                VerticalAlignment="Center"/>
+
+                        <!-- Pagination Controls -->
+                        <Button Grid.Column="5"
+                                Command="{Binding PrevPageCommand}"
+                                IsEnabled="{Binding HasPrevPage}"
+                                Content="◀ Prev"
+                                FontSize="10"
+                                Padding="8,4"
+                                VerticalAlignment="Center"/>
+
+                        <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PageSummary}"
+                                       FontSize="11"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <Button Command="{Binding NextPageCommand}"
+                                    IsEnabled="{Binding HasNextPage}"
+                                    Content="Next ▶"
+                                    FontSize="10"
+                                    Padding="8,4"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Center Viewport: Paged Sticker Cards -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Panel Margin="14">
+                        <!-- Loading Indicator -->
+                        <StackPanel IsVisible="{Binding IsLoading}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="10"
+                                    Margin="40">
+                            <ProgressBar IsIndeterminate="True" Width="200"/>
+                            <TextBlock Text="Loading and grouping media library..."
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Empty state -->
+                        <TextBlock IsVisible="{Binding !CurrentPageItems.Count}"
+                                   Text="No stickers found for the current selection or filter."
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Margin="30"/>
+
+                        <!-- Square Sticker Grid -->
+                        <ItemsControl ItemsSource="{Binding CurrentPageItems}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:MediaItemModel">
+                                    <Border Background="{DynamicResource CardBgBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Width="195"
+                                            Height="164"
+                                            Margin="0,0,12,12"
+                                            Padding="8"
+                                            Opacity="{Binding CardOpacity}"
+                                            ToolTip.Tip="{Binding CaptionText}">
+                                        <Grid RowDefinitions="Auto,*,Auto">
+                                            <!-- Row 0: Library Membership Badge & Pin Button -->
+                                            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                                                <!-- Toggle In Nox's Library Button -->
+                                                <Button Grid.Column="0"
+                                                        Command="{Binding $parent[UserControl].((vm:MediaLibraryTabViewModel)DataContext).ToggleLibraryMembershipCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        IsEnabled="{Binding !IsUpdatingLibrary}"
+                                                        Padding="6,2"
+                                                        CornerRadius="4"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        ToolTip.Tip="Click to add or remove this sticker from Nox's active library">
+                                                    <Panel>
+                                                        <Border IsVisible="{Binding ShowInLibraryBadge}"
+                                                                Background="{DynamicResource AccentSubtleBrush}"
+                                                                BorderBrush="{DynamicResource AccentBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="5,1">
+                                                            <TextBlock Text="✓ In Library" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                        </Border>
+                                                        <Border IsVisible="{Binding ShowAddToLibraryBadge}"
+                                                                Background="{DynamicResource DarkBaseBrush}"
+                                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="5,1">
+                                                            <TextBlock Text="+ Add to Library" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                        </Border>
+                                                        <Border IsVisible="{Binding IsUpdatingLibrary}"
+                                                                Background="{DynamicResource DarkBaseBrush}"
+                                                                BorderBrush="{DynamicResource AccentBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="5,1">
+                                                            <TextBlock Text="{Binding UpdatingStatusText}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                        </Border>
+                                                    </Panel>
+                                                </Button>
+
+                                                <!-- Pin Toggle Button -->
+                                                <Button Grid.Column="2"
+                                                        Command="{Binding $parent[UserControl].((vm:MediaLibraryTabViewModel)DataContext).TogglePinCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Content="📌"
+                                                        Padding="4,1"
+                                                        FontSize="10"
+                                                        VerticalAlignment="Center"/>
+                                            </Grid>
+
+                                            <!-- Row 1: Centered Visual (Thumbnail Image or Fallback Emoji) -->
+                                            <Panel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,2">
+                                                <TextBlock Text="{Binding Emoji}"
+                                                           FontSize="36"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                                <Image Source="{Binding Thumbnail}"
+                                                       Width="110"
+                                                       Height="84"
+                                                       Stretch="Uniform"
+                                                       IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                            </Panel>
+
+                                            <!-- Row 2: Bottom Info Row: Small Emoji Badge + Bot Description -->
+                                            <Border Grid.Row="2"
+                                                    Background="{DynamicResource BaseBrush}"
+                                                    CornerRadius="6"
+                                                    Padding="6,4"
+                                                    Margin="0,4,0,0">
+                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" VerticalAlignment="Center">
+                                                    <!-- Small Emoji Badge -->
+                                                    <Border Background="{DynamicResource DarkBaseBrush}"
+                                                            CornerRadius="4"
+                                                            Padding="4,1"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Emoji}" FontSize="11"/>
+                                                    </Border>
+
+                                                    <!-- Bot Description Text -->
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding CaptionText}"
+                                                               FontSize="10"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxLines="2"
+                                                               VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Panel>
+                </ScrollViewer>
+
+                <!-- Bottom Docked Telegram-Style Pack Strip -->
+                <Border Grid.Row="2"
+                        Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,1,0,0"
+                        Padding="10,6">
+                    <Grid ColumnDefinitions="Auto,1,*" ColumnSpacing="10" VerticalAlignment="Center">
+                        <!-- Quick Navigation Buttons -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <!-- Add Button -->
+                            <Button Command="{Binding ToggleForceAddPanelCommand}"
+                                    Width="38" Height="38" Padding="0" CornerRadius="6"
+                                    Background="{DynamicResource BaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    ToolTip.Tip="Force Add Sticker to Library">
+                                <TextBlock Text="➕" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Button>
+
+                            <!-- Nox's Active Library (All Packs) Button -->
+                            <Button Command="{Binding SelectActiveLibraryPackCommand}"
+                                    Width="38" Height="38" Padding="0" CornerRadius="6"
+                                    Background="{DynamicResource AccentSubtleBrush}"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    ToolTip.Tip="View All Stickers in Nox's Active Library">
+                                <TextBlock Text="📚" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Button>
+
+                            <!-- Pinned Items Button -->
+                            <Button Command="{Binding SelectPinnedPackCommand}"
+                                    Width="38" Height="38" Padding="0" CornerRadius="6"
+                                    Background="{DynamicResource BaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    ToolTip.Tip="View Pinned Media">
+                                <TextBlock Text="⭐" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Button>
+
+                            <!-- GIFs Button -->
+                            <Button Command="{Binding SelectGifsPackCommand}"
+                                    Width="38" Height="38" Padding="0" CornerRadius="6"
+                                    Background="{DynamicResource BaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    ToolTip.Tip="View Saved GIFs">
+                                <TextBlock Text="🎞️" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Vertical Divider -->
+                        <Rectangle Grid.Column="1" Fill="{DynamicResource BorderBrush}" Width="1" Margin="2,4"/>
+
+                        <!-- Horizontal Scrollable Sticker Pack Thumbnails -->
+                        <ScrollViewer Grid.Column="2"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding PackGroups}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="6"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:StickerPackGroupModel">
+                                        <Button Command="{Binding $parent[UserControl].((vm:MediaLibraryTabViewModel)DataContext).SelectPackCommand}"
+                                                CommandParameter="{Binding}"
+                                                Width="38" Height="38" Padding="2" CornerRadius="6"
+                                                Background="{DynamicResource BaseBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                ToolTip.Tip="{Binding Title}">
+                                            <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding IconEmoji}"
+                                                           FontSize="18"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                                <Image Source="{Binding Thumbnail}"
+                                                       Width="32"
+                                                       Height="32"
+                                                       Stretch="UniformToFill"
+                                                       IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                            </Panel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

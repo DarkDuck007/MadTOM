@@ -1,0 +1,325 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.VideoFeedCenter.ViewModels"
+             xmlns:controls="using:MADTOM.PluginContracts.Controls"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="MADTOM.Plugins.VideoFeedCenter.Views.VideoFeedCenterView"
+             x:DataType="vm:VideoFeedCenterViewModel"
+             Background="{DynamicResource AppBgBrush}"
+             Foreground="{DynamicResource TextPrimaryBrush}"
+             FontFamily="Inter, Segoe UI, sans-serif">
+
+    <Grid>
+        <!-- Main Layout: 3 Columns -->
+        <Grid ColumnDefinitions="260,*,320" Margin="12">
+            <!-- Left Column: Feeds Rail -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource CardBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Margin="0,0,8,0">
+                <Grid RowDefinitions="Auto,Auto,*" Margin="10">
+                    <TextBlock Grid.Row="0"
+                               Text="VIDEO FEEDS"
+                               FontWeight="Bold"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               LetterSpacing="1"
+                               Margin="0,0,0,10" />
+
+                    <!-- Actions -->
+                    <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,12">
+                        <Button Content="+ Pair Phone (QR)"
+                                Command="{Binding OpenPairingModalCommand}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Background="{DynamicResource AccentBrush}"
+                                Foreground="White"
+                                FontWeight="SemiBold"
+                                CornerRadius="4"
+                                Padding="8,6" />
+
+                        <Button Content="+ Add OBS Feed"
+                                Command="{Binding OpenAddObsModalCommand}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="8,6" />
+                    </StackPanel>
+
+                    <!-- Feeds List -->
+                    <ScrollViewer Grid.Row="2">
+                        <ItemsControl ItemsSource="{Binding Feeds}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:FeedItemViewModel">
+                                    <Border Background="{DynamicResource CardHoverBgBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Margin="0,0,0,6"
+                                            Padding="8">
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                                       Text="{Binding DisplayName}"
+                                                       FontWeight="Bold"
+                                                       FontSize="13" />
+                                            <Border Grid.Row="0" Grid.Column="1"
+                                                    Background="{DynamicResource DarkBaseBrush}"
+                                                    CornerRadius="3"
+                                                    Padding="4,2">
+                                                <TextBlock Text="{Binding State}"
+                                                           FontSize="10"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource AccentBrush}" />
+                                            </Border>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0"
+                                                       Text="{Binding GrantedResolution}"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       Margin="0,4,0,0" />
+
+                                            <Button Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Grid.ColumnSpan="2"
+                                                    Opacity="0"
+                                                    Command="{Binding $parent[UserControl].((vm:VideoFeedCenterViewModel)DataContext).SelectFeedCommand}"
+                                                    CommandParameter="{Binding}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Center Column: Reusable Video Viewer -->
+            <Border Grid.Column="1"
+                    Background="Black"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    ClipToBounds="True">
+                <controls:VideoFeedViewerControl x:Name="ViewerControl"
+                                                 FeedTitle="{Binding SelectedFeed.DisplayName, FallbackValue='No Feed Selected'}"
+                                                 StatusText="{Binding SelectedFeed.State, FallbackValue='WAITING'}"
+                                                 IsLive="{Binding SelectedFeed.IsLive, FallbackValue=False}"
+                                                 IsRecording="{Binding SelectedFeed.IsRecording, FallbackValue=False}"
+                                                 FpsText="{Binding SelectedFeed.CurrentFps, FallbackValue='', StringFormat='{}{0} FPS'}"
+                                                 ResolutionText="{Binding SelectedFeed.GrantedResolution, FallbackValue=''}" />
+            </Border>
+
+            <!-- Right Column: Inspector & Controls -->
+            <Border Grid.Column="2"
+                    Background="{DynamicResource CardBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Margin="8,0,0,0"
+                    Padding="12">
+                <ScrollViewer>
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="FEED INSPECTOR"
+                                   FontWeight="Bold"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   LetterSpacing="1" />
+
+                        <!-- Details Section -->
+                        <Border Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Feed Parameters" FontWeight="Bold" FontSize="12" />
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,4,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Feed ID:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedFeed.FeedId, FallbackValue='None'}" FontSize="11" TextAlignment="Right" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Platform:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedFeed.SourcePlatform, FallbackValue='None'}" FontSize="11" TextAlignment="Right" />
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="SRT Port:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedFeed.SrtPort, FallbackValue='0'}" FontSize="11" TextAlignment="Right" />
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Passphrase:" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedFeed.SrtPassphrase, FallbackValue='None'}" FontSize="11" TextAlignment="Right" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Source Zoom Control (AT7) -->
+                        <Border Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="Source Sensor Zoom" FontWeight="Bold" FontSize="12" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedFeed.ZoomRatio, FallbackValue='1.0', StringFormat='{}{0:F1}x'}"
+                                               Foreground="{DynamicResource AccentBrush}" FontWeight="Bold" FontSize="12" />
+                                </Grid>
+
+                                <Slider Minimum="1.0"
+                                        Maximum="8.0"
+                                        Value="{Binding SelectedFeed.ZoomRatio, FallbackValue=1.0}"
+                                        TickFrequency="0.5"
+                                        IsSnapToTickEnabled="False" />
+
+                                <Button Content="Apply zoom"
+                                        Command="{Binding ApplyZoomCommand}"
+                                        CommandParameter="{Binding SelectedFeed.ZoomRatio}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        FontSize="11"
+                                        Padding="6,4" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Requested vs Granted Profile Card (AT8) -->
+                        <Border Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Requested vs Granted Profile" FontWeight="Bold" FontSize="12" />
+
+                                <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+                                    <!-- Requested -->
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="REQUESTED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBlock Text="{Binding SelectedFeed.RequestedResolution, FallbackValue='-'}" FontSize="11" />
+                                        <TextBlock Text="{Binding SelectedFeed.RequestedCodec, FallbackValue='-'}" FontSize="11" Foreground="{DynamicResource AccentBrush}" />
+                                    </StackPanel>
+
+                                    <!-- Granted -->
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="GRANTED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBlock Text="{Binding SelectedFeed.GrantedResolution, FallbackValue='-'}" FontSize="11" />
+                                        <TextBlock Text="{Binding SelectedFeed.GrantedCodec, FallbackValue='-'}" FontSize="11" Foreground="{DynamicResource AccentBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="{Binding ServerStatus}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding SelectedFeed.LastError}" TextWrapping="Wrap" />
+
+                        <!-- Remove Feed -->
+                        <Button Content="Remove Selected Feed"
+                                Command="{Binding RemoveSelectedFeedCommand}"
+                                Background="{DynamicResource ErrorBrush}"
+                                Foreground="White"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                FontSize="12"
+                                Padding="8,6"
+                                Margin="0,10,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Pairing QR Modal (UniversalModalControl) -->
+        <controls:UniversalModalControl Title="Pair IPCam Device"
+                                        IsOpen="{Binding IsPairingModalOpen, Mode=TwoWay}"
+                                        CloseCommand="{Binding ClosePairingModalCommand}"
+                                        DialogWidth="520"
+                                        DialogHeight="620">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Margin="10">
+                    <TextBlock Text="Scan this QR code with the MADTOM IPCam app on your Android device:"
+                               FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                    <!-- Visual QR Code Image -->
+                    <Border Background="White"
+                            CornerRadius="8"
+                            Padding="12"
+                            HorizontalAlignment="Center"
+                            IsVisible="{Binding PairingQrBitmap, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <Image Source="{Binding PairingQrBitmap}"
+                               Width="230"
+                               Height="230" />
+                    </Border>
+
+                    <!-- 4-digit PIN Code Banner (AT2) -->
+                    <Border Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="16,10">
+                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                            <TextBlock Text="VERIFICATION / MANUAL PAIRING PIN"
+                                       FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding PairingPinCode}"
+                                       FontSize="32" FontWeight="Bold" LetterSpacing="4"
+                                       Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding PairingHostText, StringFormat='Hub Endpoint: {0}'}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- QR Payload URI -->
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding PairingQrUri}"
+                                 IsReadOnly="True"
+                                 FontSize="11"
+                                 FontFamily="Consolas, monospace" />
+                        <Button Grid.Column="1"
+                                Content="Copy"
+                                Command="{Binding CopyPairingUriCommand}"
+                                Margin="6,0,0,0"
+                                Padding="12,6" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding PairingExpiresText}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </ScrollViewer>
+        </controls:UniversalModalControl>
+
+        <!-- Add OBS Modal (UniversalModalControl) -->
+        <controls:UniversalModalControl Title="Add OBS Feed Listener"
+                                        IsOpen="{Binding IsAddObsModalOpen, Mode=TwoWay}"
+                                        CloseCommand="{Binding CloseAddObsModalCommand}"
+                                        DialogWidth="420"
+                                        DialogHeight="340">
+            <StackPanel Spacing="12" Margin="10">
+                <TextBlock Text="Configures an unauthenticated SRT listener for OBS Studio or hardware encoders:"
+                           FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" />
+
+                <TextBox Text="{Binding ObsDisplayName, Mode=TwoWay}"
+                         PlaceholderText="Feed Display Name" />
+
+                <TextBox Text="{Binding ObsPort, Mode=TwoWay}"
+                         PlaceholderText="SRT Port (e.g. 8554)" />
+
+                <TextBox Text="{Binding ObsPassphrase, Mode=TwoWay}"
+                         PlaceholderText="SRT Passphrase" />
+
+                <Button Content="Create Listener"
+                        Command="{Binding ConfirmAddObsCommand}"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="White"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        FontWeight="Bold"
+                        Padding="8,8"
+                        Margin="0,8,0,0" />
+            </StackPanel>
+        </controls:UniversalModalControl>
+    </Grid>
+</UserControl>

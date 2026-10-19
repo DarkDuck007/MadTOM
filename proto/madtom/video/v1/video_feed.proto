@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package madtom.video.v1;
+
+import "proto/madtom/video/v1/video_source.proto";
+
+option csharp_namespace = "MADTOM.Protocol.Video.V1";
+option go_package = "github.com/DarkDuck007/madtom/pkg/protocol/video/v1;videov1";
+
+service VideoFeedService {
+  rpc ListFeeds(ListFeedsRequest) returns (ListFeedsResponse);
+  rpc GetFeed(GetFeedRequest) returns (FeedInfo);
+  rpc WatchFeeds(WatchFeedsRequest) returns (stream FeedEvent);
+  rpc WatchPreview(WatchPreviewRequest) returns (stream PreviewFrame);
+  rpc CreateFeed(CreateFeedRequest) returns (FeedInfo);
+  rpc RemoveFeed(RemoveFeedRequest) returns (RemoveFeedResponse);
+  rpc SetFeedProperty(SetFeedPropertyRequest) returns (SetFeedPropertyResponse);
+  rpc GetPairingQr(GetPairingQrRequest) returns (GetPairingQrResponse);
+  rpc RecordLatencyTick(RecordLatencyTickRequest) returns (RecordLatencyTickResponse);
+}
+
+message ListFeedsRequest {}
+
+message ListFeedsResponse {
+  repeated FeedInfo feeds = 1;
+}
+
+message GetFeedRequest {
+  string feed_id = 1;
+}
+
+enum FeedState {
+  FEED_STATE_UNSPECIFIED = 0;
+  FEED_STATE_WAITING = 1;
+  FEED_STATE_LIVE = 2;
+  FEED_STATE_STALLED = 3;
+  FEED_STATE_RECONNECTING = 4;
+  FEED_STATE_STOPPED = 5;
+}
+
+message FeedInfo {
+  string feed_id = 1;
+  string source_id = 2;
+  string display_name = 3;
+  FeedState state = 4;
+  bool is_trusted = 5;
+  string source_platform = 6;
+  StreamProfile requested_profile = 7;
+  StreamProfile granted_profile = 8;
+  repeated Property properties = 9;
+  SrtTarget srt_target = 10;
+  uint64 bytes_received = 11;
+  double current_fps = 12;
+  uint32 current_bitrate_bps = 13;
+  int64 clock_offset_ms = 14;
+  string last_error = 15;
+  bool is_recording = 16;
+  string current_original_chunk = 17;
+  string current_proxy_chunk = 18;
+}
+
+message WatchFeedsRequest {}
+
+message FeedEvent {
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_ADDED = 1;
+    EVENT_TYPE_UPDATED = 2;
+    EVENT_TYPE_REMOVED = 3;
+  }
+  EventType type = 1;
+  FeedInfo feed = 2;
+}
+
+message WatchPreviewRequest {
+  string feed_id = 1;
+  uint32 max_width = 2;  // e.g. 640
+  uint32 max_height = 3; // e.g. 360
+  uint32 max_fps = 4;    // e.g. 30
+}
+
+message PreviewFrame {
+  string feed_id = 1;
+  uint32 width = 2;
+  uint32 height = 3;
+  uint32 stride = 4;
+  string format = 5; // "bgra32"
+  bytes data = 6;    // Raw BGRA32 pixel buffer
+  int64 timestamp_utc_ms = 7;
+  int64 source_capture_utc_ms = 8; // if available from timed metadata
+  uint64 frame_number = 9;
+}
+
+message CreateFeedRequest {
+  string feed_id = 1;
+  string display_name = 2;
+  bool unauthenticated_obs = 3;
+  string custom_passphrase = 4;
+  uint32 port = 5;
+}
+
+message RemoveFeedRequest {
+  string feed_id = 1;
+}
+
+message RemoveFeedResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message SetFeedPropertyRequest {
+  string feed_id = 1;
+  string property_id = 2;
+  double value = 3;
+  string string_value = 4;
+}
+
+message SetFeedPropertyResponse {
+  bool success = 1;
+  string message = 2;
+  double applied_value = 3;
+}
+
+message GetPairingQrRequest {
+  uint32 valid_duration_seconds = 1;
+}
+
+message GetPairingQrResponse {
+  string qr_uri = 1;          // madtom://pair?host=...
+  string session_id = 2;
+  string hub_fingerprint = 3;
+  string token = 4;
+  string comparison_code = 5;
+  int64 expires_at_utc_ms = 6;
+}
+
+message RecordLatencyTickRequest {
+  string feed_id = 1;
+  int64 displayed_millisecond = 2;
+}
+
+message RecordLatencyTickResponse {
+  double glass_to_glass_ms = 1;
+  double network_rtt_ms = 2;
+  double ingest_processing_ms = 3;
+}

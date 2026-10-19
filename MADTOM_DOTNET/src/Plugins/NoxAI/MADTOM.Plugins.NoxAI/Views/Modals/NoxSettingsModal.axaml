@@ -1,0 +1,355 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             xmlns:controls="clr-namespace:MadTOM.Controls;assembly=MADTOM.Plugins.Telemetry"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Modals.NoxSettingsModal"
+             x:DataType="vm:NoxSettingsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="NumericUpDown.performance-number">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="ClipValueToMinMax" Value="True"/>
+        </Style>
+        <Style Selector="NumericUpDown.performance-number /template/ TextBox">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="NumericUpDown.performance-number /template/ ButtonSpinner">
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid ColumnDefinitions="*,22">
+                        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                        <Grid Grid.Column="1" RowDefinitions="*,*">
+                            <RepeatButton Name="PART_IncreaseButton" Classes="compact-spin" Content="⌃"
+                                          AutomationProperties.Name="Increase value"/>
+                            <RepeatButton Name="PART_DecreaseButton" Grid.Row="1" Classes="compact-spin" Content="⌄"
+                                          AutomationProperties.Name="Decrease value"/>
+                        </Grid>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RepeatButton.compact-spin">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Background" Value="{DynamicResource DarkBaseBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1,0,0,1">
+                        <TextBlock Text="{TemplateBinding Content}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontSize="10"
+                                   Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RepeatButton.compact-spin:hover">
+            <Setter Property="Background" Value="{DynamicResource CardBgBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Background="#B3000000">
+        <Border Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                Width="760"
+                Height="640"
+                Padding="24"
+                BoxShadow="0 14 36 #C0000000"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <!-- Header -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Border Background="{DynamicResource AccentBrush}" CornerRadius="6" Padding="6,4">
+                            <TextBlock Text="⚙" FontSize="12" Foreground="White"/>
+                        </Border>
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="NoxAI Control Center · Settings &amp; Performance"
+                                       FontWeight="Bold"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Manage nodes, SSH-style keys, mDNS discovery, separate caches, GC, and preload"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button Grid.Column="1" Command="{Binding CloseCommand}" Content="✕" Background="Transparent" BorderThickness="0" FontWeight="Bold"/>
+                </Grid>
+
+                <!-- Tabs -->
+                <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}">
+                    <!-- TAB 1: Nodes & Keys -->
+                    <TabItem Header="Nodes &amp; Keys" FontSize="12">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="12" Margin="0,10,0,0">
+                                <!-- Configured Nodes & Per-Node Log/API Settings -->
+                                <TextBlock Text="CONFIGURED NOXCHAT NODES &amp; LOG STREAMING MODE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" MinHeight="80" MaxHeight="195">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <Panel>
+                                            <TextBlock IsVisible="{Binding !ConfiguredNodes.Count}"
+                                                       Text="No configured nodes. Add one below or discover via mDNS."
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Margin="10"/>
+                                            <ItemsControl ItemsSource="{Binding ConfiguredNodes}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:ConfiguredNodeItem">
+                                                        <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="10,8">
+                                                            <StackPanel Spacing="6">
+                                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                            <TextBlock Text="{Binding Id}" FontWeight="Bold" FontSize="11"/>
+                                                                            <TextBlock Text="{Binding Alias}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                                        </StackPanel>
+                                                                        <TextBlock Text="{Binding PublicKeyDisplay}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Endpoint}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="12,0"/>
+                                                                    <Button Grid.Column="2" Command="{Binding $parent[UserControl].((vm:NoxSettingsViewModel)DataContext).RemoveNodeCommand}" CommandParameter="{Binding Id}" Content="Remove" FontSize="10" Foreground="{DynamicResource CriticalBrush}"/>
+                                                                </Grid>
+
+                                                                <!-- Per-Node Log & API Mode Controls -->
+                                                                <Border Background="{DynamicResource CardBgBrush}" CornerRadius="6" Padding="8,4">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10" VerticalAlignment="Center">
+                                                                        <TextBlock Text="Logs &amp; API Mode:" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                                            <RadioButton GroupName="{Binding Id}" IsChecked="{Binding IsModeOff, Mode=TwoWay}" Content="Off" FontSize="11" Padding="4,0"/>
+                                                                            <RadioButton GroupName="{Binding Id}" IsChecked="{Binding IsModeStream, Mode=TwoWay}" Content="Stream" FontSize="11" Padding="4,0"/>
+                                                                            <RadioButton GroupName="{Binding Id}" IsChecked="{Binding IsModeStreamAndStore, Mode=TwoWay}" Content="Stream &amp; Store (1GB WAL)" FontSize="11" Padding="4,0"/>
+                                                                        </StackPanel>
+                                                                        <CheckBox Grid.Column="2" IsChecked="{Binding IncludeApiCalls, Mode=TwoWay}" Content="API Calls" FontSize="10" VerticalAlignment="Center"/>
+                                                                        <CheckBox Grid.Column="3" IsChecked="{Binding IncludeImages, Mode=TwoWay}" Content="Images" FontSize="10" VerticalAlignment="Center"/>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Panel>
+                                    </ScrollViewer>
+                                </Border>
+
+                                <!-- LAN / mDNS Discovery Section -->
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="LAN NOXCHAT NODES (mDNS DISCOVERY)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="• _noxchat-probe._tcp.local" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Command="{Binding ScanMdnsCommand}" Content="{Binding ScanButtonText}" Padding="8,3" FontSize="10" Background="{DynamicResource DarkBaseBrush}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </Grid>
+                                <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="6" MinHeight="48" MaxHeight="110">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <Panel>
+                                            <TextBlock IsVisible="{Binding !DiscoveredMdnsNodes.Count}"
+                                                       Text="No LAN nodes discovered yet. Click Scan or enter endpoint manually below."
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Margin="8"/>
+                                            <ItemsControl ItemsSource="{Binding DiscoveredMdnsNodes}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="6,4">
+                                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                                <TextBlock Text="📡" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding NodeId}" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="2" Text="{Binding Endpoint}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="8,0" VerticalAlignment="Center"/>
+                                                                <Button Grid.Column="3" Command="{Binding $parent[UserControl].((vm:NoxSettingsViewModel)DataContext).SelectDiscoveredNodeCommand}" CommandParameter="{Binding .}" Content="Use Node" FontSize="10" Padding="8,2" Background="{DynamicResource AccentSubtleBrush}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Panel>
+                                    </ScrollViewer>
+                                </Border>
+
+                                <!-- Connect New Node -->
+                                <TextBlock Text="CONNECT NEW NODE (SSH-STYLE KEY PROVISIONING)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+                                    <TextBox Text="{Binding NewNodeAlias, Mode=TwoWay}" PlaceholderText="Node Alias (e.g. Nox Box)"/>
+                                    <TextBox Grid.Column="1" Text="{Binding NewNodeEndpoint, Mode=TwoWay}" PlaceholderText="Host:Port (e.g. noxbox.local:50055 or 127.0.0.1:50055)"/>
+                                    <Button Grid.Column="2" Command="{Binding AddNodeCommand}" Content="+ Add Node" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+                                </Grid>
+
+                                <!-- Server .env Copy Snippet -->
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="SERVER .ENV COPY SNIPPET (SSH-STYLE PUBLIC KEY)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                        <TextBlock Text="The client holds the private key securely. Paste only this public key into NoxChat's .env file." FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <Button Command="{Binding CopyEnvSnippetCommand}" Content="{Binding CopyButtonText}" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold" Padding="10,4" FontSize="11"/>
+                                        <Button Command="{Binding GenerateNewClientKeyCommand}" Content="🔄 Re-roll Key" Padding="8,4" FontSize="11"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="4">
+                                    <TextBox Text="{Binding EnvSnippet}"
+                                             IsReadOnly="True"
+                                             Focusable="True"
+                                             TextWrapping="Wrap"
+                                             FontFamily="{StaticResource MonoFontFamily}"
+                                             FontSize="11"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Padding="8,6"
+                                             VerticalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- TAB 2: Performance, Separate Caches, GC & Preload -->
+                    <TabItem Header="Performance &amp; Caches" FontSize="12">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="10" Margin="0,10,0,0">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="CLIENT CACHES (SEPARATE LOG VS STREAMED CONTENT CACHES)" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Command="{Binding RefreshCacheStatsCommand}" Content="Refresh Stats" Padding="6,2" FontSize="10"/>
+                                </Grid>
+
+                                <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                                    <Grid ColumnDefinitions="*,120,130,60" RowDefinitions="22,32,Auto,Auto,32,Auto,Auto,32,Auto,Auto,32,Auto" RowSpacing="6">
+                                        <TextBlock Text="Cache Group" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="Limit (MiB)" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="2" Text="Retention / Count" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="3" Text="Action" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+
+                                        <!-- Row 1: Streamed content & history -->
+                                        <TextBlock Grid.Row="1" Text="Streamed content &amp; history" FontSize="11" VerticalAlignment="Center"/>
+                                        <NumericUpDown Grid.Row="1" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" ClipValueToMinMax="True" Value="{Binding StreamedContentLimitMiB, Mode=TwoWay}"/>
+                                        <Grid Grid.Row="1" Grid.Column="2" ColumnDefinitions="84,*">
+                                            <NumericUpDown Classes="performance-number" Minimum="1" Maximum="1440" Increment="30" FormatString="0" ClipValueToMinMax="True" Value="{Binding StreamedRetentionMinutes, Mode=TwoWay}"/>
+                                            <TextBlock Grid.Column="1" Text="min" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </Grid>
+                                        <Button Grid.Row="1" Grid.Column="3" Command="{Binding ClearStreamedCacheCommand}" Content="Clear" Padding="4,2" VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Row="2" Grid.ColumnSpan="4" Text="{Binding StreamedCacheUsage}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+
+                                        <!-- Row 4: Stored query results -->
+                                        <TextBlock Grid.Row="4" Text="Stored query results" FontSize="11" VerticalAlignment="Center"/>
+                                        <NumericUpDown Grid.Row="4" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="1" Maximum="4096" Increment="16" FormatString="0" ClipValueToMinMax="True" Value="{Binding StoredQueryLimitMiB, Mode=TwoWay}"/>
+                                        <Grid Grid.Row="4" Grid.Column="2" ColumnDefinitions="84,*">
+                                            <NumericUpDown Classes="performance-number" Minimum="1" Maximum="86400" Increment="30" FormatString="0" ClipValueToMinMax="True" Value="{Binding StoredQueryRetentionSeconds, Mode=TwoWay}"/>
+                                            <TextBlock Grid.Column="1" Text="sec" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </Grid>
+                                        <Button Grid.Row="4" Grid.Column="3" Command="{Binding ClearStoredQueryCacheCommand}" Content="Clear" Padding="4,2" VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Row="5" Grid.ColumnSpan="4" Text="{Binding StoredQueryUsage}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+
+                                        <!-- Row 7: Logs & Raw API Zstd chunks -->
+                                        <TextBlock Grid.Row="7" Text="Logs &amp; Raw API Zstd chunks" FontSize="11" VerticalAlignment="Center"/>
+                                        <NumericUpDown Grid.Row="7" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="16" Maximum="4096" Increment="32" FormatString="0" ClipValueToMinMax="True" Value="{Binding LogAndApiCacheLimitMiB, Mode=TwoWay}"/>
+                                        <Grid Grid.Row="7" Grid.Column="2" ColumnDefinitions="84,*">
+                                            <NumericUpDown Classes="performance-number" Minimum="4" Maximum="256" Increment="4" FormatString="0" ClipValueToMinMax="True" Value="{Binding LogAndApiDecodedChunkLimit, Mode=TwoWay}"/>
+                                            <TextBlock Grid.Column="1" Text="chunks" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </Grid>
+                                        <Button Grid.Row="7" Grid.Column="3" Command="{Binding ClearLogAndApiCacheCommand}" Content="Clear" Padding="4,2" VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Row="8" Grid.ColumnSpan="4" Text="{Binding LogAndApiCacheUsage}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+
+                                        <!-- Row 10: Stickers & GIFs media cache -->
+                                        <TextBlock Grid.Row="10" Text="Stickers &amp; GIFs media cache" FontSize="11" VerticalAlignment="Center"/>
+                                        <NumericUpDown Grid.Row="10" Grid.Column="1" Margin="0,0,6,0" Classes="performance-number" Minimum="16" Maximum="4096" Increment="32" FormatString="0" ClipValueToMinMax="True" Value="{Binding MediaCacheLimitMiB, Mode=TwoWay}"/>
+                                        <Grid Grid.Row="10" Grid.Column="2" ColumnDefinitions="84,*">
+                                            <NumericUpDown Classes="performance-number" Minimum="50" Maximum="50000" Increment="50" FormatString="0" ClipValueToMinMax="True" Value="{Binding MediaCacheItemLimit, Mode=TwoWay}"/>
+                                            <TextBlock Grid.Column="1" Text="items" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </Grid>
+                                        <Button Grid.Row="10" Grid.Column="3" Command="{Binding ClearMediaCacheCommand}" Content="Clear" Padding="4,2" VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Row="11" Grid.ColumnSpan="4" Text="{Binding MediaCacheUsage}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </Grid>
+                                </Border>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="{Binding TotalCacheEstimate}" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <Button Grid.Column="1" Command="{Binding ApplyCachesCommand}" Content="Apply Caches" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+                                </Grid>
+
+                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="GARBAGE COLLECTION (DIAGNOSTICS)" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Command="{Binding ForceGcCollectCommand}" Content="Force GC Collect" Padding="6,2"/>
+                                </Grid>
+                                <Border Background="{DynamicResource DarkBaseBrush}" Padding="8,6" CornerRadius="4">
+                                    <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+                                        <TextBlock Text="Last Collection:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding GcLastRunText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                        <TextBlock Grid.Row="1" Text="Process Memory:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GcHeapSummaryText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                        <TextBlock Grid.Row="2" Text="GC Generations:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding GcGenCountsText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,4"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="CACHE PRELOADING &amp; STRESS TEST" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" Grid.Column="1">
+                                        <Button Command="{Binding ForceLoadLogsCommand}" Content="Force Load Logs" Padding="8,2" IsEnabled="{Binding !IsPreloading}"/>
+                                        <Button Command="{Binding ForceLoadTelemetryCommand}" Content="Force Load Telemetry" Padding="8,2" IsEnabled="{Binding !IsPreloading}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Border Background="{DynamicResource DarkBaseBrush}" Padding="8,6" CornerRadius="4">
+                                    <StackPanel Spacing="6">
+                                        <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="Time Scope" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <ComboBox ItemsSource="{Binding PreloadScopes}" SelectedItem="{Binding SelectedPreloadScope}" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Bucketing Density" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <ComboBox ItemsSource="{Binding PreloadBucketingModes}" SelectedItem="{Binding SelectedPreloadBucketingMode}" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Spacing="2">
+                                                <TextBlock Text="Workers" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <NumericUpDown Value="{Binding PreloadConcurrency}" Minimum="1" Maximum="32" Width="80" Classes="performance-number" FormatString="0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="{Binding PreloadStatusText}" FontSize="10" Foreground="{DynamicResource AccentTextBrush}"/>
+                                        <TextBlock Text="{Binding PreloadSummaryText}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
+
+                <!-- Footer Status -->
+                <Border Grid.Row="2" Margin="0,12,0,0" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Command="{Binding CloseCommand}" Content="Done" Background="{DynamicResource DarkBaseBrush}" Padding="16,4"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

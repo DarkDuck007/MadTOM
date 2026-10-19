@@ -30,6 +30,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="../../../../../MADTOM_GOLANG/proto/madtom/v1/*.proto" ProtoRoot="../../../../../MADTOM_GOLANG/proto" GrpcServices="Client" />
+    <Protobuf Include="../../../../../MADTOM_GOLANG/proto/madtom/v1/*.proto" Exclude="../../../../../MADTOM_GOLANG/proto/madtom/v1/noxchat.proto" ProtoRoot="../../../../../MADTOM_GOLANG/proto" GrpcServices="Client" />
   </ItemGroup>
 </Project>
