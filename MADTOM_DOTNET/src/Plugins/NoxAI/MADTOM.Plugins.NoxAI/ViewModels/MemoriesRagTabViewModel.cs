@@ -17,6 +17,9 @@ public sealed partial class MemoryItemModel : ObservableObject
     public string Content { get; set; } = string.Empty;
     public double Importance { get; init; } = 0.8;
     public bool IsActive { get; init; } = true;
+    public double Score { get; init; }
+    public bool HasScore => Score > 0;
+    public string ScoreDisplay => Score > 0 ? $"Match: {Score:F2}" : string.Empty;
 }
 
 public sealed partial class HotMemoryItemModel : ObservableObject
@@ -31,6 +34,9 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
 
     [ObservableProperty] private NoxNodeModel? _selectedNode;
     [ObservableProperty] private string _searchQuery = string.Empty;
+    [ObservableProperty] private bool _isSearching;
+    [ObservableProperty] private bool _isSearchResultsActive;
+    [ObservableProperty] private string _searchResultsSummary = string.Empty;
     [ObservableProperty] private string _newMemoryContent = string.Empty;
     [ObservableProperty] private string _newMemoryCategory = "fact";
     [ObservableProperty] private string _newMemoryEntity = string.Empty;
@@ -65,6 +71,8 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
     public async Task RefreshMemories()
     {
         if (SelectedNode == null) return;
+        IsSearchResultsActive = false;
+        SearchResultsSummary = string.Empty;
         try
         {
             var client = _nodeManager.GetClient(SelectedNode);
@@ -110,6 +118,69 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
         {
             StatusText = $"Error: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    public async Task SearchMemoriesHybrid()
+    {
+        if (SelectedNode == null) return;
+        string query = SearchQuery?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(query))
+        {
+            await RefreshMemories();
+            return;
+        }
+
+        IsSearching = true;
+        StatusText = "Searching memories (hybrid semantic & BM25)...";
+        try
+        {
+            var client = _nodeManager.GetClient(SelectedNode);
+            var res = await client.SearchMemoriesHybridAsync(new NoxHybridSearchRequest
+            {
+                NodeId = SelectedNode.Id,
+                ChatId = 0,
+                QueryText = query,
+                Limit = 50
+            });
+
+            Memories.Clear();
+            foreach (var r in res.Results)
+            {
+                var m = r.Memory;
+                if (m == null) continue;
+                double score = r.DenseScore > 0 ? r.DenseScore : (r.RrfScore > 0 ? Math.Min(1.0, r.RrfScore * 60.0) : 0.0);
+                Memories.Add(new MemoryItemModel
+                {
+                    Id = m.Id,
+                    Category = m.Category,
+                    EntityKey = m.EntityKey,
+                    Content = m.Content,
+                    Importance = m.Importance,
+                    IsActive = m.IsActive,
+                    Score = score
+                });
+            }
+
+            IsSearchResultsActive = true;
+            SearchResultsSummary = $"Semantic Search: {Memories.Count} result{(Memories.Count == 1 ? "" : "s")} for \"{query}\"";
+            StatusText = $"Found {Memories.Count} memories matching \"{query}\".";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Semantic search failed: {ex.Message}";
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        await RefreshMemories();
     }
 
     [RelayCommand]

@@ -6,6 +6,9 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="260"
              x:Class="MADTOM.Console.Views.OnScreenKeyboardView"
              x:DataType="vm:OnScreenKeyboardViewModel"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch"
+             ClipToBounds="False"
              IsVisible="{Binding IsVisible}">
 
     <UserControl.Styles>

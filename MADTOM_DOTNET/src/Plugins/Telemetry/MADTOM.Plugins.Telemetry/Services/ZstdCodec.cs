@@ -19,6 +19,15 @@ public static class ZstdCodec
         Decoder.SetParameter(ZSTD_dParameter.ZSTD_d_windowLogMax, 27);
     }
 
+    public static byte[] Encode(byte[] raw)
+    {
+        if (raw == null || raw.Length == 0) return Array.Empty<byte>();
+        lock (Gate)
+        {
+            return Encoder.Wrap(raw).ToArray();
+        }
+    }
+
     public static byte[]? CompressIfUseful(byte[] raw)
     {
         if (raw.Length < 1024 || raw.Length > MaxDecodedBytes) return null;

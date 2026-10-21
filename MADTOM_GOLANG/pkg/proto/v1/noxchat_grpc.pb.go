@@ -27,6 +27,8 @@ const (
 	NoxChatControlService_GetSpoolStats_FullMethodName              = "/madtom.v1.NoxChatControlService/GetSpoolStats"
 	NoxChatControlService_QueryLogChunks_FullMethodName             = "/madtom.v1.NoxChatControlService/QueryLogChunks"
 	NoxChatControlService_QueryApiCallChunks_FullMethodName         = "/madtom.v1.NoxChatControlService/QueryApiCallChunks"
+	NoxChatControlService_GetApiCallDetail_FullMethodName           = "/madtom.v1.NoxChatControlService/GetApiCallDetail"
+	NoxChatControlService_ClearSpool_FullMethodName                 = "/madtom.v1.NoxChatControlService/ClearSpool"
 	NoxChatControlService_SendDirectMessage_FullMethodName          = "/madtom.v1.NoxChatControlService/SendDirectMessage"
 	NoxChatControlService_GetChatHistory_FullMethodName             = "/madtom.v1.NoxChatControlService/GetChatHistory"
 	NoxChatControlService_ListChats_FullMethodName                  = "/madtom.v1.NoxChatControlService/ListChats"
@@ -69,6 +71,8 @@ type NoxChatControlServiceClient interface {
 	GetSpoolStats(ctx context.Context, in *NoxSpoolStatsRequest, opts ...grpc.CallOption) (*NoxSpoolStatsResponse, error)
 	QueryLogChunks(ctx context.Context, in *LogChunkQuery, opts ...grpc.CallOption) (*LogChunkResponse, error)
 	QueryApiCallChunks(ctx context.Context, in *NoxApiCallChunkQuery, opts ...grpc.CallOption) (*NoxApiCallChunkResponse, error)
+	GetApiCallDetail(ctx context.Context, in *NoxApiCallDetailRequest, opts ...grpc.CallOption) (*NoxRawApiCallRecord, error)
+	ClearSpool(ctx context.Context, in *NoxClearSpoolRequest, opts ...grpc.CallOption) (*NoxClearSpoolResponse, error)
 	// Direct Chat Interaction (User: "MADTOM", UserID: "Control Center")
 	SendDirectMessage(ctx context.Context, in *NoxDirectMessageRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[NoxDirectTurnEvent], error)
 	GetChatHistory(ctx context.Context, in *NoxChatHistoryRequest, opts ...grpc.CallOption) (*NoxChatHistoryResponse, error)
@@ -193,6 +197,26 @@ func (c *noxChatControlServiceClient) QueryApiCallChunks(ctx context.Context, in
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(NoxApiCallChunkResponse)
 	err := c.cc.Invoke(ctx, NoxChatControlService_QueryApiCallChunks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetApiCallDetail(ctx context.Context, in *NoxApiCallDetailRequest, opts ...grpc.CallOption) (*NoxRawApiCallRecord, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxRawApiCallRecord)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetApiCallDetail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ClearSpool(ctx context.Context, in *NoxClearSpoolRequest, opts ...grpc.CallOption) (*NoxClearSpoolResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxClearSpoolResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ClearSpool_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -410,6 +434,8 @@ type NoxChatControlServiceServer interface {
 	GetSpoolStats(context.Context, *NoxSpoolStatsRequest) (*NoxSpoolStatsResponse, error)
 	QueryLogChunks(context.Context, *LogChunkQuery) (*LogChunkResponse, error)
 	QueryApiCallChunks(context.Context, *NoxApiCallChunkQuery) (*NoxApiCallChunkResponse, error)
+	GetApiCallDetail(context.Context, *NoxApiCallDetailRequest) (*NoxRawApiCallRecord, error)
+	ClearSpool(context.Context, *NoxClearSpoolRequest) (*NoxClearSpoolResponse, error)
 	// Direct Chat Interaction (User: "MADTOM", UserID: "Control Center")
 	SendDirectMessage(*NoxDirectMessageRequest, grpc.ServerStreamingServer[NoxDirectTurnEvent]) error
 	GetChatHistory(context.Context, *NoxChatHistoryRequest) (*NoxChatHistoryResponse, error)
@@ -465,6 +491,12 @@ func (UnimplementedNoxChatControlServiceServer) QueryLogChunks(context.Context, 
 }
 func (UnimplementedNoxChatControlServiceServer) QueryApiCallChunks(context.Context, *NoxApiCallChunkQuery) (*NoxApiCallChunkResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method QueryApiCallChunks not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetApiCallDetail(context.Context, *NoxApiCallDetailRequest) (*NoxRawApiCallRecord, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetApiCallDetail not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ClearSpool(context.Context, *NoxClearSpoolRequest) (*NoxClearSpoolResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClearSpool not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) SendDirectMessage(*NoxDirectMessageRequest, grpc.ServerStreamingServer[NoxDirectTurnEvent]) error {
 	return status.Error(codes.Unimplemented, "method SendDirectMessage not implemented")
@@ -667,6 +699,42 @@ func _NoxChatControlService_QueryApiCallChunks_Handler(srv interface{}, ctx cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NoxChatControlServiceServer).QueryApiCallChunks(ctx, req.(*NoxApiCallChunkQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetApiCallDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxApiCallDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetApiCallDetail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetApiCallDetail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetApiCallDetail(ctx, req.(*NoxApiCallDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ClearSpool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxClearSpoolRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ClearSpool(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ClearSpool_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ClearSpool(ctx, req.(*NoxClearSpoolRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1018,6 +1086,14 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "QueryApiCallChunks",
 			Handler:    _NoxChatControlService_QueryApiCallChunks_Handler,
+		},
+		{
+			MethodName: "GetApiCallDetail",
+			Handler:    _NoxChatControlService_GetApiCallDetail_Handler,
+		},
+		{
+			MethodName: "ClearSpool",
+			Handler:    _NoxChatControlService_ClearSpool_Handler,
 		},
 		{
 			MethodName: "GetChatHistory",

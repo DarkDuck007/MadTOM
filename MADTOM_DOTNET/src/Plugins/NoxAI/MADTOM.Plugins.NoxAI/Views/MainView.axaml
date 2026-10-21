@@ -45,7 +45,7 @@
                         </ComboBox>
 
                         <!-- Clickable Slim Live Activity (Zstd Diagnostics) -->
-                        <Button Command="{Binding OpenZstdDiagnosticsCommand}"
+                        <Button x:Name="LiveCompressionButton"
                                 Background="{DynamicResource DarkBaseBrush}"
                                 BorderBrush="{DynamicResource BorderSubtleBrush}"
                                 BorderThickness="1"
@@ -54,7 +54,10 @@
                                 Height="26"
                                 VerticalAlignment="Center"
                                 Cursor="Hand"
-                                ToolTip.Tip="View ZSTD compression &amp; transport diagnostics">
+                                ToolTip.Tip="View ZSTD compression &amp; transport diagnostics"
+                                PointerEntered="OnCompressionPointerEntered"
+                                PointerExited="OnCompressionPointerExited"
+                                Tapped="OnCompressionTapped">
                             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding LiveCompressionRatio}"
                                            FontSize="10"

@@ -29,6 +29,7 @@ public sealed partial class ConfiguredNodeItem : ObservableObject
     [ObservableProperty] private bool _isModeStreamAndStore;
     [ObservableProperty] private bool _includeApiCalls;
     [ObservableProperty] private bool _includeImages;
+    [ObservableProperty] private bool _isBeingEdited;
 
     public TelemetryOptInMode SelectedLogMode =>
         IsModeStreamAndStore ? TelemetryOptInMode.OptInMonitorAndStore :
@@ -128,6 +129,20 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
     [ObservableProperty] private string _copyButtonText = "📋 Copy Snippet";
     [ObservableProperty] private bool _isScanningMdns;
     [ObservableProperty] private string _scanButtonText = "⟳ Scan LAN / mDNS";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SaveNodeButtonText))]
+    [NotifyPropertyChangedFor(nameof(NodeFormSectionTitle))]
+    private bool _isEditingNode;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NodeFormSectionTitle))]
+    private string _editingOriginalId = string.Empty;
+
+    public string SaveNodeButtonText => IsEditingNode ? "💾 Save Changes" : "+ Add Node";
+    public string NodeFormSectionTitle => IsEditingNode
+        ? $"EDIT NOXCHAT NODE CONNECTION ('{EditingOriginalId}')"
+        : "CONNECT NEW NODE (SSH-STYLE KEY PROVISIONING)";
 
     // Performance & Resolution fields
     [ObservableProperty] private double? _graphPointsPerPixel = 1.0;
@@ -297,6 +312,15 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
     public void SelectDiscoveredNode(DiscoveredNoxNode? node)
     {
         if (node == null) return;
+        var existing = _nodeManager.Nodes.FirstOrDefault(n => n.Id.Equals(node.NodeId, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            SelectNodeForEdit(existing.Id);
+            NewNodeEndpoint = node.Endpoint;
+            StatusMessage = $"Selected LAN node '{node.NodeId}' ({node.Endpoint}). Existing key preserved.";
+            return;
+        }
+
         NewNodeId = node.NodeId;
         NewNodeEndpoint = node.Endpoint;
         NewNodeAlias = $"{node.NodeId} (LAN)";
@@ -304,29 +328,115 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void AddNode()
+    public void SelectNodeForEdit(string nodeId)
     {
-        if (string.IsNullOrWhiteSpace(NewNodeId))
+        if (string.IsNullOrWhiteSpace(nodeId)) return;
+        var node = _nodeManager.Nodes.FirstOrDefault(n => n.Id.Equals(nodeId, StringComparison.OrdinalIgnoreCase));
+        if (node == null) return;
+
+        IsEditingNode = true;
+        EditingOriginalId = node.Id;
+        NewNodeId = node.Id;
+        NewNodeAlias = node.Alias;
+        NewNodeEndpoint = node.HostEndpoint;
+
+        // Preserve existing private & public key
+        _clientPrivateKey = node.AuthKey;
+        ClientPublicKey = NoxAuthTokenGenerator.GetPublicKey(node.AuthKey);
+        EnvSnippet = $"NOXCHAT_CONTROL_KEY={ClientPublicKey}";
+        StatusMessage = $"Editing node '{node.Id}'. Change IP/endpoint and click Save (existing key is preserved).";
+
+        foreach (var item in ConfiguredNodes)
         {
-            NewNodeId = string.IsNullOrWhiteSpace(NewNodeAlias) ? "NoxNode" : NewNodeAlias.Replace(" ", "-");
+            item.IsBeingEdited = string.Equals(item.Id, node.Id, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [RelayCommand]
+    public void CancelEditNode()
+    {
+        IsEditingNode = false;
+        EditingOriginalId = string.Empty;
+        NewNodeId = string.Empty;
+        NewNodeAlias = string.Empty;
+        NewNodeEndpoint = "127.0.0.1:50055";
+        StatusMessage = string.Empty;
+
+        foreach (var item in ConfiguredNodes)
+        {
+            item.IsBeingEdited = false;
         }
 
-        if (string.IsNullOrWhiteSpace(_clientPrivateKey))
+        GenerateNewClientKey();
+    }
+
+    [RelayCommand]
+    public void SaveNode()
+    {
+        string id = string.IsNullOrWhiteSpace(NewNodeId)
+            ? (string.IsNullOrWhiteSpace(NewNodeAlias) ? "NoxNode" : NewNodeAlias.Replace(" ", "-"))
+            : NewNodeId.Trim();
+
+        string endpoint = string.IsNullOrWhiteSpace(NewNodeEndpoint) ? "127.0.0.1:50055" : NewNodeEndpoint.Trim();
+        string alias = string.IsNullOrWhiteSpace(NewNodeAlias) ? id : NewNodeAlias.Trim();
+
+        if (IsEditingNode)
         {
+            var existing = _nodeManager.Nodes.FirstOrDefault(n => n.Id.Equals(EditingOriginalId, StringComparison.OrdinalIgnoreCase));
+            string keyToUse = !string.IsNullOrWhiteSpace(_clientPrivateKey) ? _clientPrivateKey : (existing?.AuthKey ?? string.Empty);
+
+            if (!id.Equals(EditingOriginalId, StringComparison.OrdinalIgnoreCase))
+            {
+                _nodeManager.RemoveNode(EditingOriginalId);
+            }
+
+            var updatedNode = new NoxNodeModel(
+                Id: id,
+                HostEndpoint: endpoint,
+                AuthKey: keyToUse,
+                Alias: alias,
+                IsMdnsDiscovered: existing?.IsMdnsDiscovered ?? false,
+                LogMode: existing?.LogMode ?? TelemetryOptInMode.OptInMonitorAndStore,
+                IncludeApiCalls: existing?.IncludeApiCalls ?? true,
+                IncludeImages: existing?.IncludeImages ?? true
+            );
+
+            _nodeManager.AddOrUpdateNode(updatedNode);
+            StatusMessage = $"Node '{id}' updated with endpoint '{endpoint}' (existing authentication key preserved).";
+            CancelEditNode();
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(_clientPrivateKey))
+            {
+                GenerateNewClientKey();
+            }
+
+            var node = new NoxNodeModel(id, endpoint, _clientPrivateKey, alias);
+            _nodeManager.AddOrUpdateNode(node);
+            StatusMessage = $"Node '{node.Id}' saved. Paste the public key snippet into NoxChat's .env file!";
+            NewNodeId = string.Empty;
+            NewNodeAlias = string.Empty;
+            NewNodeEndpoint = "127.0.0.1:50055";
             GenerateNewClientKey();
         }
 
-        // Store private key in the client configuration, server only receives public key
-        var node = new NoxNodeModel(NewNodeId.Trim(), NewNodeEndpoint.Trim(), _clientPrivateKey, NewNodeAlias.Trim());
-        _nodeManager.AddOrUpdateNode(node);
         RefreshNodesList();
-        StatusMessage = $"Node '{node.Id}' saved. Paste the public key snippet into NoxChat's .env file!";
-        GenerateNewClientKey();
+    }
+
+    [RelayCommand]
+    public void AddNode()
+    {
+        SaveNode();
     }
 
     [RelayCommand]
     public void RemoveNode(string nodeId)
     {
+        if (IsEditingNode && EditingOriginalId.Equals(nodeId, StringComparison.OrdinalIgnoreCase))
+        {
+            CancelEditNode();
+        }
         _nodeManager.RemoveNode(nodeId);
         RefreshNodesList();
         StatusMessage = $"Node '{nodeId}' removed.";
@@ -339,7 +449,7 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
         {
             string pubKey = NoxAuthTokenGenerator.GetPublicKey(n.AuthKey);
             string pubDisplay = string.IsNullOrEmpty(pubKey) ? "(legacy / unverified)" : pubKey;
-            ConfiguredNodes.Add(new ConfiguredNodeItem(
+            var item = new ConfiguredNodeItem(
                 n.Id,
                 n.HostEndpoint,
                 n.Alias,
@@ -347,7 +457,12 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                 n.LogMode,
                 n.IncludeApiCalls,
                 n.IncludeImages,
-                OnNodeModeEdited));
+                OnNodeModeEdited);
+            if (IsEditingNode && string.Equals(n.Id, EditingOriginalId, StringComparison.OrdinalIgnoreCase))
+            {
+                item.IsBeingEdited = true;
+            }
+            ConfiguredNodes.Add(item);
         }
     }
 
@@ -515,6 +630,113 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
         GcGenCountsText = $"Gen0: {gen0After} (+{gen0After - gen0Before}) · Gen1: {gen1After} (+{gen1After - gen1Before}) · Gen2: {gen2After} (+{gen2After - gen2Before})";
 
         RefreshCacheStats();
+    }
+
+    [RelayCommand]
+    public async Task LoadEntireLogSpool()
+    {
+        if (IsPreloading) return;
+        var node = _nodeManager.Nodes.FirstOrDefault();
+        if (node == null)
+        {
+            PreloadStatusText = "No node configured to load spool from";
+            return;
+        }
+
+        IsPreloading = true;
+        PreloadStatusText = $"Loading entire log & API spool for {node.AliasOrId}...";
+
+        try
+        {
+            var client = _nodeManager.GetClient(node);
+            int logsLoaded = 0;
+            int apisLoaded = 0;
+
+            // 1. Page all historical log chunks
+            ulong nextLogChunkId = 0;
+            bool hasMoreLogs = true;
+            int consecutiveLogErrors = 0;
+            while (hasMoreLogs && consecutiveLogErrors < 3)
+            {
+                try
+                {
+                    var logResp = await client.QueryLogChunksAsync(new LogChunkQuery
+                    {
+                        NodeId = node.Id,
+                        StartChunkId = nextLogChunkId,
+                        MaxChunks = 8
+                    });
+
+                    if (logResp.Chunks.Count == 0) break;
+                    consecutiveLogErrors = 0;
+                    ulong maxId = nextLogChunkId;
+                    foreach (var c in logResp.Chunks)
+                    {
+                        if (c.ChunkId >= maxId) maxId = c.ChunkId;
+                        _logCache.PutChunk("noxchat", node.Id, c);
+                        logsLoaded += (int)c.RecordCount;
+                    }
+                    nextLogChunkId = maxId + 1;
+                    hasMoreLogs = logResp.HasMore;
+                    PreloadStatusText = $"Loading logs: {logsLoaded:N0} records loaded...";
+                }
+                catch
+                {
+                    consecutiveLogErrors++;
+                    nextLogChunkId += 8;
+                }
+            }
+
+            // 2. Page all historical API call chunks
+            ulong nextApiChunkId = 0;
+            bool hasMoreApis = true;
+            int consecutiveApiErrors = 0;
+            while (hasMoreApis && consecutiveApiErrors < 3)
+            {
+                try
+                {
+                    var apiResp = await client.QueryApiCallChunksAsync(new NoxApiCallChunkQuery
+                    {
+                        NodeId = node.Id,
+                        StartChunkId = nextApiChunkId,
+                        MaxChunks = 1,
+                        SummaryOnly = false
+                    });
+
+                    if (apiResp.Chunks.Count == 0) break;
+                    consecutiveApiErrors = 0;
+                    ulong maxId = nextApiChunkId;
+                    foreach (var c in apiResp.Chunks)
+                    {
+                        if (c.ChunkId >= maxId) maxId = c.ChunkId;
+                        _apiCache.PutChunk(node.Id, c);
+                        apisLoaded += (int)c.RecordCount;
+                    }
+                    nextApiChunkId = maxId + 1;
+                    hasMoreApis = apiResp.HasMore;
+                    PreloadStatusText = $"Loading API calls: {apisLoaded:N0} calls loaded...";
+                }
+                catch
+                {
+                    consecutiveApiErrors++;
+                    nextApiChunkId++;
+                }
+            }
+
+            _apiCache.FlushPending(node.Id);
+            RefreshCacheStats();
+
+            PreloadStatusText = "Spool preload completed";
+            PreloadSummaryText = $"Loaded entire spool: {logsLoaded:N0} log records and {apisLoaded:N0} LLM API calls from {node.AliasOrId} into Zstd cache.";
+        }
+        catch (Exception ex)
+        {
+            PreloadStatusText = $"Spool load error: {ex.Message}";
+        }
+        finally
+        {
+            IsPreloading = false;
+        }
     }
 
     [RelayCommand]

@@ -49,10 +49,12 @@ The **NOX AI Control Center** (`MADTOM.Plugins.NoxAI`) provides a real-time, aut
 ### 2. Memories & RAG Explorer (`MemoriesRagTabView`)
 - **Hot Memory Scratchpad**: Real-time view and editing of active working memory.
 - **Atomic Memories**: Search, filter, and inspect long-term atomic memories stored in SQLite and Qdrant.
+- **Hybrid & Semantic Search**: Search long-term memories using hybrid dense embedding vectors and BM25 sparse rankings with real-time score badges.
 - **Vector Point Inspection**: Inspect embedded vectors, cosine distances, payloads, and underlying message context.
 
 ### 3. Media & Sticker Library (`MediaLibraryTabView`)
 - Visual grid of indexed Telegram stickers, GIFs, and media packs.
+- **Dual-Mode Search**: Real-time text-based search (matching sticker set name, `t.me/addstickers/` set URL, or sticker caption/definition/emoji) combined with Enter-triggered semantic embedding search via `MediaVectorStore` / Qdrant.
 - Inspect and modify semantic tag annotations and pinned favorite reactions.
 - Trigger manual background analysis and embedding jobs.
 
@@ -67,7 +69,14 @@ The **NOX AI Control Center** (`MADTOM.Plugins.NoxAI`) provides a real-time, aut
 ### 5. Raw Logs & API Interceptor (`RawLogsApiTabView`)
 - **Virtual Log View**: Embedded `VirtualLogViewControl` rendering monotonic log sequence numbers directly from zstd-compressed in-memory client cache.
 - **WAL Spool Manager**: Toggle server-side 1GB WAL spooling (`config.yaml`).
-- **Raw LLM API Calls**: Timeline of model queries, durations, prompt/completion token usage, formatted JSON requests/responses, and base64 image galleries.
+- **Spool Retrieval & Clean Reset**: Dynamic forward chunk traversal guarantees 100% of surviving spool records are fetched even after quota-based segment rotation. A one-click `🗑️ Clear Spool` command triggers an atomic server-side WAL and memory ring reset along with client cache clearing. Full historical log/spool preloading is safely hosted in the Settings *Performance & Caches* tab to prevent UI stalls.
+- **Lightweight API Calls List & On-Demand Detail Loading**: Timeline loads summary-only metadata (IDs, models, timestamps, durations, token counts) in fractions of a second without transferring heavy JSON payloads or images. When an API call is selected, full request/response JSONs, parsed sessions, and image galleries are fetched and cached on-demand via `GetApiCallDetail`.
+- **CLI / Log-Style Parsed Chat Session**: Dedicated parser tab clearly distinguishing:
+  1. *System Prompt & Structured Sections*: Separates Identity & Role, Voice & Style, Technical Perspectives, Communication Protocol, Pinned Media, Recalled Memories, Hot Scratchpad, Background Tasks, and Temporal Context.
+  2. *Users' Messages*: Distinct styling with user headers, timestamps, and message text.
+  3. *Bot's Responses*: Model latency, completion tokens, extracted `<thought>` reasoning boxes, tool executions, and final reply.
+  4. *Attached Multimodal Media*: Integrated preview cards showing thumbnails, MIME types, and dimensions.
+  5. *Bidirectional (RTL / LTR) Multi-Language Typography*: Automatic base direction (`FlowDirection`) and alignment detection per message turn and system section based on Unicode BiDi Rule P2/P3. Employs natural HarfBuzz cursive shaping for Persian, Arabic, and Hebrew without fixed-width monospace cell conflicts.
 
 ### 6. Usage & Python Runtime Telemetry (`NoxTelemetryTabView`)
 - Real-time 1 Hz stream of internal Python runtime state from the process's point of view:
@@ -76,6 +85,7 @@ The **NOX AI Control Center** (`MADTOM.Plugins.NoxAI`) provides a real-time, aut
   - Active `asyncio.all_tasks()` count and event-loop lag monitoring.
   - Python generational GC collection counts (`gc.get_count()`).
   - LLM token throughput: prompt tokens, completion tokens, cached tokens.
+- **Dynamic Timeframe Selection**: Switchable time horizons (`5M`, `15M`, `1H`, `6H`, `24H`, `7D`) that automatically query historical telemetry ranges and adjust nanosecond chart boundaries.
 - Interactive multi-series visualization powered by `MetricHistoryChartControl` with LTTB downsampling.
 
 ---

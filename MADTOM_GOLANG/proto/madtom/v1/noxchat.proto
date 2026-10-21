@@ -29,6 +29,8 @@ service NoxChatControlService {
   rpc GetSpoolStats(NoxSpoolStatsRequest) returns (NoxSpoolStatsResponse);
   rpc QueryLogChunks(LogChunkQuery) returns (LogChunkResponse);
   rpc QueryApiCallChunks(NoxApiCallChunkQuery) returns (NoxApiCallChunkResponse);
+  rpc GetApiCallDetail(NoxApiCallDetailRequest) returns (NoxRawApiCallRecord);
+  rpc ClearSpool(NoxClearSpoolRequest) returns (NoxClearSpoolResponse);
 
   // Direct Chat Interaction (User: "MADTOM", UserID: "Control Center")
   rpc SendDirectMessage(NoxDirectMessageRequest) returns (stream NoxDirectTurnEvent);
@@ -191,6 +193,12 @@ message NoxApiCallChunkQuery {
   uint32 max_chunks = 3;
   int64 seek_timestamp_unix_nano = 4;
   bool forward = 5;
+  bool summary_only = 6;
+}
+
+message NoxApiCallDetailRequest {
+  string node_id = 1;
+  string call_id = 2;
 }
 
 message NoxApiCallChunkResponse {
@@ -200,6 +208,17 @@ message NoxApiCallChunkResponse {
   string node_id = 1;
   repeated NoxApiCallChunk chunks = 2;
   bool has_more = 3;
+}
+
+message NoxClearSpoolRequest {
+  string node_id = 1;
+  bool clear_logs = 2;
+  bool clear_api_calls = 3;
+}
+
+message NoxClearSpoolResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message NoxApiCallChunk {

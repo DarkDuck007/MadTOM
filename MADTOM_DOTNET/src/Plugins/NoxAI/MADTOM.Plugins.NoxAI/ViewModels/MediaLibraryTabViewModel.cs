@@ -83,6 +83,12 @@ public sealed partial class MediaItemModel : ObservableObject
             Thumbnail = Frames[tick % Frames.Count];
         }
     }
+
+    public void ClearPreview()
+    {
+        Thumbnail = null;
+        Frames = null;
+    }
 }
 
 public sealed partial class StickerPackGroupModel : ObservableObject
@@ -122,6 +128,12 @@ public sealed partial class StickerPackGroupModel : ObservableObject
         {
             Thumbnail = Frames[tick % Frames.Count];
         }
+    }
+
+    public void ClearPreview()
+    {
+        Thumbnail = null;
+        Frames = null;
     }
 
     public string CountSummary => IsGifGroup
@@ -184,6 +196,8 @@ public static class NoxMediaThumbnailCache
     private static readonly ConcurrentDictionary<string, Task<NoxMediaPreviewAsset?>> _inflightFetches = new();
     private static readonly SemaphoreSlim _fetchThrottle = new(16);
     private static readonly string _localDir;
+
+    public static event Action? CacheCleared;
 
     static NoxMediaThumbnailCache()
     {
@@ -256,6 +270,8 @@ public static class NoxMediaThumbnailCache
             }
             catch { }
         }
+
+        CacheCleared?.Invoke();
     }
 
     public static bool TryGetFromMemory(string fileUniqueId, bool expectsAnimation, out NoxMediaPreviewAsset? asset)
@@ -514,29 +530,42 @@ public static class NoxMediaThumbnailCache
     }
 }
 
+public sealed class MediaItemRowModel
+{
+    public IReadOnlyList<MediaItemModel> Items { get; }
+    public MediaItemRowModel(IReadOnlyList<MediaItemModel> items)
+    {
+        Items = items;
+    }
+}
+
 public sealed partial class MediaLibraryTabViewModel : ObservableObject
 {
     private readonly NoxNodeManager _nodeManager;
     private readonly DispatcherTimer _animTimer;
     private int _animTick;
-    private CancellationTokenSource? _thumbCts;
 
     [ObservableProperty] private NoxNodeModel? _selectedNode;
+    [ObservableProperty] private bool _isTabActive;
+    private bool _needsRefresh = true;
     [ObservableProperty] private string _selectedFilter = "All";
     [ObservableProperty] private string _selectedLibraryFilter = "All in Pack";
     [ObservableProperty] private string _searchQuery = string.Empty;
+    [ObservableProperty] private bool _isSemanticSearching;
+    [ObservableProperty] private bool _isSemanticSearchActive;
+    private List<MediaItemModel> _semanticSearchResults = new();
     [ObservableProperty] private MediaItemModel? _selectedItem;
     [ObservableProperty] private string _statusText = string.Empty;
     [ObservableProperty] private bool _isLoading;
 
-    // Telegram-Style Paged View
+    // Continuous Virtualized View
     [ObservableProperty] private StickerPackGroupModel? _selectedPack;
-    [ObservableProperty] private int _currentPage = 1;
-    [ObservableProperty] private int _pageSize = 40;
-    [ObservableProperty] private int _totalPages = 1;
-    [ObservableProperty] private string _pageSummary = "Page 1 of 1";
-    [ObservableProperty] private bool _hasPrevPage;
-    [ObservableProperty] private bool _hasNextPage;
+    [ObservableProperty] private string _itemCountSummary = "0 items";
+    [ObservableProperty] private int _columnCount = 4;
+
+    private readonly HashSet<MediaItemModel> _visibleItems = new();
+    private readonly object _visibleLock = new();
+    private List<MediaItemModel> _currentFilteredItems = new();
 
     // Force Add Sticker Form Properties
     [ObservableProperty] private bool _isForceAddPanelOpen;
@@ -549,7 +578,7 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
     public ObservableCollection<MediaItemModel> AllMediaItems { get; } = new();
     public ObservableCollection<StickerPackGroupModel> PackGroups { get; } = new();
     public ObservableCollection<MediaItemModel> PinnedItems { get; } = new();
-    public ObservableCollection<MediaItemModel> CurrentPageItems { get; } = new();
+    public ObservableCollection<MediaItemRowModel> Rows { get; } = new();
 
     public MediaLibraryTabViewModel(NoxNodeManager nodeManager)
     {
@@ -559,20 +588,61 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
             Interval = TimeSpan.FromMilliseconds(100)
         };
         _animTimer.Tick += OnAnimationTimerTick;
-        _animTimer.Start();
+
+        NoxMediaThumbnailCache.CacheCleared += OnThumbnailCacheCleared;
 
         SelectedNode = _nodeManager.Nodes.FirstOrDefault();
+    }
+
+    private void OnThumbnailCacheCleared()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            lock (_visibleLock)
+            {
+                _visibleItems.Clear();
+            }
+            foreach (var pack in PackGroups) pack.ClearPreview();
+            foreach (var item in AllMediaItems) item.ClearPreview();
+            if (IsTabActive && SelectedNode != null)
+            {
+                LoadThumbnailsForPackGroups();
+                RebuildRows();
+            }
+        });
+    }
+
+    partial void OnIsTabActiveChanged(bool value)
+    {
+        if (value)
+        {
+            _animTimer.Start();
+            if (_needsRefresh && SelectedNode != null)
+            {
+                _ = RefreshMedia();
+            }
+            else if (SelectedNode != null)
+            {
+                LoadThumbnailsForPackGroups();
+            }
+        }
+        else
+        {
+            _animTimer.Stop();
+        }
     }
 
     private void OnAnimationTimerTick(object? sender, EventArgs e)
     {
         _animTick++;
-        for (int i = 0; i < CurrentPageItems.Count; i++)
+        lock (_visibleLock)
         {
-            var item = CurrentPageItems[i];
-            if (item.IsAnimatedLoaded)
+            foreach (var item in _visibleItems)
             {
-                item.AdvanceFrame(_animTick);
+                if (item.IsAnimatedLoaded)
+                {
+                    item.AdvanceFrame(_animTick);
+                }
             }
         }
 
@@ -586,19 +656,80 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
         }
     }
 
+    public void OnItemEnteredViewport(MediaItemModel item)
+    {
+        lock (_visibleLock)
+        {
+            _visibleItems.Add(item);
+        }
+
+        if (item.Thumbnail == null || (item.ExpectsAnimation && !item.IsAnimatedLoaded))
+        {
+            RequestItemPreview(item);
+        }
+    }
+
+    public void OnItemExitedViewport(MediaItemModel item)
+    {
+        lock (_visibleLock)
+        {
+            _visibleItems.Remove(item);
+        }
+    }
+
+    public void RequestItemPreview(MediaItemModel item)
+    {
+        var node = SelectedNode;
+        if (node == null || string.IsNullOrEmpty(item.UniqueId)) return;
+
+        if (NoxMediaThumbnailCache.TryGetFromMemory(item.UniqueId, item.ExpectsAnimation, out var cached) && cached != null)
+        {
+            item.ApplyPreview(cached);
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var asset = await NoxMediaThumbnailCache.FetchPreviewAsync(_nodeManager, node, item.UniqueId, item.ExpectsAnimation);
+            if (asset != null)
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    item.ApplyPreview(asset);
+                    var pack = PackGroups.FirstOrDefault(g => g.SetName == item.SetName);
+                    if (pack != null && pack.Items.Count > 0 && ReferenceEquals(pack.Items[0], item))
+                    {
+                        pack.ApplyPreview(asset);
+                    }
+                });
+            }
+        });
+    }
+
     partial void OnSelectedNodeChanged(NoxNodeModel? value)
     {
         if (value != null)
         {
-            _ = RefreshMedia();
+            if (IsTabActive)
+            {
+                _ = RefreshMedia();
+            }
+            else
+            {
+                _needsRefresh = true;
+            }
         }
         else
         {
-            _thumbCts?.Cancel();
+            lock (_visibleLock)
+            {
+                _visibleItems.Clear();
+            }
+            _currentFilteredItems.Clear();
             PackGroups.Clear();
             AllMediaItems.Clear();
             PinnedItems.Clear();
-            CurrentPageItems.Clear();
+            Rows.Clear();
             SelectedPack = null;
             StatusText = "No node selected";
         }
@@ -606,26 +737,225 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
 
     partial void OnSearchQueryChanged(string value)
     {
-        CurrentPage = 1;
-        UpdateCurrentPageItems();
+        IsSemanticSearchActive = false;
+        UpdateFilteredItems();
     }
 
     partial void OnSelectedFilterChanged(string value)
     {
-        CurrentPage = 1;
-        UpdateCurrentPageItems();
+        UpdateFilteredItems();
     }
 
     partial void OnSelectedLibraryFilterChanged(string value)
     {
-        CurrentPage = 1;
-        UpdateCurrentPageItems();
+        UpdateFilteredItems();
     }
 
     partial void OnSelectedPackChanged(StickerPackGroupModel? value)
     {
-        CurrentPage = 1;
-        UpdateCurrentPageItems();
+        UpdateFilteredItems();
+    }
+
+    public void SetColumnCount(int columns)
+    {
+        if (columns < 1) columns = 1;
+        if (ColumnCount != columns)
+        {
+            ColumnCount = columns;
+            RebuildRows();
+        }
+    }
+
+    public void RebuildRows()
+    {
+        Rows.Clear();
+        int cols = Math.Max(1, ColumnCount);
+
+        for (int i = 0; i < _currentFilteredItems.Count; i += cols)
+        {
+            int count = Math.Min(cols, _currentFilteredItems.Count - i);
+            var slice = _currentFilteredItems.GetRange(i, count);
+            Rows.Add(new MediaItemRowModel(slice));
+        }
+
+        ItemCountSummary = _currentFilteredItems.Count == 1 ? "1 item" : $"{_currentFilteredItems.Count} items";
+    }
+
+    private static string ExtractSetNameFromQuery(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return string.Empty;
+        int idx = query.IndexOf("addstickers/", StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            string sub = query[(idx + "addstickers/".Length)..].Trim();
+            int slashIdx = sub.IndexOf('/');
+            if (slashIdx >= 0) sub = sub[..slashIdx];
+            int qIdx = sub.IndexOf('?');
+            if (qIdx >= 0) sub = sub[..qIdx];
+            return sub.Trim();
+        }
+        return string.Empty;
+    }
+
+    private void UpdateFilteredItems()
+    {
+        lock (_visibleLock)
+        {
+            _visibleItems.Clear();
+        }
+
+        var query = SearchQuery?.Trim() ?? string.Empty;
+        var filter = SelectedFilter;
+        var libFilter = SelectedLibraryFilter;
+
+        IEnumerable<MediaItemModel> source;
+        if (IsSemanticSearchActive)
+        {
+            source = _semanticSearchResults;
+        }
+        else if (!string.IsNullOrEmpty(query))
+        {
+            // Real-time text search matches across all available captioned media
+            source = AllMediaItems;
+        }
+        else if (SelectedPack != null)
+        {
+            source = SelectedPack.Items;
+        }
+        else
+        {
+            _currentFilteredItems.Clear();
+            Rows.Clear();
+            ItemCountSummary = "No pack selected";
+            return;
+        }
+
+        string qLower = query.ToLowerInvariant();
+        string urlSetName = ExtractSetNameFromQuery(query).ToLowerInvariant();
+
+        _currentFilteredItems = source.Where(it =>
+        {
+            if (filter == "Stickers" && it.Kind != "sticker") return false;
+            if (filter == "GIFs" && it.Kind is not ("gif" or "animation")) return false;
+
+            if (libFilter == "In Nox's Library" && !it.InLibrary) return false;
+            if (libFilter == "Not in Library" && it.InLibrary) return false;
+
+            if (IsSemanticSearchActive || string.IsNullOrEmpty(query)) return true;
+
+            // 1. Sticker set URL (e.g. t.me/addstickers/set_name)
+            if (!string.IsNullOrEmpty(urlSetName) && (it.SetName?.ToLowerInvariant().Contains(urlSetName) ?? false))
+                return true;
+
+            // 2. Sticker set name
+            if (it.SetName?.ToLowerInvariant().Contains(qLower) ?? false)
+                return true;
+
+            // 3. Sticker definition (caption text, tags) or emoji
+            if ((it.CaptionText?.ToLowerInvariant().Contains(qLower) ?? false) ||
+                (it.Emoji?.Contains(query) ?? false))
+                return true;
+
+            return false;
+        }).ToList();
+
+        RebuildRows();
+
+        if (IsSemanticSearchActive)
+        {
+            ItemCountSummary = $"🧠 Semantic: {_currentFilteredItems.Count} match{(_currentFilteredItems.Count == 1 ? "" : "es")} for \"{query}\"";
+        }
+        else if (!string.IsNullOrEmpty(query))
+        {
+            ItemCountSummary = $"Text Search: {_currentFilteredItems.Count} item{(_currentFilteredItems.Count == 1 ? "" : "s")}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task ExecuteSemanticSearch()
+    {
+        if (SelectedNode == null) return;
+        var query = SearchQuery?.Trim();
+        if (string.IsNullOrEmpty(query))
+        {
+            IsSemanticSearchActive = false;
+            UpdateFilteredItems();
+            return;
+        }
+
+        IsSemanticSearching = true;
+        StatusText = $"Running semantic embedding search for \"{query}\"...";
+        try
+        {
+            string kind = SelectedFilter switch
+            {
+                "Stickers" => "sticker",
+                "GIFs" => "gif",
+                _ => ""
+            };
+
+            var client = _nodeManager.GetClient(SelectedNode);
+            var resp = await client.QueryMediaLibraryAsync(new NoxMediaQueryRequest
+            {
+                NodeId = SelectedNode.Id,
+                Kind = kind,
+                Query = query,
+                Scope = 0,
+                Limit = 100
+            });
+
+            var existingMap = AllMediaItems.ToDictionary(x => x.UniqueId, x => x, StringComparer.Ordinal);
+            var results = new List<MediaItemModel>();
+
+            foreach (var r in resp.Items)
+            {
+                if (existingMap.TryGetValue(r.FileUniqueId, out var existing))
+                {
+                    results.Add(existing);
+                }
+                else
+                {
+                    var newItem = new MediaItemModel
+                    {
+                        UniqueId = r.FileUniqueId,
+                        FileId = r.FileId,
+                        Kind = r.Kind,
+                        Format = r.Format,
+                        SetName = r.SetName,
+                        Emoji = r.Emoji,
+                        CaptionText = r.CaptionText,
+                        PinnedSlot = r.PinnedSlot,
+                        UseCount = r.UseCount,
+                        IsNsfw = r.Nsfw,
+                        IsDead = r.Dead,
+                        InLibrary = r.InLibrary
+                    };
+                    results.Add(newItem);
+                }
+            }
+
+            IsSemanticSearchActive = true;
+            _semanticSearchResults = results;
+            UpdateFilteredItems();
+            StatusText = $"Found {results.Count} semantic match{(results.Count == 1 ? "" : "es")} for \"{query}\".";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Semantic search failed: {ex.Message}";
+        }
+        finally
+        {
+            IsSemanticSearching = false;
+        }
+    }
+
+    [RelayCommand]
+    public void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+        IsSemanticSearchActive = false;
+        _semanticSearchResults.Clear();
+        UpdateFilteredItems();
     }
 
     [RelayCommand]
@@ -693,29 +1023,10 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void NextPage()
-    {
-        if (CurrentPage < TotalPages)
-        {
-            CurrentPage++;
-            UpdateCurrentPageItems();
-        }
-    }
-
-    [RelayCommand]
-    public void PrevPage()
-    {
-        if (CurrentPage > 1)
-        {
-            CurrentPage--;
-            UpdateCurrentPageItems();
-        }
-    }
-
-    [RelayCommand]
     public async Task RefreshMedia()
     {
         if (SelectedNode == null) return;
+        _needsRefresh = false;
         IsLoading = true;
         StatusText = "Loading media library...";
         try
@@ -756,10 +1067,6 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
                         IsDead = it.Dead,
                         InLibrary = it.InLibrary
                     };
-                    if (NoxMediaThumbnailCache.TryGetFromMemory(m.UniqueId, m.ExpectsAnimation, out var memAsset) && memAsset != null)
-                    {
-                        m.ApplyPreview(memAsset);
-                    }
                     all.Add(m);
                     if (m.PinnedSlot > 0)
                     {
@@ -856,10 +1163,9 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
 
             var previousSetName = SelectedPack?.SetName;
             var target = PackGroups.FirstOrDefault(p => p.SetName == previousSetName) ?? PackGroups.FirstOrDefault();
-            CurrentPage = 1;
             if (ReferenceEquals(SelectedPack, target))
             {
-                UpdateCurrentPageItems();
+                UpdateFilteredItems();
             }
             else
             {
@@ -914,95 +1220,6 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
         });
     }
 
-    private void UpdateCurrentPageItems()
-    {
-        CurrentPageItems.Clear();
-        if (SelectedPack == null)
-        {
-            TotalPages = 1;
-            CurrentPage = 1;
-            HasPrevPage = false;
-            HasNextPage = false;
-            PageSummary = "No pack selected";
-            return;
-        }
-
-        var query = SearchQuery?.Trim().ToLowerInvariant() ?? string.Empty;
-        var filter = SelectedFilter;
-        var libFilter = SelectedLibraryFilter;
-
-        var filtered = SelectedPack.Items.Where(it =>
-        {
-            if (filter == "Stickers" && it.Kind != "sticker") return false;
-            if (filter == "GIFs" && it.Kind is not ("gif" or "animation")) return false;
-
-            if (libFilter == "In Nox's Library" && !it.InLibrary) return false;
-            if (libFilter == "Not in Library" && it.InLibrary) return false;
-
-            if (string.IsNullOrEmpty(query)) return true;
-            return (it.CaptionText?.ToLowerInvariant().Contains(query) ?? false) ||
-                   (it.Emoji?.Contains(query) ?? false) ||
-                   (it.SetName?.ToLowerInvariant().Contains(query) ?? false);
-        }).ToList();
-
-        TotalPages = Math.Max(1, (int)Math.Ceiling(filtered.Count / (double)PageSize));
-        if (CurrentPage > TotalPages) CurrentPage = TotalPages;
-        if (CurrentPage < 1) CurrentPage = 1;
-
-        HasPrevPage = CurrentPage > 1;
-        HasNextPage = CurrentPage < TotalPages;
-        PageSummary = $"Page {CurrentPage} of {TotalPages} ({filtered.Count} shown)";
-
-        var pagedItems = filtered.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
-        foreach (var item in pagedItems)
-        {
-            if ((item.Thumbnail == null || (item.ExpectsAnimation && !item.IsAnimatedLoaded)) &&
-                NoxMediaThumbnailCache.TryGetFromMemory(item.UniqueId, item.ExpectsAnimation, out var cached) &&
-                cached != null)
-            {
-                item.ApplyPreview(cached);
-            }
-            CurrentPageItems.Add(item);
-        }
-
-        LoadThumbnailsForCurrentPage();
-    }
-
-    private void LoadThumbnailsForCurrentPage()
-    {
-        _thumbCts?.Cancel();
-        _thumbCts?.Dispose();
-        _thumbCts = new CancellationTokenSource();
-        var ct = _thumbCts.Token;
-
-        var itemsToLoad = CurrentPageItems
-            .Where(x => x.Thumbnail == null || (x.ExpectsAnimation && !x.IsAnimatedLoaded))
-            .ToList();
-        var node = SelectedNode;
-        if (node == null || itemsToLoad.Count == 0) return;
-
-        _ = Task.Run(async () =>
-        {
-            var tasks = itemsToLoad.Select(async item =>
-            {
-                var asset = await NoxMediaThumbnailCache.FetchPreviewAsync(_nodeManager, node, item.UniqueId, item.ExpectsAnimation);
-                if (asset != null && !ct.IsCancellationRequested)
-                {
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        item.ApplyPreview(asset);
-                        var pack = PackGroups.FirstOrDefault(g => g.SetName == item.SetName);
-                        if (pack != null && pack.Items.Count > 0 && ReferenceEquals(pack.Items[0], item))
-                        {
-                            pack.ApplyPreview(asset);
-                        }
-                    });
-                }
-            });
-            await Task.WhenAll(tasks);
-        }, ct);
-    }
-
     [RelayCommand(AllowConcurrentExecutions = true)]
     public async Task ToggleLibraryMembership(MediaItemModel? item)
     {
@@ -1038,7 +1255,7 @@ public sealed partial class MediaLibraryTabViewModel : ObservableObject
 
                 if (SelectedLibraryFilter != "All in Pack" || SelectedPack?.SetName == "nox_library")
                 {
-                    UpdateCurrentPageItems();
+                    UpdateFilteredItems();
                 }
             }
         }

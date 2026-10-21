@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
+	"github.com/klauspost/compress/zstd"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -363,7 +364,8 @@ func (w *WalSpool) QueryLogChunks(startChunkID uint64, maxChunks uint32) ([]*mad
 }
 
 // QueryApiCallChunks reads up to maxChunks matching NoxApiCallChunks from disk WAL, deduplicating unsealed updates by ChunkId.
-func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32) ([]*madtomv1.NoxApiCallChunk, bool, error) {
+// If summaryOnly is true, large payloads (raw JSON strings and full image byte arrays) are excluded to ensure lightweight list retrieval.
+func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, summaryOnly bool) ([]*madtomv1.NoxApiCallChunk, bool, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -409,14 +411,135 @@ func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32) ([]
 
 	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
 	var chunks []*madtomv1.NoxApiCallChunk
+	hasMore := false
 	for _, id := range order {
 		chunks = append(chunks, byID[id])
 		if uint32(len(chunks)) >= maxChunks {
-			return chunks, len(order) > len(chunks), nil
+			hasMore = len(order) > len(chunks)
+			break
 		}
 	}
 
-	return chunks, false, nil
+	if summaryOnly && len(chunks) > 0 {
+		dec, err := zstd.NewReader(nil)
+		if err == nil {
+			defer dec.Close()
+			enc, err := zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1), zstd.WithEncoderLevel(zstd.SpeedDefault))
+			if err == nil {
+				defer enc.Close()
+				for _, ch := range chunks {
+					if len(ch.ZstdRecords) == 0 {
+						continue
+					}
+					raw, err := dec.DecodeAll(ch.ZstdRecords, nil)
+					if err != nil {
+						continue
+					}
+					list := &madtomv1.NoxApiCallRecordList{}
+					if err := proto.Unmarshal(raw, list); err != nil {
+						continue
+					}
+
+					lightList := &madtomv1.NoxApiCallRecordList{
+						Records: make([]*madtomv1.NoxRawApiCallRecord, len(list.Records)),
+					}
+					for idx, r := range list.Records {
+						var lightImgs []*madtomv1.NoxImageData
+						for _, img := range r.ImageDataUrls {
+							lightImgs = append(lightImgs, &madtomv1.NoxImageData{
+								Label:    img.Label,
+								MimeType: img.MimeType,
+							})
+						}
+						lightList.Records[idx] = &madtomv1.NoxRawApiCallRecord{
+							CallId:            r.CallId,
+							TimestampUnixNano: r.TimestampUnixNano,
+							Caller:            r.Caller,
+							Model:             r.Model,
+							BaseUrl:           r.BaseUrl,
+							Temperature:       r.Temperature,
+							DurationMs:        r.DurationMs,
+							PromptTokens:      r.PromptTokens,
+							CompletionTokens:  r.CompletionTokens,
+							CachedTokens:      r.CachedTokens,
+							ImageDataUrls:     lightImgs,
+							ErrorMessage:      r.ErrorMessage,
+							// RawRequestJson and RawResponseJson omitted for summary
+						}
+					}
+
+					lightRaw, err := proto.Marshal(lightList)
+					if err == nil {
+						ch.ZstdRecords = enc.EncodeAll(lightRaw, nil)
+						ch.RawSize = uint32(len(lightRaw))
+					}
+				}
+			}
+		}
+	}
+
+	return chunks, hasMore, nil
+}
+
+// GetApiCall searches segments (newest to oldest) for a specific API call record by CallId.
+func (w *WalSpool) GetApiCall(callID string) (*madtomv1.NoxRawApiCallRecord, error) {
+	if callID == "" {
+		return nil, fmt.Errorf("empty call id")
+	}
+
+	w.mu.Lock()
+	segments := make([]segmentMeta, len(w.segments))
+	copy(segments, w.segments)
+	w.mu.Unlock()
+
+	dec, err := zstd.NewReader(nil)
+	if err != nil {
+		return nil, err
+	}
+	defer dec.Close()
+
+	// Scan from newest to oldest segment for instant hits on recent calls
+	for i := len(segments) - 1; i >= 0; i-- {
+		seg := segments[i]
+		f, err := os.Open(seg.path)
+		if err != nil {
+			continue
+		}
+
+		for {
+			var hdr [5]byte
+			if _, err := io.ReadFull(f, hdr[:]); err != nil {
+				break
+			}
+			kind := hdr[0]
+			payloadLen := binary.BigEndian.Uint32(hdr[1:5])
+			payload := make([]byte, payloadLen)
+			if _, err := io.ReadFull(f, payload); err != nil {
+				break
+			}
+
+			if kind == 'A' {
+				chunk := &madtomv1.NoxApiCallChunk{}
+				if err := proto.Unmarshal(payload, chunk); err == nil && len(chunk.ZstdRecords) > 0 {
+					raw, err := dec.DecodeAll(chunk.ZstdRecords, nil)
+					if err == nil {
+						list := &madtomv1.NoxApiCallRecordList{}
+						if err := proto.Unmarshal(raw, list); err == nil {
+							for _, r := range list.Records {
+								if r.CallId == callID {
+									_ = f.Close()
+									return r, nil
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		_ = f.Close()
+	}
+
+	return nil, fmt.Errorf("call id %s not found in spool", callID)
 }
 
 // Stats returns the current WAL spool metrics.
@@ -434,5 +557,35 @@ func (w *WalSpool) Close() error {
 	if w.currentFile != nil {
 		return w.currentFile.Close()
 	}
+	return nil
+}
+
+// Clear removes all WAL segment files from disk and resets all counters and chunk maps.
+func (w *WalSpool) Clear() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.currentFile != nil {
+		_ = w.currentFile.Close()
+		w.currentFile = nil
+	}
+
+	for _, seg := range w.segments {
+		_ = os.Remove(seg.path)
+	}
+
+	w.segments = nil
+	w.currentSeq = 0
+	w.currentBytes = 0
+	w.totalSpoolBytes = 0
+	w.totalLogRecords = 0
+	w.totalApiCalls = 0
+	w.maxLogSeq = 0
+	w.maxApiSeq = 0
+	w.oldestTs = 0
+	w.newestTs = 0
+	w.logChunkCounts = make(map[uint64]uint64)
+	w.apiChunkCounts = make(map[uint64]uint64)
+
 	return nil
 }

@@ -53,9 +53,23 @@
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="12">
-            <Grid RowDefinitions="Auto,*">
-                <TextBlock Grid.Row="0" Text="🧠 LONG-TERM ATOMIC MEMORIES (SQLITE + QDRANT HYBRID RAG)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" Margin="0,0,0,8"/>
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <Grid RowDefinitions="Auto,Auto,*">
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                    <TextBlock Text="🧠 LONG-TERM ATOMIC MEMORIES (SQLITE + QDRANT HYBRID RAG)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding SearchResultsSummary}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding IsSearchResultsActive}"/>
+                </Grid>
+
+                <!-- Search Header Bar -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,10">
+                    <TextBox x:Name="SearchBox"
+                             Text="{Binding SearchQuery, Mode=TwoWay}"
+                             PlaceholderText="🔍 Semantic hybrid search (e.g. user preferences, tech stack, facts)... [Press Enter]"
+                             KeyDown="OnSearchKeyDown"/>
+                    <Button Grid.Column="1" Command="{Binding SearchMemoriesHybridCommand}" Content="🔍 Search" Padding="12,5" FontWeight="SemiBold"/>
+                    <Button Grid.Column="2" Command="{Binding ClearSearchCommand}" Content="✕ Clear" Padding="8,5" IsVisible="{Binding IsSearchResultsActive}"/>
+                </Grid>
+
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Memories}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:MemoryItemModel">
@@ -65,12 +79,15 @@
                                         CornerRadius="6"
                                         Padding="10,6"
                                         Margin="0,3">
-                                    <Grid ColumnDefinitions="Auto,*,Auto">
-                                        <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                        <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
                                             <TextBlock Text="{Binding Category}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
                                         </Border>
-                                        <TextBlock Grid.Column="1" Text="{Binding Content}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="2" Command="{Binding $parent[UserControl].((vm:MemoriesRagTabViewModel)DataContext).DeleteMemoryCommand}" CommandParameter="{Binding Id}" Content="Forget" Padding="6,2" FontSize="10" Foreground="{DynamicResource CriticalBrush}"/>
+                                        <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0" IsVisible="{Binding HasScore}">
+                                            <TextBlock Text="{Binding ScoreDisplay}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" FontWeight="SemiBold" Foreground="{DynamicResource HealthyBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="2" Text="{Binding Content}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="3" Command="{Binding $parent[UserControl].((vm:MemoriesRagTabViewModel)DataContext).DeleteMemoryCommand}" CommandParameter="{Binding Id}" Content="Forget" Padding="6,2" FontSize="10" Foreground="{DynamicResource CriticalBrush}"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

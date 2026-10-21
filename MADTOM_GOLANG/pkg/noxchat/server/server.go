@@ -602,7 +602,7 @@ func (s *Server) QueryLogChunks(ctx context.Context, req *madtomv1.LogChunkQuery
 }
 
 func (s *Server) QueryApiCallChunks(ctx context.Context, req *madtomv1.NoxApiCallChunkQuery) (*madtomv1.NoxApiCallChunkResponse, error) {
-	chunks, hasMore, err := s.walSpool.QueryApiCallChunks(req.StartChunkId, req.MaxChunks)
+	chunks, hasMore, err := s.walSpool.QueryApiCallChunks(req.StartChunkId, req.MaxChunks, req.SummaryOnly)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "wal api query: %v", err)
 	}
@@ -610,6 +610,36 @@ func (s *Server) QueryApiCallChunks(ctx context.Context, req *madtomv1.NoxApiCal
 		NodeId:  s.cfg.NodeID,
 		Chunks:  chunks,
 		HasMore: hasMore,
+	}, nil
+}
+
+func (s *Server) GetApiCallDetail(ctx context.Context, req *madtomv1.NoxApiCallDetailRequest) (*madtomv1.NoxRawApiCallRecord, error) {
+	if req.CallId == "" {
+		return nil, status.Error(codes.InvalidArgument, "call_id cannot be empty")
+	}
+
+	rec, err := s.walSpool.GetApiCall(req.CallId)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "api call not found: %v", err)
+	}
+	return rec, nil
+}
+
+func (s *Server) ClearSpool(ctx context.Context, req *madtomv1.NoxClearSpoolRequest) (*madtomv1.NoxClearSpoolResponse, error) {
+	if err := s.walSpool.Clear(); err != nil {
+		return &madtomv1.NoxClearSpoolResponse{
+			Success: false,
+			Message: fmt.Sprintf("failed to clear WAL spool: %v", err),
+		}, nil
+	}
+
+	s.logBuffer.ClearAndReset()
+	s.stateBuffer.ClearAndReset()
+
+	log.Printf("[NoxChat_Probe] WAL spool files, active log buffers, and state buffers completely cleared (clean reset) for node %s", req.NodeId)
+	return &madtomv1.NoxClearSpoolResponse{
+		Success: true,
+		Message: "WAL spool files, active logs, and API call buffers cleared successfully.",
 	}, nil
 }
 

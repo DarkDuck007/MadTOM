@@ -455,6 +455,17 @@ public sealed class LogChunkCache
                 return true;
             }
 
+            if (seq > 0)
+            {
+                var altKey = new LogChunkKey(node, (seq - 1) / 256);
+                if (_compressedMap.TryGetValue(altKey, out var altNode) &&
+                    seq >= altNode.Value.Chunk.FirstSeq && seq <= altNode.Value.Chunk.LastSeq)
+                {
+                    chunkId = (seq - 1) / 256;
+                    return true;
+                }
+            }
+
             if (_nodeRanges.TryGetValue(node, out var list) && list.Count > 0)
             {
                 int low = 0, high = list.Count - 1;
@@ -476,6 +487,12 @@ public sealed class LogChunkCache
                         return true;
                     }
                 }
+
+                // If node is 1-based and beyond known ranges
+                if (list[0].FirstSeq == 1 && seq > 0)
+                {
+                    chunkId = (seq - 1) / 256;
+                }
             }
         }
 
@@ -492,28 +509,53 @@ public sealed class LogChunkCache
         TryGetChunkIdForSeq(node, seq, out ulong targetChunkId);
 
         var records = GetDecodedChunk(collector, node, targetChunkId);
-        if (records != null && records.Count > 0)
+        if (records == null && seq > 0)
         {
-            ulong firstSeq = records[0].Seq;
-        if (seq >= firstSeq)
-        {
-            int index = (int)(seq - firstSeq);
-            if (index >= 0 && index < records.Count)
+            ulong altId = (seq - 1) / 256;
+            if (altId != targetChunkId)
             {
-                var r = records[index];
-                if (r.Seq == seq) return r;
+                var altRecords = GetDecodedChunk(collector, node, altId);
+                if (altRecords != null)
+                {
+                    records = altRecords;
+                    targetChunkId = altId;
+                }
             }
         }
 
-        // Secondary search in case sequence numbers have gaps or non-standard indexing
-        for (int i = 0; i < records.Count; i++)
+        if (records != null && records.Count > 0)
         {
-            if (records[i].Seq == seq) return records[i];
-        }
+            ulong firstSeq = records[0].Seq;
+            if (seq >= firstSeq)
+            {
+                int index = (int)(seq - firstSeq);
+                if (index >= 0 && index < records.Count)
+                {
+                    var r = records[index];
+                    if (r.Seq == seq) return r;
+                }
+            }
+
+            // Secondary search in case sequence numbers have gaps or non-standard indexing
+            for (int i = 0; i < records.Count; i++)
+            {
+                if (records[i].Seq == seq) return records[i];
+            }
         }
 
         // Countermeasure: If chunk loading or decoding recorded an error, synthesize an error record
-        if (TryGetChunkError(node, targetChunkId, out var chunkErr) && chunkErr != null)
+        LogChunkError? chunkErr = null;
+        if (TryGetChunkError(node, targetChunkId, out var err))
+        {
+            chunkErr = err;
+        }
+        else if (seq > 0 && TryGetChunkError(node, (seq - 1) / 256, out var altErr))
+        {
+            chunkErr = altErr;
+            targetChunkId = (seq - 1) / 256;
+        }
+
+        if (chunkErr != null)
         {
             long tsNano = new DateTimeOffset(chunkErr.TimestampUtc).ToUnixTimeMilliseconds() * 1_000_000L;
             string stackSnippet = string.IsNullOrWhiteSpace(chunkErr.StackTrace)

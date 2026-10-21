@@ -55,6 +55,16 @@ public sealed class NoxNodeManager : IAsyncDisposable
 
     public void AddOrUpdateNode(NoxNodeModel node)
     {
+        if (_nodes.TryGetValue(node.Id, out var existing))
+        {
+            if (!string.Equals(existing.HostEndpoint, node.HostEndpoint, StringComparison.OrdinalIgnoreCase))
+            {
+                if (_channels.TryRemove(node.Id, out var oldCh))
+                {
+                    try { oldCh.Dispose(); } catch { }
+                }
+            }
+        }
         _nodes[node.Id] = node;
         SaveNodes();
         NodesChanged?.Invoke();
@@ -109,7 +119,8 @@ public sealed class NoxNodeManager : IAsyncDisposable
             return GrpcChannel.ForAddress(url, new GrpcChannelOptions
             {
                 HttpHandler = httpHandler,
-                MaxReceiveMessageSize = 32 * 1024 * 1024
+                MaxReceiveMessageSize = 256 * 1024 * 1024,
+                MaxSendMessageSize = 256 * 1024 * 1024
             });
         });
 

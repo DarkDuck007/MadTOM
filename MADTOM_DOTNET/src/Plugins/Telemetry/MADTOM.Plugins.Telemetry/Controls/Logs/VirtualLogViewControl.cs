@@ -507,9 +507,9 @@ public sealed class VirtualLogViewControl : Control
         // Prefetch any missing chunks for the visible viewport + overscan (only when collector stores chunks)
         if (LogMode == TelemetryOptInMode.OptInMonitorAndStore && LogCache != null && !string.IsNullOrEmpty(NodeId))
         {
-            ulong firstChunkId = firstVisibleSeq / 256;
+            ulong firstChunkId = firstVisibleSeq > 0 ? (firstVisibleSeq - 1) / 256 : 0;
             if (LogCache.TryGetChunkIdForSeq(NodeId, firstVisibleSeq, out ulong rFirst)) firstChunkId = rFirst;
-            ulong lastChunkId = lastVisibleSeq / 256;
+            ulong lastChunkId = lastVisibleSeq > 0 ? (lastVisibleSeq - 1) / 256 : 0;
             if (LogCache.TryGetChunkIdForSeq(NodeId, lastVisibleSeq, out ulong rLast)) lastChunkId = rLast;
 
             for (ulong c = firstChunkId; c <= lastChunkId; c++)
@@ -546,7 +546,7 @@ public sealed class VirtualLogViewControl : Control
             {
                 if (LogMode == TelemetryOptInMode.OptInMonitorAndStore && !string.IsNullOrEmpty(NodeId))
                 {
-                    ulong reqChunkId = seq / 256;
+                    ulong reqChunkId = seq > 0 ? (seq - 1) / 256 : 0;
                     if (LogCache != null && LogCache.TryGetChunkIdForSeq(NodeId, seq, out ulong mId)) reqChunkId = mId;
                     NeedChunk?.Invoke(this, reqChunkId);
                 }
@@ -603,7 +603,7 @@ public sealed class VirtualLogViewControl : Control
 
     private void DrawPlaceholder(DrawingContext context, ulong seq, double y, IBrush textMuted)
     {
-        ulong chunkId = seq / 256;
+        ulong chunkId = seq > 0 ? (seq - 1) / 256 : 0;
         if (LogCache != null && !string.IsNullOrEmpty(NodeId) && LogCache.TryGetChunkIdForSeq(NodeId, seq, out ulong resolvedChunkId))
         {
             chunkId = resolvedChunkId;

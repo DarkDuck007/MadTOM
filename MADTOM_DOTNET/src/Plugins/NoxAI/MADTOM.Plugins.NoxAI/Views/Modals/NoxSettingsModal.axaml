@@ -123,14 +123,20 @@
                                                             <StackPanel Spacing="6">
                                                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                                                     <StackPanel Spacing="2" VerticalAlignment="Center">
-                                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                                             <TextBlock Text="{Binding Id}" FontWeight="Bold" FontSize="11"/>
                                                                             <TextBlock Text="{Binding Alias}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                                            <Border IsVisible="{Binding IsBeingEdited}" Background="{DynamicResource AccentSubtleBrush}" CornerRadius="3" Padding="4,1">
+                                                                                <TextBlock Text="Editing" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                                            </Border>
                                                                         </StackPanel>
                                                                         <TextBlock Text="{Binding PublicKeyDisplay}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
                                                                     </StackPanel>
                                                                     <TextBlock Grid.Column="1" Text="{Binding Endpoint}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="12,0"/>
-                                                                    <Button Grid.Column="2" Command="{Binding $parent[UserControl].((vm:NoxSettingsViewModel)DataContext).RemoveNodeCommand}" CommandParameter="{Binding Id}" Content="Remove" FontSize="10" Foreground="{DynamicResource CriticalBrush}"/>
+                                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                        <Button Command="{Binding $parent[UserControl].((vm:NoxSettingsViewModel)DataContext).SelectNodeForEditCommand}" CommandParameter="{Binding Id}" Content="Edit" FontSize="10" Padding="8,2" Background="{DynamicResource BaseBrush}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                                        <Button Command="{Binding $parent[UserControl].((vm:NoxSettingsViewModel)DataContext).RemoveNodeCommand}" CommandParameter="{Binding Id}" Content="Remove" FontSize="10" Padding="8,2" Foreground="{DynamicResource CriticalBrush}"/>
+                                                                    </StackPanel>
                                                                 </Grid>
 
                                                                 <!-- Per-Node Log & API Mode Controls -->
@@ -191,12 +197,25 @@
                                     </ScrollViewer>
                                 </Border>
 
-                                <!-- Connect New Node -->
-                                <TextBlock Text="CONNECT NEW NODE (SSH-STYLE KEY PROVISIONING)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
-                                    <TextBox Text="{Binding NewNodeAlias, Mode=TwoWay}" PlaceholderText="Node Alias (e.g. Nox Box)"/>
-                                    <TextBox Grid.Column="1" Text="{Binding NewNodeEndpoint, Mode=TwoWay}" PlaceholderText="Host:Port (e.g. noxbox.local:50055 or 127.0.0.1:50055)"/>
-                                    <Button Grid.Column="2" Command="{Binding AddNodeCommand}" Content="+ Add Node" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+                                <!-- Connect New Node / Edit Existing Connection -->
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding NodeFormSectionTitle}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <Border Grid.Column="1"
+                                            IsVisible="{Binding IsEditingNode}"
+                                            Background="{DynamicResource AccentSubtleBrush}"
+                                            BorderBrush="{DynamicResource AccentBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="6,1">
+                                        <TextBlock Text="✓ Existing Key Preserved" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    </Border>
+                                </Grid>
+                                <Grid ColumnDefinitions="110,*,*,Auto,Auto" ColumnSpacing="8">
+                                    <TextBox Text="{Binding NewNodeId, Mode=TwoWay}" PlaceholderText="Node ID (e.g. tp1)"/>
+                                    <TextBox Grid.Column="1" Text="{Binding NewNodeAlias, Mode=TwoWay}" PlaceholderText="Node Alias (e.g. Nox Box)"/>
+                                    <TextBox Grid.Column="2" Text="{Binding NewNodeEndpoint, Mode=TwoWay}" PlaceholderText="Host:Port (e.g. 192.168.0.58:50055)"/>
+                                    <Button Grid.Column="3" Command="{Binding SaveNodeCommand}" Content="{Binding SaveNodeButtonText}" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+                                    <Button Grid.Column="4" IsVisible="{Binding IsEditingNode}" Command="{Binding CancelEditNodeCommand}" Content="Cancel" Padding="8,4" FontSize="11"/>
                                 </Grid>
 
                                 <!-- Server .env Copy Snippet -->
@@ -313,6 +332,7 @@
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Text="CACHE PRELOADING &amp; STRESS TEST" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
                                     <StackPanel Orientation="Horizontal" Spacing="6" Grid.Column="1">
+                                        <Button Command="{Binding LoadEntireLogSpoolCommand}" Content="📂 Load Entire Spool" Padding="8,2" IsEnabled="{Binding !IsPreloading}" ToolTip.Tip="Download entire historical log and API spool from server into local cache"/>
                                         <Button Command="{Binding ForceLoadLogsCommand}" Content="Force Load Logs" Padding="8,2" IsEnabled="{Binding !IsPreloading}"/>
                                         <Button Command="{Binding ForceLoadTelemetryCommand}" Content="Force Load Telemetry" Padding="8,2" IsEnabled="{Binding !IsPreloading}"/>
                                     </StackPanel>

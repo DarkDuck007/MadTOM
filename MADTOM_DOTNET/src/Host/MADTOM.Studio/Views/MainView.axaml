@@ -294,8 +294,9 @@
 
         <!-- On-Screen Keyboard Overlay (Centered / Movable) -->
         <views:OnScreenKeyboardView DataContext="{Binding Keyboard}"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Bottom"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
+                                    ClipToBounds="False"
                                     ZIndex="150" />
 
         <!-- Full-Screen Dimmed MADTOM Studio Settings Modal -->

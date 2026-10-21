@@ -60,6 +60,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RawLogsApiTab = new RawLogsApiTabViewModel(_nodeManager, _logCache, _apiCache);
         SettingsViewModel = new NoxSettingsViewModel(_nodeManager, _historyCache, _logCache, _apiCache, _cacheStore);
 
+        MediaLibraryTab.IsTabActive = SelectedWorkspaceTabIndex == 3;
+
         RefreshActiveNodes();
 
         SettingsViewModel.CloseRequested += () => IsSettingsModalOpen = false;
@@ -86,13 +88,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void RefreshActiveNodes()
     {
+        string? prevSelectedId = SelectedNode?.Id;
         ActiveNodes.Clear();
         foreach (var node in _nodeManager.Nodes)
         {
             ActiveNodes.Add(node);
         }
 
-        if (SelectedNode == null || !ActiveNodes.Any(n => n.Id == SelectedNode.Id))
+        if (prevSelectedId != null)
+        {
+            SelectedNode = ActiveNodes.FirstOrDefault(n => n.Id.Equals(prevSelectedId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (SelectedNode == null)
         {
             SelectedNode = ActiveNodes.FirstOrDefault();
         }
@@ -104,6 +112,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private CancellationTokenSource? _stateStreamCts;
+
+    partial void OnSelectedWorkspaceTabIndexChanged(int value)
+    {
+        if (MediaLibraryTab != null)
+        {
+            MediaLibraryTab.IsTabActive = value == 3;
+        }
+    }
 
     partial void OnSelectedNodeChanged(NoxNodeModel? value)
     {

@@ -16,7 +16,7 @@
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="12,8">
-            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="12" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
                 <!-- Per-Node Mode Badge -->
                 <Border Grid.Column="0"
                         Background="{DynamicResource AccentSubtleBrush}"
@@ -48,7 +48,7 @@
                 </StackPanel>
 
                 <Button Grid.Column="3" Command="{Binding RefreshSpoolStatusCommand}" Content="🔄 Refresh" Padding="8,4" FontSize="11" ToolTip.Tip="Query server spool usage stats"/>
-                <Button Grid.Column="4" Command="{Binding LoadSpooledChunksCommand}" Content="📂 Load Spool" Padding="8,4" FontSize="11" ToolTip.Tip="Download stored logs and API calls from server spool into view"/>
+                <Button Grid.Column="4" Command="{Binding ClearSpoolCommand}" Content="🗑️ Clear Spool" Padding="8,4" FontSize="11" Foreground="#EF4444" ToolTip.Tip="Completely clear server-side spools and reset cached logs and API calls"/>
             </Grid>
         </Border>
 
@@ -71,7 +71,8 @@
                                                     LastSeq="{Binding LastSeq}"
                                                     IsFollowMode="{Binding IsFollowMode, Mode=TwoWay}"
                                                     LogCache="{Binding LogCache}"
-                                                    CacheRevision="{Binding CacheRevision}"/>
+                                                    CacheRevision="{Binding CacheRevision}"
+                                                    ChunkUnavailablePredicate="{Binding IsChunkUnavailablePredicate}"/>
                     </Border>
 
                     <!-- Floating "Jump to latest (↓)" button -->
@@ -126,6 +127,26 @@
                                                     <TextBlock Text="{Binding Caller}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding DurationMs, StringFormat='{}{0}ms'}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
                                                 </Grid>
+                                                <!-- Chat Name Badge -->
+                                                <Border IsVisible="{Binding HasChatName}"
+                                                        Background="#162032"
+                                                        BorderBrush="#1E3A5F"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="5,2"
+                                                        HorizontalAlignment="Left"
+                                                        Margin="0,1">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="💬" FontSize="9" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding ChatName}"
+                                                                   FontSize="10"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#60A5FA"
+                                                                   MaxWidth="170"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
                                                 <Grid ColumnDefinitions="*,Auto">
                                                     <TextBlock Text="{Binding Model}" FontSize="10" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding TimestampText}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}"/>
@@ -170,7 +191,25 @@
                                         Padding="10">
                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="16" VerticalAlignment="Center">
                                         <StackPanel Spacing="2">
-                                            <TextBlock Text="{Binding SelectedApiCall.Caller, FallbackValue=''}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding SelectedApiCall.Caller, FallbackValue=''}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                <Border IsVisible="{Binding SelectedApiCall.HasChatName, FallbackValue=False}"
+                                                        Background="#162032"
+                                                        BorderBrush="#1E3A5F"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="💬" FontSize="10" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding SelectedApiCall.ChatName, FallbackValue=''}"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#60A5FA"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
                                             <TextBlock Text="{Binding SelectedApiCall.Model, FallbackValue=''}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Spacing="2">
@@ -190,6 +229,179 @@
 
                                 <!-- JSON & Image Payloads -->
                                 <TabControl Grid.Row="1">
+                                    <TabItem Header="💻 Parsed Chat (CLI / Log)" FontSize="11">
+                                        <ScrollViewer Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemsSource="{Binding SelectedApiCall.ParsedTurns}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:ParsedTurnItemModel">
+                                                        <Border Background="#0D1117"
+                                                                BorderBrush="{Binding BorderBrushHex}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="6"
+                                                                Padding="12,10"
+                                                                Margin="0,0,0,10">
+                                                            <StackPanel Spacing="8">
+                                                                <!-- Turn Header Ribbon -->
+                                                                <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                                                    <Border Background="{Binding HeaderBadgeBackground}"
+                                                                            CornerRadius="4"
+                                                                            Padding="6,3">
+                                                                        <TextBlock Text="{Binding HeaderTitle}"
+                                                                                   FontSize="10"
+                                                                                   FontWeight="Bold"
+                                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                                   Foreground="{Binding HeaderBadgeForeground}"/>
+                                                                    </Border>
+                                                                    <TextBlock Grid.Column="2"
+                                                                               Text="{Binding TimestampText}"
+                                                                               FontSize="9"
+                                                                               FontFamily="{StaticResource MonoFontFamily}"
+                                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                                               VerticalAlignment="Center"/>
+                                                                </Grid>
+
+                                                                <!-- System Sections Breakdown (for system prompt turns) -->
+                                                                <ItemsControl ItemsSource="{Binding SystemSections}"
+                                                                              IsVisible="{Binding HasSystemSections}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate x:DataType="vm:ParsedSystemSectionModel">
+                                                                            <Border Background="#161226"
+                                                                                    BorderBrush="#4C1D95"
+                                                                                    BorderThickness="1"
+                                                                                    CornerRadius="5"
+                                                                                    Padding="10,8"
+                                                                                    Margin="0,3">
+                                                                                <StackPanel Spacing="6">
+                                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                                        <TextBlock Text="{Binding SectionIcon}" FontSize="11" VerticalAlignment="Center"/>
+                                                                                        <TextBlock Text="{Binding Header, StringFormat='[SYS // {0}]'}"
+                                                                                                   FontSize="10"
+                                                                                                   FontWeight="Bold"
+                                                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                                                   Foreground="{Binding BadgeColor}"
+                                                                                                   VerticalAlignment="Center"/>
+                                                                                    </StackPanel>
+                                                                                    <SelectableTextBlock Text="{Binding Content}"
+                                                                                                         FlowDirection="{Binding FlowDirection}"
+                                                                                                         TextAlignment="{Binding TextAlignment}"
+                                                                                                         FontSize="10.5"
+                                                                                                         Foreground="#E2E8F0"
+                                                                                                         TextWrapping="Wrap"
+                                                                                                         LineHeight="16"/>
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+
+                                                                <!-- Main Message Text (for user and bot turns) -->
+                                                                <SelectableTextBlock Text="{Binding Text}"
+                                                                                     FlowDirection="{Binding FlowDirection}"
+                                                                                     TextAlignment="{Binding TextAlignment}"
+                                                                                     IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                                     FontSize="11.5"
+                                                                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                                     TextWrapping="Wrap"
+                                                                                     LineHeight="17"/>
+
+                                                                <!-- Thinking / Reasoning Process (for bot turns) -->
+                                                                <Border Background="#1C1917"
+                                                                        BorderBrush="#B45309"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="5"
+                                                                        Padding="10,8"
+                                                                        IsVisible="{Binding HasThought}">
+                                                                    <StackPanel Spacing="4">
+                                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                            <TextBlock Text="⚡" FontSize="11" VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="[THINKING PROCESS / CHAIN OF THOUGHT]"
+                                                                                       FontSize="9"
+                                                                                       FontWeight="Bold"
+                                                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                                                       Foreground="#FBBF24"/>
+                                                                        </StackPanel>
+                                                                        <SelectableTextBlock Text="{Binding ThoughtText}"
+                                                                                             FlowDirection="{Binding ThoughtFlowDirection}"
+                                                                                             TextAlignment="{Binding ThoughtTextAlignment}"
+                                                                                             FontSize="10.5"
+                                                                                             Foreground="#FCD34D"
+                                                                                             TextWrapping="Wrap"
+                                                                                             LineHeight="16"/>
+                                                                    </StackPanel>
+                                                                </Border>
+
+                                                                <!-- Tool Calls Breakdown -->
+                                                                <ItemsControl ItemsSource="{Binding ToolCalls}"
+                                                                              IsVisible="{Binding HasToolCalls}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate x:DataType="vm:ParsedToolCallModel">
+                                                                            <Border Background="#1F1322"
+                                                                                    BorderBrush="#9D174D"
+                                                                                    BorderThickness="1"
+                                                                                    CornerRadius="5"
+                                                                                    Padding="8,6"
+                                                                                    Margin="0,3">
+                                                                                <StackPanel Spacing="4">
+                                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                                        <TextBlock Text="⚙" FontSize="11" VerticalAlignment="Center"/>
+                                                                                        <TextBlock Text="{Binding Name, StringFormat='[TOOL CALL: {0}]'}"
+                                                                                                   FontSize="9"
+                                                                                                   FontWeight="Bold"
+                                                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                                                   Foreground="#F472B6"/>
+                                                                                    </StackPanel>
+                                                                                    <SelectableTextBlock Text="{Binding Arguments}"
+                                                                                                         FontFamily="{StaticResource MonoFontFamily}"
+                                                                                                         FontSize="10"
+                                                                                                         Foreground="#FBCFE8"
+                                                                                                         TextWrapping="Wrap"/>
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+
+                                                                <!-- Attached Multimodal Media -->
+                                                                <StackPanel Spacing="6" IsVisible="{Binding HasMediaAttachments}">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <TextBlock Text="📎" FontSize="11" VerticalAlignment="Center"/>
+                                                                        <TextBlock Text="[ATTACHED MEDIA]"
+                                                                                   FontSize="9"
+                                                                                   FontWeight="Bold"
+                                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                                   Foreground="#60A5FA"/>
+                                                                    </StackPanel>
+                                                                    <ItemsControl ItemsSource="{Binding MediaAttachments}">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <WrapPanel Orientation="Horizontal"/>
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate x:DataType="vm:RawApiCallImageItem">
+                                                                                <Border Background="{DynamicResource CardBgBrush}"
+                                                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                                                        BorderThickness="1"
+                                                                                        CornerRadius="6"
+                                                                                        Padding="6"
+                                                                                        Margin="0,0,8,8">
+                                                                                    <StackPanel Spacing="4">
+                                                                                        <Image Source="{Binding Preview}" Width="150" Height="150" Stretch="Uniform"/>
+                                                                                        <TextBlock Text="{Binding Label}" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                                                                        <TextBlock Text="{Binding MimeType}" FontSize="8" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                                                                    </StackPanel>
+                                                                                </Border>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </TabItem>
                                     <TabItem Header="Prompt Request JSON" FontSize="11">
                                         <TextBox Text="{Binding SelectedApiCall.RequestJson, FallbackValue=''}"
                                                  IsReadOnly="True"

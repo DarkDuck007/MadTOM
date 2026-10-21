@@ -32,14 +32,22 @@ public sealed partial class RawApiCallItemModel : ObservableObject
     public string CallId { get; init; } = string.Empty;
     public string Caller { get; init; } = string.Empty;
     public string Model { get; init; } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasChatName))]
+    private string _chatName = string.Empty;
+    public bool HasChatName => !string.IsNullOrWhiteSpace(ChatName);
     public string TimestampText { get; init; } = string.Empty;
+    public long TimestampUnixNano { get; init; }
     public uint DurationMs { get; init; }
     public uint PromptTokens { get; init; }
     public uint CompletionTokens { get; init; }
-    public string RequestJson { get; init; } = string.Empty;
-    public string ResponseJson { get; init; } = string.Empty;
+    [ObservableProperty] private string _requestJson = string.Empty;
+    [ObservableProperty] private string _responseJson = string.Empty;
     public ObservableCollection<RawApiCallImageItem> Images { get; } = new();
-    public bool HasImages => Images.Count > 0;
+    [ObservableProperty] private bool _hasImages;
+    public ObservableCollection<ParsedTurnItemModel> ParsedTurns { get; } = new();
+    [ObservableProperty] private bool _hasParsedTurns;
+    public bool IsDetailsLoaded { get; set; }
 }
 
 public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposable
@@ -174,7 +182,8 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             await RefreshSpoolStatus();
             if (node.LogMode != TelemetryOptInMode.OptInOff)
             {
-                await LoadSpooledChunks();
+                // Only load the lightweight API call list summary, NOT the entire 1GB log spool
+                await LoadApiCallListAsync();
             }
         }
         catch { }
@@ -305,8 +314,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             var apiChunk = NoxApiCallChunk.Parser.ParseFrom(payload);
             if (apiChunk != null && (apiChunk.RecordCount > 0 || apiChunk.ZstdRecords?.Length > 0))
             {
-                _apiCache.PutChunk(nodeId, apiChunk);
-                var decoded = _apiCache.GetDecodedChunk(nodeId, apiChunk.ChunkId);
+                var decoded = _apiCache.PutChunk(nodeId, apiChunk);
                 if (decoded != null && decoded.Count > 0)
                 {
                     if (verifyInnerFields && string.IsNullOrEmpty(decoded[0].CallId) && string.IsNullOrEmpty(decoded[0].Model))
@@ -314,7 +322,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                         return false;
                     }
 
-                    var models = decoded.Select(BuildApiCallItemModel).ToList();
+                    var models = decoded.Select(r => BuildApiCallItemModel(r, loadFullDetails: false)).ToList();
                     Dispatcher.UIThread.Post(() =>
                     {
                         StreamedChunksCount++;
@@ -330,43 +338,125 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         return false;
     }
 
-    private static RawApiCallItemModel BuildApiCallItemModel(NoxRawApiCallRecord r)
+    partial void OnSelectedApiCallChanged(RawApiCallItemModel? value)
+    {
+        if (value == null || value.IsDetailsLoaded) return;
+        EnsureDetailsLoaded(value);
+    }
+
+    public void EnsureDetailsLoaded(RawApiCallItemModel item)
+    {
+        if (item.IsDetailsLoaded) return;
+        var node = SelectedNode;
+        if (node == null) return;
+
+        var rec = _apiCache.GetRecord(node.Id, item.CallId);
+        if (rec != null && !string.IsNullOrWhiteSpace(rec.RawRequestJson))
+        {
+            PopulateItemDetails(item, rec);
+            return;
+        }
+
+        // Fetch full record on-demand from server
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var client = _nodeManager.GetClient(node);
+                var fullRec = await client.GetApiCallDetailAsync(new NoxApiCallDetailRequest
+                {
+                    NodeId = node.Id,
+                    CallId = item.CallId
+                });
+
+                if (fullRec != null && !string.IsNullOrEmpty(fullRec.CallId))
+                {
+                    _apiCache.PutRecords(node.Id, new[] { fullRec });
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (SelectedApiCall?.CallId == item.CallId || item.CallId == fullRec.CallId)
+                        {
+                            PopulateItemDetails(item, fullRec);
+                        }
+                    });
+                }
+            }
+            catch { }
+        });
+    }
+
+    private static void PopulateItemDetails(RawApiCallItemModel item, NoxRawApiCallRecord r)
+    {
+        item.RequestJson = FormatJsonForDisplay(r.RawRequestJson);
+        item.ResponseJson = FormatJsonForDisplay(r.RawResponseJson);
+
+        item.Images.Clear();
+        if (r.ImageDataUrls != null)
+        {
+            foreach (var img in r.ImageDataUrls)
+            {
+                if (img.ImageBytes != null && !img.ImageBytes.IsEmpty)
+                {
+                    try
+                    {
+                        using var ms = new MemoryStream(img.ImageBytes.ToByteArray());
+                        var bmp = new Bitmap(ms);
+                        item.Images.Add(new RawApiCallImageItem
+                        {
+                            Label = string.IsNullOrEmpty(img.Label) ? "Prompt Image" : img.Label,
+                            MimeType = img.MimeType ?? "image/jpeg",
+                            Preview = bmp
+                        });
+                    }
+                    catch { }
+                }
+            }
+        }
+        item.HasImages = item.Images.Count > 0;
+
+        item.ParsedTurns.Clear();
+        try
+        {
+            var parsed = NoxChatSessionParser.Parse(item);
+            foreach (var p in parsed)
+            {
+                item.ParsedTurns.Add(p);
+            }
+        }
+        catch { }
+        item.HasParsedTurns = item.ParsedTurns.Count > 0;
+
+        item.IsDetailsLoaded = true;
+    }
+
+    private static RawApiCallItemModel BuildApiCallItemModel(NoxRawApiCallRecord r, bool loadFullDetails = false)
     {
         string tsText = r.TimestampUnixNano > 0
             ? DateTimeOffset.FromUnixTimeMilliseconds(r.TimestampUnixNano / 1_000_000).ToLocalTime().ToString("HH:mm:ss.fff")
             : DateTime.Now.ToString("HH:mm:ss.fff");
+
+        string chatName = NoxChatSessionParser.ExtractChatName(r.RawRequestJson, r.Caller);
 
         var item = new RawApiCallItemModel
         {
             CallId = string.IsNullOrEmpty(r.CallId) ? Guid.NewGuid().ToString("N")[..12] : r.CallId,
             Caller = string.IsNullOrEmpty(r.Caller) ? "LLMClient" : r.Caller,
             Model = r.Model ?? string.Empty,
+            ChatName = chatName,
             TimestampText = tsText,
+            TimestampUnixNano = r.TimestampUnixNano > 0 ? r.TimestampUnixNano : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L,
             DurationMs = r.DurationMs,
             PromptTokens = r.PromptTokens,
             CompletionTokens = r.CompletionTokens,
-            RequestJson = FormatJsonForDisplay(r.RawRequestJson),
-            ResponseJson = FormatJsonForDisplay(r.RawResponseJson),
+            HasImages = r.ImageDataUrls != null && r.ImageDataUrls.Count > 0,
+            IsDetailsLoaded = loadFullDetails
         };
 
-        foreach (var img in r.ImageDataUrls)
+        if (loadFullDetails)
         {
-            if (img.ImageBytes != null && !img.ImageBytes.IsEmpty)
-            {
-                try
-                {
-                    using var ms = new MemoryStream(img.ImageBytes.ToByteArray());
-                    var bmp = new Bitmap(ms);
-                    item.Images.Add(new RawApiCallImageItem
-                    {
-                        Label = string.IsNullOrEmpty(img.Label) ? "Prompt Image" : img.Label,
-                        MimeType = img.MimeType ?? "image/jpeg",
-                        Preview = bmp
-                    });
-                }
-                catch { }
-            }
+            PopulateItemDetails(item, r);
         }
+
         return item;
     }
 
@@ -428,20 +518,56 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
 
     private void AddOrUpdateApiCallsOnUi(IReadOnlyList<RawApiCallItemModel> items)
     {
+        if (items.Count == 0) return;
+
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => AddOrUpdateApiCallsOnUi(items));
+            return;
+        }
+
+        var newItems = new List<RawApiCallItemModel>(items.Count);
         foreach (var item in items)
         {
-            if (!_seenApiCallIds.Add(item.CallId))
+            if (_seenApiCallIds.Add(item.CallId))
             {
-                continue;
-            }
-            RecentApiCalls.Insert(0, item);
-            if (RecentApiCalls.Count > 200)
-            {
-                var removed = RecentApiCalls[RecentApiCalls.Count - 1];
-                _seenApiCallIds.Remove(removed.CallId);
-                RecentApiCalls.RemoveAt(RecentApiCalls.Count - 1);
+                newItems.Add(item);
             }
         }
+
+        if (newItems.Count == 0) return;
+
+        if (RecentApiCalls.Count == 0)
+        {
+            // Fast path: sort descending by timestamp and add
+            var sorted = newItems.OrderByDescending(x => x.TimestampUnixNano);
+            foreach (var s in sorted)
+            {
+                RecentApiCalls.Add(s);
+            }
+        }
+        else
+        {
+            // Insert in descending order (newest first)
+            foreach (var item in newItems)
+            {
+                int index = 0;
+                while (index < RecentApiCalls.Count && RecentApiCalls[index].TimestampUnixNano > item.TimestampUnixNano)
+                {
+                    index++;
+                }
+                RecentApiCalls.Insert(index, item);
+            }
+        }
+
+        const int maxInMemoryCalls = 10_000;
+        while (RecentApiCalls.Count > maxInMemoryCalls)
+        {
+            var removed = RecentApiCalls[RecentApiCalls.Count - 1];
+            _seenApiCallIds.Remove(removed.CallId);
+            RecentApiCalls.RemoveAt(RecentApiCalls.Count - 1);
+        }
+
         if (SelectedApiCall == null && RecentApiCalls.Count > 0)
         {
             SelectedApiCall = RecentApiCalls[0];
@@ -465,6 +591,19 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         TotalRecords = LastSeq >= FirstSeq ? (LastSeq - FirstSeq + 1) : 0;
     }
 
+    private readonly Dictionary<ulong, DateTime> _chunkFetchFailures = new();
+    private static readonly TimeSpan RetryCooldown = TimeSpan.FromSeconds(10);
+
+    public bool IsChunkUnavailable(ulong chunkId)
+    {
+        lock (_inflightLogChunks)
+        {
+            return _chunkFetchFailures.TryGetValue(chunkId, out var failTime) && (DateTime.UtcNow - failTime < RetryCooldown);
+        }
+    }
+
+    public Func<ulong, bool> IsChunkUnavailablePredicate => IsChunkUnavailable;
+
     public void RequestChunk(ulong chunkId)
     {
         var node = SelectedNode;
@@ -472,11 +611,13 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
 
         lock (_inflightLogChunks)
         {
+            if (IsChunkUnavailable(chunkId)) return;
             if (!_inflightLogChunks.Add(chunkId)) return;
         }
 
         _ = Task.Run(async () =>
         {
+            bool found = false;
             try
             {
                 var client = _nodeManager.GetClient(node);
@@ -491,6 +632,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                 {
                     foreach (var c in resp.Chunks)
                     {
+                        if (c.ChunkId == chunkId) found = true;
                         _logCache.PutChunk("noxchat", node.Id, c);
                     }
                     Dispatcher.UIThread.Post(() =>
@@ -499,17 +641,37 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                         {
                             UpdateSeqBounds(c.FirstSeq, c.LastSeq);
                         }
-                        CacheRevision++;
                     });
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                lock (_inflightLogChunks)
+                {
+                    _chunkFetchFailures[chunkId] = DateTime.UtcNow;
+                    _logCache.RecordChunkError(node.Id, chunkId, ex.GetType().Name, ex.Message, ex.ToString());
+                }
+            }
             finally
             {
                 lock (_inflightLogChunks)
                 {
                     _inflightLogChunks.Remove(chunkId);
+                    if (!found && !_chunkFetchFailures.ContainsKey(chunkId))
+                    {
+                        _chunkFetchFailures[chunkId] = DateTime.UtcNow;
+                        _logCache.RecordChunkError(node.Id, chunkId, "NOT_FOUND",
+                            $"Chunk #{chunkId} was not found on node {node.Id} spool.");
+                    }
+                    else if (found)
+                    {
+                        _chunkFetchFailures.Remove(chunkId);
+                    }
                 }
+                Dispatcher.UIThread.Post(() =>
+                {
+                    CacheRevision++;
+                });
             }
         });
     }
@@ -542,7 +704,8 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                 NodeId = SelectedNode.Id
             });
 
-            SpoolStatusSummary = $"Spool: {stats.TotalSpoolBytes / 1048576.0:F1} / {stats.MaxSpoolBytes / 1048576.0:F0} MiB ({stats.TotalLogRecords:N0} logs, {stats.TotalApiCalls:N0} API calls)";
+            string loadedText = RecentApiCalls.Count > 0 ? $", {RecentApiCalls.Count:N0} loaded" : string.Empty;
+            SpoolStatusSummary = $"Spool: {stats.TotalSpoolBytes / 1048576.0:F1} / {stats.MaxSpoolBytes / 1048576.0:F0} MiB ({stats.TotalLogRecords:N0} logs, {stats.TotalApiCalls:N0} API calls{loadedText})";
         }
         catch
         {
@@ -550,66 +713,264 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         }
     }
 
+    private bool _isLoadingSpool;
+
+    [RelayCommand]
+    public async Task LoadApiCallListAsync()
+    {
+        var node = SelectedNode;
+        if (node == null) return;
+
+        try
+        {
+            var client = _nodeManager.GetClient(node);
+            ulong nextApiChunkId = 0;
+            bool hasMoreApi = true;
+            int consecutiveErrors = 0;
+
+            while (hasMoreApi && consecutiveErrors < 3)
+            {
+                try
+                {
+                    var apiResp = await client.QueryApiCallChunksAsync(new NoxApiCallChunkQuery
+                    {
+                        NodeId = node.Id,
+                        StartChunkId = nextApiChunkId,
+                        MaxChunks = 8,
+                        SummaryOnly = true
+                    });
+
+                    if (apiResp.Chunks.Count == 0)
+                    {
+                        break;
+                    }
+
+                    consecutiveErrors = 0;
+                    ulong maxChunkId = nextApiChunkId;
+                    var apiModels = new List<RawApiCallItemModel>();
+                    foreach (var chunk in apiResp.Chunks)
+                    {
+                        if (chunk.ChunkId >= maxChunkId) maxChunkId = chunk.ChunkId;
+                        var decoded = _apiCache.PutChunk(node.Id, chunk);
+                        if (decoded != null)
+                        {
+                            foreach (var r in decoded)
+                            {
+                                apiModels.Add(BuildApiCallItemModel(r, loadFullDetails: false));
+                            }
+                        }
+                    }
+
+                    if (apiModels.Count > 0)
+                    {
+                        AddOrUpdateApiCallsOnUi(apiModels);
+                    }
+
+                    nextApiChunkId = maxChunkId + 1;
+                    hasMoreApi = apiResp.HasMore;
+                }
+                catch (Exception)
+                {
+                    consecutiveErrors++;
+                    nextApiChunkId += 8;
+                }
+            }
+
+            if (SelectedApiCall != null)
+            {
+                EnsureDetailsLoaded(SelectedApiCall);
+            }
+        }
+        catch { }
+    }
+
     [RelayCommand]
     public async Task LoadSpooledChunks()
     {
         var node = SelectedNode;
-        if (node == null) return;
+        if (node == null || _isLoadingSpool) return;
+        _isLoadingSpool = true;
+
         try
         {
             var client = _nodeManager.GetClient(node);
 
-            var (logResp, apiResp) = await Task.Run(async () =>
+            NoxSpoolStatsResponse? stats = null;
+            try
             {
-                var lTask = client.QueryLogChunksAsync(new LogChunkQuery
-                {
-                    NodeId = node.Id,
-                    StartChunkId = 0,
-                    MaxChunks = 100
-                }).ResponseAsync;
-
-                var aTask = client.QueryApiCallChunksAsync(new NoxApiCallChunkQuery
-                {
-                    NodeId = node.Id,
-                    StartChunkId = 0,
-                    MaxChunks = 100
-                }).ResponseAsync;
-
-                await Task.WhenAll(lTask, aTask);
-                return (lTask.Result, aTask.Result);
-            });
-
-            foreach (var chunk in logResp.Chunks)
-            {
-                _logCache.PutChunk("noxchat", node.Id, chunk);
-                UpdateSeqBounds(chunk.FirstSeq, chunk.LastSeq);
+                stats = await client.GetSpoolStatsAsync(new NoxSpoolStatsRequest { NodeId = node.Id });
             }
-            CacheRevision++;
+            catch { }
 
-            var apiModels = await Task.Run(() =>
+            // 1. Load entire log spool in safe batches of up to 8 chunks
+            if (stats == null || stats.TotalLogRecords > 0)
             {
-                var list = new List<RawApiCallItemModel>();
-                foreach (var chunk in apiResp.Chunks)
+                ulong nextLogChunkId = 0;
+                bool hasMoreLogs = true;
+                int consecutiveErrors = 0;
+
+                while (hasMoreLogs && consecutiveErrors < 5)
                 {
-                    _apiCache.PutChunk(node.Id, chunk);
-                    var decoded = _apiCache.GetDecodedChunk(node.Id, chunk.ChunkId);
-                    if (decoded != null)
+                    try
                     {
-                        foreach (var r in decoded)
+                        var logResp = await client.QueryLogChunksAsync(new LogChunkQuery
                         {
-                            list.Add(BuildApiCallItemModel(r));
+                            NodeId = node.Id,
+                            StartChunkId = nextLogChunkId,
+                            MaxChunks = 8
+                        });
+
+                        if (logResp.Chunks.Count == 0)
+                        {
+                            break;
                         }
+
+                        consecutiveErrors = 0;
+                        ulong maxChunkId = nextLogChunkId;
+                        foreach (var chunk in logResp.Chunks)
+                        {
+                            if (chunk.ChunkId >= maxChunkId) maxChunkId = chunk.ChunkId;
+                            _logCache.PutChunk("noxchat", node.Id, chunk);
+                            UpdateSeqBounds(chunk.FirstSeq, chunk.LastSeq);
+                        }
+                        CacheRevision++;
+                        nextLogChunkId = maxChunkId + 1;
+                        hasMoreLogs = logResp.HasMore;
+                    }
+                    catch (Exception logEx)
+                    {
+                        consecutiveErrors++;
+                        SpoolStatusSummary = $"Log chunk #{nextLogChunkId} error: {logEx.Message}";
+                        nextLogChunkId += 8;
                     }
                 }
-                return list;
-            });
+            }
 
-            AddOrUpdateApiCallsOnUi(apiModels);
-            await RefreshSpoolStatus();
+            // 2. Load entire API call spool dynamically
+            // Query 1 chunk per request to stay strictly within gRPC limits even when containing large multimodal images
+            if (stats == null || stats.TotalApiCalls > 0)
+            {
+                ulong nextApiChunkId = 0;
+                bool hasMoreApi = true;
+                int consecutiveErrors = 0;
+
+                while (hasMoreApi && consecutiveErrors < 5)
+                {
+                    try
+                    {
+                        var apiResp = await client.QueryApiCallChunksAsync(new NoxApiCallChunkQuery
+                        {
+                            NodeId = node.Id,
+                            StartChunkId = nextApiChunkId,
+                            MaxChunks = 1
+                        });
+
+                        if (apiResp.Chunks.Count == 0)
+                        {
+                            break;
+                        }
+
+                        consecutiveErrors = 0;
+                        ulong maxChunkId = nextApiChunkId;
+                        var apiModels = new List<RawApiCallItemModel>();
+                        foreach (var chunk in apiResp.Chunks)
+                        {
+                            if (chunk.ChunkId >= maxChunkId) maxChunkId = chunk.ChunkId;
+                            var decoded = _apiCache.PutChunk(node.Id, chunk);
+                            if (decoded != null)
+                            {
+                                foreach (var r in decoded)
+                                {
+                                    apiModels.Add(BuildApiCallItemModel(r, loadFullDetails: false));
+                                }
+                            }
+                        }
+
+                        if (apiModels.Count > 0)
+                        {
+                            AddOrUpdateApiCallsOnUi(apiModels);
+                        }
+
+                        nextApiChunkId = maxChunkId + 1;
+                        hasMoreApi = apiResp.HasMore;
+                        SpoolStatusSummary = $"Loading spool: API chunk #{maxChunkId} ({RecentApiCalls.Count:N0} calls loaded)...";
+                    }
+                    catch (Exception apiEx)
+                    {
+                        consecutiveErrors++;
+                        SpoolStatusSummary = $"API chunk #{nextApiChunkId} error: {apiEx.Message}";
+                        nextApiChunkId++; // Advance to next chunk instead of aborting the whole spool
+                    }
+                }
+
+                _apiCache.FlushPending(node.Id);
+                if (SelectedApiCall != null)
+                {
+                    EnsureDetailsLoaded(SelectedApiCall);
+                }
+            }
+
+            if (stats != null)
+            {
+                SpoolStatusSummary = $"Spool: {stats.TotalSpoolBytes / 1048576.0:F1} / {stats.MaxSpoolBytes / 1048576.0:F0} MiB ({stats.TotalLogRecords:N0} logs, {RecentApiCalls.Count:N0} API calls loaded)";
+            }
+            else
+            {
+                await RefreshSpoolStatus();
+            }
+
+            LogStreamStatus = $"Spool Loaded ({TotalRecords:N0} logs · {RecentApiCalls.Count:N0} API calls)";
         }
         catch (Exception ex)
         {
             SpoolStatusSummary = $"Spool error: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingSpool = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task ClearSpool()
+    {
+        var node = SelectedNode;
+        if (node == null) return;
+
+        try
+        {
+            var client = _nodeManager.GetClient(node);
+            var resp = await client.ClearSpoolAsync(new NoxClearSpoolRequest
+            {
+                NodeId = node.Id
+            });
+
+            if (!resp.Success)
+            {
+                SpoolStatusSummary = $"Clear spool failed: {resp.Message}";
+                return;
+            }
+
+            // Clear local caches and UI collections
+            _apiCache.Clear(node.Id);
+            _logCache.Clear(node.Id);
+
+            _seenApiCallIds.Clear();
+            RecentApiCalls.Clear();
+            SelectedApiCall = null;
+            FirstSeq = 0;
+            LastSeq = 0;
+            TotalRecords = 0;
+            _isSeqRangeInitialized = false;
+            StreamedChunksCount = 0;
+            CacheRevision++;
+
+            await RefreshSpoolStatus();
+            SpoolStatusSummary = "Spool: Cleared (server & client reset)";
+        }
+        catch (Exception ex)
+        {
+            SpoolStatusSummary = $"Clear spool error: {ex.Message}";
         }
     }
 

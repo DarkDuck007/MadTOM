@@ -32,7 +32,7 @@ public partial class OnScreenKeyboardView : UserControl
                 if (point.Properties.IsLeftButtonPressed || e.Pointer.Type == PointerType.Touch || e.Pointer.Type == PointerType.Pen)
                 {
                     _isDragging = true;
-                    _startPoint = e.GetPosition(null);
+                    _startPoint = e.GetPosition(this);
                     _startTranslateX = _transform.X;
                     _startTranslateY = _transform.Y;
                     e.Pointer.Capture(header);
@@ -43,9 +43,28 @@ public partial class OnScreenKeyboardView : UserControl
             header.PointerMoved += (s, e) =>
             {
                 if (!_isDragging) return;
-                var current = e.GetPosition(null);
-                _transform.X = _startTranslateX + (current.X - _startPoint.X);
-                _transform.Y = _startTranslateY + (current.Y - _startPoint.Y);
+                var current = e.GetPosition(this);
+                double targetX = _startTranslateX + (current.X - _startPoint.X);
+                double targetY = _startTranslateY + (current.Y - _startPoint.Y);
+
+                if (card != null && Bounds.Width > 0 && Bounds.Height > 0)
+                {
+                    double cardW = card.Bounds.Width > 0 ? card.Bounds.Width : 660.0;
+                    double cardH = card.Bounds.Height > 0 ? card.Bounds.Height : 240.0;
+                    double defaultLeft = (Bounds.Width - cardW) / 2.0;
+                    double defaultTop = Bounds.Height - cardH - 16.0;
+
+                    double minX = -defaultLeft;
+                    double maxX = Bounds.Width - defaultLeft - cardW;
+                    double minY = -defaultTop;
+                    double maxY = 16.0;
+
+                    targetX = System.Math.Clamp(targetX, minX, maxX);
+                    targetY = System.Math.Clamp(targetY, minY, maxY);
+                }
+
+                _transform.X = targetX;
+                _transform.Y = targetY;
                 e.Handled = true;
             };
 
