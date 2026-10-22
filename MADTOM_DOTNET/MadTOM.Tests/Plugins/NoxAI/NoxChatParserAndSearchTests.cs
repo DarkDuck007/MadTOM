@@ -547,4 +547,75 @@ public class NoxChatParserAndSearchTests
         Assert.True(item.HasChatName);
         Assert.Matches(@"^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}$", item.TimestampText);
     }
+
+    [Fact]
+    public void NoxChatSessionParser_Differentiates_BotEntries_From_UserEntries_With_DistinctColorHex()
+    {
+        string prompt = @"Group Chat: 'Anime Club'
+[#1001 Alice]: Hey bot, tell me a joke
+[#1002 Nox (You) -> #1001]: Why did the chicken cross the road?
+[#1003 Bob -> #1002]: Haha good one
+[#1004 Minthara (You) -> #1003]: Silence, fool.";
+
+        var entries = NoxChatSessionParser.ParseChatEntries(prompt);
+
+        Assert.Equal(4, entries.Count);
+
+        // Entry 1: Alice (User)
+        Assert.False(entries[0].IsBot);
+        Assert.Equal("#10192A", entries[0].CardBackgroundHex);
+        Assert.Equal("#1E293B", entries[0].BorderBrushHex);
+        Assert.Equal("#38BDF8", entries[0].HeaderForegroundHex);
+        Assert.Equal("#E2E8F0", entries[0].TextForegroundHex);
+        Assert.False(entries[0].HasBadge);
+
+        // Entry 2: Nox (Bot)
+        Assert.True(entries[1].IsBot);
+        Assert.Equal("#0D281E", entries[1].CardBackgroundHex);
+        Assert.Equal("#059669", entries[1].BorderBrushHex);
+        Assert.Equal("#34D399", entries[1].HeaderForegroundHex);
+        Assert.Equal("#ECFDF5", entries[1].TextForegroundHex);
+        Assert.True(entries[1].HasBadge);
+        Assert.Equal("BOT", entries[1].BadgeText);
+
+        // Entry 3: Bob (User)
+        Assert.False(entries[2].IsBot);
+        Assert.Equal("#10192A", entries[2].CardBackgroundHex);
+        Assert.False(entries[2].HasBadge);
+
+        // Entry 4: Minthara (Bot persona)
+        Assert.True(entries[3].IsBot);
+        Assert.Equal("#0D281E", entries[3].CardBackgroundHex);
+        Assert.True(entries[3].HasBadge);
+        Assert.Equal("BOT", entries[3].BadgeText);
+    }
+
+    [Fact]
+    public void MemoriesRagTabViewModel_Open_And_Close_AvatarLightbox()
+    {
+        var manager = new NoxNodeManager();
+        var vm = new MemoriesRagTabViewModel(manager);
+
+        var profile = new UserProfileItemModel
+        {
+            UserId = 12345,
+            Username = "testuser",
+            FullName = "Test User Full Name"
+        };
+
+        // Open with null profile and no selected user -> does nothing
+        vm.SelectedUserProfile = null;
+        vm.OpenAvatarLightbox(null);
+        Assert.False(vm.IsAvatarLightboxOpen);
+
+        // Open with profile
+        vm.OpenAvatarLightbox(profile);
+        Assert.True(vm.IsAvatarLightboxOpen);
+        Assert.Equal("Test User Full Name", vm.LightboxTitle);
+        Assert.Equal("@testuser", vm.LightboxSubtitle);
+
+        // Close lightbox
+        vm.CloseAvatarLightbox();
+        Assert.False(vm.IsAvatarLightboxOpen);
+    }
 }

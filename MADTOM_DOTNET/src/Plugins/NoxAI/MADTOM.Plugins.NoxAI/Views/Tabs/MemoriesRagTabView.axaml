@@ -7,7 +7,8 @@
              x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.MemoriesRagTabView"
              x:DataType="vm:MemoriesRagTabViewModel">
 
-    <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="10">
+    <Panel>
+        <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="10">
         <!-- Status Bar -->
         <Border Grid.Row="0"
                 Background="{DynamicResource CardBgBrush}"
@@ -208,7 +209,10 @@
                                                             Background="#1F2937"
                                                             BorderBrush="{DynamicResource BorderSubtleBrush}"
                                                             BorderThickness="1"
-                                                            VerticalAlignment="Top">
+                                                            VerticalAlignment="Top"
+                                                            Cursor="Hand"
+                                                            ToolTip.Tip="Click to view full-size photo"
+                                                            PointerPressed="OnListItemAvatarPointerPressed">
                                                         <Panel>
                                                             <TextBlock Text="👤" FontSize="24"
                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -303,7 +307,10 @@
                                                     CornerRadius="55" ClipToBounds="True"
                                                     Background="#1F2937"
                                                     BorderBrush="{DynamicResource AccentBrush}"
-                                                    BorderThickness="2">
+                                                    BorderThickness="2"
+                                                    Cursor="Hand"
+                                                    ToolTip.Tip="Click to view full-size photo"
+                                                    PointerPressed="OnDetailAvatarPointerPressed">
                                                 <Panel>
                                                     <TextBlock Text="👤" FontSize="52"
                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -444,4 +451,76 @@
             </TabItem>
         </TabControl>
     </Grid>
+
+    <!-- Fullscreen Avatar Lightbox Overlay (fills the entire window/screen of the app) -->
+    <Border x:Name="AvatarLightboxOverlay"
+            Background="#E6040812"
+            IsVisible="{Binding IsAvatarLightboxOpen}"
+            PointerPressed="OnAvatarOverlayPointerPressed"
+            Cursor="Hand"
+            Focusable="True"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            ZIndex="9999">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="32">
+            <!-- Top Header & Close Banner -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{Binding LightboxTitle}"
+                               FontSize="22"
+                               FontWeight="Bold"
+                               Foreground="White"/>
+                    <TextBlock Text="{Binding LightboxSubtitle}"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentTextBrush}"/>
+                </StackPanel>
+                <Border Grid.Column="1"
+                        Background="#1F2937"
+                        BorderBrush="#374151"
+                        BorderThickness="1"
+                        CornerRadius="20"
+                        Padding="14,7"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="✕" FontSize="13" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                        <TextBlock Text="Click anywhere to close" FontSize="12" Foreground="#9CA3AF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Centered Full-Size Avatar Image -->
+            <Border Grid.Row="1"
+                    CornerRadius="14"
+                    ClipToBounds="True"
+                    Background="#0D1117"
+                    BorderBrush="{DynamicResource AccentBrush}"
+                    BorderThickness="2"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    BoxShadow="0 25 50 0 #B0000000"
+                    Padding="16">
+                <Panel>
+                    <TextBlock Text="👤" FontSize="120"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding LightboxAvatarImage, Converter={x:Static ObjectConverters.IsNull}}"/>
+                    <Image Source="{Binding LightboxAvatarImage}"
+                           Stretch="Uniform"
+                           MaxWidth="960"
+                           MaxHeight="800"
+                           IsVisible="{Binding LightboxAvatarImage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                </Panel>
+            </Border>
+
+            <!-- Bottom Hint -->
+            <TextBlock Grid.Row="2"
+                       Text="Click anywhere on the screen within the window or press ESC to dismiss."
+                       HorizontalAlignment="Center"
+                       FontSize="11"
+                       Foreground="#6B7280"
+                       Margin="0,16,0,0"/>
+        </Grid>
+    </Border>
+</Panel>
 </UserControl>

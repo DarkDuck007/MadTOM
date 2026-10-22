@@ -39,6 +39,16 @@ public sealed class ParsedChatEntryModel
     public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(Body) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
 
     public bool HasHeader => !string.IsNullOrWhiteSpace(Header);
+
+    // Dynamic color coding: Bot messages have distinct emerald/mint styling, distinct from user messages
+    public string CardBackgroundHex => IsBot ? "#0D281E" : "#10192A";
+    public string BorderBrushHex => IsBot ? "#059669" : "#1E293B";
+    public string HeaderForegroundHex => IsBot ? "#34D399" : "#38BDF8";
+    public string TextForegroundHex => IsBot ? "#ECFDF5" : "#E2E8F0";
+    public string BadgeBackgroundHex => IsBot ? "#064E3B" : "#0C4A6E";
+    public string BadgeForegroundHex => IsBot ? "#6EE7B7" : "#7DD3FC";
+    public string BadgeText => IsBot ? "BOT" : "USER";
+    public bool HasBadge => IsBot;
 }
 
 public sealed partial class ParsedTurnItemModel : ObservableObject
@@ -714,6 +724,11 @@ public static class NoxChatSessionParser
                 int bodyEnd = (i + 1 < matches.Count) ? matches[i + 1].Index : userText.Length;
                 string body = userText[bodyStart..bodyEnd].Trim();
 
+                if (string.IsNullOrWhiteSpace(body) && (header.Contains("Chat:", StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
                 string sender = string.Empty;
                 var sMatch = SenderLineRegex.Match(header);
                 if (sMatch.Success)
@@ -721,8 +736,15 @@ public static class NoxChatSessionParser
                     sender = CleanSenderName(sMatch.Groups[1].Value);
                 }
 
-                bool isBot = string.Equals(sender, "Nox", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(sender, "Bot", StringComparison.OrdinalIgnoreCase);
+                string rawSender = sMatch.Success ? sMatch.Groups[1].Value : string.Empty;
+                bool isBot = header.Contains("(You)", StringComparison.OrdinalIgnoreCase) ||
+                             header.Contains("(bot)", StringComparison.OrdinalIgnoreCase) ||
+                             rawSender.Contains("(You)", StringComparison.OrdinalIgnoreCase) ||
+                             rawSender.Contains("(bot)", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(sender, "Nox", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(sender, "Bot", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(sender, "Assistant", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(sender, "Minthara", StringComparison.OrdinalIgnoreCase);
 
                 entries.Add(new ParsedChatEntryModel
                 {

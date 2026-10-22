@@ -136,11 +136,19 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
     public ObservableCollection<HotMemoryItemModel> HotMemories { get; } = new();
 
     // --- User Profiles & Avatars ---
+    private readonly System.Threading.SemaphoreSlim _profilesLock = new(1, 1);
+
     [ObservableProperty] private UserProfileItemModel? _selectedUserProfile;
     [ObservableProperty] private string _profileSearchQuery = string.Empty;
     [ObservableProperty] private bool _isProfileSearching;
     [ObservableProperty] private bool _isProfileSearchResultsActive;
     [ObservableProperty] private string _profileSearchResultsSummary = string.Empty;
+
+    // Full-Screen Avatar Lightbox Modal
+    [ObservableProperty] private bool _isAvatarLightboxOpen;
+    [ObservableProperty] private Bitmap? _lightboxAvatarImage;
+    [ObservableProperty] private string _lightboxTitle = string.Empty;
+    [ObservableProperty] private string _lightboxSubtitle = string.Empty;
 
     public ObservableCollection<UserProfileItemModel> UserProfiles { get; } = new();
 
@@ -375,9 +383,28 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
     // =========================================================================
 
     [RelayCommand]
+    public void OpenAvatarLightbox(UserProfileItemModel? profile = null)
+    {
+        var target = profile ?? SelectedUserProfile;
+        if (target == null) return;
+
+        LightboxAvatarImage = target.AvatarImage;
+        LightboxTitle = target.DisplayTitle;
+        LightboxSubtitle = target.HandleDisplay;
+        IsAvatarLightboxOpen = true;
+    }
+
+    [RelayCommand]
+    public void CloseAvatarLightbox()
+    {
+        IsAvatarLightboxOpen = false;
+    }
+
+    [RelayCommand]
     public async Task RefreshUserProfiles()
     {
         if (SelectedNode == null) return;
+        await _profilesLock.WaitAsync();
         IsProfileSearchResultsActive = false;
         ProfileSearchResultsSummary = string.Empty;
         try
@@ -408,6 +435,10 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
         {
             StatusText = $"Failed to query user profiles: {ex}";
         }
+        finally
+        {
+            _profilesLock.Release();
+        }
     }
 
     [RelayCommand]
@@ -421,6 +452,7 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
             return;
         }
 
+        await _profilesLock.WaitAsync();
         IsProfileSearching = true;
         StatusText = "Searching user profiles in Qdrant & SQLite...";
         try
@@ -458,6 +490,7 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
         finally
         {
             IsProfileSearching = false;
+            _profilesLock.Release();
         }
     }
 
