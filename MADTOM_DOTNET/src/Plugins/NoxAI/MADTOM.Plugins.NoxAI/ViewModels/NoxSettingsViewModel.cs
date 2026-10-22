@@ -664,7 +664,7 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                     {
                         NodeId = node.Id,
                         StartChunkId = nextLogChunkId,
-                        MaxChunks = 8
+                        MaxChunks = 32
                     });
 
                     if (logResp.Chunks.Count == 0) break;
@@ -683,11 +683,11 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                 catch
                 {
                     consecutiveLogErrors++;
-                    nextLogChunkId += 8;
+                    nextLogChunkId += 32;
                 }
             }
 
-            // 2. Page all historical API call chunks
+            // 2. Page all historical API call chunks in batches of 32
             ulong nextApiChunkId = 0;
             bool hasMoreApis = true;
             int consecutiveApiErrors = 0;
@@ -699,7 +699,7 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                     {
                         NodeId = node.Id,
                         StartChunkId = nextApiChunkId,
-                        MaxChunks = 1,
+                        MaxChunks = 32,
                         SummaryOnly = false
                     });
 
@@ -719,7 +719,7 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                 catch
                 {
                     consecutiveApiErrors++;
-                    nextApiChunkId++;
+                    nextApiChunkId += 32;
                 }
             }
 
@@ -743,19 +743,62 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
     public async Task ForceLoadLogs()
     {
         if (IsPreloading) return;
+        var node = _nodeManager.Nodes.FirstOrDefault();
+        if (node == null)
+        {
+            PreloadStatusText = "No node configured to load logs from";
+            return;
+        }
+
         IsPreloading = true;
-        PreloadStatusText = "Preloading historical logs and raw API calls from spool...";
+        PreloadStatusText = $"Loading all historical logs for {node.AliasOrId}...";
 
         try
         {
-            await Task.Delay(500); // simulation / RPC fetch
-            PreloadStatusText = "Preload completed successfully";
-            PreloadSummaryText = "Loaded historical chunks from disk WAL spool into Zstd cache.";
+            var client = _nodeManager.GetClient(node);
+            int logsLoaded = 0;
+            ulong nextLogChunkId = 0;
+            bool hasMoreLogs = true;
+            int consecutiveLogErrors = 0;
+
+            while (hasMoreLogs && consecutiveLogErrors < 3)
+            {
+                try
+                {
+                    var logResp = await client.QueryLogChunksAsync(new LogChunkQuery
+                    {
+                        NodeId = node.Id,
+                        StartChunkId = nextLogChunkId,
+                        MaxChunks = 32
+                    });
+
+                    if (logResp.Chunks.Count == 0) break;
+                    consecutiveLogErrors = 0;
+                    ulong maxId = nextLogChunkId;
+                    foreach (var c in logResp.Chunks)
+                    {
+                        if (c.ChunkId >= maxId) maxId = c.ChunkId;
+                        _logCache.PutChunk("noxchat", node.Id, c);
+                        logsLoaded += (int)c.RecordCount;
+                    }
+                    nextLogChunkId = maxId + 1;
+                    hasMoreLogs = logResp.HasMore;
+                    PreloadStatusText = $"Loading logs: {logsLoaded:N0} records loaded...";
+                }
+                catch
+                {
+                    consecutiveLogErrors++;
+                    nextLogChunkId += 32;
+                }
+            }
+
             RefreshCacheStats();
+            PreloadStatusText = "Log preload completed";
+            PreloadSummaryText = $"Loaded {logsLoaded:N0} historical log records from {node.AliasOrId} into Zstd cache.";
         }
         catch (Exception ex)
         {
-            PreloadStatusText = $"Error: {ex.Message}";
+            PreloadStatusText = $"Log load error: {ex.Message}";
         }
         finally
         {
@@ -767,19 +810,78 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
     public async Task ForceLoadTelemetry()
     {
         if (IsPreloading) return;
+        var node = _nodeManager.Nodes.FirstOrDefault();
+        if (node == null)
+        {
+            PreloadStatusText = "No node configured to load telemetry from";
+            return;
+        }
+
         IsPreloading = true;
-        PreloadStatusText = "Preloading historical telemetry series...";
+        PreloadStatusText = $"Loading historical telemetry ({SelectedPreloadScope}) for {node.AliasOrId}...";
 
         try
         {
-            await Task.Delay(500);
-            PreloadStatusText = "Telemetry preload completed";
-            PreloadSummaryText = "Loaded historical token, message, and runtime points into stored query cache.";
+            var client = _nodeManager.GetClient(node);
+            long endNano = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L;
+            long spanHours = SelectedPreloadScope switch
+            {
+                "1 Hour (1H)" => 1,
+                "6 Hours (6H)" => 6,
+                "24 Hours (24H)" => 24,
+                "7 Days (7D)" => 24 * 7,
+                _ => 24 * 30
+            };
+            long startNano = endNano - (spanHours * 3600L * 1_000_000_000L);
+
+            uint targetPoints = SelectedPreloadBucketingMode switch
+            {
+                "High Density (5,000 pts)" => 5000,
+                "Ultra Density (10,000 pts)" => 10000,
+                "Stress Test (50,000 pts)" => 50000,
+                "Raw (All Points / No Downsampling)" => 100000,
+                _ => 2400
+            };
+
+            var metrics = new[]
+            {
+                "llm.tokens.in",
+                "llm.tokens.out",
+                "llm.tokens.cached",
+                "py.cpu.total_pct",
+                "py.mem.rss_bytes",
+                "py.runtime.event_loop_lag_ms"
+            };
+
+            int pointsLoaded = 0;
+            var tasks = metrics.Select(async m =>
+            {
+                try
+                {
+                    var resp = await client.QueryTelemetryRangeAsync(new RangeQueryRequest
+                    {
+                        NodeId = node.Id,
+                        MetricName = m,
+                        StartTimeUnixNano = startNano,
+                        EndTimeUnixNano = endNano,
+                        TargetPoints = targetPoints
+                    });
+                    if (resp?.Points != null)
+                    {
+                        Interlocked.Add(ref pointsLoaded, resp.Points.Count);
+                    }
+                }
+                catch { }
+            });
+
+            await Task.WhenAll(tasks);
             RefreshCacheStats();
+            PreloadStatusText = "Telemetry preload completed";
+            PreloadSummaryText = $"Loaded {pointsLoaded:N0} telemetry points across {metrics.Length} series from {node.AliasOrId}.";
         }
         catch (Exception ex)
         {
-            PreloadStatusText = $"Error: {ex.Message}";
+            PreloadStatusText = $"Telemetry load error: {ex.Message}";
         }
         finally
         {

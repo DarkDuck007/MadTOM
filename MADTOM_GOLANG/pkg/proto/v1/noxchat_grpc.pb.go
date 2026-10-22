@@ -47,6 +47,9 @@ const (
 	NoxChatControlService_ForceAddSticker_FullMethodName            = "/madtom.v1.NoxChatControlService/ForceAddSticker"
 	NoxChatControlService_GetActiveJobs_FullMethodName              = "/madtom.v1.NoxChatControlService/GetActiveJobs"
 	NoxChatControlService_InspectVectors_FullMethodName             = "/madtom.v1.NoxChatControlService/InspectVectors"
+	NoxChatControlService_QueryUserProfiles_FullMethodName          = "/madtom.v1.NoxChatControlService/QueryUserProfiles"
+	NoxChatControlService_SearchUserProfiles_FullMethodName         = "/madtom.v1.NoxChatControlService/SearchUserProfiles"
+	NoxChatControlService_GetUserProfilePhoto_FullMethodName        = "/madtom.v1.NoxChatControlService/GetUserProfilePhoto"
 )
 
 // NoxChatControlServiceClient is the client API for NoxChatControlService service.
@@ -95,6 +98,10 @@ type NoxChatControlServiceClient interface {
 	// Active Jobs & Vector Store Explorer
 	GetActiveJobs(ctx context.Context, in *NoxActiveJobsRequest, opts ...grpc.CallOption) (*NoxActiveJobsResponse, error)
 	InspectVectors(ctx context.Context, in *NoxVectorInspectRequest, opts ...grpc.CallOption) (*NoxVectorInspectResponse, error)
+	// User Profiles & Avatars
+	QueryUserProfiles(ctx context.Context, in *NoxUserProfileQueryRequest, opts ...grpc.CallOption) (*NoxUserProfileQueryResponse, error)
+	SearchUserProfiles(ctx context.Context, in *NoxUserProfileSearchRequest, opts ...grpc.CallOption) (*NoxUserProfileSearchResponse, error)
+	GetUserProfilePhoto(ctx context.Context, in *NoxUserProfilePhotoRequest, opts ...grpc.CallOption) (*NoxUserProfilePhotoResponse, error)
 }
 
 type noxChatControlServiceClient struct {
@@ -412,6 +419,36 @@ func (c *noxChatControlServiceClient) InspectVectors(ctx context.Context, in *No
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) QueryUserProfiles(ctx context.Context, in *NoxUserProfileQueryRequest, opts ...grpc.CallOption) (*NoxUserProfileQueryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxUserProfileQueryResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_QueryUserProfiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) SearchUserProfiles(ctx context.Context, in *NoxUserProfileSearchRequest, opts ...grpc.CallOption) (*NoxUserProfileSearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxUserProfileSearchResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_SearchUserProfiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetUserProfilePhoto(ctx context.Context, in *NoxUserProfilePhotoRequest, opts ...grpc.CallOption) (*NoxUserProfilePhotoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxUserProfilePhotoResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetUserProfilePhoto_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NoxChatControlServiceServer is the server API for NoxChatControlService service.
 // All implementations must embed UnimplementedNoxChatControlServiceServer
 // for forward compatibility.
@@ -458,6 +495,10 @@ type NoxChatControlServiceServer interface {
 	// Active Jobs & Vector Store Explorer
 	GetActiveJobs(context.Context, *NoxActiveJobsRequest) (*NoxActiveJobsResponse, error)
 	InspectVectors(context.Context, *NoxVectorInspectRequest) (*NoxVectorInspectResponse, error)
+	// User Profiles & Avatars
+	QueryUserProfiles(context.Context, *NoxUserProfileQueryRequest) (*NoxUserProfileQueryResponse, error)
+	SearchUserProfiles(context.Context, *NoxUserProfileSearchRequest) (*NoxUserProfileSearchResponse, error)
+	GetUserProfilePhoto(context.Context, *NoxUserProfilePhotoRequest) (*NoxUserProfilePhotoResponse, error)
 	mustEmbedUnimplementedNoxChatControlServiceServer()
 }
 
@@ -551,6 +592,15 @@ func (UnimplementedNoxChatControlServiceServer) GetActiveJobs(context.Context, *
 }
 func (UnimplementedNoxChatControlServiceServer) InspectVectors(context.Context, *NoxVectorInspectRequest) (*NoxVectorInspectResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InspectVectors not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) QueryUserProfiles(context.Context, *NoxUserProfileQueryRequest) (*NoxUserProfileQueryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method QueryUserProfiles not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) SearchUserProfiles(context.Context, *NoxUserProfileSearchRequest) (*NoxUserProfileSearchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchUserProfiles not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetUserProfilePhoto(context.Context, *NoxUserProfilePhotoRequest) (*NoxUserProfilePhotoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserProfilePhoto not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) mustEmbedUnimplementedNoxChatControlServiceServer() {}
 func (UnimplementedNoxChatControlServiceServer) testEmbeddedByValue()                               {}
@@ -1056,6 +1106,60 @@ func _NoxChatControlService_InspectVectors_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_QueryUserProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxUserProfileQueryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).QueryUserProfiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_QueryUserProfiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).QueryUserProfiles(ctx, req.(*NoxUserProfileQueryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_SearchUserProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxUserProfileSearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).SearchUserProfiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_SearchUserProfiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).SearchUserProfiles(ctx, req.(*NoxUserProfileSearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetUserProfilePhoto_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxUserProfilePhotoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetUserProfilePhoto(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetUserProfilePhoto_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetUserProfilePhoto(ctx, req.(*NoxUserProfilePhotoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NoxChatControlService_ServiceDesc is the grpc.ServiceDesc for NoxChatControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1162,6 +1266,18 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InspectVectors",
 			Handler:    _NoxChatControlService_InspectVectors_Handler,
+		},
+		{
+			MethodName: "QueryUserProfiles",
+			Handler:    _NoxChatControlService_QueryUserProfiles_Handler,
+		},
+		{
+			MethodName: "SearchUserProfiles",
+			Handler:    _NoxChatControlService_SearchUserProfiles_Handler,
+		},
+		{
+			MethodName: "GetUserProfilePhoto",
+			Handler:    _NoxChatControlService_GetUserProfilePhoto_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

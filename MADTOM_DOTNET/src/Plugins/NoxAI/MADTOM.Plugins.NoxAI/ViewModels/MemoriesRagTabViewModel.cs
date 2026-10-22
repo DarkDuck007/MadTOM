@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MADTOM.Plugins.NoxAI.Proto.V1;
@@ -20,19 +24,103 @@ public sealed partial class MemoryItemModel : ObservableObject
     public double Score { get; init; }
     public bool HasScore => Score > 0;
     public string ScoreDisplay => Score > 0 ? $"Match: {Score:F2}" : string.Empty;
+
+    public Avalonia.Media.FlowDirection FlowDirection => NoxChatSessionParser.IsRtl(Content) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(Content) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
 }
 
 public sealed partial class HotMemoryItemModel : ObservableObject
 {
     public string Key { get; init; } = string.Empty;
     public string Content { get; set; } = string.Empty;
+
+    public Avalonia.Media.FlowDirection FlowDirection => NoxChatSessionParser.IsRtl(Content) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(Content) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+}
+
+public sealed partial class UserProfileItemModel : ObservableObject
+{
+    public long UserId { get; init; }
+    public string Username { get; init; } = string.Empty;
+    public string FullName { get; init; } = string.Empty;
+    public string Bio { get; init; } = string.Empty;
+    public string PhotoUniqueId { get; init; } = string.Empty;
+    public string PhotoDescription { get; init; } = string.Empty;
+    public string AudioTitle { get; init; } = string.Empty;
+    public string AudioPerformer { get; init; } = string.Empty;
+    public int AudioDuration { get; init; }
+    public string Birthdate { get; init; } = string.Empty;
+    public string PersonalChatTitle { get; init; } = string.Empty;
+    public string PersonalChatUsername { get; init; } = string.Empty;
+    public string LastCheckedAt { get; init; } = string.Empty;
+    public string CreatedAt { get; init; } = string.Empty;
+    public double RelevanceScore { get; init; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAvatar))]
+    private Bitmap? _avatarImage;
+
+    [ObservableProperty]
+    private bool _isLoadingAvatar;
+
+    public bool HasAvatar => AvatarImage != null;
+    public bool HasScore => RelevanceScore > 0;
+    public string ScoreDisplay => RelevanceScore > 0 ? $"Relevance: {RelevanceScore:F2}" : string.Empty;
+
+    public string DisplayTitle => !string.IsNullOrWhiteSpace(FullName)
+        ? FullName
+        : (!string.IsNullOrWhiteSpace(Username) ? $"@{Username}" : $"User {UserId}");
+
+    public string HandleDisplay => !string.IsNullOrWhiteSpace(Username) ? $"@{Username}" : $"ID: {UserId}";
+
+    public bool HasBio => !string.IsNullOrWhiteSpace(Bio);
+    public bool HasPhotoDescription => !string.IsNullOrWhiteSpace(PhotoDescription);
+    public bool HasBirthdate => !string.IsNullOrWhiteSpace(Birthdate);
+
+    public Avalonia.Media.FlowDirection BioFlowDirection => NoxChatSessionParser.IsRtl(Bio) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment BioTextAlignment => NoxChatSessionParser.IsRtl(Bio) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+
+    public Avalonia.Media.FlowDirection PhotoDescriptionFlowDirection => NoxChatSessionParser.IsRtl(PhotoDescription) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment PhotoDescriptionTextAlignment => NoxChatSessionParser.IsRtl(PhotoDescription) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+
+    public Avalonia.Media.FlowDirection TitleFlowDirection => NoxChatSessionParser.IsRtl(DisplayTitle) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment TitleTextAlignment => NoxChatSessionParser.IsRtl(DisplayTitle) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+
+    public bool HasAudio => !string.IsNullOrWhiteSpace(AudioTitle) || !string.IsNullOrWhiteSpace(AudioPerformer);
+    public string AudioDisplay
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(AudioTitle) && string.IsNullOrWhiteSpace(AudioPerformer)) return string.Empty;
+            var title = string.IsNullOrWhiteSpace(AudioTitle) ? "Audio" : AudioTitle;
+            var performer = string.IsNullOrWhiteSpace(AudioPerformer) ? "" : $" - {AudioPerformer}";
+            var duration = AudioDuration > 0 ? $" ({AudioDuration / 60}:{AudioDuration % 60:D2})" : "";
+            return $"{title}{performer}{duration}";
+        }
+    }
+
+    public bool HasPersonalChat => !string.IsNullOrWhiteSpace(PersonalChatTitle) || !string.IsNullOrWhiteSpace(PersonalChatUsername);
+    public string PersonalChatDisplay
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(PersonalChatTitle) && string.IsNullOrWhiteSpace(PersonalChatUsername)) return string.Empty;
+            if (!string.IsNullOrWhiteSpace(PersonalChatTitle) && !string.IsNullOrWhiteSpace(PersonalChatUsername))
+                return $"{PersonalChatTitle} (@{PersonalChatUsername})";
+            return !string.IsNullOrWhiteSpace(PersonalChatTitle) ? PersonalChatTitle : $"@{PersonalChatUsername}";
+        }
+    }
 }
 
 public sealed partial class MemoriesRagTabViewModel : ObservableObject
 {
     private readonly NoxNodeManager _nodeManager;
+    private readonly ConcurrentDictionary<long, Bitmap> _avatarCache = new();
 
     [ObservableProperty] private NoxNodeModel? _selectedNode;
+    [ObservableProperty] private int _selectedSubTabIndex;
+
+    // --- Memories & Hot Scratchpad ---
     [ObservableProperty] private string _searchQuery = string.Empty;
     [ObservableProperty] private bool _isSearching;
     [ObservableProperty] private bool _isSearchResultsActive;
@@ -47,6 +135,15 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
     public ObservableCollection<MemoryItemModel> Memories { get; } = new();
     public ObservableCollection<HotMemoryItemModel> HotMemories { get; } = new();
 
+    // --- User Profiles & Avatars ---
+    [ObservableProperty] private UserProfileItemModel? _selectedUserProfile;
+    [ObservableProperty] private string _profileSearchQuery = string.Empty;
+    [ObservableProperty] private bool _isProfileSearching;
+    [ObservableProperty] private bool _isProfileSearchResultsActive;
+    [ObservableProperty] private string _profileSearchResultsSummary = string.Empty;
+
+    public ObservableCollection<UserProfileItemModel> UserProfiles { get; } = new();
+
     public MemoriesRagTabViewModel(NoxNodeManager nodeManager)
     {
         _nodeManager = nodeManager;
@@ -58,12 +155,31 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
         if (value != null)
         {
             _ = RefreshMemories();
+            _ = RefreshUserProfiles();
         }
         else
         {
             Memories.Clear();
             HotMemories.Clear();
+            UserProfiles.Clear();
+            SelectedUserProfile = null;
             StatusText = "No node selected";
+        }
+    }
+
+    partial void OnSelectedSubTabIndexChanged(int value)
+    {
+        if (value == 1 && UserProfiles.Count == 0 && SelectedNode != null)
+        {
+            _ = RefreshUserProfiles();
+        }
+    }
+
+    partial void OnSelectedUserProfileChanged(UserProfileItemModel? value)
+    {
+        if (value != null && value.AvatarImage == null && !value.IsLoadingAvatar)
+        {
+            _ = LoadAvatarAsync(value);
         }
     }
 
@@ -252,5 +368,193 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
         {
             StatusText = $"Failed to delete: {ex.Message}";
         }
+    }
+
+    // =========================================================================
+    // User Profiles & Avatars Methods
+    // =========================================================================
+
+    [RelayCommand]
+    public async Task RefreshUserProfiles()
+    {
+        if (SelectedNode == null) return;
+        IsProfileSearchResultsActive = false;
+        ProfileSearchResultsSummary = string.Empty;
+        try
+        {
+            var client = _nodeManager.GetClient(SelectedNode);
+            var res = await client.QueryUserProfilesAsync(new NoxUserProfileQueryRequest
+            {
+                NodeId = SelectedNode.Id,
+                Limit = 100
+            });
+
+            UserProfiles.Clear();
+            foreach (var p in res.Profiles)
+            {
+                var item = MapUserProfile(p);
+                UserProfiles.Add(item);
+            }
+
+            if (SelectedUserProfile == null && UserProfiles.Count > 0)
+            {
+                SelectedUserProfile = UserProfiles[0];
+            }
+
+            StatusText = $"Loaded {UserProfiles.Count} user profiles.";
+            TriggerAvatarLoading(UserProfiles);
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Failed to query user profiles: {ex}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task SearchUserProfiles()
+    {
+        if (SelectedNode == null) return;
+        string query = ProfileSearchQuery?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(query))
+        {
+            await RefreshUserProfiles();
+            return;
+        }
+
+        IsProfileSearching = true;
+        StatusText = "Searching user profiles in Qdrant & SQLite...";
+        try
+        {
+            var client = _nodeManager.GetClient(SelectedNode);
+            var res = await client.SearchUserProfilesAsync(new NoxUserProfileSearchRequest
+            {
+                NodeId = SelectedNode.Id,
+                Query = query,
+                Limit = 50
+            });
+
+            UserProfiles.Clear();
+            foreach (var p in res.Profiles)
+            {
+                var item = MapUserProfile(p);
+                UserProfiles.Add(item);
+            }
+
+            IsProfileSearchResultsActive = true;
+            ProfileSearchResultsSummary = $"Profile Search: {UserProfiles.Count} result{(UserProfiles.Count == 1 ? "" : "s")} for \"{query}\"";
+            StatusText = $"Found {UserProfiles.Count} profiles matching \"{query}\".";
+
+            if (UserProfiles.Count > 0)
+            {
+                SelectedUserProfile = UserProfiles[0];
+            }
+
+            TriggerAvatarLoading(UserProfiles);
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Profile search failed: {ex.Message}";
+        }
+        finally
+        {
+            IsProfileSearching = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task ClearProfileSearch()
+    {
+        ProfileSearchQuery = string.Empty;
+        await RefreshUserProfiles();
+    }
+
+    public async Task LoadAvatarAsync(UserProfileItemModel profile)
+    {
+        if (profile.AvatarImage != null || profile.UserId == 0 || SelectedNode == null) return;
+
+        if (_avatarCache.TryGetValue(profile.UserId, out var cached))
+        {
+            profile.AvatarImage = cached;
+            return;
+        }
+
+        profile.IsLoadingAvatar = true;
+        try
+        {
+            var client = _nodeManager.GetClient(SelectedNode);
+            var resp = await client.GetUserProfilePhotoAsync(new NoxUserProfilePhotoRequest
+            {
+                NodeId = SelectedNode.Id,
+                UserId = profile.UserId
+            });
+
+            if (resp.PhotoBytes != null && resp.PhotoBytes.Length > 0)
+            {
+                var raw = resp.PhotoBytes.ToByteArray();
+                var bmp = await Task.Run(() =>
+                {
+                    try
+                    {
+                        using var ms = new MemoryStream(raw);
+                        return new Bitmap(ms);
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                });
+
+                if (bmp != null)
+                {
+                    _avatarCache[profile.UserId] = bmp;
+                    profile.AvatarImage = bmp;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Ignore individual avatar load failures
+        }
+        finally
+        {
+            profile.IsLoadingAvatar = false;
+        }
+    }
+
+    private void TriggerAvatarLoading(IEnumerable<UserProfileItemModel> items)
+    {
+        var list = items.ToList();
+        _ = Task.Run(async () =>
+        {
+            foreach (var item in list)
+            {
+                if (item.AvatarImage == null)
+                {
+                    await LoadAvatarAsync(item);
+                }
+            }
+        });
+    }
+
+    private static UserProfileItemModel MapUserProfile(NoxUserProfile p)
+    {
+        return new UserProfileItemModel
+        {
+            UserId = p.UserId,
+            Username = p.Username ?? string.Empty,
+            FullName = p.FullName ?? string.Empty,
+            Bio = p.Bio ?? string.Empty,
+            PhotoUniqueId = p.PhotoUniqueId ?? string.Empty,
+            PhotoDescription = p.PhotoDescription ?? string.Empty,
+            AudioTitle = p.AudioTitle ?? string.Empty,
+            AudioPerformer = p.AudioPerformer ?? string.Empty,
+            AudioDuration = p.AudioDuration,
+            Birthdate = p.Birthdate ?? string.Empty,
+            PersonalChatTitle = p.PersonalChatTitle ?? string.Empty,
+            PersonalChatUsername = p.PersonalChatUsername ?? string.Empty,
+            LastCheckedAt = p.LastCheckedAt ?? string.Empty,
+            CreatedAt = p.CreatedAt ?? string.Empty,
+            RelevanceScore = p.RelevanceScore
+        };
     }
 }

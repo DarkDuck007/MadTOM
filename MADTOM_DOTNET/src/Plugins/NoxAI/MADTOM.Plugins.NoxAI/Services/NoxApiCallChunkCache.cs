@@ -34,6 +34,9 @@ public sealed class NoxApiCallChunkCache
     // CallId -> ChunkId mapping for instantaneous O(1) partial record lookup
     private readonly Dictionary<NodeCallKey, ulong> _callIdToChunkMap = new();
 
+    // On-demand full detail overrides (loaded on click when summary-only chunks are cached)
+    private readonly Dictionary<NodeCallKey, NoxRawApiCallRecord> _fullDetailOverrides = new();
+
     // Unsealed staging buffer per node before reaching TargetChunkRecords (32)
     private readonly Dictionary<string, List<NoxRawApiCallRecord>> _pendingRecordsPerNode = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ulong> _nextChunkIdPerNode = new(StringComparer.OrdinalIgnoreCase);
@@ -112,6 +115,32 @@ public sealed class NoxApiCallChunkCache
 
         PutRecords(node, records);
         return records;
+    }
+
+    /// <summary>
+    /// Ingests a single full-detail API call record (e.g. retrieved on-demand from server)
+    /// into memory cache, overriding any summary-only record.
+    /// </summary>
+    public void PutFullRecord(string node, NoxRawApiCallRecord fullRec)
+    {
+        if (string.IsNullOrEmpty(node) || fullRec == null || string.IsNullOrEmpty(fullRec.CallId)) return;
+        lock (_lock)
+        {
+            var callKey = new NodeCallKey(node, fullRec.CallId);
+            _fullDetailOverrides[callKey] = fullRec;
+
+            if (_pendingRecordsPerNode.TryGetValue(node, out var pending))
+            {
+                for (int i = 0; i < pending.Count; i++)
+                {
+                    if (pending[i].CallId == fullRec.CallId)
+                    {
+                        pending[i] = fullRec;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -241,7 +270,13 @@ public sealed class NoxApiCallChunkCache
 
         lock (_lock)
         {
-            // Check pending unsealed buffer first
+            var callKey = new NodeCallKey(node, callId);
+            if (_fullDetailOverrides.TryGetValue(callKey, out var overridden))
+            {
+                return overridden;
+            }
+
+            // Check pending unsealed buffer next
             if (_pendingRecordsPerNode.TryGetValue(node, out var pending))
             {
                 for (int i = pending.Count - 1; i >= 0; i--)
@@ -250,7 +285,6 @@ public sealed class NoxApiCallChunkCache
                 }
             }
 
-            var callKey = new NodeCallKey(node, callId);
             if (!_callIdToChunkMap.TryGetValue(callKey, out ulong chunkId))
             {
                 return null;
@@ -397,6 +431,12 @@ public sealed class NoxApiCallChunkCache
             foreach (var k in toRemoveCalls)
             {
                 _callIdToChunkMap.Remove(k);
+            }
+
+            var toRemoveOverrides = _fullDetailOverrides.Keys.Where(k => string.Equals(k.Node, node, StringComparison.OrdinalIgnoreCase)).ToList();
+            foreach (var k in toRemoveOverrides)
+            {
+                _fullDetailOverrides.Remove(k);
             }
         }
     }

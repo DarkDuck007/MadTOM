@@ -57,6 +57,11 @@ service NoxChatControlService {
   // Active Jobs & Vector Store Explorer
   rpc GetActiveJobs(NoxActiveJobsRequest) returns (NoxActiveJobsResponse);
   rpc InspectVectors(NoxVectorInspectRequest) returns (NoxVectorInspectResponse);
+
+  // User Profiles & Avatars
+  rpc QueryUserProfiles(NoxUserProfileQueryRequest) returns (NoxUserProfileQueryResponse);
+  rpc SearchUserProfiles(NoxUserProfileSearchRequest) returns (NoxUserProfileSearchResponse);
+  rpc GetUserProfilePhoto(NoxUserProfilePhotoRequest) returns (NoxUserProfilePhotoResponse);
 }
 
 // ------------------------------------------------------------------------------
@@ -162,6 +167,7 @@ message NoxRawApiCallRecord {
   string raw_response_json = 12;
   repeated NoxImageData image_data_urls = 13; // extracted base64 JPEG data URIs
   string error_message = 14;
+  string chat_name = 15;
 }
 
 message NoxImageData {
@@ -580,3 +586,61 @@ message NoxVectorInspectResponse {
   NoxVectorPointItem target_point = 1;
   repeated NoxVectorPointItem neighbors = 2;
 }
+
+// ------------------------------------------------------------------------------
+// User Profiles & Avatars
+// ------------------------------------------------------------------------------
+message NoxUserProfile {
+  int64 user_id = 1;
+  string username = 2;
+  string full_name = 3;
+  string bio = 4;
+  string photo_unique_id = 5;
+  string photo_description = 6;
+  string audio_title = 7;
+  string audio_performer = 8;
+  int32 audio_duration = 9;
+  string birthdate = 10;
+  string personal_chat_title = 11;
+  string personal_chat_username = 12;
+  string last_checked_at = 13;
+  string created_at = 14;
+  double relevance_score = 15;
+}
+
+message NoxUserProfileQueryRequest {
+  string node_id = 1;
+  uint32 limit = 2;
+}
+
+message NoxUserProfileQueryResponse {
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
+
+  repeated NoxUserProfile profiles = 1;
+}
+
+message NoxUserProfileSearchRequest {
+  string node_id = 1;
+  string query = 2;
+  uint32 limit = 3;
+}
+
+message NoxUserProfileSearchResponse {
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
+
+  repeated NoxUserProfile profiles = 1;
+}
+
+message NoxUserProfilePhotoRequest {
+  string node_id = 1;
+  int64 user_id = 2;
+}
+
+message NoxUserProfilePhotoResponse {
+  int64 user_id = 1;
+  bytes photo_bytes = 2;
+  string mime_type = 3;
+}
+

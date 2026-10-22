@@ -105,6 +105,23 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
 
     public ObservableCollection<RawApiCallItemModel> RecentApiCalls { get; } = new();
 
+    [ObservableProperty] private bool _showGoToNewestButton;
+    [ObservableProperty] private bool _isScrolledDown;
+
+    public event Action? ScrollToTopRequested;
+
+    [RelayCommand]
+    public void GoToNewest()
+    {
+        if (RecentApiCalls.Count > 0)
+        {
+            SelectedApiCall = RecentApiCalls[0];
+        }
+        ShowGoToNewestButton = false;
+        IsScrolledDown = false;
+        ScrollToTopRequested?.Invoke();
+    }
+
     public RawLogsApiTabViewModel(
         NoxNodeManager nodeManager,
         LogChunkCache logCache,
@@ -371,7 +388,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
 
                 if (fullRec != null && !string.IsNullOrEmpty(fullRec.CallId))
                 {
-                    _apiCache.PutRecords(node.Id, new[] { fullRec });
+                    _apiCache.PutFullRecord(node.Id, fullRec);
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (SelectedApiCall?.CallId == item.CallId || item.CallId == fullRec.CallId)
@@ -426,16 +443,25 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         catch { }
         item.HasParsedTurns = item.ParsedTurns.Count > 0;
 
+        if (string.IsNullOrEmpty(item.ChatName))
+        {
+            item.ChatName = !string.IsNullOrEmpty(r.ChatName)
+                ? r.ChatName
+                : NoxChatSessionParser.ExtractChatName(r.RawRequestJson, r.Caller);
+        }
+
         item.IsDetailsLoaded = true;
     }
 
     private static RawApiCallItemModel BuildApiCallItemModel(NoxRawApiCallRecord r, bool loadFullDetails = false)
     {
         string tsText = r.TimestampUnixNano > 0
-            ? DateTimeOffset.FromUnixTimeMilliseconds(r.TimestampUnixNano / 1_000_000).ToLocalTime().ToString("HH:mm:ss.fff")
-            : DateTime.Now.ToString("HH:mm:ss.fff");
+            ? DateTimeOffset.FromUnixTimeMilliseconds(r.TimestampUnixNano / 1_000_000).ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff")
+            : DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
 
-        string chatName = NoxChatSessionParser.ExtractChatName(r.RawRequestJson, r.Caller);
+        string chatName = !string.IsNullOrEmpty(r.ChatName)
+            ? r.ChatName
+            : NoxChatSessionParser.ExtractChatName(r.RawRequestJson, r.Caller);
 
         var item = new RawApiCallItemModel
         {
@@ -568,9 +594,16 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             RecentApiCalls.RemoveAt(RecentApiCalls.Count - 1);
         }
 
-        if (SelectedApiCall == null && RecentApiCalls.Count > 0)
+        if (RecentApiCalls.Count > 0)
         {
-            SelectedApiCall = RecentApiCalls[0];
+            if (SelectedApiCall == null || !IsScrolledDown)
+            {
+                SelectedApiCall = RecentApiCalls[0];
+            }
+            else
+            {
+                ShowGoToNewestButton = true;
+            }
         }
     }
 
@@ -736,7 +769,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     {
                         NodeId = node.Id,
                         StartChunkId = nextApiChunkId,
-                        MaxChunks = 8,
+                        MaxChunks = 32,
                         SummaryOnly = true
                     });
 
@@ -802,7 +835,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             }
             catch { }
 
-            // 1. Load entire log spool in safe batches of up to 8 chunks
+            // 1. Load entire log spool in safe batches of up to 32 chunks
             if (stats == null || stats.TotalLogRecords > 0)
             {
                 ulong nextLogChunkId = 0;
@@ -817,7 +850,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                         {
                             NodeId = node.Id,
                             StartChunkId = nextLogChunkId,
-                            MaxChunks = 8
+                            MaxChunks = 32
                         });
 
                         if (logResp.Chunks.Count == 0)
@@ -841,13 +874,12 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     {
                         consecutiveErrors++;
                         SpoolStatusSummary = $"Log chunk #{nextLogChunkId} error: {logEx.Message}";
-                        nextLogChunkId += 8;
+                        nextLogChunkId += 32;
                     }
                 }
             }
 
             // 2. Load entire API call spool dynamically
-            // Query 1 chunk per request to stay strictly within gRPC limits even when containing large multimodal images
             if (stats == null || stats.TotalApiCalls > 0)
             {
                 ulong nextApiChunkId = 0;
@@ -862,7 +894,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                         {
                             NodeId = node.Id,
                             StartChunkId = nextApiChunkId,
-                            MaxChunks = 1
+                            MaxChunks = 32
                         });
 
                         if (apiResp.Chunks.Count == 0)
@@ -899,11 +931,16 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     {
                         consecutiveErrors++;
                         SpoolStatusSummary = $"API chunk #{nextApiChunkId} error: {apiEx.Message}";
-                        nextApiChunkId++; // Advance to next chunk instead of aborting the whole spool
+                        nextApiChunkId += 32;
                     }
                 }
 
                 _apiCache.FlushPending(node.Id);
+                if (RecentApiCalls.Count > 0)
+                {
+                    SelectedApiCall = RecentApiCalls[0];
+                    ScrollToTopRequested?.Invoke();
+                }
                 if (SelectedApiCall != null)
                 {
                     EnsureDetailsLoaded(SelectedApiCall);

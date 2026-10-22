@@ -38,6 +38,9 @@ public sealed partial class MediaItemModel : ObservableObject
     public bool IsNsfw { get; set; }
     public bool IsDead { get; set; }
 
+    public Avalonia.Media.FlowDirection FlowDirection => NoxChatSessionParser.IsRtl(CaptionText) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(CaptionText) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+
     public bool ExpectsAnimation =>
         Format is "video" or "animated" ||
         Kind is "gif" or "animation";

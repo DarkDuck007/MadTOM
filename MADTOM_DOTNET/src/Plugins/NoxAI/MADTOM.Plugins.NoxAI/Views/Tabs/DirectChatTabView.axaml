@@ -32,7 +32,13 @@
                                             <TextBlock Text="{Binding Sender}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
                                             <TextBlock Grid.Column="1" Text="{Binding TimeFormatted}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
                                         </Grid>
-                                        <TextBlock Grid.Row="1" Text="{Binding Text}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                        <SelectableTextBlock Grid.Row="1"
+                                                             Text="{Binding Text}"
+                                                             FlowDirection="{Binding FlowDirection}"
+                                                             TextAlignment="{Binding TextAlignment}"
+                                                             FontSize="12"
+                                                             TextWrapping="Wrap"
+                                                             Margin="0,4,0,0"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -49,7 +55,12 @@
                             Margin="0,6">
                         <StackPanel Spacing="4">
                             <TextBlock Text="💭 NOX REASONING TRACE (LIVE STREAM)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
-                            <TextBlock Text="{Binding LiveThoughtStream}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextWrapping="Wrap"/>
+                            <SelectableTextBlock Text="{Binding LiveThoughtStream}"
+                                                 FlowDirection="{Binding LiveThoughtFlowDirection}"
+                                                 TextAlignment="{Binding LiveThoughtTextAlignment}"
+                                                 FontSize="11"
+                                                 FontFamily="{StaticResource MonoFontFamily}"
+                                                 TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

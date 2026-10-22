@@ -21,4 +21,15 @@ public partial class MemoriesRagTabView : UserControl
             }
         }
     }
+
+    private void OnProfileSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            if (DataContext is MemoriesRagTabViewModel vm)
+            {
+                _ = vm.SearchUserProfiles();
+            }
+        }
+    }
 }

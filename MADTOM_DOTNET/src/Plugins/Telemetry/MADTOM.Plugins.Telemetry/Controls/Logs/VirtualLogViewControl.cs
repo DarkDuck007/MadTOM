@@ -451,7 +451,7 @@ public sealed class VirtualLogViewControl : Control
             if (rec != null)
             {
                 DateTime dt = DateTimeOffset.FromUnixTimeMilliseconds(rec.TimestampUnixNano / 1_000_000).ToLocalTime().DateTime;
-                string timeStr = dt.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+                string timeStr = dt.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
                 string unitStr = string.IsNullOrEmpty(rec.Unit) ? "-" : rec.Unit;
                 sb.AppendLine($"[{timeStr}] [{unitStr}] {rec.Message}");
             }
@@ -558,9 +558,9 @@ public sealed class VirtualLogViewControl : Control
     private void DrawLogRecord(DrawingContext context, LogRecord rec, double y, double maxWidth,
         IBrush textPrimary, IBrush textMuted, IBrush unitBrush, IBrush errBrush, IBrush warnBrush, IBrush noticeBrush)
     {
-        // Format: [HH:mm:ss.fff] [unit] message
+        // Format: [yyyy-MM-dd HH:mm:ss.fff] [unit] message
         DateTime dt = DateTimeOffset.FromUnixTimeMilliseconds(rec.TimestampUnixNano / 1_000_000).ToLocalTime().DateTime;
-        string timeStr = dt.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+        string timeStr = dt.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
         string unitStr = string.IsNullOrEmpty(rec.Unit) ? "-" : rec.Unit;
         string msg = rec.Message ?? string.Empty;
 

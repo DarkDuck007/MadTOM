@@ -306,6 +306,8 @@
                                                             <!-- Bot Description Text -->
                                                             <TextBlock Grid.Column="1"
                                                                        Text="{Binding CaptionText}"
+                                                                       FlowDirection="{Binding FlowDirection}"
+                                                                       TextAlignment="{Binding TextAlignment}"
                                                                        FontSize="10"
                                                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                                                        TextTrimming="CharacterEllipsis"

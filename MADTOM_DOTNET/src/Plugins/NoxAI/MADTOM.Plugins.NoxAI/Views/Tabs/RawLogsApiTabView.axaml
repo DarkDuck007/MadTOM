@@ -109,57 +109,78 @@
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        Margin="4,2,4,6"/>
-                            <ListBox Grid.Row="1"
-                                     ItemsSource="{Binding RecentApiCalls}"
-                                     SelectedItem="{Binding SelectedApiCall, Mode=TwoWay}"
-                                     Background="Transparent"
-                                     BorderThickness="0">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:RawApiCallItemModel">
-                                        <Border Background="{DynamicResource CardBgBrush}"
-                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="6"
-                                                Padding="8"
-                                                Margin="0,2">
-                                            <StackPanel Spacing="3">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Text="{Binding Caller}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding DurationMs, StringFormat='{}{0}ms'}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
-                                                </Grid>
-                                                <!-- Chat Name Badge -->
-                                                <Border IsVisible="{Binding HasChatName}"
-                                                        Background="#162032"
-                                                        BorderBrush="#1E3A5F"
-                                                        BorderThickness="1"
-                                                        CornerRadius="4"
-                                                        Padding="5,2"
-                                                        HorizontalAlignment="Left"
-                                                        Margin="0,1">
-                                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <TextBlock Text="💬" FontSize="9" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding ChatName}"
-                                                                   FontSize="10"
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="#60A5FA"
-                                                                   MaxWidth="170"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   VerticalAlignment="Center"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Text="{Binding Model}" FontSize="10" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding TimestampText}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}"/>
-                                                </Grid>
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Text="{Binding PromptTokens, StringFormat='In: {0} tok'}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding CompletionTokens, StringFormat='Out: {0} tok'}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
-                                                </Grid>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                            <Grid Grid.Row="1">
+                                <ListBox x:Name="ApiCallsListBox"
+                                         ItemsSource="{Binding RecentApiCalls}"
+                                         SelectedItem="{Binding SelectedApiCall, Mode=TwoWay}"
+                                         Background="Transparent"
+                                         BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:RawApiCallItemModel">
+                                            <Border Background="{DynamicResource CardBgBrush}"
+                                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8"
+                                                    Margin="0,2">
+                                                <StackPanel Spacing="3">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Text="{Binding Caller}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding DurationMs, StringFormat='{}{0}ms'}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    </Grid>
+                                                    <!-- Chat Name Badge -->
+                                                    <Border IsVisible="{Binding HasChatName}"
+                                                            Background="#162032"
+                                                            BorderBrush="#1E3A5F"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            Padding="5,2"
+                                                            HorizontalAlignment="Left"
+                                                            Margin="0,1">
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <TextBlock Text="💬" FontSize="9" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding ChatName}"
+                                                                       FontSize="10"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#60A5FA"
+                                                                       MaxWidth="170"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Text="{Binding Model}" FontSize="10" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding TimestampText}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    </Grid>
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Text="{Binding PromptTokens, StringFormat='In: {0} tok'}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding CompletionTokens, StringFormat='Out: {0} tok'}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <!-- Floating "Go to newest" Button -->
+                                <Button Command="{Binding GoToNewestCommand}"
+                                        IsVisible="{Binding ShowGoToNewestButton}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Top"
+                                        Margin="0,8,0,0"
+                                        Padding="12,5"
+                                        CornerRadius="16"
+                                        Background="#2563EB"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        ToolTip.Tip="Jump to the newest API call at the top">
+                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                        <TextBlock Text="⬆" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Go to newest" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
                         </Grid>
                     </Border>
 
@@ -294,11 +315,42 @@
                                                                     </ItemsControl.ItemTemplate>
                                                                 </ItemsControl>
 
-                                                                <!-- Main Message Text (for user and bot turns) -->
+                                                                <!-- Chat Entries Breakdown (dynamic RTL/LTR per individual chat entry) -->
+                                                                <ItemsControl ItemsSource="{Binding ChatEntries}"
+                                                                              IsVisible="{Binding HasChatEntries}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate x:DataType="vm:ParsedChatEntryModel">
+                                                                            <Border Background="#10192A"
+                                                                                    BorderBrush="#1E293B"
+                                                                                    BorderThickness="1"
+                                                                                    CornerRadius="5"
+                                                                                    Padding="10,7"
+                                                                                    Margin="0,3">
+                                                                                <StackPanel Spacing="3">
+                                                                                    <TextBlock Text="{Binding Header}"
+                                                                                               IsVisible="{Binding HasHeader}"
+                                                                                               FontSize="10"
+                                                                                               FontWeight="Bold"
+                                                                                               FontFamily="{StaticResource MonoFontFamily}"
+                                                                                               Foreground="#38BDF8"/>
+                                                                                    <SelectableTextBlock Text="{Binding Body}"
+                                                                                                         FlowDirection="{Binding FlowDirection}"
+                                                                                                         TextAlignment="{Binding TextAlignment}"
+                                                                                                         FontSize="11.5"
+                                                                                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                                                         TextWrapping="Wrap"
+                                                                                                         LineHeight="17"/>
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+
+                                                                <!-- Fallback Main Message Text (when ChatEntries are not present) -->
                                                                 <SelectableTextBlock Text="{Binding Text}"
                                                                                      FlowDirection="{Binding FlowDirection}"
                                                                                      TextAlignment="{Binding TextAlignment}"
-                                                                                     IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                                     IsVisible="{Binding ShowFallbackText}"
                                                                                      FontSize="11.5"
                                                                                      Foreground="{DynamicResource TextPrimaryBrush}"
                                                                                      TextWrapping="Wrap"

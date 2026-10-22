@@ -840,6 +840,45 @@ func (s *Server) InspectVectors(ctx context.Context, req *madtomv1.NoxVectorInsp
 	return &resp, nil
 }
 
+func (s *Server) QueryUserProfiles(ctx context.Context, req *madtomv1.NoxUserProfileQueryRequest) (*madtomv1.NoxUserProfileQueryResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("query_user_profiles", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxUserProfileQueryResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) SearchUserProfiles(ctx context.Context, req *madtomv1.NoxUserProfileSearchRequest) (*madtomv1.NoxUserProfileSearchResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("search_user_profiles", req, 20*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxUserProfileSearchResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) GetUserProfilePhoto(ctx context.Context, req *madtomv1.NoxUserProfilePhotoRequest) (*madtomv1.NoxUserProfilePhotoResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("get_user_profile_photo", req, 25*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxUserProfilePhotoResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
 // Zstd Response Envelopes
 func (s *Server) encodeResponse(ctx context.Context, resp *madtomv1.NoxNodeStatusResponse) (*madtomv1.NoxNodeStatusResponse, error) {
 	md, _ := metadata.FromIncomingContext(ctx)

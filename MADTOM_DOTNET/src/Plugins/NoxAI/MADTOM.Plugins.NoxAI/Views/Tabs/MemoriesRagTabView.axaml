@@ -3,112 +3,445 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="750"
              x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.MemoriesRagTabView"
              x:DataType="vm:MemoriesRagTabViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="16" RowSpacing="12">
-        <!-- Hot Memory Live Ribbon -->
+    <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="10">
+        <!-- Status Bar -->
         <Border Grid.Row="0"
                 Background="{DynamicResource CardBgBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="12">
-            <StackPanel Spacing="6">
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Text="🔥 HOT CONVERSATION SCRATCHPAD (ACTIVE TOPICS &amp; THREAD NOTES)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
-                    <Button Grid.Column="1" Command="{Binding RefreshMemoriesCommand}" Content="Refresh" Padding="6,2" FontSize="10"/>
-                </Grid>
-                <ItemsControl ItemsSource="{Binding HotMemories}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:HotMemoryItemModel">
-                            <Border Background="{DynamicResource DarkBaseBrush}"
-                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="8,4"
-                                    Margin="0,0,8,6">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                    <TextBlock Text=":" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                                    <TextBlock Text="{Binding Content}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </Border>
-
-        <!-- Long-Term Atomic Memories Table -->
-        <Border Grid.Row="1"
-                Background="{DynamicResource DarkBaseBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="12">
-            <Grid RowDefinitions="Auto,Auto,*">
-                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                    <TextBlock Text="🧠 LONG-TERM ATOMIC MEMORIES (SQLITE + QDRANT HYBRID RAG)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding SearchResultsSummary}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding IsSearchResultsActive}"/>
-                </Grid>
-
-                <!-- Search Header Bar -->
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,10">
-                    <TextBox x:Name="SearchBox"
-                             Text="{Binding SearchQuery, Mode=TwoWay}"
-                             PlaceholderText="🔍 Semantic hybrid search (e.g. user preferences, tech stack, facts)... [Press Enter]"
-                             KeyDown="OnSearchKeyDown"/>
-                    <Button Grid.Column="1" Command="{Binding SearchMemoriesHybridCommand}" Content="🔍 Search" Padding="12,5" FontWeight="SemiBold"/>
-                    <Button Grid.Column="2" Command="{Binding ClearSearchCommand}" Content="✕ Clear" Padding="8,5" IsVisible="{Binding IsSearchResultsActive}"/>
-                </Grid>
-
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Memories}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:MemoryItemModel">
-                                <Border Background="{DynamicResource CardBgBrush}"
-                                        BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="10,6"
-                                        Margin="0,3">
-                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-                                        <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
-                                            <TextBlock Text="{Binding Category}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
-                                        </Border>
-                                        <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0" IsVisible="{Binding HasScore}">
-                                            <TextBlock Text="{Binding ScoreDisplay}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" FontWeight="SemiBold" Foreground="{DynamicResource HealthyBrush}"/>
-                                        </Border>
-                                        <TextBlock Grid.Column="2" Text="{Binding Content}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="3" Command="{Binding $parent[UserControl].((vm:MemoriesRagTabViewModel)DataContext).DeleteMemoryCommand}" CommandParameter="{Binding Id}" Content="Forget" Padding="6,2" FontSize="10" Foreground="{DynamicResource CriticalBrush}"/>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                Padding="12,8">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Command="{Binding RefreshMemoriesCommand}" Content="🔄 Refresh Memories" Padding="8,3" FontSize="11"/>
+                    <Button Command="{Binding RefreshUserProfilesCommand}" Content="👤 Refresh Profiles" Padding="8,3" FontSize="11"/>
+                </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Add Memory Form -->
-        <Border Grid.Row="2"
-                Background="{DynamicResource CardBgBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="12">
-            <Grid ColumnDefinitions="100,*,Auto" ColumnSpacing="8">
-                <TextBox Grid.Column="0" Text="{Binding NewMemoryCategory, Mode=TwoWay}" PlaceholderText="Category (e.g. fact, preference)"/>
-                <TextBox Grid.Column="1" Text="{Binding NewMemoryContent, Mode=TwoWay}" PlaceholderText="Add new atomic memory / fact..."/>
-                <Button Grid.Column="2" Command="{Binding AddMemoryCommand}" Content="+ Add Memory" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
-            </Grid>
-        </Border>
+        <!-- Sub Tabs: Memories & Hot Scratchpad vs User Profiles & Avatars -->
+        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedSubTabIndex, Mode=TwoWay}">
+            <!-- Sub-Tab 1: Long-Term Memories & Hot Memory Scratchpad -->
+            <TabItem Header="🧠 Memories &amp; Hot Scratchpad" FontSize="11">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="0,10,0,0" RowSpacing="12">
+                    <!-- Hot Memory Live Ribbon -->
+                    <Border Grid.Row="0"
+                            Background="{DynamicResource CardBgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="🔥 HOT CONVERSATION SCRATCHPAD (ACTIVE TOPICS &amp; THREAD NOTES)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                <Button Grid.Column="1" Command="{Binding RefreshMemoriesCommand}" Content="Refresh" Padding="6,2" FontSize="10"/>
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding HotMemories}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:HotMemoryItemModel">
+                                        <Border Background="{DynamicResource DarkBaseBrush}"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8,4"
+                                                Margin="0,0,8,6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text=":" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Text="{Binding Content}"
+                                                           FlowDirection="{Binding FlowDirection}"
+                                                           TextAlignment="{Binding TextAlignment}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Long-Term Atomic Memories Table -->
+                    <Border Grid.Row="1"
+                            Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <Grid RowDefinitions="Auto,Auto,*">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <TextBlock Text="🧠 LONG-TERM ATOMIC MEMORIES (SQLITE + QDRANT HYBRID RAG)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding SearchResultsSummary}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding IsSearchResultsActive}"/>
+                            </Grid>
+
+                            <!-- Search Header Bar -->
+                            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,10">
+                                <TextBox x:Name="SearchBox"
+                                         Text="{Binding SearchQuery, Mode=TwoWay}"
+                                         PlaceholderText="🔍 Semantic hybrid search (e.g. user preferences, tech stack, facts)... [Press Enter]"
+                                         KeyDown="OnSearchKeyDown"/>
+                                <Button Grid.Column="1" Command="{Binding SearchMemoriesHybridCommand}" Content="🔍 Search" Padding="12,5" FontWeight="SemiBold"/>
+                                <Button Grid.Column="2" Command="{Binding ClearSearchCommand}" Content="✕ Clear" Padding="8,5" IsVisible="{Binding IsSearchResultsActive}"/>
+                            </Grid>
+
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Memories}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:MemoryItemModel">
+                                            <Border Background="{DynamicResource CardBgBrush}"
+                                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,6"
+                                                    Margin="0,3">
+                                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                                    <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                                        <TextBlock Text="{Binding Category}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                    </Border>
+                                                    <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0" IsVisible="{Binding HasScore}">
+                                                        <TextBlock Text="{Binding ScoreDisplay}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" FontWeight="SemiBold" Foreground="{DynamicResource HealthyBrush}"/>
+                                                    </Border>
+                                                    <SelectableTextBlock Grid.Column="2"
+                                                                         Text="{Binding Content}"
+                                                                         FlowDirection="{Binding FlowDirection}"
+                                                                         TextAlignment="{Binding TextAlignment}"
+                                                                         FontSize="11"
+                                                                         TextWrapping="Wrap"
+                                                                         VerticalAlignment="Center"/>
+                                                    <Button Grid.Column="3" Command="{Binding $parent[UserControl].((vm:MemoriesRagTabViewModel)DataContext).DeleteMemoryCommand}" CommandParameter="{Binding Id}" Content="Forget" Padding="6,2" FontSize="10" Foreground="{DynamicResource CriticalBrush}"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <!-- Add Memory Form -->
+                    <Border Grid.Row="2"
+                            Background="{DynamicResource CardBgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <Grid ColumnDefinitions="100,*,Auto" ColumnSpacing="8">
+                            <TextBox Grid.Column="0" Text="{Binding NewMemoryCategory, Mode=TwoWay}" PlaceholderText="Category (e.g. fact, preference)"/>
+                            <TextBox Grid.Column="1" Text="{Binding NewMemoryContent, Mode=TwoWay}" PlaceholderText="Add new atomic memory / fact..."/>
+                            <Button Grid.Column="2" Command="{Binding AddMemoryCommand}" Content="+ Add Memory" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Sub-Tab 2: User Profiles & Avatars (Qdrant & SQLite) -->
+            <TabItem Header="👤 User Profiles &amp; Avatars (Qdrant &amp; SQLite)" FontSize="11">
+                <Grid RowDefinitions="Auto,*" Margin="0,10,0,0" RowSpacing="10">
+                    <!-- Search & Action Bar -->
+                    <Border Grid.Row="0"
+                            Background="{DynamicResource CardBgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <Grid RowDefinitions="Auto,Auto">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <TextBlock Text="👤 USER PROFILES VECTOR EXPLORER (DEDICATED QDRANT COLLECTION: user_profiles)"
+                                           FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ProfileSearchResultsSummary}"
+                                           FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"
+                                           IsVisible="{Binding IsProfileSearchResultsActive}"/>
+                            </Grid>
+
+                            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="ProfileSearchBox"
+                                         Text="{Binding ProfileSearchQuery, Mode=TwoWay}"
+                                         PlaceholderText="🔍 Semantic profile search (e.g. music taste, city, tech interests, bio)... [Press Enter]"
+                                         KeyDown="OnProfileSearchKeyDown"/>
+                                <Button Grid.Column="1" Command="{Binding SearchUserProfilesCommand}" Content="🔍 Search" Padding="12,5" FontWeight="SemiBold"/>
+                                <Button Grid.Column="2" Command="{Binding ClearProfileSearchCommand}" Content="✕ Clear" Padding="8,5" IsVisible="{Binding IsProfileSearchResultsActive}"/>
+                                <Button Grid.Column="3" Command="{Binding RefreshUserProfilesCommand}" Content="🔄 Refresh" Padding="10,5"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- Master-Detail Content Split -->
+                    <Grid Grid.Row="1" ColumnDefinitions="420,*" ColumnSpacing="12">
+                        <!-- Left: Profiles List -->
+                        <Border Grid.Column="0"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="8">
+                            <Grid RowDefinitions="Auto,*">
+                                <TextBlock Text="{Binding UserProfiles.Count, StringFormat='{}PROFILES ({0})'}"
+                                           FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"
+                                           Margin="4,2,4,6"/>
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding UserProfiles}"
+                                         SelectedItem="{Binding SelectedUserProfile, Mode=TwoWay}"
+                                         Background="Transparent"
+                                         BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:UserProfileItemModel">
+                                            <Border Background="{DynamicResource CardBgBrush}"
+                                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8"
+                                                    Margin="0,2">
+                                                <Grid ColumnDefinitions="56,*" ColumnSpacing="10">
+                                                    <!-- Avatar -->
+                                                    <Border Grid.Column="0" Width="52" Height="52"
+                                                            CornerRadius="26" ClipToBounds="True"
+                                                            Background="#1F2937"
+                                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                            BorderThickness="1"
+                                                            VerticalAlignment="Top">
+                                                        <Panel>
+                                                            <TextBlock Text="👤" FontSize="24"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                                       IsVisible="{Binding !HasAvatar}"/>
+                                                            <Image Source="{Binding AvatarImage}"
+                                                                   Stretch="UniformToFill"
+                                                                   IsVisible="{Binding HasAvatar}"/>
+                                                        </Panel>
+                                                    </Border>
+
+                                                    <!-- Profile Summary Info -->
+                                                    <StackPanel Grid.Column="1" Spacing="3">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Text="{Binding DisplayTitle}"
+                                                                       FontWeight="Bold" FontSize="12"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                       TextTrimming="CharacterEllipsis"/>
+                                                            <Border Grid.Column="1"
+                                                                    Background="{DynamicResource DarkBaseBrush}"
+                                                                    CornerRadius="4"
+                                                                    Padding="5,1"
+                                                                    IsVisible="{Binding HasScore}">
+                                                                <TextBlock Text="{Binding ScoreDisplay}"
+                                                                           FontSize="9"
+                                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="{DynamicResource HealthyBrush}"/>
+                                                            </Border>
+                                                        </Grid>
+
+                                                        <TextBlock Text="{Binding HandleDisplay}"
+                                                                   FontSize="10"
+                                                                   Foreground="{DynamicResource AccentTextBrush}"/>
+
+                                                        <!-- Bio snippet -->
+                                                        <TextBlock Text="{Binding Bio}"
+                                                                   FlowDirection="{Binding BioFlowDirection}"
+                                                                   TextAlignment="{Binding BioTextAlignment}"
+                                                                   FontSize="10"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                   MaxLines="2"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   IsVisible="{Binding HasBio}"/>
+
+                                                        <!-- Meta Badges -->
+                                                        <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                            <Border Background="#162032" CornerRadius="3" Padding="4,1" Margin="0,0,4,2" IsVisible="{Binding HasPhotoDescription}">
+                                                                <TextBlock Text="📷 Photo Info" FontSize="8" Foreground="#38BDF8"/>
+                                                            </Border>
+                                                            <Border Background="#1A2E1A" CornerRadius="3" Padding="4,1" Margin="0,0,4,2" IsVisible="{Binding HasAudio}">
+                                                                <TextBlock Text="🎵 Music" FontSize="8" Foreground="#4ADE80"/>
+                                                            </Border>
+                                                            <Border Background="#2E1A2E" CornerRadius="3" Padding="4,1" Margin="0,0,4,2" IsVisible="{Binding HasBirthdate}">
+                                                                <TextBlock Text="{Binding Birthdate, StringFormat='{}🎂 {0}'}" FontSize="8" Foreground="#F472B6"/>
+                                                            </Border>
+                                                        </WrapPanel>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Right: Detailed Profile View -->
+                        <Border Grid.Column="1"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <Panel>
+                                    <!-- Empty Selection Placeholder -->
+                                    <TextBlock Text="Select a user profile from the list to view full details and photo description."
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               FontSize="12"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding SelectedUserProfile, Converter={x:Static ObjectConverters.IsNull}}"/>
+
+                                    <!-- Profile Detail Content -->
+                                    <StackPanel Spacing="14"
+                                                DataContext="{Binding SelectedUserProfile}"
+                                                IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <!-- Header: Avatar + Main Titles -->
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                                            <!-- High-Res Avatar -->
+                                            <Border Width="110" Height="110"
+                                                    CornerRadius="55" ClipToBounds="True"
+                                                    Background="#1F2937"
+                                                    BorderBrush="{DynamicResource AccentBrush}"
+                                                    BorderThickness="2">
+                                                <Panel>
+                                                    <TextBlock Text="👤" FontSize="52"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                               IsVisible="{Binding !HasAvatar}"/>
+                                                    <Image Source="{Binding AvatarImage}"
+                                                           Stretch="UniformToFill"
+                                                           IsVisible="{Binding HasAvatar}"/>
+                                                </Panel>
+                                            </Border>
+
+                                            <!-- Header Text -->
+                                            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding DisplayTitle}"
+                                                           FontSize="18" FontWeight="Bold"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="{Binding HandleDisplay}"
+                                                           FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource AccentTextBrush}"/>
+                                                <TextBlock Text="{Binding UserId, StringFormat='{}User ID: {0}'}"
+                                                           FontSize="11" FontFamily="{StaticResource MonoFontFamily}"
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <Border Background="{DynamicResource CardBgBrush}"
+                                                        BorderBrush="{DynamicResource HealthyBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        HorizontalAlignment="Left"
+                                                        IsVisible="{Binding HasScore}">
+                                                    <TextBlock Text="{Binding ScoreDisplay}"
+                                                               FontSize="10"
+                                                               FontFamily="{StaticResource MonoFontFamily}"
+                                                               FontWeight="Bold"
+                                                               Foreground="{DynamicResource HealthyBrush}"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Bio Section -->
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="12"
+                                                IsVisible="{Binding HasBio}">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="💬 USER BIO" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                <SelectableTextBlock Text="{Binding Bio}"
+                                                                     FlowDirection="{Binding BioFlowDirection}"
+                                                                     TextAlignment="{Binding BioTextAlignment}"
+                                                                     TextWrapping="Wrap"
+                                                                     FontSize="12"
+                                                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                     LineHeight="18"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Photo Visual Description (Vision LLM Analysis) -->
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="12"
+                                                IsVisible="{Binding HasPhotoDescription}">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="📷 PHOTO VISUAL DESCRIPTION (VISION RAG)" FontSize="10" FontWeight="Bold" Foreground="#38BDF8"/>
+                                                <SelectableTextBlock Text="{Binding PhotoDescription}"
+                                                                     FlowDirection="{Binding PhotoDescriptionFlowDirection}"
+                                                                     TextAlignment="{Binding PhotoDescriptionTextAlignment}"
+                                                                     TextWrapping="Wrap"
+                                                                     FontSize="11"
+                                                                     Foreground="{DynamicResource TextSecondaryBrush}"
+                                                                     LineHeight="16"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Audio / Music Track -->
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="12"
+                                                IsVisible="{Binding HasAudio}">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="🎵 STATUS / FAVORITE AUDIO" FontSize="10" FontWeight="Bold" Foreground="#4ADE80"/>
+                                                <TextBlock Text="{Binding AudioDisplay}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Personal Channel / Chat -->
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="12"
+                                                IsVisible="{Binding HasPersonalChat}">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="📢 PERSONAL CHANNEL / LINKED CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                <TextBlock Text="{Binding PersonalChatDisplay}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Metadata & Timestamps -->
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="12">
+                                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="6" ColumnSpacing="12">
+                                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                                                    <TextBlock Text="🎂 BIRTHDATE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    <TextBlock Text="{Binding Birthdate, FallbackValue='Not specified'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="🆔 PHOTO UNIQUE ID" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    <TextBlock Text="{Binding PhotoUniqueId, FallbackValue='None'}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="2">
+                                                    <TextBlock Text="⏱️ LAST SYNCED" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    <TextBlock Text="{Binding LastCheckedAt}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="📅 FIRST SEEN" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                    <TextBlock Text="{Binding CreatedAt}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Panel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+        </TabControl>
     </Grid>
 </UserControl>

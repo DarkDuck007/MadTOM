@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +16,56 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"google.golang.org/protobuf/proto"
 )
+
+var (
+	groupChatRe    = regexp.MustCompile(`(?i)Group\s+Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
+	privateChatRe  = regexp.MustCompile(`(?i)Private\s+Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
+	explicitChatRe = regexp.MustCompile(`(?i)(?:^|[\r\n])Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
+	senderLineRe   = regexp.MustCompile(`\[#\d+\s+([^\]:\r\n]+?)(?:\s+->\s+#\d+)?\]:`)
+)
+
+func extractChatName(requestJson, caller string) string {
+	if requestJson == "" {
+		return ""
+	}
+	if m := groupChatRe.FindStringSubmatch(requestJson); len(m) > 1 && strings.TrimSpace(m[1]) != "" {
+		return strings.TrimSpace(m[1])
+	}
+	if m := privateChatRe.FindStringSubmatch(requestJson); len(m) > 1 && strings.TrimSpace(m[1]) != "" {
+		return strings.TrimSpace(m[1])
+	}
+	if m := explicitChatRe.FindStringSubmatch(requestJson); len(m) > 1 && strings.TrimSpace(m[1]) != "" {
+		return strings.TrimSpace(m[1])
+	}
+	cLower := strings.ToLower(caller)
+	if strings.Contains(cLower, "step") || strings.Contains(cLower, "chat") || strings.Contains(cLower, "agent") {
+		matches := senderLineRe.FindAllStringSubmatch(requestJson, -1)
+		var fallback string
+		for _, match := range matches {
+			if len(match) > 1 {
+				raw := strings.TrimSpace(match[1])
+				clean := raw
+				if idx := strings.Index(clean, "("); idx > 0 {
+					clean = strings.TrimSpace(clean[:idx])
+				}
+				if strings.EqualFold(clean, "Nox") || strings.EqualFold(clean, "Bot") {
+					continue
+				}
+				if strings.Contains(strings.ToLower(raw), "(you)") {
+					if fallback == "" {
+						fallback = clean
+					}
+					continue
+				}
+				return clean
+			}
+		}
+		if fallback != "" {
+			return fallback
+		}
+	}
+	return ""
+}
 
 const (
 	DefaultMaxSegmentSize = 10 * 1024 * 1024
@@ -53,6 +104,8 @@ type WalSpool struct {
 	maxApiSeq       uint64
 	logChunkCounts  map[uint64]uint64
 	apiChunkCounts  map[uint64]uint64
+	logChunks       map[uint64]*madtomv1.LogChunk
+	apiChunks       map[uint64]*madtomv1.NoxApiCallChunk
 	oldestTs        int64
 	newestTs        int64
 	closed          bool
@@ -72,6 +125,8 @@ func NewWalSpool(dir string, maxTotalSpool int64) (*WalSpool, error) {
 		maxTotalSpool:  maxTotalSpool,
 		logChunkCounts: make(map[uint64]uint64),
 		apiChunkCounts: make(map[uint64]uint64),
+		logChunks:      make(map[uint64]*madtomv1.LogChunk),
+		apiChunks:      make(map[uint64]*madtomv1.NoxApiCallChunk),
 	}
 	if err := w.scanAndRecover(); err != nil {
 		return nil, err
@@ -141,6 +196,7 @@ func (w *WalSpool) scanAndRecover() error {
 			if kind == 'L' {
 				chunk := &madtomv1.LogChunk{}
 				if err := proto.Unmarshal(payload, chunk); err == nil {
+					w.logChunks[chunk.ChunkId] = chunk
 					prev := w.logChunkCounts[chunk.ChunkId]
 					cur := uint64(chunk.RecordCount)
 					if cur > prev {
@@ -160,6 +216,7 @@ func (w *WalSpool) scanAndRecover() error {
 			} else if kind == 'A' {
 				chunk := &madtomv1.NoxApiCallChunk{}
 				if err := proto.Unmarshal(payload, chunk); err == nil {
+					w.apiChunks[chunk.ChunkId] = chunk
 					prev := w.apiChunkCounts[chunk.ChunkId]
 					cur := uint64(chunk.RecordCount)
 					if cur > prev {
@@ -202,6 +259,9 @@ func (w *WalSpool) WriteLogChunk(chunk *madtomv1.LogChunk) error {
 	if err != nil {
 		return err
 	}
+	w.mu.Lock()
+	w.logChunks[chunk.ChunkId] = chunk
+	w.mu.Unlock()
 	return w.writeFrame('L', chunk.ChunkId, raw, uint64(chunk.RecordCount), chunk.LastSeq, chunk.FirstTsUnixNano, chunk.LastTsUnixNano)
 }
 
@@ -211,6 +271,9 @@ func (w *WalSpool) WriteApiCallChunk(chunk *madtomv1.NoxApiCallChunk) error {
 	if err != nil {
 		return err
 	}
+	w.mu.Lock()
+	w.apiChunks[chunk.ChunkId] = chunk
+	w.mu.Unlock()
 	return w.writeFrame('A', chunk.ChunkId, raw, uint64(chunk.RecordCount), chunk.LastSeq, chunk.FirstTsUnixNano, chunk.LastTsUnixNano)
 }
 
@@ -306,119 +369,60 @@ func (w *WalSpool) enforceQuotaLocked() error {
 	return nil
 }
 
-// QueryLogChunks reads up to maxChunks matching LogChunks from disk WAL, deduplicating unsealed updates by ChunkId.
+// QueryLogChunks reads up to maxChunks matching LogChunks from in-memory index / spool.
 func (w *WalSpool) QueryLogChunks(startChunkID uint64, maxChunks uint32) ([]*madtomv1.LogChunk, bool, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	if maxChunks == 0 {
-		maxChunks = 8
+		maxChunks = 32
 	}
 
-	byID := make(map[uint64]*madtomv1.LogChunk)
 	var order []uint64
-
-	for _, seg := range w.segments {
-		f, err := os.Open(seg.path)
-		if err != nil {
-			continue
+	for id := range w.logChunks {
+		if id >= startChunkID {
+			order = append(order, id)
 		}
-
-		for {
-			var hdr [5]byte
-			if _, err := io.ReadFull(f, hdr[:]); err != nil {
-				break
-			}
-			kind := hdr[0]
-			payloadLen := binary.BigEndian.Uint32(hdr[1:5])
-			payload := make([]byte, payloadLen)
-			if _, err := io.ReadFull(f, payload); err != nil {
-				break
-			}
-
-			if kind == 'L' {
-				chunk := &madtomv1.LogChunk{}
-				if err := proto.Unmarshal(payload, chunk); err == nil {
-					if chunk.ChunkId >= startChunkID {
-						if _, exists := byID[chunk.ChunkId]; !exists {
-							order = append(order, chunk.ChunkId)
-						}
-						byID[chunk.ChunkId] = chunk
-					}
-				}
-			}
-		}
-		_ = f.Close()
 	}
-
 	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+
 	var chunks []*madtomv1.LogChunk
 	for _, id := range order {
-		chunks = append(chunks, byID[id])
+		chunks = append(chunks, w.logChunks[id])
 		if uint32(len(chunks)) >= maxChunks {
-			return chunks, len(order) > len(chunks), nil
+			break
 		}
 	}
-
-	return chunks, false, nil
+	hasMore := len(order) > len(chunks)
+	return chunks, hasMore, nil
 }
 
-// QueryApiCallChunks reads up to maxChunks matching NoxApiCallChunks from disk WAL, deduplicating unsealed updates by ChunkId.
+// QueryApiCallChunks reads up to maxChunks matching NoxApiCallChunks from in-memory index / spool.
 // If summaryOnly is true, large payloads (raw JSON strings and full image byte arrays) are excluded to ensure lightweight list retrieval.
 func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, summaryOnly bool) ([]*madtomv1.NoxApiCallChunk, bool, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	if maxChunks == 0 {
-		maxChunks = 8
+		maxChunks = 32
 	}
 
-	byID := make(map[uint64]*madtomv1.NoxApiCallChunk)
 	var order []uint64
-
-	for _, seg := range w.segments {
-		f, err := os.Open(seg.path)
-		if err != nil {
-			continue
+	for id := range w.apiChunks {
+		if id >= startChunkID {
+			order = append(order, id)
 		}
-
-		for {
-			var hdr [5]byte
-			if _, err := io.ReadFull(f, hdr[:]); err != nil {
-				break
-			}
-			kind := hdr[0]
-			payloadLen := binary.BigEndian.Uint32(hdr[1:5])
-			payload := make([]byte, payloadLen)
-			if _, err := io.ReadFull(f, payload); err != nil {
-				break
-			}
-
-			if kind == 'A' {
-				chunk := &madtomv1.NoxApiCallChunk{}
-				if err := proto.Unmarshal(payload, chunk); err == nil {
-					if chunk.ChunkId >= startChunkID {
-						if _, exists := byID[chunk.ChunkId]; !exists {
-							order = append(order, chunk.ChunkId)
-						}
-						byID[chunk.ChunkId] = chunk
-					}
-				}
-			}
-		}
-		_ = f.Close()
 	}
-
 	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+
 	var chunks []*madtomv1.NoxApiCallChunk
-	hasMore := false
 	for _, id := range order {
-		chunks = append(chunks, byID[id])
+		chunks = append(chunks, w.apiChunks[id])
 		if uint32(len(chunks)) >= maxChunks {
-			hasMore = len(order) > len(chunks)
 			break
 		}
 	}
+	hasMore := len(order) > len(chunks)
 
 	if summaryOnly && len(chunks) > 0 {
 		dec, err := zstd.NewReader(nil)
@@ -427,7 +431,10 @@ func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, sum
 			enc, err := zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1), zstd.WithEncoderLevel(zstd.SpeedDefault))
 			if err == nil {
 				defer enc.Close()
-				for _, ch := range chunks {
+				summaryChunks := make([]*madtomv1.NoxApiCallChunk, len(chunks))
+				for chIdx, orig := range chunks {
+					ch := proto.Clone(orig).(*madtomv1.NoxApiCallChunk)
+					summaryChunks[chIdx] = ch
 					if len(ch.ZstdRecords) == 0 {
 						continue
 					}
@@ -451,6 +458,10 @@ func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, sum
 								MimeType: img.MimeType,
 							})
 						}
+						chatName := r.ChatName
+						if chatName == "" && r.RawRequestJson != "" {
+							chatName = extractChatName(r.RawRequestJson, r.Caller)
+						}
 						lightList.Records[idx] = &madtomv1.NoxRawApiCallRecord{
 							CallId:            r.CallId,
 							TimestampUnixNano: r.TimestampUnixNano,
@@ -464,6 +475,7 @@ func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, sum
 							CachedTokens:      r.CachedTokens,
 							ImageDataUrls:     lightImgs,
 							ErrorMessage:      r.ErrorMessage,
+							ChatName:          chatName,
 							// RawRequestJson and RawResponseJson omitted for summary
 						}
 					}
@@ -474,6 +486,7 @@ func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, sum
 						ch.RawSize = uint32(len(lightRaw))
 					}
 				}
+				chunks = summaryChunks
 			}
 		}
 	}
@@ -481,15 +494,22 @@ func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, sum
 	return chunks, hasMore, nil
 }
 
-// GetApiCall searches segments (newest to oldest) for a specific API call record by CallId.
+// GetApiCall searches in-memory index and segments (newest to oldest) for a specific API call record by CallId.
 func (w *WalSpool) GetApiCall(callID string) (*madtomv1.NoxRawApiCallRecord, error) {
 	if callID == "" {
 		return nil, fmt.Errorf("empty call id")
 	}
 
 	w.mu.Lock()
-	segments := make([]segmentMeta, len(w.segments))
-	copy(segments, w.segments)
+	var chunkIds []uint64
+	for id := range w.apiChunks {
+		chunkIds = append(chunkIds, id)
+	}
+	sort.Slice(chunkIds, func(i, j int) bool { return chunkIds[i] > chunkIds[j] }) // newest first
+	chunks := make([]*madtomv1.NoxApiCallChunk, len(chunkIds))
+	for i, id := range chunkIds {
+		chunks[i] = w.apiChunks[id]
+	}
 	w.mu.Unlock()
 
 	dec, err := zstd.NewReader(nil)
@@ -498,45 +518,25 @@ func (w *WalSpool) GetApiCall(callID string) (*madtomv1.NoxRawApiCallRecord, err
 	}
 	defer dec.Close()
 
-	// Scan from newest to oldest segment for instant hits on recent calls
-	for i := len(segments) - 1; i >= 0; i-- {
-		seg := segments[i]
-		f, err := os.Open(seg.path)
+	for _, ch := range chunks {
+		if len(ch.ZstdRecords) == 0 {
+			continue
+		}
+		raw, err := dec.DecodeAll(ch.ZstdRecords, nil)
 		if err != nil {
 			continue
 		}
-
-		for {
-			var hdr [5]byte
-			if _, err := io.ReadFull(f, hdr[:]); err != nil {
-				break
-			}
-			kind := hdr[0]
-			payloadLen := binary.BigEndian.Uint32(hdr[1:5])
-			payload := make([]byte, payloadLen)
-			if _, err := io.ReadFull(f, payload); err != nil {
-				break
-			}
-
-			if kind == 'A' {
-				chunk := &madtomv1.NoxApiCallChunk{}
-				if err := proto.Unmarshal(payload, chunk); err == nil && len(chunk.ZstdRecords) > 0 {
-					raw, err := dec.DecodeAll(chunk.ZstdRecords, nil)
-					if err == nil {
-						list := &madtomv1.NoxApiCallRecordList{}
-						if err := proto.Unmarshal(raw, list); err == nil {
-							for _, r := range list.Records {
-								if r.CallId == callID {
-									_ = f.Close()
-									return r, nil
-								}
-							}
-						}
+		list := &madtomv1.NoxApiCallRecordList{}
+		if err := proto.Unmarshal(raw, list); err == nil {
+			for _, r := range list.Records {
+				if r.CallId == callID {
+					if r.ChatName == "" && r.RawRequestJson != "" {
+						r.ChatName = extractChatName(r.RawRequestJson, r.Caller)
 					}
+					return r, nil
 				}
 			}
 		}
-		_ = f.Close()
 	}
 
 	return nil, fmt.Errorf("call id %s not found in spool", callID)
@@ -586,6 +586,8 @@ func (w *WalSpool) Clear() error {
 	w.newestTs = 0
 	w.logChunkCounts = make(map[uint64]uint64)
 	w.apiChunkCounts = make(map[uint64]uint64)
+	w.logChunks = make(map[uint64]*madtomv1.LogChunk)
+	w.apiChunks = make(map[uint64]*madtomv1.NoxApiCallChunk)
 
 	return nil
 }

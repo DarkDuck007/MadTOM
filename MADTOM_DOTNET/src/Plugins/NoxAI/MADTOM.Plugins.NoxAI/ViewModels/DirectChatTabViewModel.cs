@@ -21,6 +21,9 @@ public sealed partial class ChatMessageItem : ObservableObject
     public bool IsThought { get; init; }
     public bool IsMedia { get; init; }
     public string MediaGlyph { get; init; } = string.Empty;
+
+    public Avalonia.Media.FlowDirection FlowDirection => NoxChatSessionParser.IsRtl(Text) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(Text) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
 }
 
 public sealed partial class DirectChatTabViewModel : ObservableObject
@@ -32,6 +35,9 @@ public sealed partial class DirectChatTabViewModel : ObservableObject
     [ObservableProperty] private bool _isSending;
     [ObservableProperty] private string _liveThoughtStream = string.Empty;
     [ObservableProperty] private bool _hasActiveThought;
+
+    public Avalonia.Media.FlowDirection LiveThoughtFlowDirection => NoxChatSessionParser.IsRtl(LiveThoughtStream) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment LiveThoughtTextAlignment => NoxChatSessionParser.IsRtl(LiveThoughtStream) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
 
     public ObservableCollection<ChatMessageItem> Messages { get; } = new();
 
@@ -45,7 +51,7 @@ public sealed partial class DirectChatTabViewModel : ObservableObject
         {
             Sender = "NoxAI",
             Text = "Connected to MADTOM Control Center. Ready for direct interaction.",
-            TimeFormatted = DateTime.Now.ToString("HH:mm:ss"),
+            TimeFormatted = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             IsUser = false
         });
     }
@@ -66,7 +72,7 @@ public sealed partial class DirectChatTabViewModel : ObservableObject
         {
             Sender = "MADTOM (Control Center)",
             Text = textToSend,
-            TimeFormatted = DateTime.Now.ToString("HH:mm:ss"),
+            TimeFormatted = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             IsUser = true
         });
 
@@ -95,7 +101,7 @@ public sealed partial class DirectChatTabViewModel : ObservableObject
                     {
                         Sender = "Nox",
                         Text = ev.Content,
-                        TimeFormatted = DateTime.Now.ToString("HH:mm:ss"),
+                        TimeFormatted = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                         IsUser = false
                     });
                 }
@@ -105,7 +111,7 @@ public sealed partial class DirectChatTabViewModel : ObservableObject
                     {
                         Sender = "Nox (Sticker)",
                         Text = ev.Attributes.TryGetValue("file_id", out var fid) ? fid : "Sticker",
-                        TimeFormatted = DateTime.Now.ToString("HH:mm:ss"),
+                        TimeFormatted = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                         IsUser = false,
                         IsMedia = true,
                         MediaGlyph = "🎨"
@@ -117,7 +123,7 @@ public sealed partial class DirectChatTabViewModel : ObservableObject
                     {
                         Sender = "Nox (GIF)",
                         Text = ev.Attributes.TryGetValue("file_id", out var fid) ? fid : "GIF",
-                        TimeFormatted = DateTime.Now.ToString("HH:mm:ss"),
+                        TimeFormatted = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                         IsUser = false,
                         IsMedia = true,
                         MediaGlyph = "🎞️"
@@ -131,7 +137,7 @@ public sealed partial class DirectChatTabViewModel : ObservableObject
             {
                 Sender = "Error",
                 Text = $"Failed to communicate: {ex.Message}",
-                TimeFormatted = DateTime.Now.ToString("HH:mm:ss"),
+                TimeFormatted = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 IsUser = false
             });
         }
@@ -154,7 +160,7 @@ public sealed partial class DirectChatTabViewModel : ObservableObject
             {
                 Sender = "Nox",
                 Text = turn.Content,
-                TimeFormatted = DateTime.Now.ToString("HH:mm:ss"),
+                TimeFormatted = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 IsUser = false
             });
         }
