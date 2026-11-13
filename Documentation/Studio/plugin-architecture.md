@@ -141,7 +141,7 @@ The `OrderWeight` property determines the vertical ordering of plugin icons in t
 | `40` | `ipcam` | IPCam Management | **Active / Running** |
 | `100` | `android-toolkit` | Android Toolkit | Stub / Coming Soon |
 | `110` | `media-center` | Media Center | Stub / Coming Soon |
-| `120` | `nox-ai` | Nox AI | Stub / Coming Soon |
+| `120` | `nox-ai` | NOX AI | **Active / Running** |
 | `130` | `audio-sync` | Audio Sync | Stub / Coming Soon |
 | `140` | `vna` | Visual Network Analyzer | Stub / Coming Soon |
 | `150` | `connection-toolkit` | Connection Toolkit | Stub / Coming Soon |
@@ -151,7 +151,7 @@ The `OrderWeight` property determines the vertical ordering of plugin icons in t
 ### Placeholder Dimming & Status Indicator
 
 To clearly differentiate between functional modules and future capabilities:
-- **Implemented Plugins** (`telemetry`, `squeeze`, `videofeedcenter`, `ipcam`): Display with full opacity (`1.0`), clickable interactive navigation, and a green status pill (`• RUNNING`).
+- **Implemented Plugins** (`telemetry`, `squeeze`, `videofeedcenter`, `ipcam`, `nox-ai`): Display with full opacity (`1.0`), clickable interactive navigation, and a green status pill (`• RUNNING`).
 - **Placeholder / Coming Soon Plugins**: Render with dimmed opacity (`0.4`), subdued cursor interaction, and an amber indicator pill (`• COMING SOON`).
 
 ---
@@ -197,7 +197,8 @@ if (context.Tray != null)
 ```
 
 - **Automatic Section Headers**: The studio automatically inserts a compact, non-intrusive header (`— {PluginName} —`) rendered in native muted color above the plugin's items.
-- **Standalone Mode Resilience**: Standalone runner applications (such as `MADTOM.Plugins.Telemetry.App`) can provide a null or dummy `ITrayMenuService` without breaking plugin code.
+- **Standalone Mode Resilience**: Standalone runner applications (such as `MADTOM.Plugins.Telemetry.App` or `MADTOM.Plugins.NoxAI.App`) can provide a null or dummy `ITrayMenuService` without breaking plugin code.
+- **Active Implementations**: For example, `MADTOM.Plugins.NoxAI` registers `NoxAITrayMenuSection`, displaying live probe connectivity, bot engine status, and quick workspace navigation actions directly from the host system tray.
 
 ### Dynamic Theming (`IThemeHost`)
 

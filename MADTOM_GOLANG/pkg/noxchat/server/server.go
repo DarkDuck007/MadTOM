@@ -11,13 +11,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"github.com/DarkDuck007/madtom/pkg/noxchat/auth"
 	"github.com/DarkDuck007/madtom/pkg/noxchat/bridge"
 	"github.com/DarkDuck007/madtom/pkg/noxchat/buffer"
 	"github.com/DarkDuck007/madtom/pkg/noxchat/chunker"
 	"github.com/DarkDuck007/madtom/pkg/noxchat/config"
 	"github.com/DarkDuck007/madtom/pkg/noxchat/spool"
+	madtomv1 "github.com/DarkDuck007/madtom/pkg/proto/v1"
 	"github.com/klauspost/compress/zstd"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -43,6 +43,8 @@ type Server struct {
 	apiChunker   *chunker.ApiCallChunker
 	stateChunker *chunker.StateChunker
 
+	searchSlots      chan struct{}
+	chatTraceSlots   chan struct{}
 	stateSubscribers int64
 	logSubscribers   int64
 
@@ -67,8 +69,8 @@ type Server struct {
 }
 
 type historyPoint struct {
-	ts    int64
-	val   double
+	ts  int64
+	val double
 }
 
 type double = float64
@@ -197,6 +199,32 @@ func (s *Server) OnTurnEvent(event *madtomv1.NoxTurnTagEvent) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pendingTurnEvents = append(s.pendingTurnEvents, event)
+}
+
+func (s *Server) OnChatTraceEvent(event *madtomv1.NoxChatTraceEvent) {
+	if event == nil || event.EventId == "" || event.TraceContext == nil || event.TraceContext.ChatId == nil {
+		return
+	}
+	if s.cfg.StoreRawLogs {
+		if err := s.walSpool.WriteChatTraceEvent(event); err != nil {
+			log.Printf("[NoxChat_Probe] retain chat trace: %v", err)
+		}
+	}
+	raw, err := proto.Marshal(event)
+	if err != nil {
+		return
+	}
+	s.logBuffer.Push(&buffer.Chunk{ID: uint64(event.TimestampUnixNano), Timestamp: event.TimestampUnixNano, Payload: raw, RawSize: uint32(len(raw))})
+	msg := &madtomv1.NoxLogApiChunk{NodeId: s.cfg.NodeID, TimestampUnixNano: event.TimestampUnixNano,
+		ZstdPayload: raw, DecodedSize: uint32(len(raw)), ChunkKind: "chat_trace"}
+	s.subMu.RLock()
+	for _, ch := range s.logSubs {
+		select {
+		case ch <- msg:
+		default:
+		}
+	}
+	s.subMu.RUnlock()
 }
 
 func (s *Server) handleNewLogChunk(chunk *madtomv1.LogChunk) {
@@ -579,20 +607,58 @@ func (s *Server) QueryTelemetryRange(ctx context.Context, req *madtomv1.RangeQue
 func (s *Server) GetSpoolStats(ctx context.Context, req *madtomv1.NoxSpoolStatsRequest) (*madtomv1.NoxSpoolStatsResponse, error) {
 	spoolBytes, maxSpool, logs, apis, oldest, newest := s.walSpool.Stats()
 	return &madtomv1.NoxSpoolStatsResponse{
-		NodeId:            s.cfg.NodeID,
-		TotalSpoolBytes:   spoolBytes,
-		MaxSpoolBytes:     maxSpool,
-		TotalLogRecords:   logs,
-		TotalApiCalls:     apis,
-		OldestTsUnixNano:  oldest,
-		NewestTsUnixNano:  newest,
+		NodeId:           s.cfg.NodeID,
+		TotalSpoolBytes:  spoolBytes,
+		MaxSpoolBytes:    maxSpool,
+		TotalLogRecords:  logs,
+		TotalApiCalls:    apis,
+		OldestTsUnixNano: oldest,
+		NewestTsUnixNano: newest,
 	}, nil
+}
+
+func (s *Server) SearchLogs(ctx context.Context, req *madtomv1.NoxSearchLogsRequest) (*madtomv1.NoxSearchLogsResponse, error) {
+	if !s.cfg.LogSearchEnabled {
+		return nil, status.Error(codes.Unimplemented, "log search disabled")
+	}
+	if req.NodeId != s.cfg.NodeID {
+		return nil, status.Error(codes.InvalidArgument, "node_id does not match this probe")
+	}
+	s.mu.Lock()
+	if s.searchSlots == nil {
+		s.searchSlots = make(chan struct{}, s.cfg.LogSearchConcurrency)
+	}
+	slots := s.searchSlots
+	s.mu.Unlock()
+	select {
+	case slots <- struct{}{}:
+		defer func() { <-slots }()
+	default:
+		return nil, status.Error(codes.ResourceExhausted, "another log search is running")
+	}
+	limits := spool.DefaultSearchLimits()
+	limits.MaxResults = s.cfg.LogSearchMaxResults
+	limits.MaxQueryBytes = s.cfg.LogSearchMaxQueryBytes
+	limits.ChunkBytes = s.cfg.LogSearchChunkBytes
+	limits.PageBytes = s.cfg.LogSearchPageBytes
+	limits.PageTime = time.Duration(s.cfg.LogSearchPageMs) * time.Millisecond
+	limits.CursorTTL = time.Duration(s.cfg.LogSearchCursorSeconds) * time.Second
+	return s.walSpool.SearchLogs(ctx, req, limits)
 }
 
 func (s *Server) QueryLogChunks(ctx context.Context, req *madtomv1.LogChunkQuery) (*madtomv1.LogChunkResponse, error) {
 	chunks, hasMore, err := s.walSpool.QueryLogChunks(req.StartChunkId, req.MaxChunks)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "wal log query: %v", err)
+	}
+	if req.SummaryOnly {
+		headers := make([]*madtomv1.LogChunk, 0, len(chunks))
+		for _, c := range chunks {
+			headers = append(headers, &madtomv1.LogChunk{NodeId: c.NodeId, ChunkId: c.ChunkId,
+				FirstSeq: c.FirstSeq, LastSeq: c.LastSeq, RecordCount: c.RecordCount,
+				FirstTsUnixNano: c.FirstTsUnixNano, LastTsUnixNano: c.LastTsUnixNano, Sealed: c.Sealed})
+		}
+		chunks = headers
 	}
 	return &madtomv1.LogChunkResponse{
 		NodeId:  s.cfg.NodeID,
@@ -611,6 +677,39 @@ func (s *Server) QueryApiCallChunks(ctx context.Context, req *madtomv1.NoxApiCal
 		Chunks:  chunks,
 		HasMore: hasMore,
 	}, nil
+}
+
+func (s *Server) QueryChatTrace(ctx context.Context, req *madtomv1.NoxChatTraceRequest) (*madtomv1.NoxChatTraceResponse, error) {
+	if req.NodeId != s.cfg.NodeID {
+		return nil, status.Error(codes.InvalidArgument, "node_id does not match this probe")
+	}
+	if req.ChatId == nil || req.Limit > 200 {
+		return nil, status.Error(codes.InvalidArgument, "chat_id is required and limit must not exceed 200")
+	}
+	s.mu.Lock()
+	if s.chatTraceSlots == nil {
+		s.chatTraceSlots = make(chan struct{}, 2)
+	}
+	slots := s.chatTraceSlots
+	s.mu.Unlock()
+	select {
+	case slots <- struct{}{}:
+		defer func() { <-slots }()
+	default:
+		return nil, status.Error(codes.ResourceExhausted, "another chat trace query is running")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, status.FromContextError(err).Err()
+	}
+	// Include recent calls that have not yet reached the periodic 2-second snapshot.
+	if chunk, err := s.apiChunker.FlushUnsealed(0); err == nil && chunk != nil {
+		s.handleNewApiChunk(chunk)
+	}
+	response, err := s.walSpool.QueryChatTrace(ctx, req)
+	if err == nil && !s.cfg.StoreRawLogs {
+		response.Notice += " Store is currently disabled; new execution history is not retained."
+	}
+	return response, err
 }
 
 func (s *Server) GetApiCallDetail(ctx context.Context, req *madtomv1.NoxApiCallDetailRequest) (*madtomv1.NoxRawApiCallRecord, error) {
@@ -662,22 +761,32 @@ func (s *Server) SendDirectMessage(req *madtomv1.NoxDirectMessageRequest, stream
 }
 
 func (s *Server) GetChatHistory(ctx context.Context, req *madtomv1.NoxChatHistoryRequest) (*madtomv1.NoxChatHistoryResponse, error) {
-	reply, err := s.bridgeClient.CallRpc("get_chat_history", req, 10*time.Second)
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "get_chat_history", req, 10*time.Second)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, status.FromContextError(ctx.Err()).Err()
+		}
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	var resp madtomv1.NoxChatHistoryResponse
-	_ = json.Unmarshal(reply.Payload, &resp)
+	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
+		return nil, status.Errorf(codes.Internal, "decode chat history: %v", err)
+	}
 	return &resp, nil
 }
 
 func (s *Server) ListChats(ctx context.Context, req *madtomv1.NoxListChatsRequest) (*madtomv1.NoxListChatsResponse, error) {
-	reply, err := s.bridgeClient.CallRpc("list_chats", req, 10*time.Second)
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "list_chats", req, 10*time.Second)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, status.FromContextError(ctx.Err()).Err()
+		}
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	var resp madtomv1.NoxListChatsResponse
-	_ = json.Unmarshal(reply.Payload, &resp)
+	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
+		return nil, status.Errorf(codes.Internal, "decode chat list: %v", err)
+	}
 	return &resp, nil
 }
 
@@ -837,6 +946,59 @@ func (s *Server) InspectVectors(ctx context.Context, req *madtomv1.NoxVectorInsp
 	}
 	var resp madtomv1.NoxVectorInspectResponse
 	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+// Chat Images (Image Studio) — passthroughs to the NoxChat Python RPC handlers.
+func (s *Server) ListChatImages(ctx context.Context, req *madtomv1.NoxListChatImagesRequest) (*madtomv1.NoxListChatImagesResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "list_chat_images", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxListChatImagesResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) GetChatImage(ctx context.Context, req *madtomv1.NoxGetChatImageRequest) (*madtomv1.NoxGetChatImageResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "get_chat_image", req, 25*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxGetChatImageResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) GetImageStorageStats(ctx context.Context, req *madtomv1.NoxImageStorageStatsRequest) (*madtomv1.NoxImageStorageStatsResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "get_image_storage_stats", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxImageStorageStatsResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) SweepChatImages(ctx context.Context, req *madtomv1.NoxSweepChatImagesRequest) (*madtomv1.NoxSweepChatImagesResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "sweep_chat_images", req, 60*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSweepChatImagesResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
 	return &resp, nil
 }
 

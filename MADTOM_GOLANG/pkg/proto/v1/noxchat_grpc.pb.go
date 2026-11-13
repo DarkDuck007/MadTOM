@@ -25,9 +25,11 @@ const (
 	NoxChatControlService_SubscribeLogsAndApi_FullMethodName        = "/madtom.v1.NoxChatControlService/SubscribeLogsAndApi"
 	NoxChatControlService_QueryTelemetryRange_FullMethodName        = "/madtom.v1.NoxChatControlService/QueryTelemetryRange"
 	NoxChatControlService_GetSpoolStats_FullMethodName              = "/madtom.v1.NoxChatControlService/GetSpoolStats"
+	NoxChatControlService_SearchLogs_FullMethodName                 = "/madtom.v1.NoxChatControlService/SearchLogs"
 	NoxChatControlService_QueryLogChunks_FullMethodName             = "/madtom.v1.NoxChatControlService/QueryLogChunks"
 	NoxChatControlService_QueryApiCallChunks_FullMethodName         = "/madtom.v1.NoxChatControlService/QueryApiCallChunks"
 	NoxChatControlService_GetApiCallDetail_FullMethodName           = "/madtom.v1.NoxChatControlService/GetApiCallDetail"
+	NoxChatControlService_QueryChatTrace_FullMethodName             = "/madtom.v1.NoxChatControlService/QueryChatTrace"
 	NoxChatControlService_ClearSpool_FullMethodName                 = "/madtom.v1.NoxChatControlService/ClearSpool"
 	NoxChatControlService_SendDirectMessage_FullMethodName          = "/madtom.v1.NoxChatControlService/SendDirectMessage"
 	NoxChatControlService_GetChatHistory_FullMethodName             = "/madtom.v1.NoxChatControlService/GetChatHistory"
@@ -47,6 +49,10 @@ const (
 	NoxChatControlService_ForceAddSticker_FullMethodName            = "/madtom.v1.NoxChatControlService/ForceAddSticker"
 	NoxChatControlService_GetActiveJobs_FullMethodName              = "/madtom.v1.NoxChatControlService/GetActiveJobs"
 	NoxChatControlService_InspectVectors_FullMethodName             = "/madtom.v1.NoxChatControlService/InspectVectors"
+	NoxChatControlService_ListChatImages_FullMethodName             = "/madtom.v1.NoxChatControlService/ListChatImages"
+	NoxChatControlService_GetChatImage_FullMethodName               = "/madtom.v1.NoxChatControlService/GetChatImage"
+	NoxChatControlService_GetImageStorageStats_FullMethodName       = "/madtom.v1.NoxChatControlService/GetImageStorageStats"
+	NoxChatControlService_SweepChatImages_FullMethodName            = "/madtom.v1.NoxChatControlService/SweepChatImages"
 	NoxChatControlService_QueryUserProfiles_FullMethodName          = "/madtom.v1.NoxChatControlService/QueryUserProfiles"
 	NoxChatControlService_SearchUserProfiles_FullMethodName         = "/madtom.v1.NoxChatControlService/SearchUserProfiles"
 	NoxChatControlService_GetUserProfilePhoto_FullMethodName        = "/madtom.v1.NoxChatControlService/GetUserProfilePhoto"
@@ -72,9 +78,11 @@ type NoxChatControlServiceClient interface {
 	QueryTelemetryRange(ctx context.Context, in *RangeQueryRequest, opts ...grpc.CallOption) (*RangeQueryResponse, error)
 	// Historical Spool Paging (from 1GB Server-Side WAL Spool when store_raw_logs is enabled)
 	GetSpoolStats(ctx context.Context, in *NoxSpoolStatsRequest, opts ...grpc.CallOption) (*NoxSpoolStatsResponse, error)
+	SearchLogs(ctx context.Context, in *NoxSearchLogsRequest, opts ...grpc.CallOption) (*NoxSearchLogsResponse, error)
 	QueryLogChunks(ctx context.Context, in *LogChunkQuery, opts ...grpc.CallOption) (*LogChunkResponse, error)
 	QueryApiCallChunks(ctx context.Context, in *NoxApiCallChunkQuery, opts ...grpc.CallOption) (*NoxApiCallChunkResponse, error)
 	GetApiCallDetail(ctx context.Context, in *NoxApiCallDetailRequest, opts ...grpc.CallOption) (*NoxRawApiCallRecord, error)
+	QueryChatTrace(ctx context.Context, in *NoxChatTraceRequest, opts ...grpc.CallOption) (*NoxChatTraceResponse, error)
 	ClearSpool(ctx context.Context, in *NoxClearSpoolRequest, opts ...grpc.CallOption) (*NoxClearSpoolResponse, error)
 	// Direct Chat Interaction (User: "MADTOM", UserID: "Control Center")
 	SendDirectMessage(ctx context.Context, in *NoxDirectMessageRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[NoxDirectTurnEvent], error)
@@ -98,6 +106,11 @@ type NoxChatControlServiceClient interface {
 	// Active Jobs & Vector Store Explorer
 	GetActiveJobs(ctx context.Context, in *NoxActiveJobsRequest, opts ...grpc.CallOption) (*NoxActiveJobsResponse, error)
 	InspectVectors(ctx context.Context, in *NoxVectorInspectRequest, opts ...grpc.CallOption) (*NoxVectorInspectResponse, error)
+	// Chat Images (Image Studio storage; images are strictly chat-bound)
+	ListChatImages(ctx context.Context, in *NoxListChatImagesRequest, opts ...grpc.CallOption) (*NoxListChatImagesResponse, error)
+	GetChatImage(ctx context.Context, in *NoxGetChatImageRequest, opts ...grpc.CallOption) (*NoxGetChatImageResponse, error)
+	GetImageStorageStats(ctx context.Context, in *NoxImageStorageStatsRequest, opts ...grpc.CallOption) (*NoxImageStorageStatsResponse, error)
+	SweepChatImages(ctx context.Context, in *NoxSweepChatImagesRequest, opts ...grpc.CallOption) (*NoxSweepChatImagesResponse, error)
 	// User Profiles & Avatars
 	QueryUserProfiles(ctx context.Context, in *NoxUserProfileQueryRequest, opts ...grpc.CallOption) (*NoxUserProfileQueryResponse, error)
 	SearchUserProfiles(ctx context.Context, in *NoxUserProfileSearchRequest, opts ...grpc.CallOption) (*NoxUserProfileSearchResponse, error)
@@ -190,6 +203,16 @@ func (c *noxChatControlServiceClient) GetSpoolStats(ctx context.Context, in *Nox
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) SearchLogs(ctx context.Context, in *NoxSearchLogsRequest, opts ...grpc.CallOption) (*NoxSearchLogsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSearchLogsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_SearchLogs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *noxChatControlServiceClient) QueryLogChunks(ctx context.Context, in *LogChunkQuery, opts ...grpc.CallOption) (*LogChunkResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LogChunkResponse)
@@ -214,6 +237,16 @@ func (c *noxChatControlServiceClient) GetApiCallDetail(ctx context.Context, in *
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(NoxRawApiCallRecord)
 	err := c.cc.Invoke(ctx, NoxChatControlService_GetApiCallDetail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) QueryChatTrace(ctx context.Context, in *NoxChatTraceRequest, opts ...grpc.CallOption) (*NoxChatTraceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxChatTraceResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_QueryChatTrace_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -419,6 +452,46 @@ func (c *noxChatControlServiceClient) InspectVectors(ctx context.Context, in *No
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) ListChatImages(ctx context.Context, in *NoxListChatImagesRequest, opts ...grpc.CallOption) (*NoxListChatImagesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxListChatImagesResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListChatImages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetChatImage(ctx context.Context, in *NoxGetChatImageRequest, opts ...grpc.CallOption) (*NoxGetChatImageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxGetChatImageResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetChatImage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetImageStorageStats(ctx context.Context, in *NoxImageStorageStatsRequest, opts ...grpc.CallOption) (*NoxImageStorageStatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxImageStorageStatsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetImageStorageStats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) SweepChatImages(ctx context.Context, in *NoxSweepChatImagesRequest, opts ...grpc.CallOption) (*NoxSweepChatImagesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSweepChatImagesResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_SweepChatImages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *noxChatControlServiceClient) QueryUserProfiles(ctx context.Context, in *NoxUserProfileQueryRequest, opts ...grpc.CallOption) (*NoxUserProfileQueryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(NoxUserProfileQueryResponse)
@@ -469,9 +542,11 @@ type NoxChatControlServiceServer interface {
 	QueryTelemetryRange(context.Context, *RangeQueryRequest) (*RangeQueryResponse, error)
 	// Historical Spool Paging (from 1GB Server-Side WAL Spool when store_raw_logs is enabled)
 	GetSpoolStats(context.Context, *NoxSpoolStatsRequest) (*NoxSpoolStatsResponse, error)
+	SearchLogs(context.Context, *NoxSearchLogsRequest) (*NoxSearchLogsResponse, error)
 	QueryLogChunks(context.Context, *LogChunkQuery) (*LogChunkResponse, error)
 	QueryApiCallChunks(context.Context, *NoxApiCallChunkQuery) (*NoxApiCallChunkResponse, error)
 	GetApiCallDetail(context.Context, *NoxApiCallDetailRequest) (*NoxRawApiCallRecord, error)
+	QueryChatTrace(context.Context, *NoxChatTraceRequest) (*NoxChatTraceResponse, error)
 	ClearSpool(context.Context, *NoxClearSpoolRequest) (*NoxClearSpoolResponse, error)
 	// Direct Chat Interaction (User: "MADTOM", UserID: "Control Center")
 	SendDirectMessage(*NoxDirectMessageRequest, grpc.ServerStreamingServer[NoxDirectTurnEvent]) error
@@ -495,6 +570,11 @@ type NoxChatControlServiceServer interface {
 	// Active Jobs & Vector Store Explorer
 	GetActiveJobs(context.Context, *NoxActiveJobsRequest) (*NoxActiveJobsResponse, error)
 	InspectVectors(context.Context, *NoxVectorInspectRequest) (*NoxVectorInspectResponse, error)
+	// Chat Images (Image Studio storage; images are strictly chat-bound)
+	ListChatImages(context.Context, *NoxListChatImagesRequest) (*NoxListChatImagesResponse, error)
+	GetChatImage(context.Context, *NoxGetChatImageRequest) (*NoxGetChatImageResponse, error)
+	GetImageStorageStats(context.Context, *NoxImageStorageStatsRequest) (*NoxImageStorageStatsResponse, error)
+	SweepChatImages(context.Context, *NoxSweepChatImagesRequest) (*NoxSweepChatImagesResponse, error)
 	// User Profiles & Avatars
 	QueryUserProfiles(context.Context, *NoxUserProfileQueryRequest) (*NoxUserProfileQueryResponse, error)
 	SearchUserProfiles(context.Context, *NoxUserProfileSearchRequest) (*NoxUserProfileSearchResponse, error)
@@ -527,6 +607,9 @@ func (UnimplementedNoxChatControlServiceServer) QueryTelemetryRange(context.Cont
 func (UnimplementedNoxChatControlServiceServer) GetSpoolStats(context.Context, *NoxSpoolStatsRequest) (*NoxSpoolStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSpoolStats not implemented")
 }
+func (UnimplementedNoxChatControlServiceServer) SearchLogs(context.Context, *NoxSearchLogsRequest) (*NoxSearchLogsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchLogs not implemented")
+}
 func (UnimplementedNoxChatControlServiceServer) QueryLogChunks(context.Context, *LogChunkQuery) (*LogChunkResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method QueryLogChunks not implemented")
 }
@@ -535,6 +618,9 @@ func (UnimplementedNoxChatControlServiceServer) QueryApiCallChunks(context.Conte
 }
 func (UnimplementedNoxChatControlServiceServer) GetApiCallDetail(context.Context, *NoxApiCallDetailRequest) (*NoxRawApiCallRecord, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetApiCallDetail not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) QueryChatTrace(context.Context, *NoxChatTraceRequest) (*NoxChatTraceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method QueryChatTrace not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) ClearSpool(context.Context, *NoxClearSpoolRequest) (*NoxClearSpoolResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ClearSpool not implemented")
@@ -592,6 +678,18 @@ func (UnimplementedNoxChatControlServiceServer) GetActiveJobs(context.Context, *
 }
 func (UnimplementedNoxChatControlServiceServer) InspectVectors(context.Context, *NoxVectorInspectRequest) (*NoxVectorInspectResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InspectVectors not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListChatImages(context.Context, *NoxListChatImagesRequest) (*NoxListChatImagesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListChatImages not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetChatImage(context.Context, *NoxGetChatImageRequest) (*NoxGetChatImageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChatImage not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetImageStorageStats(context.Context, *NoxImageStorageStatsRequest) (*NoxImageStorageStatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetImageStorageStats not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) SweepChatImages(context.Context, *NoxSweepChatImagesRequest) (*NoxSweepChatImagesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SweepChatImages not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) QueryUserProfiles(context.Context, *NoxUserProfileQueryRequest) (*NoxUserProfileQueryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method QueryUserProfiles not implemented")
@@ -717,6 +815,24 @@ func _NoxChatControlService_GetSpoolStats_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_SearchLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSearchLogsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).SearchLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_SearchLogs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).SearchLogs(ctx, req.(*NoxSearchLogsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NoxChatControlService_QueryLogChunks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LogChunkQuery)
 	if err := dec(in); err != nil {
@@ -767,6 +883,24 @@ func _NoxChatControlService_GetApiCallDetail_Handler(srv interface{}, ctx contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NoxChatControlServiceServer).GetApiCallDetail(ctx, req.(*NoxApiCallDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_QueryChatTrace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxChatTraceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).QueryChatTrace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_QueryChatTrace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).QueryChatTrace(ctx, req.(*NoxChatTraceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1106,6 +1240,78 @@ func _NoxChatControlService_InspectVectors_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_ListChatImages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxListChatImagesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListChatImages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListChatImages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListChatImages(ctx, req.(*NoxListChatImagesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetChatImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxGetChatImageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetChatImage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetChatImage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetChatImage(ctx, req.(*NoxGetChatImageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetImageStorageStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxImageStorageStatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetImageStorageStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetImageStorageStats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetImageStorageStats(ctx, req.(*NoxImageStorageStatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_SweepChatImages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSweepChatImagesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).SweepChatImages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_SweepChatImages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).SweepChatImages(ctx, req.(*NoxSweepChatImagesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NoxChatControlService_QueryUserProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(NoxUserProfileQueryRequest)
 	if err := dec(in); err != nil {
@@ -1184,6 +1390,10 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NoxChatControlService_GetSpoolStats_Handler,
 		},
 		{
+			MethodName: "SearchLogs",
+			Handler:    _NoxChatControlService_SearchLogs_Handler,
+		},
+		{
 			MethodName: "QueryLogChunks",
 			Handler:    _NoxChatControlService_QueryLogChunks_Handler,
 		},
@@ -1194,6 +1404,10 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetApiCallDetail",
 			Handler:    _NoxChatControlService_GetApiCallDetail_Handler,
+		},
+		{
+			MethodName: "QueryChatTrace",
+			Handler:    _NoxChatControlService_QueryChatTrace_Handler,
 		},
 		{
 			MethodName: "ClearSpool",
@@ -1266,6 +1480,22 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InspectVectors",
 			Handler:    _NoxChatControlService_InspectVectors_Handler,
+		},
+		{
+			MethodName: "ListChatImages",
+			Handler:    _NoxChatControlService_ListChatImages_Handler,
+		},
+		{
+			MethodName: "GetChatImage",
+			Handler:    _NoxChatControlService_GetChatImage_Handler,
+		},
+		{
+			MethodName: "GetImageStorageStats",
+			Handler:    _NoxChatControlService_GetImageStorageStats_Handler,
+		},
+		{
+			MethodName: "SweepChatImages",
+			Handler:    _NoxChatControlService_SweepChatImages_Handler,
 		},
 		{
 			MethodName: "QueryUserProfiles",

@@ -1,6 +1,7 @@
 package spool
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -21,7 +22,6 @@ var (
 	groupChatRe    = regexp.MustCompile(`(?i)Group\s+Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
 	privateChatRe  = regexp.MustCompile(`(?i)Private\s+Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
 	explicitChatRe = regexp.MustCompile(`(?i)(?:^|[\r\n])Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
-	senderLineRe   = regexp.MustCompile(`\[#\d+\s+([^\]:\r\n]+?)(?:\s+->\s+#\d+)?\]:`)
 )
 
 func extractChatName(requestJson, caller string) string {
@@ -37,33 +37,9 @@ func extractChatName(requestJson, caller string) string {
 	if m := explicitChatRe.FindStringSubmatch(requestJson); len(m) > 1 && strings.TrimSpace(m[1]) != "" {
 		return strings.TrimSpace(m[1])
 	}
-	cLower := strings.ToLower(caller)
-	if strings.Contains(cLower, "step") || strings.Contains(cLower, "chat") || strings.Contains(cLower, "agent") {
-		matches := senderLineRe.FindAllStringSubmatch(requestJson, -1)
-		var fallback string
-		for _, match := range matches {
-			if len(match) > 1 {
-				raw := strings.TrimSpace(match[1])
-				clean := raw
-				if idx := strings.Index(clean, "("); idx > 0 {
-					clean = strings.TrimSpace(clean[:idx])
-				}
-				if strings.EqualFold(clean, "Nox") || strings.EqualFold(clean, "Bot") {
-					continue
-				}
-				if strings.Contains(strings.ToLower(raw), "(you)") {
-					if fallback == "" {
-						fallback = clean
-					}
-					continue
-				}
-				return clean
-			}
-		}
-		if fallback != "" {
-			return fallback
-		}
-	}
+	// No sender-name fallback: sender names are not chat names (agy context diffs carry no
+	// chat header). NoxChat now fills chat_name from its chats table via the trace chat_id.
+	_ = caller
 	return ""
 }
 
@@ -109,6 +85,20 @@ type WalSpool struct {
 	oldestTs        int64
 	newestTs        int64
 	closed          bool
+	logOwners       map[uint64]frameLocation
+	apiOwners       map[uint64]frameLocation
+	generation      [32]byte
+	recoveryErrors  uint64
+	traceEntries    map[string]*chatTraceEntry
+	traceByChat     map[int64]map[string]struct{}
+	apiTraceKeys    map[uint64][]string
+	traceOrdinal    uint64
+}
+
+type frameLocation struct {
+	Segment int64
+	Offset  int64
+	Length  int64
 }
 
 // NewWalSpool initializes or recovers a WAL spool directory.
@@ -127,6 +117,14 @@ func NewWalSpool(dir string, maxTotalSpool int64) (*WalSpool, error) {
 		apiChunkCounts: make(map[uint64]uint64),
 		logChunks:      make(map[uint64]*madtomv1.LogChunk),
 		apiChunks:      make(map[uint64]*madtomv1.NoxApiCallChunk),
+	}
+	w.logOwners = make(map[uint64]frameLocation)
+	w.apiOwners = make(map[uint64]frameLocation)
+	w.traceEntries = make(map[string]*chatTraceEntry)
+	w.traceByChat = make(map[int64]map[string]struct{})
+	w.apiTraceKeys = make(map[uint64][]string)
+	if _, err := rand.Read(w.generation[:]); err != nil {
+		return nil, err
 	}
 	if err := w.scanAndRecover(); err != nil {
 		return nil, err
@@ -176,79 +174,43 @@ func (w *WalSpool) scanAndRecover() error {
 	sort.Slice(w.segments, func(i, j int) bool { return w.segments[i].seq < w.segments[j].seq })
 	w.totalSpoolBytes = total
 
-	// Scan existing segments to recover record counts, timestamps, and max sequence numbers
+	// Recover complete frames; never append behind a torn tail. Rotate on the next write.
 	for _, seg := range w.segments {
 		f, err := os.Open(seg.path)
 		if err != nil {
-			continue
+			return err
 		}
+		var offset int64
 		for {
 			var hdr [5]byte
-			if _, err := io.ReadFull(f, hdr[:]); err != nil {
+			n, err := io.ReadFull(f, hdr[:])
+			if err != nil {
+				if n != 0 {
+					w.recoveryErrors++
+				}
 				break
 			}
-			kind := hdr[0]
-			payloadLen := binary.BigEndian.Uint32(hdr[1:5])
-			payload := make([]byte, payloadLen)
+			size := int64(binary.BigEndian.Uint32(hdr[1:]))
+			if size > 64<<20 || size > seg.size-offset-5 {
+				w.recoveryErrors++
+				break
+			}
+			payload := make([]byte, int(size))
 			if _, err := io.ReadFull(f, payload); err != nil {
+				w.recoveryErrors++
 				break
 			}
-			if kind == 'L' {
-				chunk := &madtomv1.LogChunk{}
-				if err := proto.Unmarshal(payload, chunk); err == nil {
-					w.logChunks[chunk.ChunkId] = chunk
-					prev := w.logChunkCounts[chunk.ChunkId]
-					cur := uint64(chunk.RecordCount)
-					if cur > prev {
-						w.totalLogRecords += cur - prev
-						w.logChunkCounts[chunk.ChunkId] = cur
-					}
-					if chunk.LastSeq > w.maxLogSeq {
-						w.maxLogSeq = chunk.LastSeq
-					}
-					if chunk.FirstTsUnixNano > 0 && (w.oldestTs == 0 || chunk.FirstTsUnixNano < w.oldestTs) {
-						w.oldestTs = chunk.FirstTsUnixNano
-					}
-					if chunk.LastTsUnixNano > w.newestTs {
-						w.newestTs = chunk.LastTsUnixNano
-					}
-				}
-			} else if kind == 'A' {
-				chunk := &madtomv1.NoxApiCallChunk{}
-				if err := proto.Unmarshal(payload, chunk); err == nil {
-					w.apiChunks[chunk.ChunkId] = chunk
-					prev := w.apiChunkCounts[chunk.ChunkId]
-					cur := uint64(chunk.RecordCount)
-					if cur > prev {
-						w.totalApiCalls += cur - prev
-						w.apiChunkCounts[chunk.ChunkId] = cur
-					}
-					if chunk.LastSeq > w.maxApiSeq {
-						w.maxApiSeq = chunk.LastSeq
-					}
-					if chunk.FirstTsUnixNano > 0 && (w.oldestTs == 0 || chunk.FirstTsUnixNano < w.oldestTs) {
-						w.oldestTs = chunk.FirstTsUnixNano
-					}
-					if chunk.LastTsUnixNano > w.newestTs {
-						w.newestTs = chunk.LastTsUnixNano
-					}
-				}
+			loc := frameLocation{seg.seq, offset, size + 5}
+			if err := w.publishFrame(hdr[0], payload, loc); err != nil {
+				w.recoveryErrors++
 			}
+			offset += size + 5
 		}
-		_ = f.Close()
-	}
-
-	// Open the latest segment or rotate
-	if len(w.segments) > 0 {
-		latest := w.segments[len(w.segments)-1]
-		if latest.size < w.maxSegmentSize {
-			f, err := os.OpenFile(latest.path, os.O_WRONLY|os.O_APPEND, 0644)
-			if err == nil {
-				w.currentFile = f
-				w.currentBytes = latest.size
-			}
+		if err := f.Close(); err != nil {
+			return err
 		}
 	}
+	w.recountLocked()
 
 	return w.enforceQuotaLocked()
 }
@@ -259,9 +221,6 @@ func (w *WalSpool) WriteLogChunk(chunk *madtomv1.LogChunk) error {
 	if err != nil {
 		return err
 	}
-	w.mu.Lock()
-	w.logChunks[chunk.ChunkId] = chunk
-	w.mu.Unlock()
 	return w.writeFrame('L', chunk.ChunkId, raw, uint64(chunk.RecordCount), chunk.LastSeq, chunk.FirstTsUnixNano, chunk.LastTsUnixNano)
 }
 
@@ -271,9 +230,6 @@ func (w *WalSpool) WriteApiCallChunk(chunk *madtomv1.NoxApiCallChunk) error {
 	if err != nil {
 		return err
 	}
-	w.mu.Lock()
-	w.apiChunks[chunk.ChunkId] = chunk
-	w.mu.Unlock()
 	return w.writeFrame('A', chunk.ChunkId, raw, uint64(chunk.RecordCount), chunk.LastSeq, chunk.FirstTsUnixNano, chunk.LastTsUnixNano)
 }
 
@@ -292,42 +248,49 @@ func (w *WalSpool) writeFrame(kind byte, chunkID uint64, payload []byte, count u
 		}
 	}
 
-	header := make([]byte, 5)
-	header[0] = kind
-	binary.BigEndian.PutUint32(header[1:5], uint32(len(payload)))
-
-	if _, err := w.currentFile.Write(header); err != nil {
+	if len(payload) > 64<<20 {
+		return fmt.Errorf("frame exceeds 64 MiB")
+	}
+	frame := make([]byte, frameLen)
+	frame[0] = kind
+	binary.BigEndian.PutUint32(frame[1:5], uint32(len(payload)))
+	copy(frame[5:], payload)
+	offset := w.currentBytes
+	n, err := w.currentFile.Write(frame)
+	if err == nil && n != len(frame) {
+		err = io.ErrShortWrite
+	}
+	if err == nil {
+		err = w.currentFile.Sync()
+	}
+	if err != nil {
+		// Do not publish failed writes. Roll back the incomplete frame before accepting another append.
+		if rollback := w.currentFile.Truncate(offset); rollback != nil {
+			w.closed = true
+			return fmt.Errorf("write: %v; rollback: %w", err, rollback)
+		}
 		return err
 	}
-	if _, err := w.currentFile.Write(payload); err != nil {
-		return err
-	}
-	_ = w.currentFile.Sync()
-
 	w.currentBytes += int64(frameLen)
 	w.segments[len(w.segments)-1].size = w.currentBytes
 	w.totalSpoolBytes += int64(frameLen)
-
+	if err := w.publishFrame(kind, payload, frameLocation{w.currentSeq, offset, int64(frameLen)}); err != nil {
+		return err
+	}
+	// Incremental totals; retention recomputes bounds after eviction.
 	if kind == 'L' {
-		prev := w.logChunkCounts[chunkID]
-		if count > prev {
-			w.totalLogRecords += count - prev
-			w.logChunkCounts[chunkID] = count
-		}
+		w.totalLogRecords = w.totalLogRecords - w.logChunkCounts[chunkID] + count
+		w.logChunkCounts[chunkID] = count
 		if lastSeq > w.maxLogSeq {
 			w.maxLogSeq = lastSeq
 		}
 	} else if kind == 'A' {
-		prev := w.apiChunkCounts[chunkID]
-		if count > prev {
-			w.totalApiCalls += count - prev
-			w.apiChunkCounts[chunkID] = count
-		}
+		w.totalApiCalls = w.totalApiCalls - w.apiChunkCounts[chunkID] + count
+		w.apiChunkCounts[chunkID] = count
 		if lastSeq > w.maxApiSeq {
 			w.maxApiSeq = lastSeq
 		}
 	}
-
 	if firstTs > 0 && (w.oldestTs == 0 || firstTs < w.oldestTs) {
 		w.oldestTs = firstTs
 	}
@@ -362,7 +325,10 @@ func (w *WalSpool) rotateLocked() error {
 func (w *WalSpool) enforceQuotaLocked() error {
 	for w.totalSpoolBytes > w.maxTotalSpool && len(w.segments) > 1 {
 		oldest := w.segments[0]
-		_ = os.Remove(oldest.path)
+		if err := os.Remove(oldest.path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		w.evictSegmentLocked(oldest.seq)
 		w.totalSpoolBytes -= oldest.size
 		w.segments = w.segments[1:]
 	}
@@ -476,6 +442,7 @@ func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, sum
 							ImageDataUrls:     lightImgs,
 							ErrorMessage:      r.ErrorMessage,
 							ChatName:          chatName,
+							TraceContext:      cloneTraceContext(r.TraceContext),
 							// RawRequestJson and RawResponseJson omitted for summary
 						}
 					}
@@ -502,8 +469,12 @@ func (w *WalSpool) GetApiCall(callID string) (*madtomv1.NoxRawApiCallRecord, err
 
 	w.mu.Lock()
 	var chunkIds []uint64
-	for id := range w.apiChunks {
-		chunkIds = append(chunkIds, id)
+	if entry := w.traceEntries["a:"+callID]; entry != nil && entry.api != nil {
+		chunkIds = append(chunkIds, entry.chunkID)
+	} else {
+		for id := range w.apiChunks {
+			chunkIds = append(chunkIds, id)
+		}
 	}
 	sort.Slice(chunkIds, func(i, j int) bool { return chunkIds[i] > chunkIds[j] }) // newest first
 	chunks := make([]*madtomv1.NoxApiCallChunk, len(chunkIds))
@@ -570,24 +541,115 @@ func (w *WalSpool) Clear() error {
 		w.currentFile = nil
 	}
 
-	for _, seg := range w.segments {
-		_ = os.Remove(seg.path)
+	// Invalidate searches even if a later deletion fails.
+	if _, err := rand.Read(w.generation[:]); err != nil {
+		return err
 	}
-
-	w.segments = nil
-	w.currentSeq = 0
+	for len(w.segments) > 0 {
+		seg := w.segments[0]
+		if err := os.Remove(seg.path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		w.evictSegmentLocked(seg.seq)
+		w.totalSpoolBytes -= seg.size
+		w.segments = w.segments[1:]
+	}
 	w.currentBytes = 0
-	w.totalSpoolBytes = 0
+	w.recoveryErrors = 0
+	return nil
+}
+
+// publishFrame takes ownership of freshly unmarshaled, immutable chunk data.
+func (w *WalSpool) publishFrame(kind byte, payload []byte, loc frameLocation) error {
+	switch kind {
+	case 'L':
+		c := new(madtomv1.LogChunk)
+		if err := proto.Unmarshal(payload, c); err != nil {
+			return err
+		}
+		w.logChunks[c.ChunkId] = c
+		w.logOwners[c.ChunkId] = loc
+	case 'A':
+		c := new(madtomv1.NoxApiCallChunk)
+		if err := proto.Unmarshal(payload, c); err != nil {
+			return err
+		}
+		w.apiChunks[c.ChunkId] = c
+		w.apiOwners[c.ChunkId] = loc
+		if err := w.indexApiTraceLocked(c, loc); err != nil {
+			// Keep raw inspection available even if a corrupt inner payload cannot be indexed.
+			w.recoveryErrors++
+		}
+	case 'T':
+		event := new(madtomv1.NoxChatTraceEvent)
+		if err := proto.Unmarshal(payload, event); err != nil {
+			return err
+		}
+		w.indexTraceEventLocked(event, loc)
+	default:
+		return fmt.Errorf("unknown frame kind %d", kind)
+	}
+	return nil
+}
+
+func (w *WalSpool) evictSegmentLocked(segment int64) {
+	for key, entry := range w.traceEntries {
+		if entry.location.Segment == segment {
+			w.removeTraceEntryLocked(key)
+		}
+	}
+	for id, loc := range w.logOwners {
+		if loc.Segment == segment {
+			delete(w.logOwners, id)
+			delete(w.logChunks, id)
+		}
+	}
+	for id, loc := range w.apiOwners {
+		if loc.Segment == segment {
+			delete(w.apiOwners, id)
+			delete(w.apiChunks, id)
+			delete(w.apiTraceKeys, id)
+		}
+	}
+	w.recountLocked()
+}
+
+func (w *WalSpool) recountLocked() {
 	w.totalLogRecords = 0
 	w.totalApiCalls = 0
-	w.maxLogSeq = 0
-	w.maxApiSeq = 0
 	w.oldestTs = 0
 	w.newestTs = 0
-	w.logChunkCounts = make(map[uint64]uint64)
-	w.apiChunkCounts = make(map[uint64]uint64)
-	w.logChunks = make(map[uint64]*madtomv1.LogChunk)
-	w.apiChunks = make(map[uint64]*madtomv1.NoxApiCallChunk)
-
-	return nil
+	clear(w.logChunkCounts)
+	clear(w.apiChunkCounts)
+	bounds := func(first, last int64) {
+		if first > 0 && (w.oldestTs == 0 || first < w.oldestTs) {
+			w.oldestTs = first
+		}
+		if last > w.newestTs {
+			w.newestTs = last
+		}
+	}
+	for id, c := range w.logChunks {
+		n := uint64(c.RecordCount)
+		w.logChunkCounts[id] = n
+		w.totalLogRecords += n
+		if c.LastSeq > w.maxLogSeq {
+			w.maxLogSeq = c.LastSeq
+		}
+		bounds(c.FirstTsUnixNano, c.LastTsUnixNano)
+	}
+	for id, c := range w.apiChunks {
+		n := uint64(c.RecordCount)
+		w.apiChunkCounts[id] = n
+		w.totalApiCalls += n
+		if c.LastSeq > w.maxApiSeq {
+			w.maxApiSeq = c.LastSeq
+		}
+		bounds(c.FirstTsUnixNano, c.LastTsUnixNano)
+	}
+	for _, entry := range w.traceEntries {
+		if entry.event != nil {
+			bounds(entry.timestamp, entry.timestamp)
+		}
+	}
 }

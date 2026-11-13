@@ -49,6 +49,12 @@ This guide provides an exhaustive reference for all executables, build scripts, 
       - [Running](#running-3)
     - [9. `MADTOM.Plugins.IPCam.App` — Standalone IPCam Client](#9-madtompluginsipcamapp--standalone-ipcam-client)
       - [Running](#running-4)
+    - [10. `noxchat-probe` — NoxChat Bridge & Control Daemon](#10-noxchat-probe--noxchat-bridge--control-daemon)
+      - [Command Arguments](#command-arguments-4)
+      - [Loopback Security Model](#loopback-security-model)
+      - [Execution Examples](#execution-examples-4)
+    - [11. `MADTOM.Plugins.NoxAI.App` — Standalone NOX AI Control Center](#11-madtompluginsnoxaiapp--standalone-nox-ai-control-center)
+      - [Running](#running-5)
 
 ---
 
@@ -135,6 +141,9 @@ Located at `MADTOM_DOTNET/publish.sh` and symlinked to root `./publish.sh`. Prod
 
 # Publish only the main desktop studio application for ARM64
 ./publish.sh -p studio -a linux-arm64
+
+# Publish only the standalone NOX AI Control Center application
+./publish.sh -p noxai-app
 ```
 
 ---
@@ -147,7 +156,7 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 - **Multi-Host YAML Deployment**: Deploy to multiple servers sequentially with a single command via `-c / --config deploy.yaml`.
 - **SSH Config & Host Aliases**: Seamlessly resolves short names / aliases defined in `~/.ssh/config` (via `ssh -G <host>`), automatically loading configured users, hostnames, and ports.
 - **SSH Key & Passwordless Sudo Auto-Detection**: Probes for public key authentication and passwordless sudo (`sudo -n`) on the remote host, skipping password prompts entirely when key-based auth and sudo privileges are configured.
-- **Project Selection & Aliases**: Supports building and deploying any backend project via `-P / --project / --app` (e.g. `madtom-daemon`, `madtom-collector`, `squeeze-server`, `madtom-tsdb-merge`), automatically resolving matching binary paths, systemd service units, and destination paths.
+- **Project Selection & Aliases**: Supports building and deploying any backend project via `-P / --project / --app` (e.g. `madtom-daemon`, `madtom-collector`, `squeeze-server`, `noxchat-probe`, `madtom-tsdb-merge`), automatically resolving matching binary paths, systemd service units, and destination paths.
 - **Automatic Service Installation**: Detects when a remote systemd service is nonexistent and automatically uploads and installs the matching unit file from `MADTOM_GOLANG/systemd/`, creates companion working directories, stages initial configuration (e.g. `/etc/squeeze/squeeze.yaml`), and enables the service.
 - **Custom Service Overrides & Manual Installation**: Override systemd service unit name per server or globally via `-s / --service`, or force unit file installation/updates using `-i / --install-service` or `--service-file PATH`.
 - **Architecture Auto-Detection & Build Caching**: When `--arch auto` (default) is used, queries `uname -m` over SSH and compiles for the remote architecture automatically, caching builds across identical target architectures.
@@ -165,27 +174,28 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 | Option | Argument | Default | Description |
 |---|---|---|---|
 | `-c`, `--config` | `PATH` | *(none)* | Path to YAML configuration file for multi-host deployment |
-| `-P`, `--project`, `--app` | `NAME` | `madtom-daemon` | Project to build and deploy (`daemon`, `collector`, `squeeze`, `merge`, or custom `cmd/<name>`) |
+| `-P`, `--project`, `--app` | `NAME` | `madtom-daemon` | Project to build and deploy (`daemon`, `collector`, `squeeze`, `probe` / `noxchat-probe` / `noxchat`, `merge`, or custom `cmd/<name>`) |
 | `--list-projects` | *(none)* | *(none)* | Display available MADTOM Go projects and their default mappings |
 | `-i`, `--install-service` | *(none)* | Auto | Force installation/overwrite of remote systemd service unit file (auto-installs if missing) |
 | `--service-file` | `PATH` | Project default | Explicit local path to systemd service unit file to install |
 | `-u`, `--user` | `USER` | Auto / Prompted | Remote SSH username (auto-resolved from `~/.ssh/config` or local user if omitted) |
 | `-h`, `--host` | `HOST` | Prompted | Remote hostname, IP address, or SSH config alias (e.g. `tp1`) |
 | `-p`, `--port` | `PORT` | `22` | SSH port (or port configured in `~/.ssh/config`) |
-| `-b`, `--binary` | `PATH` | Project default | Local executable to deploy (e.g. `bin/madtom-daemon`, `bin/madtom-collector`) |
+| `-b`, `--binary` | `PATH` | Project default | Local executable to deploy (e.g. `bin/madtom-daemon`, `bin/madtom-collector`, `bin/noxchat-probe`) |
 | `-d`, `--dest` | `PATH` | Project default | Remote target destination path |
 | `-s`, `--service` | `NAME` | Project default | Remote systemd service name to restart |
 | `-a`, `--arch` | `amd64` \| `arm64` \| `arm` \| `auto` | `auto` | Target architecture (auto-probed via SSH) |
 | `--ssh-pass` | `PASS` | *(none)* | Remote SSH login password (omitted if SSH keys are available) |
 | `--sudo-pass` | `PASS` | *(none)* | Remote sudo elevation password (omitted if passwordless sudo is available) |
 | `--build` | *(none)* | Disabled | Force local Go compilation before deployment |
-| `--daemon` | *(none)* | Active | Shortcut for `--project madtom-daemon` |
-| `--collector` | *(none)* | Inactive | Shortcut for `--project madtom-collector` |
 | `--dry-run` | *(none)* | Disabled | Validate deployment configuration without connecting or altering remote host |
-| `-h`, `--help` | *(none)* | *(none)* | Show usage help and exit |
+| `--help` | *(none)* | *(none)* | Show usage help and exit |
 
 #### Examples
 ```bash
+# Deploy noxchat-probe to tp1 and restart noxchat-probe.service
+./deploy.sh -P probe tp1
+
 # Deploy daemon to an SSH config alias using public key and passwordless sudo
 ./deploy.sh tp1
 
@@ -236,6 +246,13 @@ Dedicated compilation script for Go backend binaries (`madtom-daemon`, `madtom-c
 | `--release` | *(none)* | Enabled | Strip debug symbols (`-ldflags="-s -w"`) |
 | `--debug` | *(none)* | Disabled | Retain debug symbols |
 | `-h`, `--help` | *(none)* | *(none)* | Display help message and exit |
+
+> [!NOTE]
+> `noxchat-probe` is not built via `build.sh`. It is compiled directly via:
+> ```bash
+> cd MADTOM_GOLANG && go build -o bin/noxchat-probe ./cmd/noxchat-probe
+> ```
+> or deployed via `./deploy.sh -P probe`.
 
 #### Examples
 ```bash
@@ -548,5 +565,102 @@ A standalone, focused camera configuration and streaming utility packaging the I
 ```bash
 dotnet run --project MADTOM_DOTNET/src/Plugins/IPCam/MADTOM.Plugins.IPCam.App/MADTOM.Plugins.IPCam.App.csproj
 ```
+
+---
+
+### 10. `noxchat-probe` — NoxChat Bridge & Control Daemon
+
+The dedicated, lightweight bridge daemon connecting MADTOM Studio to the autonomous Telegram AI agent and memory engine (**NoxChat**). Operates as a systemd service (`noxchat-probe.service`), exposing an authenticated, TLS-encrypted gRPC interface for state streaming, live telemetry, WAL spool retention, server-side log search, chat trace queries, and image library management.
+
+- **Technology**: Go daemon (`MADTOM_GOLANG/cmd/noxchat-probe/main.go`)
+- **Executable**: `MADTOM_GOLANG/bin/noxchat-probe` or `/opt/noxchat-probe/bin/noxchat-probe`
+- **Default Listen Address**: `:50055` (gRPC over TLS)
+- **Default Local Bridge**: `127.0.0.1:50056` (Local loopback framing to Python runtime)
+- **mDNS Service**: `_noxchat-probe._tcp.local`
+
+> [!NOTE]
+> `noxchat-probe` is not built via `MADTOM_GOLANG/build.sh`. It is compiled directly via:
+> ```bash
+> cd MADTOM_GOLANG && go build -o bin/noxchat-probe ./cmd/noxchat-probe
+> ```
+> or deployed to a remote server using `./deploy.sh -P probe`.
+
+#### Command Arguments
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `-config` | `string` | `""` | Path to NoxChat `config.yaml` to load control center, spool, and search settings |
+| `-node-id` | `string` | `""` | Unique Node ID (defaults to system hostname if omitted) |
+| `-listen` | `string` | `":50055"` | gRPC listen address and port for incoming MADTOM Studio client connections |
+| `-bridge-host` | `string` | `"127.0.0.1"` | Local Python loopback host (must be `127.0.0.1` or `localhost`; non-loopback logs a prominent security warning) |
+| `-bridge-port` | `int` | `50056` | Local Python loopback TCP port |
+| `-auth-key` | `string` | `""` | SSH-style client authorization key formatted as `noxchat-ed25519-v1:<base64url>` |
+| `-auth-key-file` | `string` | `""` | Path to `.env` or key file containing `NOXCHAT_CONTROL_KEY` |
+| `-store-raw-logs` | `bool` | `false` | Enable server-side Write-Ahead Logging (WAL) spooling of raw logs and LLM API calls |
+| `-max-spool-bytes` | `int64` | `1073741824` | Maximum disk size in bytes for the WAL spool directory (default: 1 GB = $1024^3$ bytes; discards oldest segments upon quota exhaustion) |
+| `-gen-key` | `bool` | `false` | Generate a new cryptographically random Ed25519 token, print configuration instructions, and exit immediately |
+| `-mdns` | `bool` | `true` | Advertise the daemon on the local subnet via mDNS (`_noxchat-probe._tcp.local`) for zero-configuration discovery |
+| `-log-search` | `bool` | `true` | Enable server-side retained-log literal search across WAL spool chunks (`SearchLogs` RPC) |
+| `-log-search-concurrency` | `int` | `1` | Maximum number of concurrent retained-log searches allowed |
+| `-log-search-max-results` | `int` | `200` | Maximum matching hits returned per search page |
+| `-log-search-max-query-bytes` | `int` | `4096` | Maximum literal search query length in bytes |
+| `-log-search-chunk-bytes` | `uint64` | `16777216` | Maximum decoded chunk buffer size (16 MB) |
+| `-log-search-page-bytes` | `uint64` | `67108864` | Maximum decoded bytes scanned per search page (64 MB) before cooperative yield |
+| `-log-search-page-ms` | `int` | `2000` | Cooperative page scan time budget in milliseconds |
+| `-log-search-cursor-seconds` | `int` | `300` | Search pagination cursor lifetime in seconds before expiration |
+
+#### Loopback Security Model
+
+The NoxChat probe enforces strict defense-in-depth isolation:
+- **Local Loopback Boundary**: The Python NoxChat bot binds its internal telemetry and control server strictly to `127.0.0.1:50056`. It does not accept remote network traffic directly and logs a prominent warning if configured otherwise.
+- **Probe Gateway**: `noxchat-probe` acts as the sole network gateway, terminating TLS 1.3, authenticating requests via mutual HMAC-SHA256 signatures with nonce replay protection, and validating client tokens.
+- **In-Memory Ring Buffers**: Maintains a 1 MB ring buffer for state/telemetry events and an 8 MB ring buffer for live logs and API calls. On slow network links, ring buffers employ drop-oldest FIFO eviction, completely freeing buffer memory when no clients are connected.
+
+#### Execution Examples
+```bash
+# Compile binary directly
+cd MADTOM_GOLANG && go build -o bin/noxchat-probe ./cmd/noxchat-probe
+
+# Deploy to remote server via deploy.sh
+./deploy.sh -P probe tp1
+
+# Generate a new cryptographically secure client authorization key
+./MADTOM_GOLANG/bin/noxchat-probe -gen-key
+
+# Run probe daemon loading configuration and credentials from NoxChat files
+./MADTOM_GOLANG/bin/noxchat-probe \
+    -node-id tp1 \
+    -listen :50055 \
+    -config /opt/noxchat/config.yaml \
+    -auth-key-file /opt/noxchat/.env
+
+# Run probe daemon with enabled WAL spooling and custom 2GB spool budget
+./MADTOM_GOLANG/bin/noxchat-probe \
+    -node-id tp1 \
+    -listen :50055 \
+    -store-raw-logs \
+    -max-spool-bytes 2147483648
+
+# Run from source via Go toolchain
+cd MADTOM_GOLANG && go run ./cmd/noxchat-probe -listen :50055 -node-id dev-probe
+```
+
+---
+
+### 11. `MADTOM.Plugins.NoxAI.App` — Standalone NOX AI Control Center
+
+A standalone, focused desktop control center packaging the NOX AI plugin directly without the full MADTOM Studio shell. Provides dedicated access to all 7 workspaces: Telemetry & Usage, Direct Chat, Memories & RAG (including User Profiles & Avatars), Stickers & GIFs, Images, Active Jobs, and Raw Logs & API (with server-side retained log search, correlated chat trace inspection, and BiDi HarfBuzz typography).
+
+- **Technology**: Avalonia UI (.NET 10)
+- **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Plugins.NoxAI.App/MADTOM.Plugins.NoxAI.App`
+
+#### Running
+```bash
+# Direct execution (self-contained executable)
+./MADTOM_DOTNET/publish/linux-x64/MADTOM.Plugins.NoxAI.App/MADTOM.Plugins.NoxAI.App
+
+# Or running from source via dotnet CLI
+dotnet run --project MADTOM_DOTNET/src/Plugins/NoxAI/MADTOM.Plugins.NoxAI.App/MADTOM.Plugins.NoxAI.App.csproj
+```
+
 
 

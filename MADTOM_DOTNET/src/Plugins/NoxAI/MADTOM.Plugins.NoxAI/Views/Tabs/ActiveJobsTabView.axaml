@@ -29,10 +29,10 @@
                                     CornerRadius="6"
                                     Padding="12,8"
                                     Margin="0,4">
-                                <Grid ColumnDefinitions="140,*,100">
+                                <Grid ColumnDefinitions="170,*,100">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding JobType}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
-                                        <TextBlock Text="{Binding Status}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="{Binding JobTypeLabel}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding JobId}"/>
+                                        <TextBlock Text="{Binding StatusLine}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                                         <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="1" Height="6"/>

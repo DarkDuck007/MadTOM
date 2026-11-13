@@ -34,6 +34,15 @@ func main() {
 	maxSpoolBytes := flag.Int64("max-spool-bytes", 1024*1024*1024, "Max WAL spool size on disk (default 1GB)")
 	genKey := flag.Bool("gen-key", false, "Generate a new client auth key and exit")
 	enableMdns := flag.Bool("mdns", true, "Advertise via mDNS (_noxchat-probe._tcp.local)")
+	searchDefaults := config.DefaultConfig()
+	flag.BoolVar(&searchDefaults.LogSearchEnabled, "log-search", true, "Enable retained-log literal search")
+	flag.IntVar(&searchDefaults.LogSearchConcurrency, "log-search-concurrency", 1, "Concurrent retained-log searches")
+	flag.IntVar(&searchDefaults.LogSearchMaxResults, "log-search-max-results", 200, "Maximum hits per page")
+	flag.IntVar(&searchDefaults.LogSearchMaxQueryBytes, "log-search-max-query-bytes", 4096, "Maximum literal query bytes")
+	flag.Uint64Var(&searchDefaults.LogSearchChunkBytes, "log-search-chunk-bytes", 16<<20, "Maximum decoded chunk bytes")
+	flag.Uint64Var(&searchDefaults.LogSearchPageBytes, "log-search-page-bytes", 64<<20, "Decoded bytes per page (plus at most one chunk)")
+	flag.IntVar(&searchDefaults.LogSearchPageMs, "log-search-page-ms", 2000, "Cooperative page time budget")
+	flag.IntVar(&searchDefaults.LogSearchCursorSeconds, "log-search-cursor-seconds", 300, "Search cursor lifetime")
 	flag.Parse()
 
 	if *genKey {
@@ -45,7 +54,7 @@ func main() {
 		return
 	}
 
-	cfg := config.DefaultConfig()
+	cfg := searchDefaults
 	if *cfgPath != "" {
 		if err := cfg.LoadFromNoxChatYaml(*cfgPath); err != nil {
 			log.Printf("[NoxChat_Probe] Warning: Could not read config from %s: %v", *cfgPath, err)

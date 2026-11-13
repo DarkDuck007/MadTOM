@@ -68,7 +68,7 @@ Group=root
 
 # Active standard configuration:
 ExecStart=/opt/squeeze-server \
-    -config /etc/squeeze/squeeze.yaml \
+    --config /etc/squeeze/squeeze.yaml \
     -scratch /var/lib/squeeze/scratch \
     -output /var/lib/squeeze/output
 

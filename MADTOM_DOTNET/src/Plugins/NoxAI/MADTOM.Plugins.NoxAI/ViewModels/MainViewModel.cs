@@ -37,6 +37,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public DirectChatTabViewModel DirectChatTab { get; }
     public MemoriesRagTabViewModel MemoriesRagTab { get; }
     public MediaLibraryTabViewModel MediaLibraryTab { get; }
+    public ChatImagesTabViewModel ChatImagesTab { get; }
     public ActiveJobsTabViewModel ActiveJobsTab { get; }
     public RawLogsApiTabViewModel RawLogsApiTab { get; }
     public NoxSettingsViewModel SettingsViewModel { get; }
@@ -56,11 +57,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DirectChatTab = new DirectChatTabViewModel(_nodeManager);
         MemoriesRagTab = new MemoriesRagTabViewModel(_nodeManager);
         MediaLibraryTab = new MediaLibraryTabViewModel(_nodeManager);
+        ChatImagesTab = new ChatImagesTabViewModel(_nodeManager);
         ActiveJobsTab = new ActiveJobsTabViewModel(_nodeManager);
         RawLogsApiTab = new RawLogsApiTabViewModel(_nodeManager, _logCache, _apiCache);
         SettingsViewModel = new NoxSettingsViewModel(_nodeManager, _historyCache, _logCache, _apiCache, _cacheStore);
 
+        SettingsViewModel.SpoolNodeProvider = () => SelectedNode;
+        SettingsViewModel.SpoolPreloaded += nodeId =>
+        {
+            if (RawLogsApiTab.NodeId == nodeId)
+            {
+                _ = RawLogsApiTab.LoadLogHistoryAsync();
+                _ = RawLogsApiTab.LoadApiCallListAsync();
+            }
+        };
+
         MediaLibraryTab.IsTabActive = SelectedWorkspaceTabIndex == 3;
+        ChatImagesTab.IsTabActive = SelectedWorkspaceTabIndex == 4;
+        RawLogsApiTab.IsTabActive = SelectedWorkspaceTabIndex == 6;
 
         RefreshActiveNodes();
 
@@ -112,9 +126,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private CancellationTokenSource? _stateStreamCts;
+    private readonly CancellationTokenSource _statusLoopCts = new();
+    private bool _probeReachable;
 
     partial void OnSelectedWorkspaceTabIndexChanged(int value)
     {
+        if (RawLogsApiTab != null) RawLogsApiTab.IsTabActive = value == 6;
+        if (ChatImagesTab != null) ChatImagesTab.IsTabActive = value == 4;
         if (MediaLibraryTab != null)
         {
             MediaLibraryTab.IsTabActive = value == 3;
@@ -123,6 +141,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedNodeChanged(NoxNodeModel? value)
     {
+        _probeReachable = false;
+        _lastStatusResponse = null;
         _stateStreamCts?.Cancel();
         _stateStreamCts?.Dispose();
         _stateStreamCts = null;
@@ -131,6 +151,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (DirectChatTab != null) DirectChatTab.SelectedNode = value;
         if (MemoriesRagTab != null) MemoriesRagTab.SelectedNode = value;
         if (MediaLibraryTab != null) MediaLibraryTab.SelectedNode = value;
+        if (ChatImagesTab != null) ChatImagesTab.SelectedNode = value;
         if (ActiveJobsTab != null) ActiveJobsTab.SelectedNode = value;
         if (RawLogsApiTab != null) RawLogsApiTab.SelectedNode = value;
 
@@ -157,7 +178,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     var client = _nodeManager.GetClient(node);
                     using var call = client.SubscribeState(new NoxStateSubscriptionRequest { NodeId = node.Id }, cancellationToken: ct);
 
-                    Dispatcher.UIThread.Post(() => ConnectionStatusBadge = "• STREAMING");
+                    await call.ResponseHeadersAsync.WaitAsync(ct);
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!ct.IsCancellationRequested && SelectedNode == node)
+                            ConnectionStatusBadge = "• STREAMING";
+                    });
 
                     while (await call.ResponseStream.MoveNext(ct))
                     {
@@ -171,6 +197,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
                             Dispatcher.UIThread.Post(() =>
                             {
+                                if (ct.IsCancellationRequested || SelectedNode != node) return;
                                 if (payload.TelemetrySamples.Count > 0)
                                 {
                                     foreach (var sample in payload.TelemetrySamples)
@@ -199,6 +226,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                             // Ignore decompression errors on malformed chunks
                         }
                     }
+                    if (!ct.IsCancellationRequested)
+                        throw new System.IO.IOException("State stream ended");
                 }
                 catch (OperationCanceledException)
                 {
@@ -298,61 +327,85 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void StartBackgroundStatusLoop()
     {
-        Task.Run(async () =>
+        var ct = _statusLoopCts.Token;
+        _ = Task.Run(async () =>
         {
-            while (true)
+            while (!ct.IsCancellationRequested)
             {
+                var node = SelectedNode;
                 try
                 {
-                    if (SelectedNode != null)
+                    if (node != null)
                     {
-                        var client = _nodeManager.GetClient(SelectedNode);
-                        var status = await client.GetNodeStatusAsync(new NoxNodeStatusRequest { NodeId = SelectedNode.Id });
-                        _lastStatusResponse = status;
-                        ConnectionStatusBadge = status.BotRunning ? "• RUNNING" : "• PROBE READY";
-                        if (status.TransportStats.Count > 0 && status.TransportStats[0].ZstdBytes > 0)
+                        var client = _nodeManager.GetClient(node);
+                        var status = await client.GetNodeStatusAsync(new NoxNodeStatusRequest { NodeId = node.Id },
+                            deadline: DateTime.UtcNow.AddSeconds(10), cancellationToken: ct);
+                        await Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            var s = status.TransportStats[0];
-                            double ratio = (double)s.DecodedZstdBytes / s.ZstdBytes;
-                            LiveCompressionRatio = $"Zstd: {ratio:F1}x ({s.ZstdBatches} batches)";
-                        }
-                        else
-                        {
-                            long clientComp = _logCache.TotalCompressedBytes + _apiCache.TotalCompressedBytes;
-                            long clientRaw = _logCache.TotalRawBytes + _apiCache.TotalRawBytes;
-                            if (clientComp > 0 && clientRaw > 0)
+                            if (ct.IsCancellationRequested || SelectedNode != node) return;
+                            bool recovered = !_probeReachable || (_lastStatusResponse?.BotRunning == false && status.BotRunning);
+                            _probeReachable = true;
+                            _lastStatusResponse = status;
+                            ConnectionStatusBadge = status.BotRunning ? "• RUNNING" : "• PROBE READY";
+                            _ = RawLogsApiTab.RecoverHistoryAfterConnectionAsync(force: recovered);
+                            if (status.TransportStats.Count > 0 && status.TransportStats[0].ZstdBytes > 0)
                             {
-                                double ratio = (double)clientRaw / clientComp;
-                                LiveCompressionRatio = $"Zstd: {ratio:F1}x (in-memory)";
+                                var s = status.TransportStats[0];
+                                double ratio = (double)s.DecodedZstdBytes / s.ZstdBytes;
+                                LiveCompressionRatio = $"Zstd: {ratio:F1}x ({s.ZstdBatches} batches)";
                             }
                             else
                             {
-                                LiveCompressionRatio = "Zstd: 1.0x";
+                                long clientComp = _logCache.TotalCompressedBytes + _apiCache.TotalCompressedBytes;
+                                long clientRaw = _logCache.TotalRawBytes + _apiCache.TotalRawBytes;
+                                if (clientComp > 0 && clientRaw > 0)
+                                {
+                                    double ratio = (double)clientRaw / clientComp;
+                                    LiveCompressionRatio = $"Zstd: {ratio:F1}x (in-memory)";
+                                }
+                                else
+                                {
+                                    LiveCompressionRatio = "Zstd: 1.0x";
+                                }
                             }
-                        }
 
-                        if (IsZstdDiagnosticsOpen)
-                        {
-                            Dispatcher.UIThread.Post(RefreshCompressionDiagnostics);
-                        }
+                            if (IsZstdDiagnosticsOpen)
+                            {
+                                Dispatcher.UIThread.Post(RefreshCompressionDiagnostics);
+                            }
+                        });
                     }
                     else
                     {
-                        ConnectionStatusBadge = "• NO NODES";
-                        LiveCompressionRatio = "Zstd: 1.0x";
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            if (ct.IsCancellationRequested || SelectedNode != null) return;
+                            ConnectionStatusBadge = "• NO NODES";
+                            LiveCompressionRatio = "Zstd: 1.0x";
+                        });
                     }
                 }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
                 catch
                 {
-                    ConnectionStatusBadge = "• OFFLINE";
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (ct.IsCancellationRequested || SelectedNode != node) return;
+                        _probeReachable = false;
+                        RawLogsApiTab.MarkHistoryRecoveryNeeded();
+                        ConnectionStatusBadge = "• OFFLINE";
+                    });
                 }
-                await Task.Delay(5000);
+                try { await Task.Delay(5000, ct); }
+                catch (OperationCanceledException) { break; }
             }
-        });
+        }, ct);
     }
 
     public void Dispose()
     {
+        _statusLoopCts.Cancel();
+        _statusLoopCts.Dispose();
         _stateStreamCts?.Cancel();
         _stateStreamCts?.Dispose();
         _stateStreamCts = null;

@@ -878,6 +878,7 @@ type LogChunkQuery struct {
 	MaxChunks             uint32                 `protobuf:"varint,3,opt,name=max_chunks,json=maxChunks,proto3" json:"max_chunks,omitempty"`                                         // e.g. 8 chunks = up to 2048 records
 	SeekTimestampUnixNano int64                  `protobuf:"varint,4,opt,name=seek_timestamp_unix_nano,json=seekTimestampUnixNano,proto3" json:"seek_timestamp_unix_nano,omitempty"` // if > 0, collector seeks closest chunk
 	Forward               bool                   `protobuf:"varint,5,opt,name=forward,proto3" json:"forward,omitempty"`                                                              // direction for range traversal
+	SummaryOnly           bool                   `protobuf:"varint,6,opt,name=summary_only,json=summaryOnly,proto3" json:"summary_only,omitempty"`                                   // NoxChat: chunk headers without compressed records
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -943,6 +944,13 @@ func (x *LogChunkQuery) GetSeekTimestampUnixNano() int64 {
 func (x *LogChunkQuery) GetForward() bool {
 	if x != nil {
 		return x.Forward
+	}
+	return false
+}
+
+func (x *LogChunkQuery) GetSummaryOnly() bool {
+	if x != nil {
+		return x.SummaryOnly
 	}
 	return false
 }
@@ -1168,14 +1176,15 @@ const file_madtom_v1_query_proto_rawDesc = "" +
 	"\x13oldest_ts_unix_nano\x18\x05 \x01(\x03R\x10oldestTsUnixNano\x12-\n" +
 	"\x13newest_ts_unix_nano\x18\x06 \x01(\x03R\x10newestTsUnixNano\x12\x1f\n" +
 	"\vtotal_bytes\x18\a \x01(\x04R\n" +
-	"totalBytes\"\xc0\x01\n" +
+	"totalBytes\"\xe3\x01\n" +
 	"\rLogChunkQuery\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12$\n" +
 	"\x0estart_chunk_id\x18\x02 \x01(\x04R\fstartChunkId\x12\x1d\n" +
 	"\n" +
 	"max_chunks\x18\x03 \x01(\rR\tmaxChunks\x127\n" +
 	"\x18seek_timestamp_unix_nano\x18\x04 \x01(\x03R\x15seekTimestampUnixNano\x12\x18\n" +
-	"\aforward\x18\x05 \x01(\bR\aforward\"\xb9\x01\n" +
+	"\aforward\x18\x05 \x01(\bR\aforward\x12!\n" +
+	"\fsummary_only\x18\x06 \x01(\bR\vsummaryOnly\"\xb9\x01\n" +
 	"\x10LogChunkResponse\x12!\n" +
 	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
 	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12\x17\n" +

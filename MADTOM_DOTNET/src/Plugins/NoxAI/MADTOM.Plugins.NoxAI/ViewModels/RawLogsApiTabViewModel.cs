@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Security.Cryptography;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +23,8 @@ namespace MADTOM.Plugins.NoxAI.ViewModels;
 
 public sealed class RawApiCallImageItem
 {
-    public string Label { get; init; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    public string ContentHash { get; init; } = string.Empty;
     public string MimeType { get; init; } = string.Empty;
     public Bitmap? Preview { get; init; }
 }
@@ -41,13 +43,21 @@ public sealed partial class RawApiCallItemModel : ObservableObject
     public uint DurationMs { get; init; }
     public uint PromptTokens { get; init; }
     public uint CompletionTokens { get; init; }
+    public uint CachedTokens { get; init; }
+    public string BaseUrl { get; init; } = string.Empty;
+    public double Temperature { get; init; }
+    public string ErrorMessage { get; init; } = string.Empty;
+    public NoxTraceContext? TraceContext { get; init; }
     [ObservableProperty] private string _requestJson = string.Empty;
     [ObservableProperty] private string _responseJson = string.Empty;
     public ObservableCollection<RawApiCallImageItem> Images { get; } = new();
     [ObservableProperty] private bool _hasImages;
     public ObservableCollection<ParsedTurnItemModel> ParsedTurns { get; } = new();
     [ObservableProperty] private bool _hasParsedTurns;
-    public bool IsDetailsLoaded { get; set; }
+    [ObservableProperty] private bool _isDetailsLoaded;
+    // Chats view: raw payload panes are collapsed by default to keep the history dense
+    [ObservableProperty] private bool _showRequestJson;
+    [ObservableProperty] private bool _showResponseJson;
 }
 
 public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposable
@@ -63,6 +73,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
     [ObservableProperty] private TelemetryOptInMode _logMode = TelemetryOptInMode.OptInMonitorAndStore;
     [ObservableProperty] private string _modeBadgeText = "STREAM & STORE";
     [ObservableProperty] private int _selectedSubViewIndex; // 0 = Virtual Logs, 1 = Raw API Calls
+    [ObservableProperty] private bool _isTabActive;
     [ObservableProperty] private RawApiCallItemModel? _selectedApiCall;
     [ObservableProperty] private string _spoolStatusSummary = "Spool: Standby";
 
@@ -113,7 +124,11 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
     [RelayCommand]
     public void GoToNewest()
     {
-        if (RecentApiCalls.Count > 0)
+        if (FilteredApiCalls.Count > 0)
+        {
+            SelectedApiCall = FilteredApiCalls[0];
+        }
+        else if (RecentApiCalls.Count > 0)
         {
             SelectedApiCall = RecentApiCalls[0];
         }
@@ -130,11 +145,41 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         _nodeManager = nodeManager;
         _logCache = logCache;
         _apiCache = apiCache;
+        InitializeSearch();
         SelectedNode = _nodeManager.Nodes.FirstOrDefault();
+    }
+
+    private async Task OpenChatCallInRawAsync(string callId)
+    {
+        var node = SelectedNode;
+        var item = RecentApiCalls.FirstOrDefault(c => c.CallId == callId);
+        if (item == null)
+        {
+            ChatHistoryStatus = "That call is not in the loaded Raw API Calls list (it came from the probe's per-chat index).";
+            return;
+        }
+        // The destination ListBox must contain the call before its selection is set.
+        ApiFilter = string.Empty;
+        CancelApiContentSearch();
+        await RefreshLocalFiltersAsync();
+        if (SelectedNode != node || !RecentApiCalls.Contains(item)) return;
+        if (!FilteredApiCalls.Contains(item))
+        {
+            int index = 0;
+            while (index < FilteredApiCalls.Count && FilteredApiCalls[index].TimestampUnixNano > item.TimestampUnixNano) index++;
+            FilteredApiCalls.Insert(index, item);
+        }
+        SelectedApiCall = item;
+        SelectedSubViewIndex = 1;
     }
 
     partial void OnSelectedNodeChanged(NoxNodeModel? value)
     {
+        ResetConnectionRecovery();
+        ResetSearch();
+        CancelApiContentSearch();
+        _historyCts.Cancel(); _historyCts.Dispose(); _historyCts = new();
+        lock (_inflightLogChunks) { _inflightLogChunks.Clear(); _chunkFetchFailures.Clear(); }
         _isSeqRangeInitialized = false;
         FirstSeq = 0;
         LastSeq = 0;
@@ -143,7 +188,9 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         DroppedChunksCount = 0;
         _seenApiCallIds.Clear();
         RecentApiCalls.Clear();
+        FilteredApiCalls.Clear();
         SelectedApiCall = null;
+        ResetChatsState();
 
         if (value != null)
         {
@@ -173,7 +220,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             _ => "OFF (CONFIGURE IN ⚙)"
         };
 
-        _ = SyncNodeConfigAndSpoolAsync(node);
+        MarkHistoryRecoveryNeeded();
 
         if (node.LogMode == TelemetryOptInMode.OptInOff)
         {
@@ -185,25 +232,20 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         }
     }
 
-    private async Task SyncNodeConfigAndSpoolAsync(NoxNodeModel node)
+    private async Task<bool> SyncNodeConfigAsync(NoxNodeModel node, CancellationToken token)
     {
         try
         {
             var client = _nodeManager.GetClient(node);
-            bool storeOnServer = node.LogMode == TelemetryOptInMode.OptInMonitorAndStore;
             await client.UpdateControlConfigAsync(new NoxUpdateControlConfigRequest
             {
                 NodeId = node.Id,
-                StoreRawLogs = storeOnServer
-            });
-            await RefreshSpoolStatus();
-            if (node.LogMode != TelemetryOptInMode.OptInOff)
-            {
-                // Only load the lightweight API call list summary, NOT the entire 1GB log spool
-                await LoadApiCallListAsync();
-            }
+                StoreRawLogs = node.LogMode == TelemetryOptInMode.OptInMonitorAndStore
+            }, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: token);
+            return !token.IsCancellationRequested && SelectedNode == node;
         }
-        catch { }
+        catch (Grpc.Core.RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Unimplemented) { return true; }
+        catch { return false; }
     }
 
     private void StartLogStream()
@@ -241,16 +283,23 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     };
 
                     using var call = client.SubscribeLogsAndApi(req, cancellationToken: ct);
+                    // Constructing a streaming call does not establish connectivity.
+                    await call.ResponseHeadersAsync.WaitAsync(ct);
                     Dispatcher.UIThread.Post(() =>
                     {
+                        if (ct.IsCancellationRequested || SelectedNode != node) return;
+                        _ = RecoverHistoryAfterConnectionAsync(force: true);
                         LogStreamStatus = $"Live ({TotalRecords:N0} logs · {RecentApiCalls.Count} API calls)";
                     });
 
                     while (await call.ResponseStream.MoveNext(ct))
                     {
                         var chunk = call.ResponseStream.Current;
+                        if (ct.IsCancellationRequested) break;
                         ProcessIncomingChunk(node.Id, chunk);
                     }
+                    if (!ct.IsCancellationRequested)
+                        throw new System.IO.IOException("Live stream ended");
                 }
                 catch (OperationCanceledException)
                 {
@@ -260,6 +309,8 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
+                        if (ct.IsCancellationRequested || SelectedNode != node) return;
+                        MarkHistoryRecoveryNeeded();
                         LogStreamStatus = $"Reconnecting ({ex.Message})...";
                     });
                     try { await Task.Delay(2500, ct); } catch { break; }
@@ -273,6 +324,20 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         if (chunk.ZstdPayload == null || chunk.ZstdPayload.IsEmpty) return;
 
         string kind = chunk.ChunkKind ?? string.Empty;
+
+        if (kind == "chat_trace")
+        {
+            try
+            {
+                var trace = NoxChatTraceEvent.Parser.ParseFrom(chunk.ZstdPayload);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (NodeId == nodeId) IngestChatTraceEvent(trace);
+                });
+            }
+            catch (Google.Protobuf.InvalidProtocolBufferException) { }
+            return;
+        }
 
         // 1. Explicit API call chunk
         if (kind == "api")
@@ -307,6 +372,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                 _logCache.PutChunk("noxchat", nodeId, logChunk);
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (NodeId != nodeId) return;
                     StreamedChunksCount++;
                     if (dropped > 0) DroppedChunksCount += (uint)dropped;
                     UpdateSeqBounds(logChunk.FirstSeq, logChunk.LastSeq);
@@ -342,7 +408,8 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     var models = decoded.Select(r => BuildApiCallItemModel(r, loadFullDetails: false)).ToList();
                     Dispatcher.UIThread.Post(() =>
                     {
-                        StreamedChunksCount++;
+                        if (NodeId != nodeId) return;
+                    StreamedChunksCount++;
                         if (dropped > 0) DroppedChunksCount += (uint)dropped;
                         AddOrUpdateApiCallsOnUi(models);
                         LogStreamStatus = $"Active ({StreamedChunksCount} chunks · {TotalRecords:N0} logs · {RecentApiCalls.Count} API calls)";
@@ -361,8 +428,28 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         EnsureDetailsLoaded(value);
     }
 
+    partial void OnIsTabActiveChanged(bool value)
+    {
+        UpdateChatsActivity();
+        if (value && SelectedApiCall != null) EnsureDetailsLoaded(SelectedApiCall);
+    }
+
+    partial void OnSelectedSubViewIndexChanged(int value)
+    {
+        UpdateChatsActivity();
+        if (value == 1 && SelectedApiCall != null) EnsureDetailsLoaded(SelectedApiCall);
+    }
+
+    private void UpdateChatsActivity()
+    {
+        OnChatsViewActivityChanged();
+    }
+
     public void EnsureDetailsLoaded(RawApiCallItemModel item)
     {
+        // Hidden tabs still receive live summaries; defer expensive JSON/image parsing
+        // until the operator actually opens the API detail workspace.
+        if (!IsTabActive || SelectedSubViewIndex != 1) return;
         if (item.IsDetailsLoaded) return;
         var node = SelectedNode;
         if (node == null) return;
@@ -391,7 +478,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     _apiCache.PutFullRecord(node.Id, fullRec);
                     Dispatcher.UIThread.Post(() =>
                     {
-                        if (SelectedApiCall?.CallId == item.CallId || item.CallId == fullRec.CallId)
+                        if (SelectedNode == node && RecentApiCalls.Contains(item) && IsTabActive && SelectedSubViewIndex == 1)
                         {
                             PopulateItemDetails(item, fullRec);
                         }
@@ -420,7 +507,8 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                         var bmp = new Bitmap(ms);
                         item.Images.Add(new RawApiCallImageItem
                         {
-                            Label = string.IsNullOrEmpty(img.Label) ? "Prompt Image" : img.Label,
+                            Label = string.IsNullOrEmpty(img.Label) ? $"Image #{item.Images.Count + 1}" : img.Label,
+                            ContentHash = Convert.ToHexString(SHA256.HashData(img.ImageBytes.Span)),
                             MimeType = img.MimeType ?? "image/jpeg",
                             Preview = bmp
                         });
@@ -442,6 +530,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         }
         catch { }
         item.HasParsedTurns = item.ParsedTurns.Count > 0;
+        item.HasImages = item.Images.Count > 0;
 
         if (string.IsNullOrEmpty(item.ChatName))
         {
@@ -474,6 +563,11 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             DurationMs = r.DurationMs,
             PromptTokens = r.PromptTokens,
             CompletionTokens = r.CompletionTokens,
+            CachedTokens = r.CachedTokens,
+            BaseUrl = r.BaseUrl,
+            Temperature = r.Temperature,
+            ErrorMessage = r.ErrorMessage,
+            TraceContext = r.TraceContext?.Clone(),
             HasImages = r.ImageDataUrls != null && r.ImageDataUrls.Count > 0,
             IsDetailsLoaded = loadFullDetails
         };
@@ -570,6 +664,10 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             foreach (var s in sorted)
             {
                 RecentApiCalls.Add(s);
+                if (MatchesCurrentApiFilter(s))
+                {
+                    FilteredApiCalls.Add(s);
+                }
             }
         }
         else
@@ -583,6 +681,15 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     index++;
                 }
                 RecentApiCalls.Insert(index, item);
+                if (MatchesCurrentApiFilter(item))
+                {
+                    int filteredIndex = 0;
+                    while (filteredIndex < FilteredApiCalls.Count && FilteredApiCalls[filteredIndex].TimestampUnixNano > item.TimestampUnixNano)
+                    {
+                        filteredIndex++;
+                    }
+                    FilteredApiCalls.Insert(filteredIndex, item);
+                }
             }
         }
 
@@ -592,13 +699,16 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             var removed = RecentApiCalls[RecentApiCalls.Count - 1];
             _seenApiCallIds.Remove(removed.CallId);
             RecentApiCalls.RemoveAt(RecentApiCalls.Count - 1);
+            FilteredApiCalls.Remove(removed);
         }
 
-        if (RecentApiCalls.Count > 0)
+        OnApiCallsAddedForChats(newItems);
+
+        if (FilteredApiCalls.Count > 0)
         {
             if (SelectedApiCall == null || !IsScrolledDown)
             {
-                SelectedApiCall = RecentApiCalls[0];
+                SelectedApiCall = FilteredApiCalls[0];
             }
             else
             {
@@ -642,6 +752,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         var node = SelectedNode;
         if (node == null) return;
 
+        var token = _historyCts.Token;
         lock (_inflightLogChunks)
         {
             if (IsChunkUnavailable(chunkId)) return;
@@ -659,7 +770,8 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     NodeId = node.Id,
                     StartChunkId = chunkId,
                     MaxChunks = 4
-                });
+                }, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: token);
+                token.ThrowIfCancellationRequested();
 
                 if (resp.Chunks.Count > 0)
                 {
@@ -670,6 +782,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     }
                     Dispatcher.UIThread.Post(() =>
                     {
+                        if (token.IsCancellationRequested || SelectedNode != node) return;
                         foreach (var c in resp.Chunks)
                         {
                             UpdateSeqBounds(c.FirstSeq, c.LastSeq);
@@ -681,6 +794,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             {
                 lock (_inflightLogChunks)
                 {
+                    if (token.IsCancellationRequested) return;
                     _chunkFetchFailures[chunkId] = DateTime.UtcNow;
                     _logCache.RecordChunkError(node.Id, chunkId, ex.GetType().Name, ex.Message, ex.ToString());
                 }
@@ -689,20 +803,24 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             {
                 lock (_inflightLogChunks)
                 {
-                    _inflightLogChunks.Remove(chunkId);
-                    if (!found && !_chunkFetchFailures.ContainsKey(chunkId))
+                    if (!token.IsCancellationRequested)
                     {
-                        _chunkFetchFailures[chunkId] = DateTime.UtcNow;
-                        _logCache.RecordChunkError(node.Id, chunkId, "NOT_FOUND",
-                            $"Chunk #{chunkId} was not found on node {node.Id} spool.");
-                    }
-                    else if (found)
-                    {
-                        _chunkFetchFailures.Remove(chunkId);
+                        _inflightLogChunks.Remove(chunkId);
+                        if (!found && !_chunkFetchFailures.ContainsKey(chunkId))
+                        {
+                            _chunkFetchFailures[chunkId] = DateTime.UtcNow;
+                            _logCache.RecordChunkError(node.Id, chunkId, "NOT_FOUND",
+                                $"Chunk #{chunkId} was not found on node {node.Id} spool.");
+                        }
+                        else if (found)
+                        {
+                            _chunkFetchFailures.Remove(chunkId);
+                        }
                     }
                 }
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (token.IsCancellationRequested || SelectedNode != node) return;
                     CacheRevision++;
                 });
             }
@@ -728,93 +846,108 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
     [RelayCommand]
     public async Task RefreshSpoolStatus()
     {
-        if (SelectedNode == null) return;
+        var node = SelectedNode;
+        if (node == null || _disposed) return;
+        var token = _historyCts.Token;
         try
         {
-            var client = _nodeManager.GetClient(SelectedNode);
+            var client = _nodeManager.GetClient(node);
             var stats = await client.GetSpoolStatsAsync(new NoxSpoolStatsRequest
             {
-                NodeId = SelectedNode.Id
-            });
+                NodeId = node.Id
+            }, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: token);
+            if (token.IsCancellationRequested || SelectedNode != node) return;
 
             string loadedText = RecentApiCalls.Count > 0 ? $", {RecentApiCalls.Count:N0} loaded" : string.Empty;
             SpoolStatusSummary = $"Spool: {stats.TotalSpoolBytes / 1048576.0:F1} / {stats.MaxSpoolBytes / 1048576.0:F0} MiB ({stats.TotalLogRecords:N0} logs, {stats.TotalApiCalls:N0} API calls{loadedText})";
         }
         catch
         {
-            SpoolStatusSummary = "Spool: Offline";
+            if (!token.IsCancellationRequested && SelectedNode == node)
+                SpoolStatusSummary = "Spool: Offline";
         }
     }
 
     private bool _isLoadingSpool;
 
+    private int _apiListRevision;
+
     [RelayCommand]
-    public async Task LoadApiCallListAsync()
+    public async Task LoadApiCallListAsync() => await LoadApiCallListCoreAsync();
+
+    private Task<bool>? _apiListTask;
+    private CancellationToken _apiListToken;
+
+    private Task<bool> LoadApiCallListCoreAsync()
+    {
+        lock (_historyLoadGate)
+        {
+            var token = _historyCts.Token;
+            if (_apiListTask is { IsCompleted: false } && _apiListToken == token)
+                return _apiListTask;
+            _apiListToken = token;
+            return _apiListTask = DiscoverApiCallsAsync();
+        }
+    }
+
+    private async Task<bool> DiscoverApiCallsAsync()
     {
         var node = SelectedNode;
-        if (node == null) return;
+        if (node == null) return false;
+        var token = _historyCts.Token;
+        int revision = ++_apiListRevision;
+        bool IsCurrent() => !token.IsCancellationRequested && SelectedNode == node && revision == _apiListRevision;
 
         try
         {
             var client = _nodeManager.GetClient(node);
             ulong nextApiChunkId = 0;
-            bool hasMoreApi = true;
-            int consecutiveErrors = 0;
-
-            while (hasMoreApi && consecutiveErrors < 3)
+            while (IsCurrent())
             {
-                try
+                var apiResp = await client.QueryApiCallChunksAsync(new NoxApiCallChunkQuery
                 {
-                    var apiResp = await client.QueryApiCallChunksAsync(new NoxApiCallChunkQuery
-                    {
-                        NodeId = node.Id,
-                        StartChunkId = nextApiChunkId,
-                        MaxChunks = 32,
-                        SummaryOnly = true
-                    });
+                    NodeId = node.Id,
+                    StartChunkId = nextApiChunkId,
+                    MaxChunks = 32,
+                    SummaryOnly = true
+                }, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: token);
+                if (!IsCurrent()) return false;
+                if (apiResp.Chunks.Count == 0) return true;
 
-                    if (apiResp.Chunks.Count == 0)
-                    {
-                        break;
-                    }
-
-                    consecutiveErrors = 0;
-                    ulong maxChunkId = nextApiChunkId;
-                    var apiModels = new List<RawApiCallItemModel>();
+                // A summary response is still compressed protobuf. Decode and build
+                // metadata away from the dispatcher, including for older probes
+                // that return full bodies despite SummaryOnly.
+                var apiModels = await Task.Run(() =>
+                {
+                    var models = new List<RawApiCallItemModel>();
                     foreach (var chunk in apiResp.Chunks)
                     {
-                        if (chunk.ChunkId >= maxChunkId) maxChunkId = chunk.ChunkId;
-                        var decoded = _apiCache.PutChunk(node.Id, chunk);
-                        if (decoded != null)
+                        token.ThrowIfCancellationRequested();
+                        foreach (var record in _apiCache.PutChunk(node.Id, chunk))
                         {
-                            foreach (var r in decoded)
-                            {
-                                apiModels.Add(BuildApiCallItemModel(r, loadFullDetails: false));
-                            }
+                            token.ThrowIfCancellationRequested();
+                            models.Add(BuildApiCallItemModel(record, loadFullDetails: false));
                         }
                     }
-
-                    if (apiModels.Count > 0)
-                    {
-                        AddOrUpdateApiCallsOnUi(apiModels);
-                    }
-
-                    nextApiChunkId = maxChunkId + 1;
-                    hasMoreApi = apiResp.HasMore;
-                }
-                catch (Exception)
+                    return models;
+                }, token);
+                if (!IsCurrent()) return false;
+                if (apiModels.Count > 0)
                 {
-                    consecutiveErrors++;
-                    nextApiChunkId += 8;
+                    // Recheck when the queued publication actually runs: the user
+                    // may have selected another node in the meantime.
+                    if (Dispatcher.UIThread.CheckAccess()) AddOrUpdateApiCallsOnUi(apiModels);
+                    else Dispatcher.UIThread.Post(() => { if (IsCurrent()) AddOrUpdateApiCallsOnUi(apiModels); });
                 }
-            }
 
-            if (SelectedApiCall != null)
-            {
-                EnsureDetailsLoaded(SelectedApiCall);
+                ulong lastChunkId = apiResp.Chunks.Max(c => c.ChunkId);
+                if (!apiResp.HasMore || lastChunkId == ulong.MaxValue || lastChunkId < nextApiChunkId) break;
+                nextApiChunkId = lastChunkId + 1;
             }
         }
-        catch { }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception) { return false; /* The connection recovery loop retries. */ }
+        return IsCurrent();
     }
 
     [RelayCommand]
@@ -936,7 +1069,12 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                 }
 
                 _apiCache.FlushPending(node.Id);
-                if (RecentApiCalls.Count > 0)
+                if (FilteredApiCalls.Count > 0)
+                {
+                    SelectedApiCall = FilteredApiCalls[0];
+                    ScrollToTopRequested?.Invoke();
+                }
+                else if (RecentApiCalls.Count > 0)
                 {
                     SelectedApiCall = RecentApiCalls[0];
                     ScrollToTopRequested?.Invoke();
@@ -988,13 +1126,20 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                 return;
             }
 
+            ResetSearch();
+            CancelApiContentSearch();
+            _historyCts.Cancel(); _historyCts.Dispose(); _historyCts = new();
+            lock (_inflightLogChunks) { _inflightLogChunks.Clear(); _chunkFetchFailures.Clear(); }
             // Clear local caches and UI collections
             _apiCache.Clear(node.Id);
             _logCache.Clear(node.Id);
 
             _seenApiCallIds.Clear();
             RecentApiCalls.Clear();
+            FilteredApiCalls.Clear();
             SelectedApiCall = null;
+            ResetChatsState();
+            if (IsChatsViewActive) OnChatsViewActivityChanged();
             FirstSeq = 0;
             LastSeq = 0;
             TotalRecords = 0;
@@ -1013,6 +1158,13 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
 
     public void Dispose()
     {
+        _disposed = true;
+        CancelChatLoads();
+        _chatRefreshTimer?.Stop();
+        CancelApiContentSearch();
+        _historyCts.Cancel(); _historyCts.Dispose();
+        CancelLogSearch();
+        _filterTimer?.Stop();
         StopLogStream();
     }
 }

@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,7 @@ const (
 	FrameKindTelemetry  = 0x04
 	FrameKindJobEvent   = 0x05
 	FrameKindTurnEvent  = 0x06
+	FrameKindChatTrace  = 0x07
 	FrameKindRpcRequest = 0x10
 	FrameKindRpcReply   = 0x11
 )
@@ -49,6 +51,7 @@ type Dispatcher interface {
 	OnTelemetrySample(sample *madtomv1.NoxTelemetrySample)
 	OnJobEvent(event *madtomv1.NoxJobProgressEvent)
 	OnTurnEvent(event *madtomv1.NoxTurnTagEvent)
+	OnChatTraceEvent(event *madtomv1.NoxChatTraceEvent)
 }
 
 // Client manages persistent connection to Python's local loopback server.
@@ -164,6 +167,11 @@ func (c *Client) handleIncoming(kind byte, payload []byte) {
 		if err := unmarshalBridgePayload(payload, event); err == nil && c.dispatcher != nil {
 			c.dispatcher.OnTurnEvent(event)
 		}
+	case FrameKindChatTrace:
+		event := &madtomv1.NoxChatTraceEvent{}
+		if err := unmarshalBridgePayload(payload, event); err == nil && c.dispatcher != nil {
+			c.dispatcher.OnChatTraceEvent(event)
+		}
 	case FrameKindRpcReply:
 		var reply RpcMessage
 		if err := json.Unmarshal(payload, &reply); err == nil {
@@ -218,6 +226,14 @@ func (c *Client) writeFrameLocked(kind byte, data []byte) error {
 
 // CallRpc sends an RPC message to Python and waits for reply.
 func (c *Client) CallRpc(method string, reqPayload interface{}, timeout time.Duration) (*RpcMessage, error) {
+	return c.CallRpcContext(context.Background(), method, reqPayload, timeout)
+}
+
+// CallRpcContext removes abandoned requests when their gRPC caller navigates away.
+func (c *Client) CallRpcContext(ctx context.Context, method string, reqPayload interface{}, timeout time.Duration) (*RpcMessage, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	reqID := fmt.Sprintf("%d-%d", time.Now().UnixNano(), atomic.AddUint64(&c.reqSeq, 1))
 	rawPayload, err := json.Marshal(reqPayload)
 	if err != nil {
@@ -247,13 +263,20 @@ func (c *Client) CallRpc(method string, reqPayload interface{}, timeout time.Dur
 		return nil, err
 	}
 
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	select {
 	case reply := <-ch:
 		if reply.Error != "" {
 			return nil, fmt.Errorf("python rpc error: %s", reply.Error)
 		}
 		return reply, nil
-	case <-time.After(timeout):
+	case <-ctx.Done():
+		c.mu.Lock()
+		delete(c.pendingRpcs, reqID)
+		c.mu.Unlock()
+		return nil, ctx.Err()
+	case <-timer.C:
 		c.mu.Lock()
 		delete(c.pendingRpcs, reqID)
 		c.mu.Unlock()

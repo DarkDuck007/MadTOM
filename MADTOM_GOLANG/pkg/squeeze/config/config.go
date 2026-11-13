@@ -64,16 +64,18 @@ func Parse(args []string) (Config, error) {
 		return fallback
 	}
 
-	// 1. First pass: find --config or -c flag to load YAML settings
+	// 1. First pass: find --config, -config, or -c flag to load YAML settings
 	var configFile string
 	configEnv := env("CONFIG", "")
 	for i, arg := range args {
-		if arg == "--config" || arg == "-c" {
+		if arg == "--config" || arg == "-config" || arg == "-c" {
 			if i+1 < len(args) {
 				configFile = args[i+1]
 			}
 		} else if len(arg) > 9 && arg[:9] == "--config=" {
 			configFile = arg[9:]
+		} else if len(arg) > 8 && arg[:8] == "-config=" {
+			configFile = arg[8:]
 		} else if len(arg) > 3 && arg[:3] == "-c=" {
 			configFile = arg[3:]
 		}

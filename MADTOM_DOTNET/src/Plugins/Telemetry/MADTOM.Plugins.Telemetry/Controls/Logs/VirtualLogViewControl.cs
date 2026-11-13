@@ -49,6 +49,15 @@ public sealed class VirtualLogViewControl : Control
     public static readonly StyledProperty<TelemetryOptInMode> LogModeProperty =
         AvaloniaProperty.Register<VirtualLogViewControl, TelemetryOptInMode>(nameof(LogMode), TelemetryOptInMode.OptInOff);
 
+    // Retained history may remain readable when live collection is disabled.
+    public static readonly StyledProperty<bool> AllowHistoricalFetchProperty =
+        AvaloniaProperty.Register<VirtualLogViewControl, bool>(nameof(AllowHistoricalFetch), false);
+    public bool AllowHistoricalFetch
+    {
+        get => GetValue(AllowHistoricalFetchProperty);
+        set => SetValue(AllowHistoricalFetchProperty, value);
+    }
+
     public static readonly StyledProperty<int> CacheRevisionProperty =
         AvaloniaProperty.Register<VirtualLogViewControl, int>(nameof(CacheRevision), 0);
 
@@ -204,7 +213,7 @@ public sealed class VirtualLogViewControl : Control
     {
         base.OnPropertyChanged(change);
 
-        if (change.Property == TotalRecordsProperty || change.Property == LastSeqProperty)
+        if (change.Property == TotalRecordsProperty || change.Property == FirstSeqProperty || change.Property == LastSeqProperty)
         {
             UpdateScrollBarRange();
             if (IsFollowMode)
@@ -229,7 +238,7 @@ public sealed class VirtualLogViewControl : Control
     protected override Size ArrangeOverride(Size finalSize)
     {
         _scrollBar.Arrange(new Rect(finalSize.Width - ScrollBarWidth, 0, ScrollBarWidth, finalSize.Height));
-        UpdateScrollBarRange();
+        UpdateScrollBarRange(finalSize.Height);
         if (IsFollowMode)
         {
             _scrollBar.Value = _scrollBar.Maximum;
@@ -237,9 +246,9 @@ public sealed class VirtualLogViewControl : Control
         return finalSize;
     }
 
-    private void UpdateScrollBarRange()
+    private void UpdateScrollBarRange(double? viewportHeight = null)
     {
-        double visibleRows = Math.Max(1, Math.Floor(Bounds.Height / RowHeight));
+        double visibleRows = Math.Max(1, Math.Floor((viewportHeight ?? Bounds.Height) / RowHeight));
         double total = TotalRecords;
         _scrollBar.ViewportSize = visibleRows;
         _scrollBar.Minimum = 0;
@@ -462,6 +471,17 @@ public sealed class VirtualLogViewControl : Control
         }
     }
 
+    public void ScrollToSequence(ulong seq)
+    {
+        if (seq < FirstSeq || seq > LastSeq) return;
+        IsFollowMode = false;
+        UpdateScrollBarRange();
+        _scrollBar.Value = Math.Clamp((double)(seq - FirstSeq), _scrollBar.Minimum, _scrollBar.Maximum);
+        _selectionStartSeq = seq;
+        _selectionEndSeq = seq;
+        InvalidateVisual();
+    }
+
     public void ScrollToLatest()
     {
         IsFollowMode = true;
@@ -487,7 +507,7 @@ public sealed class VirtualLogViewControl : Control
 
         context.FillRectangle(bgBrush, bounds);
 
-        if (LogMode == TelemetryOptInMode.OptInOff)
+        if (LogMode == TelemetryOptInMode.OptInOff && !AllowHistoricalFetch)
         {
             DrawEmptyMessage(context, "System log streaming is disabled on this node (Opt-in: Off).\nEnable Monitor Only or Store in Node Settings.", textMuted);
             return;
@@ -502,17 +522,14 @@ public sealed class VirtualLogViewControl : Control
         int visibleRowCount = (int)Math.Ceiling(bounds.Height / RowHeight) + 1;
         ulong topRowIndex = (ulong)Math.Floor(_scrollBar.Value);
         ulong firstVisibleSeq = FirstSeq + topRowIndex;
-        ulong lastVisibleSeq = Math.Min(LastSeq, firstVisibleSeq + (ulong)visibleRowCount);
+        ulong lastVisibleSeq = firstVisibleSeq <= LastSeq
+            ? firstVisibleSeq + Math.Min(LastSeq - firstVisibleSeq, (ulong)visibleRowCount)
+            : LastSeq;
 
         // Prefetch any missing chunks for the visible viewport + overscan (only when collector stores chunks)
-        if (LogMode == TelemetryOptInMode.OptInMonitorAndStore && LogCache != null && !string.IsNullOrEmpty(NodeId))
+        if ((AllowHistoricalFetch || LogMode == TelemetryOptInMode.OptInMonitorAndStore) && LogCache != null && !string.IsNullOrEmpty(NodeId))
         {
-            ulong firstChunkId = firstVisibleSeq > 0 ? (firstVisibleSeq - 1) / 256 : 0;
-            if (LogCache.TryGetChunkIdForSeq(NodeId, firstVisibleSeq, out ulong rFirst)) firstChunkId = rFirst;
-            ulong lastChunkId = lastVisibleSeq > 0 ? (lastVisibleSeq - 1) / 256 : 0;
-            if (LogCache.TryGetChunkIdForSeq(NodeId, lastVisibleSeq, out ulong rLast)) lastChunkId = rLast;
-
-            for (ulong c = firstChunkId; c <= lastChunkId; c++)
+            foreach (ulong c in GetVisibleChunkIds(LogCache, NodeId, firstVisibleSeq, LastSeq, visibleRowCount))
             {
                 if (!LogCache.TryGetChunk(CollectorEndpoint, NodeId, c, out var chunk) || (chunk != null && lastVisibleSeq > chunk.LastSeq && !chunk.Sealed))
                 {
@@ -525,8 +542,8 @@ public sealed class VirtualLogViewControl : Control
 
         for (int i = 0; i < visibleRowCount; i++)
         {
+            if (firstVisibleSeq > LastSeq || (ulong)i > LastSeq - firstVisibleSeq) break;
             ulong seq = firstVisibleSeq + (ulong)i;
-            if (seq > LastSeq) break;
 
             double y = i * RowHeight;
 
@@ -544,7 +561,7 @@ public sealed class VirtualLogViewControl : Control
             }
             else
             {
-                if (LogMode == TelemetryOptInMode.OptInMonitorAndStore && !string.IsNullOrEmpty(NodeId))
+                if ((AllowHistoricalFetch || LogMode == TelemetryOptInMode.OptInMonitorAndStore) && !string.IsNullOrEmpty(NodeId))
                 {
                     ulong reqChunkId = seq > 0 ? (seq - 1) / 256 : 0;
                     if (LogCache != null && LogCache.TryGetChunkIdForSeq(NodeId, seq, out ulong mId)) reqChunkId = mId;
@@ -552,6 +569,23 @@ public sealed class VirtualLogViewControl : Control
                 }
                 DrawPlaceholder(context, seq, y, textMuted);
             }
+        }
+    }
+
+    // Chunk IDs need not be contiguous or proportional to sequence numbers. Bound
+    // prefetch work by viewport rows, including one overscan row, rather than IDs.
+    private static IEnumerable<ulong> GetVisibleChunkIds(LogChunkCache cache, string nodeId,
+        ulong firstSeq, ulong lastSeq, int visibleRowCount)
+    {
+        var seen = new HashSet<ulong>();
+        if (firstSeq > lastSeq || visibleRowCount < 0) yield break;
+        ulong rows = Math.Min(lastSeq - firstSeq, (ulong)visibleRowCount);
+        for (ulong offset = 0; offset <= rows; offset++)
+        {
+            ulong seq = firstSeq + offset;
+            ulong chunkId = seq > 0 ? (seq - 1) / 256 : 0;
+            if (cache.TryGetChunkIdForSeq(nodeId, seq, out ulong mapped)) chunkId = mapped;
+            if (seen.Add(chunkId)) yield return chunkId;
         }
     }
 

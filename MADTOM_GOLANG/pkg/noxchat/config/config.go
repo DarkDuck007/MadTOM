@@ -11,23 +11,34 @@ import (
 
 // ProbeConfig holds configuration parsed from CLI flags, env vars, and NoxChat config.yaml.
 type ProbeConfig struct {
-	NodeID           string `yaml:"node_id"`
-	ListenAddr       string `yaml:"listen_addr"`        // Public gRPC port (default ":50055")
-	PythonBridgeHost string `yaml:"python_bridge_host"` // Loopback host (must be 127.0.0.1 or localhost)
-	PythonBridgePort int    `yaml:"python_bridge_port"` // Loopback port (default 50056)
-	StoreRawLogs     bool   `yaml:"store_raw_logs"`     // Persist raw logs + API calls to WAL spool
-	MaxSpoolBytes    int64  `yaml:"max_spool_bytes"`    // Default 1GB (1073741824)
-	StateBufferBytes int64  `yaml:"state_buffer_bytes"` // Default 1MB
-	LogBufferBytes   int64  `yaml:"log_buffer_bytes"`   // Default 8MB
-	SpoolDir         string `yaml:"spool_dir"`          // Default "/var/lib/noxchat-probe/spool" or "./data/spool"
-	AuthKey          string `yaml:"auth_key"`
-	AuthKeyFile      string `yaml:"auth_key_file"`
-	MdnsEnabled      bool   `yaml:"mdns_enabled"`
+	LogSearchEnabled       bool
+	LogSearchConcurrency   int
+	LogSearchMaxResults    int
+	LogSearchMaxQueryBytes int
+	LogSearchChunkBytes    uint64
+	LogSearchPageBytes     uint64
+	LogSearchPageMs        int
+	LogSearchCursorSeconds int
+	NodeID                 string `yaml:"node_id"`
+	ListenAddr             string `yaml:"listen_addr"`        // Public gRPC port (default ":50055")
+	PythonBridgeHost       string `yaml:"python_bridge_host"` // Loopback host (must be 127.0.0.1 or localhost)
+	PythonBridgePort       int    `yaml:"python_bridge_port"` // Loopback port (default 50056)
+	StoreRawLogs           bool   `yaml:"store_raw_logs"`     // Persist raw logs + API calls to WAL spool
+	MaxSpoolBytes          int64  `yaml:"max_spool_bytes"`    // Default 1GB (1073741824)
+	StateBufferBytes       int64  `yaml:"state_buffer_bytes"` // Default 1MB
+	LogBufferBytes         int64  `yaml:"log_buffer_bytes"`   // Default 8MB
+	SpoolDir               string `yaml:"spool_dir"`          // Default "/var/lib/noxchat-probe/spool" or "./data/spool"
+	AuthKey                string `yaml:"auth_key"`
+	AuthKeyFile            string `yaml:"auth_key_file"`
+	MdnsEnabled            bool   `yaml:"mdns_enabled"`
 }
 
 // DefaultConfig returns safe fallback defaults.
 func DefaultConfig() *ProbeConfig {
 	return &ProbeConfig{
+		LogSearchEnabled: true, LogSearchConcurrency: 1, LogSearchMaxResults: 200,
+		LogSearchMaxQueryBytes: 4096, LogSearchChunkBytes: 16 << 20, LogSearchPageBytes: 64 << 20,
+		LogSearchPageMs: 2000, LogSearchCursorSeconds: 300,
 		NodeID:           "noxchat-node",
 		ListenAddr:       ":50055",
 		PythonBridgeHost: "127.0.0.1",
@@ -93,6 +104,9 @@ func (c *ProbeConfig) LoadFromNoxChatYaml(path string) error {
 
 // Validate verifies security constraints, including the mandatory localhost check.
 func (c *ProbeConfig) Validate() error {
+	if c.LogSearchConcurrency < 1 || c.LogSearchConcurrency > 8 || c.LogSearchMaxResults < 1 || c.LogSearchMaxResults > 1000 || c.LogSearchMaxQueryBytes < 1 || c.LogSearchMaxQueryBytes > 16384 || c.LogSearchChunkBytes < 1024 || c.LogSearchChunkBytes > 64<<20 || c.LogSearchPageBytes < c.LogSearchChunkBytes || c.LogSearchPageMs < 1 || c.LogSearchCursorSeconds < 1 {
+		return fmt.Errorf("invalid log search resource limits")
+	}
 	host := strings.TrimSpace(strings.ToLower(c.PythonBridgeHost))
 	if host != "127.0.0.1" && host != "localhost" && host != "::1" {
 		log.Printf("\n====================================================================\n"+

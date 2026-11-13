@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Grpc.Core;
 using MADTOM.Plugins.NoxAI.Proto.V1;
 using MADTOM.Plugins.NoxAI.Services;
 using MADTOM.Plugins.NoxAI.ViewModels;
@@ -241,7 +243,7 @@ public class NoxChatParserAndSearchTests
     }
 
     [Fact]
-    public void ChatParser_Extracts_PrivateChat_Name_And_Fallback()
+    public void ChatParser_Extracts_PrivateChat_Name_But_Not_Sender_Names()
     {
         // Explicit Private Chat header
         string req1 = @"[
@@ -251,21 +253,12 @@ public class NoxChatParserAndSearchTests
         string chat1 = NoxChatSessionParser.ExtractChatName(req1, "stream_step");
         Assert.Equal("Nicki🦦", chat1);
 
-        // Fallback from sender line in private chat
+        // Sender lines are never used as a chat name (context-diff turns have no chat header)
         string req2 = @"[
           {""role"": ""system"", ""content"": ""You are Nox.""},
-          {""role"": ""user"", ""content"": ""[#3849 Danial (You)]: عکس سگه ولی آخرت مود بود...""}
+          {""role"": ""user"", ""content"": ""[CONTEXT DIFF]\n[#100 Diba (@diba)]: سلام نکس""}
         ]";
-        string chat2 = NoxChatSessionParser.ExtractChatName(req2, "stream_step");
-        Assert.Equal("Danial", chat2);
-
-        // Fallback with other user talking to bot
-        string req3 = @"[
-          {""role"": ""system"", ""content"": ""You are Nox.""},
-          {""role"": ""user"", ""content"": ""[#100 Diba (@diba)]: سلام نکس""}
-        ]";
-        string chat3 = NoxChatSessionParser.ExtractChatName(req3, "stream_step");
-        Assert.Equal("Diba", chat3);
+        Assert.Equal(string.Empty, NoxChatSessionParser.ExtractChatName(req2, "stream_step"));
     }
 
     [Fact]
@@ -455,10 +448,19 @@ public class NoxChatParserAndSearchTests
         Assert.Equal(Avalonia.Media.TextAlignment.Left, ltrProfile.PhotoDescriptionTextAlignment);
     }
 
+    private sealed class FakeProfileClient : NoxChatControlService.NoxChatControlServiceClient
+    {
+        private static AsyncUnaryCall<T> Call<T>(Task<T> task) => new(task, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+        public override AsyncUnaryCall<NoxUserProfileQueryResponse> QueryUserProfilesAsync(NoxUserProfileQueryRequest request, Metadata? headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+            => Call(Task.FromResult(new NoxUserProfileQueryResponse()));
+        public override AsyncUnaryCall<NoxUserProfileSearchResponse> SearchUserProfilesAsync(NoxUserProfileSearchRequest request, Metadata? headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+            => Call(Task.FromResult(new NoxUserProfileSearchResponse()));
+    }
+
     [Fact]
     public async Task MemoriesRagTabViewModel_Queries_And_Searches_UserProfiles_Successfully()
     {
-        await using var manager = new NoxNodeManager();
+        await using var manager = new NoxNodeManager(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"), _ => new FakeProfileClient());
         var vm = new MemoriesRagTabViewModel(manager);
         if (vm.SelectedNode != null)
         {

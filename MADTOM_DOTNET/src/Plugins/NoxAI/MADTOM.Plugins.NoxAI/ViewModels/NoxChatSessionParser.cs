@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Security.Cryptography;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -95,9 +96,9 @@ public static class NoxChatSessionParser
     {
         if (string.IsNullOrWhiteSpace(text)) return false;
 
-        // Strip sender prefixes like "[#1234 Alice]: ", "[Alice -> #5678]: ", "Alice: ", "@alice: "
+        // Strip sender prefixes like "[2026/11/11 19:00:01] [#1234 Alice]: ", "[#1234 Alice]: ", "[Alice -> #5678]: ", "Alice: ", "@alice: "
         int startIndex = 0;
-        var prefixMatch = Regex.Match(text, @"^\[(?:#\d+\s+)?[^\]:\r\n]+(?:\s+->\s+#\d+)?\]:\s*");
+        var prefixMatch = Regex.Match(text, @"^(?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*)?\[(?:(?:EDIT\s+)?#\d+\s+)?[^\]:\r\n]+(?:\s+->\s+#\d+)?\]:\s*");
         if (prefixMatch.Success)
         {
             startIndex = prefixMatch.Length;
@@ -187,11 +188,11 @@ public static class NoxChatSessionParser
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex SenderLineRegex = new(
-        @"\[#\d+\s+([^\]:\r\n]+?)(?:\s+->\s+#\d+)?\]:",
+        @"\[(?:EDIT\s+)?#\d+\s+([^\]:\r\n]+?)(?:\s+->\s+#\d+)?\]:",
         RegexOptions.Compiled);
 
     private static readonly Regex ChatEntryHeaderRegex = new(
-        @"(?:^|[\r\n]+)(?:(\[#\d+\s+[^\]:\r\n]+?(?:\s+->\s+#\d+)?\]:|\[Current request\]:|\[Incoming[^\]]*\]:|(?:Group|Private)?\s*Chat:\s*['""][^'""]+['""])[ \t]*)",
+        @"(?:^|[\r\n]+)(?:((?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*)?\[(?:EDIT\s+)?#\d+\s+[^\]:\r\n]+?(?:\s+->\s+#\d+)?\]:|\[CONTEXT DIFF\]|\[NEW MESSAGES\]|===\s*ARCHIVED CONVERSATION HISTORY\s*===|===\s*LIVE CONTEXT & RECALLED KNOWLEDGE\s*===|===\s*RECENT MESSAGES & CURRENT TURN\s*===|\[Current request\]:|\[Incoming[^\]]*\]:|(?:Group|Private)?\s*Chat:\s*['""][^'""]+['""])[ \t]*)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public static string ExtractChatName(string? requestJson, string? caller)
@@ -222,38 +223,9 @@ public static class NoxChatSessionParser
             if (!string.IsNullOrEmpty(title)) return title;
         }
 
-        // 4. If not found and it is a chat/conversation caller, extract from message turn sender history
-        string cLower = caller?.ToLowerInvariant() ?? "";
-        bool isChatCaller = cLower.Contains("step") || cLower.Contains("chat") || cLower.Contains("agent");
-        if (isChatCaller)
-        {
-            var matches = SenderLineRegex.Matches(requestJson);
-            string? fallbackSender = null;
-            foreach (Match match in matches)
-            {
-                string rawSender = match.Groups[1].Value.Trim();
-                string senderName = CleanSenderName(rawSender);
-                if (string.Equals(senderName, "Nox", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(senderName, "Bot", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (rawSender.Contains("(You)", StringComparison.OrdinalIgnoreCase))
-                {
-                    fallbackSender ??= senderName;
-                    continue;
-                }
-
-                return senderName;
-            }
-
-            if (!string.IsNullOrEmpty(fallbackSender))
-            {
-                return fallbackSender;
-            }
-        }
-
+        // No fallback to sender names: a sender is not a chat (agy context diffs carry no chat
+        // header, so this used to label group calls with whoever spoke). Chat identity comes from
+        // the call's trace chat_id / NoxChat's chat_name instead.
         return string.Empty;
     }
 
@@ -273,7 +245,7 @@ public static class NoxChatSessionParser
         var turns = new List<ParsedTurnItemModel>();
         if (callItem == null) return turns;
 
-        var availableImages = new Queue<RawApiCallImageItem>(callItem.Images);
+        var availableImages = new List<RawApiCallImageItem>(callItem.Images);
 
         // 1. Parse Request JSON (messages array or prompt)
         try
@@ -297,6 +269,7 @@ public static class NoxChatSessionParser
                 {
                     foreach (var m in messagesArray.EnumerateArray())
                     {
+                        int firstTurn = turns.Count;
                         string role = m.TryGetProperty("role", out var r) ? (r.GetString() ?? "user") : "user";
                         string textContent = string.Empty;
                         var inlineImages = new List<RawApiCallImageItem>();
@@ -321,8 +294,9 @@ public static class NoxChatSessionParser
                                         }
                                         else if (pType == "image_url" && part.TryGetProperty("image_url", out var iu))
                                         {
-                                            string url = iu.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
-                                            var img = TryCreateImageFromDataUrl(url);
+                                            string url = iu.ValueKind == JsonValueKind.String ? iu.GetString() ?? ""
+                                                : iu.ValueKind == JsonValueKind.Object && iu.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
+                                            var img = ResolveInlineImage(url, callItem, availableImages);
                                             if (img != null)
                                             {
                                                 inlineImages.Add(img);
@@ -332,9 +306,13 @@ public static class NoxChatSessionParser
                                 }
                                 textContent = string.Join("\n", textParts);
                             }
+                            else if (c.ValueKind == JsonValueKind.Object)
+                            {
+                                textContent = c.GetRawText();
+                            }
                         }
 
-                        if (role == "system")
+                        if (role is "system" or "developer")
                         {
                             var sysTurn = new ParsedTurnItemModel
                             {
@@ -373,12 +351,22 @@ public static class NoxChatSessionParser
                                 userTurn.ChatEntries.Add(e);
                             }
 
-                            foreach (var img in inlineImages)
-                            {
-                                userTurn.MediaAttachments.Add(img);
-                            }
-
                             turns.Add(userTurn);
+                        }
+                        else if (role is "tool" or "function")
+                        {
+                            string name = m.TryGetProperty("name", out var toolName) ? toolName.GetString() ?? "" : "";
+                            string id = m.TryGetProperty("tool_call_id", out var toolId) ? toolId.GetString() ?? "" : "";
+                            turns.Add(new ParsedTurnItemModel
+                            {
+                                Role = "tool",
+                                HeaderTitle = $"TOOL RESULT {name} {id}".Trim(),
+                                TimestampText = callItem.TimestampText,
+                                Text = textContent,
+                                HeaderBadgeBackground = "#422006",
+                                HeaderBadgeForeground = "#FBBF24",
+                                BorderBrushHex = "#A16207"
+                            });
                         }
                         else if (role == "assistant")
                         {
@@ -402,8 +390,22 @@ public static class NoxChatSessionParser
                                 Text = botContent,
                                 ThoughtText = thought
                             };
+                            if (m.TryGetProperty("tool_calls", out var historyTools) && historyTools.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var tool in historyTools.EnumerateArray())
+                                {
+                                    if (!tool.TryGetProperty("function", out var function)) continue;
+                                    asstTurn.ToolCalls.Add(new ParsedToolCallModel
+                                    {
+                                        Name = function.TryGetProperty("name", out var name) ? name.GetString() ?? "" : "",
+                                        Arguments = function.TryGetProperty("arguments", out var args) ? args.ToString() : ""
+                                    });
+                                }
+                            }
                             turns.Add(asstTurn);
                         }
+                        if (turns.Count > firstTurn)
+                            foreach (var image in inlineImages) turns[^1].MediaAttachments.Add(image);
                     }
                 }
             }
@@ -496,10 +498,7 @@ public static class NoxChatSessionParser
             var userTurn = turns.LastOrDefault(t => t.Role == "user");
             if (userTurn != null)
             {
-                while (availableImages.Count > 0)
-                {
-                    userTurn.MediaAttachments.Add(availableImages.Dequeue());
-                }
+                foreach (var image in availableImages) userTurn.MediaAttachments.Add(image);
             }
             else
             {
@@ -513,10 +512,7 @@ public static class NoxChatSessionParser
                     BorderBrushHex = "#4F46E5",
                     Text = "Multimodal images intercepted with this API prompt:"
                 };
-                while (availableImages.Count > 0)
-                {
-                    mediaTurn.MediaAttachments.Add(availableImages.Dequeue());
-                }
+                foreach (var image in availableImages) mediaTurn.MediaAttachments.Add(image);
                 turns.Insert(Math.Min(1, turns.Count), mediaTurn);
             }
         }
@@ -802,31 +798,36 @@ public static class NoxChatSessionParser
         return entries;
     }
 
-    private static RawApiCallImageItem? TryCreateImageFromDataUrl(string dataUrl)
+    private static RawApiCallImageItem? ResolveInlineImage(string dataUrl, RawApiCallItemModel call,
+        List<RawApiCallImageItem> remaining)
     {
-        if (string.IsNullOrWhiteSpace(dataUrl) || !dataUrl.StartsWith("data:image/")) return null;
+        if (string.IsNullOrWhiteSpace(dataUrl) || !dataUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase)) return null;
         try
         {
-            int commaIdx = dataUrl.IndexOf(',');
-            if (commaIdx <= 0) return null;
-
-            string meta = dataUrl[..commaIdx];
-            string base64 = dataUrl[(commaIdx + 1)..];
-            string mime = meta.Contains("png") ? "image/png" : "image/jpeg";
-
-            byte[] bytes = Convert.FromBase64String(base64);
-            using var ms = new MemoryStream(bytes);
-            var bmp = new Bitmap(ms);
-            return new RawApiCallImageItem
+            int comma = dataUrl.IndexOf(',');
+            if (comma <= 0 || !dataUrl[..comma].EndsWith(";base64", StringComparison.OrdinalIgnoreCase)) return null;
+            byte[] bytes = Convert.FromBase64String(dataUrl[(comma + 1)..]);
+            string hash = Convert.ToHexString(SHA256.HashData(bytes));
+            // The probe captures the same bytes separately from the raw JSON. Reuse
+            // that bitmap and consume its fallback entry instead of rendering it twice.
+            var image = remaining.FirstOrDefault(i => string.Equals(i.ContentHash, hash, StringComparison.OrdinalIgnoreCase));
+            if (image != null)
             {
-                Label = "Prompt Inline Image",
-                MimeType = mime,
-                Preview = bmp
+                remaining.Remove(image);
+                image.Label = $"Image #{call.Images.IndexOf(image) + 1} (inline)";
+                return image;
+            }
+            using var ms = new MemoryStream(bytes);
+            image = new RawApiCallImageItem
+            {
+                Label = $"Image #{call.Images.Count + 1} (inline)",
+                ContentHash = hash,
+                MimeType = dataUrl[5..dataUrl.IndexOf(';')],
+                Preview = new Bitmap(ms)
             };
+            call.Images.Add(image);
+            return image;
         }
-        catch
-        {
-            return null;
-        }
+        catch { return null; }
     }
 }

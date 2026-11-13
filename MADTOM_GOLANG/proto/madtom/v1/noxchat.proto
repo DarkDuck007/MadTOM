@@ -27,9 +27,11 @@ service NoxChatControlService {
 
   // Historical Spool Paging (from 1GB Server-Side WAL Spool when store_raw_logs is enabled)
   rpc GetSpoolStats(NoxSpoolStatsRequest) returns (NoxSpoolStatsResponse);
+  rpc SearchLogs(NoxSearchLogsRequest) returns (NoxSearchLogsResponse);
   rpc QueryLogChunks(LogChunkQuery) returns (LogChunkResponse);
   rpc QueryApiCallChunks(NoxApiCallChunkQuery) returns (NoxApiCallChunkResponse);
   rpc GetApiCallDetail(NoxApiCallDetailRequest) returns (NoxRawApiCallRecord);
+  rpc QueryChatTrace(NoxChatTraceRequest) returns (NoxChatTraceResponse);
   rpc ClearSpool(NoxClearSpoolRequest) returns (NoxClearSpoolResponse);
 
   // Direct Chat Interaction (User: "MADTOM", UserID: "Control Center")
@@ -57,6 +59,12 @@ service NoxChatControlService {
   // Active Jobs & Vector Store Explorer
   rpc GetActiveJobs(NoxActiveJobsRequest) returns (NoxActiveJobsResponse);
   rpc InspectVectors(NoxVectorInspectRequest) returns (NoxVectorInspectResponse);
+
+  // Chat Images (Image Studio storage; images are strictly chat-bound)
+  rpc ListChatImages(NoxListChatImagesRequest) returns (NoxListChatImagesResponse);
+  rpc GetChatImage(NoxGetChatImageRequest) returns (NoxGetChatImageResponse);
+  rpc GetImageStorageStats(NoxImageStorageStatsRequest) returns (NoxImageStorageStatsResponse);
+  rpc SweepChatImages(NoxSweepChatImagesRequest) returns (NoxSweepChatImagesResponse);
 
   // User Profiles & Avatars
   rpc QueryUserProfiles(NoxUserProfileQueryRequest) returns (NoxUserProfileQueryResponse);
@@ -168,6 +176,48 @@ message NoxRawApiCallRecord {
   repeated NoxImageData image_data_urls = 13; // extracted base64 JPEG data URIs
   string error_message = 14;
   string chat_name = 15;
+  NoxTraceContext trace_context = 16;
+}
+
+// Identity is explicit: chat 0 is the Control Center sandbox, absent means unknown.
+message NoxTraceContext {
+  optional int64 chat_id = 1;
+  string session_id = 2;
+  string run_id = 3;
+  optional int64 turn_index = 4;
+  optional int64 step_index = 5;
+  string conversation_id = 6;
+  bool is_bootstrap = 7;
+  repeated int64 triggering_message_ids = 8;
+}
+
+message NoxChatTraceEvent {
+  string event_id = 1;
+  NoxTraceContext trace_context = 2;
+  int64 timestamp_unix_nano = 3;
+  string kind = 4;
+  string content = 5;
+  map<string, string> attributes = 6;
+  string related_call_id = 7;
+}
+
+message NoxChatTraceRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  string session_id = 3;
+  string run_id = 4;
+  uint32 limit = 5;
+  string cursor = 6;
+}
+
+message NoxChatTraceResponse {
+  repeated NoxRawApiCallRecord calls = 1; // metadata only; bodies use GetApiCallDetail
+  repeated NoxChatTraceEvent events = 2;
+  string next_cursor = 3;
+  bool snapshot_complete = 4;
+  int64 oldest_timestamp_unix_nano = 5;
+  int64 newest_timestamp_unix_nano = 6;
+  string notice = 7;
 }
 
 message NoxImageData {
@@ -275,6 +325,9 @@ message NoxChatHistoryRequest {
   string node_id = 1;
   int64 chat_id = 2;
   uint32 limit = 3;
+  string cursor = 4;
+  bool include_archived = 5;
+  bool paged = 6; // false preserves the original recent-message endpoint
 }
 
 message NoxMessageItem {
@@ -296,10 +349,16 @@ message NoxChatHistoryResponse {
   uint32 decoded_size = 101;
 
   repeated NoxMessageItem messages = 1;
+  string next_cursor = 2;
+  bool pagination_supported = 3;
+  bool timestamps_reliable = 4;
+  bool snapshot_complete = 5;
 }
 
 message NoxListChatsRequest {
   string node_id = 1;
+  uint32 limit = 2;
+  string cursor = 3;
 }
 
 message NoxChatItem {
@@ -316,6 +375,9 @@ message NoxListChatsResponse {
   uint32 decoded_size = 101;
 
   repeated NoxChatItem chats = 1;
+  string next_cursor = 2;
+  bool pagination_supported = 3;
+  bool snapshot_complete = 4;
 }
 
 // ------------------------------------------------------------------------------
@@ -546,9 +608,9 @@ message NoxActiveJobsRequest {
 
 message NoxJobProgressEvent {
   string job_id = 1;
-  string job_type = 2;          // "audio_stt", "sound_classifier", "song_recognize", "sticker_map", "sticker_reduce", "embedding"
+  string job_type = 2;          // "audio_stt", "sound_classifier", "song_recognize", "sticker_map", "sticker_reduce", "embedding", "sticker_pack_analysis", "image_studio"
   int64 chat_id = 3;
-  string status = 4;            // "queued", "running", "completed", "failed"
+  string status = 4;            // "queued", "running", "completed", "failed", "cancelled", "interrupted"
   double progress = 5;          // 0.0 .. 1.0
   string details = 6;
   int64 elapsed_ms = 7;
@@ -585,6 +647,86 @@ message NoxVectorInspectResponse {
 
   NoxVectorPointItem target_point = 1;
   repeated NoxVectorPointItem neighbors = 2;
+}
+
+// ------------------------------------------------------------------------------
+// Chat Images (Image Studio)
+// Field names mirror the NoxChat Python RPC JSON (snake_case) so the probe can
+// unmarshal the bridge payload directly.
+// ------------------------------------------------------------------------------
+message NoxChatImage {
+  string uuid = 1;
+  string handle = 2;
+  int64 chat_id = 3;
+  string origin = 4;            // "telegram" or "generated"
+  int32 width = 5;
+  int32 height = 6;
+  int64 bytes = 7;              // size on disk
+  string mime_type = 8;
+  int64 source_message_id = 9;
+  string job_id = 10;
+  string description = 11;
+  string created_at = 12;       // ISO-8601
+  string last_used_at = 13;     // ISO-8601
+}
+
+message NoxListChatImagesRequest {
+  string node_id = 1;
+  int64 chat_id = 2;            // 0 = all chats
+  uint32 limit = 3;
+  uint32 offset = 4;
+  string origin = 5;            // "", "telegram" or "generated"
+}
+
+message NoxListChatImagesResponse {
+  repeated NoxChatImage images = 1;
+}
+
+message NoxGetChatImageRequest {
+  string node_id = 1;
+  int64 chat_id = 2;            // required: images are chat-bound
+  string uuid = 3;
+  uint32 max_dimension = 4;     // 0 = original bytes, > 0 = JPEG thumbnail
+}
+
+message NoxGetChatImageResponse {
+  NoxChatImage image = 1;
+  string mime_type = 2;
+  bytes image_bytes = 3;
+}
+
+message NoxImageStorageStatsRequest {
+  string node_id = 1;
+}
+
+message NoxChatImageUsage {
+  int64 chat_id = 1;
+  uint32 image_count = 2;
+  int64 total_bytes = 3;
+  string oldest = 4;
+  string newest = 5;
+}
+
+message NoxImageStorageStatsResponse {
+  int64 total_bytes = 1;
+  uint32 image_count = 2;
+  int64 max_total_bytes = 3;
+  int64 max_bytes_per_chat = 4;
+  repeated NoxChatImageUsage chats = 5;
+}
+
+message NoxSweepChatImagesRequest {
+  string node_id = 1;
+  int64 chat_id = 2;            // 0 = all chats (not allowed together with uuids)
+  repeated string uuids = 3;    // optional explicit deletions; requires chat_id
+  double older_than_days = 4;   // 0 = no age filter
+  uint32 keep_recent = 5;       // newest N per chat are kept
+  bool dry_run = 6;
+}
+
+message NoxSweepChatImagesResponse {
+  uint32 deleted_count = 1;
+  int64 freed_bytes = 2;
 }
 
 // ------------------------------------------------------------------------------
@@ -644,3 +786,41 @@ message NoxUserProfilePhotoResponse {
   string mime_type = 3;
 }
 
+
+// Literal message search; time interval is [start, end), zero means unbounded.
+message NoxSearchLogsRequest {
+ string node_id = 1;
+ string query = 2;
+ bool case_sensitive = 3;
+ int64 start_time_nano = 4;
+ int64 end_time_nano = 5;
+ repeated uint32 priorities = 6;
+ string unit = 7;
+ uint32 limit = 8;
+ string cursor = 9;
+}
+message NoxLogSearchHit {
+ uint64 chunk_id = 1;
+ uint64 seq = 2;
+ int64 timestamp_unix_nano = 3;
+ uint32 priority = 4;
+ string unit = 5;
+ string snippet = 6;
+ // UTF-16 code units in snippet; zero length for metadata-only matches.
+ uint32 match_start = 7;
+ uint32 match_length = 8;
+ bool message_truncated = 9;
+}
+message NoxSearchLogsResponse {
+ repeated NoxLogSearchHit hits = 1;
+ string next_cursor = 2;
+ uint64 high_water_seq = 3;
+ bool snapshot_complete = 4;
+ string stop_reason = 5;
+ uint64 scanned_chunks = 6;
+ uint64 scanned_records = 7;
+ uint64 scanned_bytes = 8;
+ uint64 corrupt_chunks = 9;
+ int64 took_ms = 10;
+ string generation = 11;
+}

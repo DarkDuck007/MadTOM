@@ -202,7 +202,8 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
         TelemetryHistoryCache historyCache,
         LogChunkCache logCache,
         NoxApiCallChunkCache apiCache,
-        NoxCacheSettingsStore? cacheStore = null)
+        NoxCacheSettingsStore? cacheStore = null,
+        bool startDiscovery = true)
     {
         _nodeManager = nodeManager;
         _historyCache = historyCache;
@@ -236,7 +237,7 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
         NoxMediaThumbnailCache.Configure(loaded.MediaCacheLimitMiB, loaded.MediaCacheItemLimit);
 
         RefreshCacheStats();
-        _ = ScanMdns();
+        if (startDiscovery) _ = ScanMdns();
     }
 
     [RelayCommand]
@@ -632,11 +633,14 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
         RefreshCacheStats();
     }
 
+    public Func<NoxNodeModel?>? SpoolNodeProvider { get; set; }
+    public event Action<string>? SpoolPreloaded;
+
     [RelayCommand]
     public async Task LoadEntireLogSpool()
     {
         if (IsPreloading) return;
-        var node = _nodeManager.Nodes.FirstOrDefault();
+        var node = SpoolNodeProvider?.Invoke() ?? _nodeManager.Nodes.FirstOrDefault();
         if (node == null)
         {
             PreloadStatusText = "No node configured to load spool from";
@@ -668,14 +672,17 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                     });
 
                     if (logResp.Chunks.Count == 0) break;
-                    consecutiveLogErrors = 0;
                     ulong maxId = nextLogChunkId;
                     foreach (var c in logResp.Chunks)
                     {
                         if (c.ChunkId >= maxId) maxId = c.ChunkId;
+                        _logCache.RegisterRange(node.Id, c);
                         _logCache.PutChunk("noxchat", node.Id, c);
+                        var decoded = await Task.Run(() => _logCache.GetDecodedChunk("noxchat", node.Id, c.ChunkId));
+                        if (decoded == null) throw new InvalidOperationException($"Cannot decode log chunk {c.ChunkId}");
                         logsLoaded += (int)c.RecordCount;
                     }
+                    consecutiveLogErrors = 0;
                     nextLogChunkId = maxId + 1;
                     hasMoreLogs = logResp.HasMore;
                     PreloadStatusText = $"Loading logs: {logsLoaded:N0} records loaded...";
@@ -683,7 +690,7 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                 catch
                 {
                     consecutiveLogErrors++;
-                    nextLogChunkId += 32;
+                    if (consecutiveLogErrors >= 3) throw;
                 }
             }
 
@@ -704,7 +711,6 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                     });
 
                     if (apiResp.Chunks.Count == 0) break;
-                    consecutiveApiErrors = 0;
                     ulong maxId = nextApiChunkId;
                     foreach (var c in apiResp.Chunks)
                     {
@@ -712,6 +718,7 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                         _apiCache.PutChunk(node.Id, c);
                         apisLoaded += (int)c.RecordCount;
                     }
+                    consecutiveApiErrors = 0;
                     nextApiChunkId = maxId + 1;
                     hasMoreApis = apiResp.HasMore;
                     PreloadStatusText = $"Loading API calls: {apisLoaded:N0} calls loaded...";
@@ -719,15 +726,16 @@ public sealed partial class NoxSettingsViewModel : ObservableObject
                 catch
                 {
                     consecutiveApiErrors++;
-                    nextApiChunkId += 32;
+                    if (consecutiveApiErrors >= 3) throw;
                 }
             }
 
             _apiCache.FlushPending(node.Id);
             RefreshCacheStats();
+            SpoolPreloaded?.Invoke(node.Id);
 
             PreloadStatusText = "Spool preload completed";
-            PreloadSummaryText = $"Loaded entire spool: {logsLoaded:N0} log records and {apisLoaded:N0} LLM API calls from {node.AliasOrId} into Zstd cache.";
+            PreloadSummaryText = $"Loaded entire spool: {logsLoaded:N0} log records and {apisLoaded:N0} LLM API calls from {node.AliasOrId} into cache (subject to configured cache limits).";
         }
         catch (Exception ex)
         {

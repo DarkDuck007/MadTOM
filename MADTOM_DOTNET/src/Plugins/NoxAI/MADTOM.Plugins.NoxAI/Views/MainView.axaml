@@ -112,14 +112,23 @@
                     <tabs:MediaLibraryTabView DataContext="{Binding MediaLibraryTab}"/>
                 </TabItem>
 
-                <!-- Tab 5: Active Jobs -->
+                <!-- Tab 5: Image Studio storage (chat-bound images) -->
+                <TabItem Header="🖼 Images" FontSize="12">
+                    <tabs:ChatImagesTabView DataContext="{Binding ChatImagesTab}"/>
+                </TabItem>
+
+                <!-- Tab 6: Active Jobs -->
                 <TabItem Header="⚡ Active Jobs" FontSize="12">
                     <tabs:ActiveJobsTabView DataContext="{Binding ActiveJobsTab}"/>
                 </TabItem>
 
-                <!-- Tab 6: Raw Logs & API Calls -->
-                <TabItem Header="📜 Raw Logs &amp; API" FontSize="12">
-                    <tabs:RawLogsApiTabView DataContext="{Binding RawLogsApiTab}"/>
+                <!-- Tab 7: Raw Logs & API Calls -->
+                <TabItem Header="📜 Raw Logs &amp; API" FontSize="12" Content="{Binding RawLogsApiTab}">
+                    <TabItem.ContentTemplate>
+                        <DataTemplate x:DataType="vm:RawLogsApiTabViewModel">
+                            <tabs:RawLogsApiTabView/>
+                        </DataTemplate>
+                    </TabItem.ContentTemplate>
                 </TabItem>
             </TabControl>
         </Grid>

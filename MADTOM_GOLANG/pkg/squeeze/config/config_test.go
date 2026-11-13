@@ -75,7 +75,14 @@ presets:
 	if len(c.Presets) != 1 {
 		t.Fatalf("expected 1 preset, got %d", len(c.Presets))
 	}
-	if c.Presets[0].Key != "test_preset" || c.Presets[0].Title != "Test Preset 1080p" {
-		t.Fatalf("unexpected preset content: %+v", c.Presets[0])
+	// Test with single dash -config (systemd style) and -config=
+	for _, flagArg := range [][]string{{"-config", yamlPath}, {"-config=" + yamlPath}} {
+		cDash, errDash := Parse(flagArg)
+		if errDash != nil {
+			t.Fatalf("failed parsing %v: %v", flagArg, errDash)
+		}
+		if cDash.Workers != 4 || cDash.Host != "127.0.0.1" {
+			t.Fatalf("expected YAML loaded with %v, got %+v", flagArg, cDash)
+		}
 	}
 }

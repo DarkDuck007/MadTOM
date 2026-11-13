@@ -9,7 +9,7 @@ The **NOX AI Control Center** (`MADTOM.Plugins.NoxAI`) provides a real-time, aut
 ```
 ┌────────────────────────────────────────────────────────┐
 │               MADTOM Studio (Avalonia C#)              │
-│  - NoxChat Control Workspace Tabs                      │
+│  - 7 Dedicated NOX AI Control Workspaces               │
 │  - Dual Zstd Caches (Logs/API vs. Streamed History)   │
 │  - SSH-style Auth Generator (`noxchat-ed25519-v1:...`) │
 │  - LTTB Downsampled Time-Series Charts                 │
@@ -22,9 +22,8 @@ The **NOX AI Control Center** (`MADTOM.Plugins.NoxAI`) provides a real-time, aut
 │  - Systemd Service: `noxchat-probe.service`           │
 │  - SSH Key Verification & ChaCha20-Poly1305 AEAD       │
 │  - 1MB State Ring Buffer + 8MB Log/API Ring Buffer     │
-│  - Drop-oldest FIFO eviction on slow networks          │
-│  - Zero-leak disconnect cleanup                        │
-│  - Server-side WAL Spool (1GB default disk quota)      │
+│  - Server-Side Retained Log Literal Search             │
+│  - Server-Side WAL Spool (1GB default disk quota)      │
 └───────────────────────────┬────────────────────────────┘
                             │ Local Loopback TCP Framing (127.0.0.1:50056)
                             │ Non-127.0.0.1 produces mandatory WARNING
@@ -39,54 +38,89 @@ The **NOX AI Control Center** (`MADTOM.Plugins.NoxAI`) provides a real-time, aut
 
 ---
 
-## Key Features & Workspaces
+## The 7 Primary Workspaces
 
-### 1. Direct Chat (`DirectChatTabView`)
-- Bypasses Telegram directly into the NoxChat processing pipeline.
-- Interacts as authenticated operator user `"MADTOM"` with user ID `"Control Center"`.
-- Live streamed thought process and tag-event updates as the bot reasons, searches memories, and invokes tools.
+As configured in `MainView.axaml`, the NOX AI Control Center provides 7 dedicated tabbed workspaces in sequential order:
 
-### 2. Memories & RAG Explorer (`MemoriesRagTabView`)
-- **Hot Memory Scratchpad**: Real-time view and editing of active working memory.
-- **Atomic Memories**: Search, filter, and inspect long-term atomic memories stored in SQLite and Qdrant.
-- **Hybrid & Semantic Search**: Search long-term memories using hybrid dense embedding vectors and BM25 sparse rankings with real-time score badges.
-- **Vector Point Inspection**: Inspect embedded vectors, cosine distances, payloads, and underlying message context.
-
-### 3. Media & Sticker Library (`MediaLibraryTabView`)
-- Visual grid of indexed Telegram stickers, GIFs, and media packs.
-- **Dual-Mode Search**: Real-time text-based search (matching sticker set name, `t.me/addstickers/` set URL, or sticker caption/definition/emoji) combined with Enter-triggered semantic embedding search via `MediaVectorStore` / Qdrant.
-- Inspect and modify semantic tag annotations and pinned favorite reactions.
-- Trigger manual background analysis and embedding jobs.
-
-### 4. Active Background Jobs (`ActiveJobsTabView`)
-- Monitor asynchronous tasks:
-  - Audio STT (Whisper transcription & pipeline).
-  - AST (Audio Spectrogram Transformer sound detection).
-  - Shazam audio fingerprint identification.
-  - Text & image vector embeddings.
-- Track progress, duration, queued vs. active counts, and retry failed jobs.
-
-### 5. Raw Logs & API Interceptor (`RawLogsApiTabView`)
-- **Virtual Log View**: Embedded `VirtualLogViewControl` rendering monotonic log sequence numbers directly from zstd-compressed in-memory client cache.
-- **WAL Spool Manager**: Toggle server-side 1GB WAL spooling (`config.yaml`).
-- **Spool Retrieval & Clean Reset**: Dynamic forward chunk traversal guarantees 100% of surviving spool records are fetched even after quota-based segment rotation. A one-click `🗑️ Clear Spool` command triggers an atomic server-side WAL and memory ring reset along with client cache clearing. Full historical log/spool preloading is safely hosted in the Settings *Performance & Caches* tab to prevent UI stalls.
-- **Lightweight API Calls List & On-Demand Detail Loading**: Timeline loads summary-only metadata (IDs, models, timestamps, durations, token counts) in fractions of a second without transferring heavy JSON payloads or images. When an API call is selected, full request/response JSONs, parsed sessions, and image galleries are fetched and cached on-demand via `GetApiCallDetail`.
-- **CLI / Log-Style Parsed Chat Session**: Dedicated parser tab clearly distinguishing:
-  1. *System Prompt & Structured Sections*: Separates Identity & Role, Voice & Style, Technical Perspectives, Communication Protocol, Pinned Media, Recalled Memories, Hot Scratchpad, Background Tasks, and Temporal Context.
-  2. *Users' Messages*: Distinct styling with user headers, timestamps, and message text.
-  3. *Bot's Responses*: Model latency, completion tokens, extracted `<thought>` reasoning boxes, tool executions, and final reply.
-  4. *Attached Multimodal Media*: Integrated preview cards showing thumbnails, MIME types, and dimensions.
-  5. *Bidirectional (RTL / LTR) Multi-Language Typography*: Automatic base direction (`FlowDirection`) and alignment detection per message turn and system section based on Unicode BiDi Rule P2/P3. Employs natural HarfBuzz cursive shaping for Persian, Arabic, and Hebrew without fixed-width monospace cell conflicts.
-
-### 6. Usage & Python Runtime Telemetry (`NoxTelemetryTabView`)
-- Real-time 1 Hz stream of internal Python runtime state from the process's point of view:
+### Workspace 1: 📈 Telemetry & Usage (`NoxTelemetryTabView`)
+- **Real-Time 1 Hz Runtime Stream**: Directly measures Python runtime internals:
   - Exact Resident Set Size (RSS) and Virtual Memory Size (VMS) via `/proc/self/statm`.
-  - Python CPU utilization percentage across all threads.
+  - Python CPU utilization percentage across all worker threads.
   - Active `asyncio.all_tasks()` count and event-loop lag monitoring.
   - Python generational GC collection counts (`gc.get_count()`).
   - LLM token throughput: prompt tokens, completion tokens, cached tokens.
 - **Dynamic Timeframe Selection**: Switchable time horizons (`5M`, `15M`, `1H`, `6H`, `24H`, `7D`) that automatically query historical telemetry ranges and adjust nanosecond chart boundaries.
-- Interactive multi-series visualization powered by `MetricHistoryChartControl` with LTTB downsampling.
+- **Multi-Series Visualization**: Powered by `MetricHistoryChartControl` with Largest-Triangle-Three-Buckets (LTTB) downsampling.
+
+### Workspace 2: 💬 Direct Chat (`DirectChatTabView`)
+- **Direct Pipeline Ingestion**: Bypasses the Telegram Bot API directly into the NoxChat dialogue engine.
+- **Authenticated Operator Persona**: Interacts as authenticated operator `"MADTOM"` (User ID: `"Control Center"`).
+- **Live Streamed Reasoning**: Displays streaming thought processes (`<thought>...</thought>`), memory operations, and tag dispatches as the bot reasons in real time.
+
+### Workspace 3: 🧠 RAG & Memories (`MemoriesRagTabView`)
+Organized into two dedicated sub-tabs:
+
+#### Sub-Tab 1: 🧠 Memories & Hot Scratchpad
+- **Hot Memory Scratchpad**: Real-time view, inspection, and manual clearing of active working memory key-value entries.
+- **Atomic Memories Explorer**: Search, filter, and inspect long-term atomic memories stored in SQLite and Embedded Qdrant.
+- **Hybrid Dense/Sparse Search**: Search long-term memories using hybrid dense embedding vectors and BM25 sparse rankings with real-time score badges.
+- **Vector Point Inspection**: Inspect embedded vectors, cosine distances, payloads, and underlying message context.
+
+#### Sub-Tab 2: 👤 User Profiles & Avatars
+- **User Profile Vector Explorer**: Connects to the dedicated Qdrant collection `user_profiles`, tracking Telegram users across chats.
+- **Semantic Profile Search**: Vector search over user bios, interests, communication patterns, custom titles, and channel descriptions.
+- **Avatar Gallery & Metadata**: Lazily loads profile avatar thumbnails with full user detail cards (user ID, username, title, bio, language, linked channel, birthdate).
+- **Fullscreen Avatar Lightbox**: Clicking an avatar opens a high-resolution modal lightbox view for close visual inspection.
+
+### Workspace 4: 🎨 Stickers & GIFs (`MediaLibraryTabView`)
+- **Visual Media Grid**: Browses the chat's indexed Telegram stickers, GIFs, and media packs.
+- **Dual-Mode Search**: Real-time text-based search (matching sticker set name, `t.me/addstickers/` set URL, or sticker caption/definition/emoji) combined with Enter-triggered semantic embedding search via `MediaVectorStore` / Qdrant.
+- **Force Add Sticker Panel**: Collapsible form allowing operators to manually force-index and caption individual stickers by message ID, custom caption, or set name.
+- **Sticker Pack Analysis**: Triggers manual background Sticker Analyst map-reduce jobs.
+- **Annotation & Reaction Curation**: Inspect, pin/unpin favorite reactions, and edit semantic tag annotations.
+
+### Workspace 5: 🖼 Images (`ChatImagesTabView`)
+Dedicated browser for chat-bound images managed by NoxChat's Image Studio (`services/nox-image-tools/`):
+- **Storage Header**: Displays total disk usage against the configured limit (`max_total_bytes`), total image count, and per-chat limits.
+- **Per-Chat Image Explorer**: Chat list displaying per-chat image counts, disk size, and date ranges. Filters the gallery by chat or displays global assets across all chats.
+- **Origin Filter**: Toggle between `generated` (AI Image Studio artwork) and `telegram` (user-uploaded chat photos).
+- **Thumbnail Grid & Lightbox**: 256px lazy-loaded thumbnails displaying handle (`IMG-xxxxxxxx`), dimensions, file size, created date, and description. Clicking any image opens a 1024px preview lightbox with full prompt details.
+- **Dry-Run Sweeps & Pruning**: 1-click deletion of checked images or age-based sweeps (`/sweepimages`). Prompts with a dry-run confirmation modal showing candidate counts and freed MB before pruning. Protects images currently referenced by active jobs.
+
+### Workspace 6: ⚡ Active Jobs (`ActiveJobsTabView`)
+Monitors in-flight and historical background sub-agent jobs:
+- **Monitored Job Types**: `audio_stt` (Whisper transcription), `sound_classifier` (AST spectrogram detection), `song_recognize` (Shazam matching), `embedding` (vector batching), `sticker_map` / `sticker_reduce` / `sticker_pack_analysis` (sticker analyst), and `image_studio` (AI image generation & Pillow editing).
+- **Job Statuses**: Tracks lifecycle states: `queued`, `running`, `completed`, `failed`, `cancelled`, and `interrupted`.
+- **Operator Controls**: View execution duration, error logs, queued vs. active counters, and retry failed jobs.
+
+### Workspace 7: 📜 Raw Logs & API (`RawLogsApiTabView`)
+Comprehensive diagnostic logging, API payload interception, and chat trace inspection organized into three sub-tabs:
+
+#### Sub-Tab 1: 📜 Bot Logs (Virtual Zstd)
+- **Virtual Log View**: Embedded `VirtualLogViewControl` rendering monotonic log sequence numbers directly from zstd-compressed in-memory client cache.
+- **WAL Spool Manager**: Toggle server-side 1GB WAL spooling (`config.yaml`).
+- **Server-Side Retained Log Search**:
+  - Full literal search powered by `noxchat-probe`'s `SearchLogs` RPC.
+  - **Filters**: Case sensitivity toggle, UTC time range presets ("15 minutes", "1 hour", "24 hours", "All retained logs"), priority filter (0–7: Emergency to Debug), and unit filter.
+  - **Snippet Highlighting**: Highlights matched substrings with exact UTF-16 character offsets and line previews.
+  - **Jump to Sequence**: Clicking any search result instantly scrolls the virtual log viewer to that exact sequence number.
+- **Spool Traversal & 1-Click Reset**: Forward chunk traversal ensures 100% of surviving spool records are retrieved across segment boundaries. A one-click `🗑️ Clear Spool` command atomically purges both server WAL files and client memory caches.
+
+#### Sub-Tab 2: 🧠 Raw API Calls & Payloads
+- **Lightweight Summary Timeline**: Requests summary metadata (IDs, models, timestamps, durations, token counts) while deferring full payload downloads until explicitly inspected.
+- **Debounced Filter**: Responsive 75ms debounced filtering (`ApiFilterScope`) across call IDs, chat names, models, and timestamps.
+- **Detail Panels**:
+  - *CLI / Log-Style Parsed Chat Session*: Separates System Prompt sections (Identity, Voice, Protocols, Pinned Media, Recalled Memories, Hot Scratchpad) from User Messages and Bot Responses.
+  - *Bidirectional (RTL / LTR) Multi-Language Typography*: Automatic base direction (`FlowDirection`) and alignment per message turn based on Unicode BiDi Rule P2/P3, using HarfBuzz cursive shaping for Persian, Arabic, and Hebrew.
+  - *Raw JSON Panes*: Raw Request JSON and LLM Response JSON inspectors with copy-to-clipboard actions.
+  - *Multimodal Image Gallery*: Attached multimodal thumbnails with MIME types and dimension badges.
+
+#### Sub-Tab 3: 💬 Chats (Correlated Execution Traces)
+- **Searchable Chat Sidebar**: Lists known chats by stable ID, type, and title.
+- **Chronological Message Timeline**: Virtualized message history correlated directly with backend trace events.
+- **Execution Trace Inspection**: Inspect exact API calls, RAG queries, tool invocations, and action dispatches triggered by each specific message turn.
+- **Prompt Evolution**: Compares initial bootstrap system prompts with turn-by-turn step-revised prompt snapshots.
+- **Authoritative Specification**: For complete protobuf schema, trace context propagation, and WAL recovery specifications, refer to [Chats Backend Specification](chats-backend-proposal.md).
 
 ---
 
@@ -101,7 +135,7 @@ The **NOX AI Control Center** (`MADTOM.Plugins.NoxAI`) provides a real-time, aut
 - **Transport Security**:
   - Mutual HMAC-SHA256 request signing with UTC timestamp and cryptographically random nonce (5-minute replay skew window).
   - Ephemeral self-signed TLS 1.3 encryption across network hops.
-  - Local Python loopback strictly bound to `127.0.0.1` (a warning is logged if bound to any external interface).
+  - Local Python loopback strictly bound to `127.0.0.1:50056` (a warning is logged if bound to any external interface).
 
 ---
 

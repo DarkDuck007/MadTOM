@@ -38,6 +38,7 @@ public sealed record NoxNodeModel(
 public sealed class NoxNodeManager : IAsyncDisposable
 {
     private readonly string _storePath;
+    private readonly Func<NoxNodeModel, NoxChatControlService.NoxChatControlServiceClient>? _clientFactory;
     private readonly ConcurrentDictionary<string, GrpcChannel> _channels = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, NoxNodeModel> _nodes = new(StringComparer.OrdinalIgnoreCase);
 
@@ -46,8 +47,9 @@ public sealed class NoxNodeManager : IAsyncDisposable
 
     public IReadOnlyCollection<NoxNodeModel> Nodes => _nodes.Values.ToList();
 
-    public NoxNodeManager(string? storePath = null)
+    public NoxNodeManager(string? storePath = null, Func<NoxNodeModel, NoxChatControlService.NoxChatControlServiceClient>? clientFactory = null)
     {
+        _clientFactory = clientFactory;
         _storePath = storePath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MADTOM", "noxchat-nodes.json");
         LoadNodes();
@@ -101,6 +103,7 @@ public sealed class NoxNodeManager : IAsyncDisposable
 
     public NoxChatControlService.NoxChatControlServiceClient GetClient(NoxNodeModel node)
     {
+        if (_clientFactory != null) return _clientFactory(node);
         var channel = _channels.GetOrAdd(node.Id, _ =>
         {
             string url = node.HostEndpoint.StartsWith("http") ? node.HostEndpoint : $"https://{node.HostEndpoint}";

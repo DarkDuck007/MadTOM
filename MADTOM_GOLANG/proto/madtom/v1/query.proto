@@ -126,6 +126,7 @@ message LogChunkQuery {
   uint32 max_chunks = 3;              // e.g. 8 chunks = up to 2048 records
   int64 seek_timestamp_unix_nano = 4; // if > 0, collector seeks closest chunk
   bool forward = 5;                   // direction for range traversal
+  bool summary_only = 6;              // NoxChat: chunk headers without compressed records
 }
 
 message LogChunkResponse {

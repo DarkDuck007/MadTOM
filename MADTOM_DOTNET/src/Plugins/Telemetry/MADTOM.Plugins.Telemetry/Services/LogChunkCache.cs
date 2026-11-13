@@ -15,11 +15,13 @@ public readonly record struct LogChunkKey(string Node, ulong ChunkId);
 public sealed class LogChunkCache
 {
     private readonly object _lock = new();
+    private readonly HashSet<LogChunkKey> _registeredRanges = new();
 
     // Compressed chunks cache (LRU)
     private readonly Dictionary<LogChunkKey, LinkedListNode<CompressedEntry>> _compressedMap = new();
     private readonly LinkedList<CompressedEntry> _compressedLru = new();
     private readonly Dictionary<string, List<ChunkRange>> _nodeRanges = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Dictionary<ulong, ChunkRange>> _nodeRangesById = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, NodeStats> _nodeStats = new(StringComparer.OrdinalIgnoreCase);
     private long _totalCompressedBytes;
     private long _totalRawBytes;
@@ -241,6 +243,16 @@ public sealed class LogChunkCache
         }
     }
 
+    // Retained range metadata survives payload eviction, allowing exact virtual fetches.
+    public void RegisterRange(string node, LogChunk header)
+    {
+        lock (_lock)
+        {
+            _registeredRanges.Add(new(node, header.ChunkId));
+            UpdateNodeRangeLocked(node, header.ChunkId, header.FirstSeq, header.LastSeq);
+        }
+    }
+
     private readonly record struct ChunkRange(ulong FirstSeq, ulong LastSeq, ulong ChunkId);
 
     private void UpdateNodeRangeLocked(string node, ulong chunkId, ulong firstSeq, ulong lastSeq)
@@ -249,18 +261,19 @@ public sealed class LogChunkCache
         {
             list = new List<ChunkRange>();
             _nodeRanges[node] = list;
+            _nodeRangesById[node] = new();
         }
 
-        for (int i = 0; i < list.Count; i++)
-        {
-            if (list[i].ChunkId == chunkId)
-            {
-                list.RemoveAt(i);
-                break;
-            }
-        }
-
+        var byId = _nodeRangesById[node];
         var newRange = new ChunkRange(firstSeq, lastSeq, chunkId);
+        if (byId.TryGetValue(chunkId, out var previous))
+        {
+            if (previous == newRange) return;
+            int oldIndex = list.BinarySearch(previous, RangeComparer.Instance);
+            if (oldIndex >= 0) list.RemoveAt(oldIndex);
+        }
+
+        byId[chunkId] = newRange;
         int insertIndex = list.BinarySearch(newRange, RangeComparer.Instance);
         if (insertIndex < 0) insertIndex = ~insertIndex;
         list.Insert(insertIndex, newRange);
@@ -268,23 +281,22 @@ public sealed class LogChunkCache
 
     private void RemoveNodeRangeLocked(string node, ulong chunkId)
     {
-        if (_nodeRanges.TryGetValue(node, out var list))
+        if (_nodeRanges.TryGetValue(node, out var list) &&
+            _nodeRangesById[node].Remove(chunkId, out var range))
         {
-            for (int i = 0; i < list.Count; i++)
-            {
-                if (list[i].ChunkId == chunkId)
-                {
-                    list.RemoveAt(i);
-                    break;
-                }
-            }
+            int index = list.BinarySearch(range, RangeComparer.Instance);
+            if (index >= 0) list.RemoveAt(index);
         }
     }
 
     private sealed class RangeComparer : IComparer<ChunkRange>
     {
         public static readonly RangeComparer Instance = new();
-        public int Compare(ChunkRange x, ChunkRange y) => x.FirstSeq.CompareTo(y.FirstSeq);
+        public int Compare(ChunkRange x, ChunkRange y)
+        {
+            int sequence = x.FirstSeq.CompareTo(y.FirstSeq);
+            return sequence != 0 ? sequence : x.ChunkId.CompareTo(y.ChunkId);
+        }
     }
 
     /// <summary>
@@ -335,6 +347,27 @@ public sealed class LogChunkCache
     /// <summary>
     /// Gets or decodes the records for a specific chunk.
     /// </summary>
+    // Snapshot only already-decoded entries. Never decompress or fetch while typing a filter.
+    public IReadOnlyList<(ulong ChunkId, LogRecord Record)> SnapshotDecodedRecords(string node, int limit = 5000)
+    {
+        var result = new List<(ulong ChunkId, LogRecord Record)>();
+        lock (_lock)
+        {
+            foreach (var entry in _decodedLru)
+            {
+                if (!string.Equals(entry.Key.Node, node, StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var record in entry.Records)
+                {
+                    result.Add((entry.Key.ChunkId, record));
+                    if (result.Count >= limit) break;
+                }
+                if (result.Count >= limit) break;
+            }
+        }
+        result.Sort((a, b) => b.Record.Seq.CompareTo(a.Record.Seq));
+        return result;
+    }
+
     public IReadOnlyList<LogRecord>? GetDecodedChunk(string collector, string node, ulong chunkId)
     {
         if (string.IsNullOrEmpty(node)) return null;
@@ -589,6 +622,8 @@ public sealed class LogChunkCache
                 _decodedMap.Clear();
                 _decodedLru.Clear();
                 _nodeRanges.Clear();
+                _nodeRangesById.Clear();
+                _registeredRanges.Clear();
                 _nodeStats.Clear();
                 _chunkErrors.Clear();
                 _totalCompressedBytes = 0;
@@ -598,6 +633,8 @@ public sealed class LogChunkCache
             }
 
             _nodeRanges.Remove(node);
+            _nodeRangesById.Remove(node);
+            _registeredRanges.RemoveWhere(k => k.Node == node);
             _nodeStats.Remove(node);
 
             var errKeysToRemove = new List<LogChunkKey>();
@@ -658,7 +695,8 @@ public sealed class LogChunkCache
                 ns.RecordCount -= last.Value.Chunk.RecordCount;
             }
 
-            RemoveNodeRangeLocked(last.Value.Key.Node, last.Value.Key.ChunkId);
+            if (!_registeredRanges.Contains(last.Value.Key))
+                RemoveNodeRangeLocked(last.Value.Key.Node, last.Value.Key.ChunkId);
             _compressedMap.Remove(last.Value.Key);
             _compressedLru.RemoveLast();
 

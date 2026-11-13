@@ -1,0 +1,225 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.ParsedCallTurnsView"
+             x:DataType="vm:RawApiCallItemModel">
+    <!-- Parsed turns of one API call. Shared by "Raw API Calls & Payloads" and "Chats" so both render identically. -->
+    <ItemsControl ItemsSource="{Binding ParsedTurns}">
+        <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ParsedTurnItemModel">
+                <Border Background="#0D1117"
+                        BorderBrush="{Binding BorderBrushHex}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="12,10"
+                        Margin="0,0,0,10">
+                    <StackPanel Spacing="8">
+                        <!-- Turn Header Ribbon -->
+                        <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                            <Border Background="{Binding HeaderBadgeBackground}"
+                                    CornerRadius="4"
+                                    Padding="6,3">
+                                <TextBlock Text="{Binding HeaderTitle}"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           FontFamily="{StaticResource MonoFontFamily}"
+                                           Foreground="{Binding HeaderBadgeForeground}"/>
+                            </Border>
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding TimestampText}"
+                                       FontSize="9"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- System Sections Breakdown (for system prompt turns) -->
+                        <ItemsControl ItemsSource="{Binding SystemSections}"
+                                      IsVisible="{Binding HasSystemSections}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ParsedSystemSectionModel">
+                                    <Border Background="#161226"
+                                            BorderBrush="#4C1D95"
+                                            BorderThickness="1"
+                                            CornerRadius="5"
+                                            Padding="10,8"
+                                            Margin="0,3">
+                                        <StackPanel Spacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding SectionIcon}" FontSize="11" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Header, StringFormat='[SYS // {0}]'}"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           Foreground="{Binding BadgeColor}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <SelectableTextBlock Text="{Binding Content}"
+                                                                 FlowDirection="{Binding FlowDirection}"
+                                                                 TextAlignment="{Binding TextAlignment}"
+                                                                 FontSize="10.5"
+                                                                 Foreground="#E2E8F0"
+                                                                 TextWrapping="Wrap"
+                                                                 LineHeight="16"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Chat Entries Breakdown (dynamic RTL/LTR per individual chat entry) -->
+                        <ItemsControl ItemsSource="{Binding ChatEntries}"
+                                      IsVisible="{Binding HasChatEntries}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ParsedChatEntryModel">
+                                    <Border Background="{Binding CardBackgroundHex}"
+                                            BorderBrush="{Binding BorderBrushHex}"
+                                            BorderThickness="1"
+                                            CornerRadius="5"
+                                            Padding="10,7"
+                                            Margin="0,3">
+                                        <StackPanel Spacing="4">
+                                            <!-- Header Ribbon with Sender and optional Bot Badge -->
+                                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasHeader}">
+                                                <Border Background="{Binding BadgeBackgroundHex}"
+                                                        CornerRadius="3"
+                                                        Padding="5,1"
+                                                        VerticalAlignment="Center"
+                                                        IsVisible="{Binding HasBadge}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="3">
+                                                        <TextBlock Text="🤖" FontSize="9" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding BadgeText}"
+                                                                   FontSize="9"
+                                                                   FontWeight="Bold"
+                                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                                   Foreground="{Binding BadgeForegroundHex}"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <TextBlock Text="{Binding Header}"
+                                                           FontSize="10"
+                                                           FontWeight="Bold"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           Foreground="{Binding HeaderForegroundHex}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <SelectableTextBlock Text="{Binding Body}"
+                                                                 FlowDirection="{Binding FlowDirection}"
+                                                                 TextAlignment="{Binding TextAlignment}"
+                                                                 FontSize="11.5"
+                                                                 Foreground="{Binding TextForegroundHex}"
+                                                                 TextWrapping="Wrap"
+                                                                 LineHeight="17"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Fallback Main Message Text (when ChatEntries are not present) -->
+                        <SelectableTextBlock Text="{Binding Text}"
+                                             FlowDirection="{Binding FlowDirection}"
+                                             TextAlignment="{Binding TextAlignment}"
+                                             IsVisible="{Binding ShowFallbackText}"
+                                             FontSize="11.5"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             TextWrapping="Wrap"
+                                             LineHeight="17"/>
+
+                        <!-- Thinking / Reasoning Process (for bot turns) -->
+                        <Border Background="#1C1917"
+                                BorderBrush="#B45309"
+                                BorderThickness="1"
+                                CornerRadius="5"
+                                Padding="10,8"
+                                IsVisible="{Binding HasThought}">
+                            <StackPanel Spacing="4">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="⚡" FontSize="11" VerticalAlignment="Center"/>
+                                    <TextBlock Text="[THINKING PROCESS / CHAIN OF THOUGHT]"
+                                               FontSize="9"
+                                               FontWeight="Bold"
+                                               FontFamily="{StaticResource MonoFontFamily}"
+                                               Foreground="#FBBF24"/>
+                                </StackPanel>
+                                <SelectableTextBlock Text="{Binding ThoughtText}"
+                                                     FlowDirection="{Binding ThoughtFlowDirection}"
+                                                     TextAlignment="{Binding ThoughtTextAlignment}"
+                                                     FontSize="10.5"
+                                                     Foreground="#FCD34D"
+                                                     TextWrapping="Wrap"
+                                                     LineHeight="16"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tool Calls Breakdown -->
+                        <ItemsControl ItemsSource="{Binding ToolCalls}"
+                                      IsVisible="{Binding HasToolCalls}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ParsedToolCallModel">
+                                    <Border Background="#1F1322"
+                                            BorderBrush="#9D174D"
+                                            BorderThickness="1"
+                                            CornerRadius="5"
+                                            Padding="8,6"
+                                            Margin="0,3">
+                                        <StackPanel Spacing="4">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="⚙" FontSize="11" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Name, StringFormat='[TOOL CALL: {0}]'}"
+                                                           FontSize="9"
+                                                           FontWeight="Bold"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           Foreground="#F472B6"/>
+                                            </StackPanel>
+                                            <SelectableTextBlock Text="{Binding Arguments}"
+                                                                 FontFamily="{StaticResource MonoFontFamily}"
+                                                                 FontSize="10"
+                                                                 Foreground="#FBCFE8"
+                                                                 TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Attached Multimodal Media -->
+                        <StackPanel Spacing="6" IsVisible="{Binding HasMediaAttachments}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="📎" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock Text="[ATTACHED MEDIA]"
+                                           FontSize="9"
+                                           FontWeight="Bold"
+                                           FontFamily="{StaticResource MonoFontFamily}"
+                                           Foreground="#60A5FA"/>
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding MediaAttachments}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:RawApiCallImageItem">
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="6"
+                                                Margin="0,0,8,8">
+                                            <StackPanel Spacing="4">
+                                                <Image Source="{Binding Preview}" Width="150" Height="150" Stretch="Uniform"/>
+                                                <TextBlock Text="{Binding Label}" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="{Binding MimeType}" FontSize="8" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

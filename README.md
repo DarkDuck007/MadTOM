@@ -90,8 +90,11 @@ For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured st
 ```bash
 # Deploys binary, auto-detects architecture (x86/ARM), installs with sudo, restarts service
 ./deploy.sh user@node.example.com
+
+# Deploy NoxChat probe daemon bridge to remote node
+./deploy.sh --project probe user@node.example.com
 ```
-*See [Remote Deployment Guide](Documentation/Plugins/Telemetry/deployment-and-services.md#remote-ssh-deployment-deploysh) for details on staging and sudo automation.*
+*See [Remote Deployment Guide](Documentation/Plugins/Telemetry/deployment-and-services.md#remote-ssh-deployment-deploysh) and [CLI Reference](Documentation/cli-and-scripts.md#3-deploysh--remote-sshsudo-daemon-deployment) for details on staging, multi-project deployment (`daemon`, `collector`, `probe`), and sudo automation.*
 
 ---
 
@@ -110,12 +113,13 @@ For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured st
 |---|---|---|
 | `madtom-daemon` | Lightweight endpoint agent (CPU, memory, disk, network, TWAMP) | [Documentation](Documentation/cli-and-scripts.md#1-madtom-daemon--node-telemetry-agent) |
 | `madtom-collector` | Central gRPC telemetry hub, Pebble TSDB storage, LTTB queries | [Documentation](Documentation/cli-and-scripts.md#2-madtom-collector--central-telemetry-hub) |
+| `noxchat-probe` | NoxChat daemon bridge, WAL spooling, log search & telemetry | [Documentation](Documentation/cli-and-scripts.md#10-noxchat-probe--noxchat-bridge--control-daemon) |
 | `MADTOM.Studio` | Modular desktop operator workspace & plugin host shell | [Documentation](Documentation/Studio/overview-and-ui.md) |
 | `MADTOM.Plugins.Telemetry.App` | Standalone telemetry client without studio shell | [Documentation](Documentation/Plugins/Telemetry/ui-and-visualization.md#overview--standalone-mode) |
 | `MADTOM.Plugins.Squeeze.App` | Standalone SQUEEZE media transcode client | [Documentation](Documentation/Plugins/Squeeze/README.md) |
 | `MADTOM.Plugins.AndroidToolkit.App` | Standalone Android toolkit runner | [Documentation](Documentation/Plugins/AndroidToolkit/README.md) |
 | `MADTOM.Plugins.MediaCenter.App` | Standalone MediaCenter runner | [Documentation](Documentation/Plugins/MediaCenter/README.md) |
-| `MADTOM.Plugins.NoxAI.App` | Standalone NOX AI control center runner | [Documentation](Documentation/Plugins/NoxAI/README.md) |
+| `MADTOM.Plugins.NoxAI.App` | Standalone NOX AI control center runner | [Documentation](Documentation/cli-and-scripts.md#11-madtompluginsnoxaiapp--standalone-nox-ai-control-center) |
 | `MADTOM.Plugins.AudioSync.App` | Standalone AUDIOSYNC runner | [Documentation](Documentation/Plugins/AudioSync/README.md) |
 | `MADTOM.Plugins.VNA.App` | Standalone Visual Network Analyzer runner | [Documentation](Documentation/Plugins/VNA/README.md) |
 | `MADTOM.Plugins.ConnectionToolkit.App` | Standalone Connection Toolkit runner | [Documentation](Documentation/Plugins/ConnectionToolkit/README.md) |
