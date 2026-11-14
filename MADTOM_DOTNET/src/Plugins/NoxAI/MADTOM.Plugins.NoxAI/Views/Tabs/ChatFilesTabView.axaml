@@ -4,8 +4,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
-             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.ChatImagesTabView"
-             x:DataType="vm:ChatImagesTabViewModel">
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.ChatFilesTabView"
+             x:DataType="vm:ChatFilesTabViewModel"
+             Focusable="True">
 
     <Panel>
         <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="12">
@@ -18,7 +19,7 @@
                     Padding="14,10">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="14">
                     <StackPanel VerticalAlignment="Center" Spacing="2">
-                        <TextBlock Text="IMAGE STUDIO STORAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                        <TextBlock Text="WORKSPACE FILES STORAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
                         <TextBlock Text="{Binding StorageSummary}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4" MaxWidth="420" HorizontalAlignment="Left" MinWidth="160">
@@ -38,7 +39,7 @@
             </Border>
 
             <Grid Grid.Row="1" ColumnDefinitions="270,*" ColumnSpacing="12">
-                <!-- Per-chat breakdown -->
+                <!-- Left-side Chats List -->
                 <Border Background="{DynamicResource DarkBaseBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
@@ -57,21 +58,43 @@
                                  Background="Transparent"
                                  BorderThickness="0"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                </Style>
+                            </ListBox.Styles>
                             <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:ChatImageUsageModel">
-                                    <StackPanel Spacing="2" Margin="0,2">
-                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="{Binding Summary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                        <TextBlock Text="{Binding RangeText}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"
-                                                   IsVisible="{Binding RangeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                    </StackPanel>
+                                <DataTemplate x:DataType="vm:ChatFileUsageModel">
+                                    <Border Classes.allChats="{Binding IsAllChats}" CornerRadius="6" Padding="8,5" Margin="0,1">
+                                        <Border.Styles>
+                                            <Style Selector="Border.allChats">
+                                                <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                            </Style>
+                                        </Border.Styles>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="{Binding Summary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                <TextBlock Text="{Binding RangeText}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"
+                                                           IsVisible="{Binding RangeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                            </StackPanel>
+                                            <Border Grid.Column="1" IsVisible="{Binding IsAllChats}"
+                                                    Background="{DynamicResource AccentBrush}"
+                                                    CornerRadius="10" Padding="6,2" VerticalAlignment="Center">
+                                                <TextBlock Text="ALL" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Grid>
                 </Border>
 
-                <!-- Images -->
+                <!-- Files Section -->
                 <Border Grid.Column="1"
                         Background="{DynamicResource DarkBaseBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
@@ -86,21 +109,26 @@
                                 Padding="12,8">
                             <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
                                 <TextBlock Text="{Binding SelectedChatLabel}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"
-                                           MaxWidth="280" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                           MaxWidth="260" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding ItemCountSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </Border>
+                                <ComboBox ItemsSource="{Binding TypeFilters}"
+                                          SelectedItem="{Binding SelectedTypeFilter, Mode=TwoWay}"
+                                          MinWidth="130"
+                                          VerticalAlignment="Center"
+                                          ToolTip.Tip="Filter by file type"/>
                                 <ComboBox ItemsSource="{Binding OriginFilters}"
                                           SelectedItem="{Binding SelectedOriginFilter, Mode=TwoWay}"
-                                          MinWidth="120"
+                                          MinWidth="110"
                                           VerticalAlignment="Center"
-                                          ToolTip.Tip="Filter by image origin"/>
+                                          ToolTip.Tip="Filter by origin"/>
                                 <Button Command="{Binding SelectAllCommand}" Content="☑ Select all" Padding="8,4" VerticalAlignment="Center"/>
                                 <Button Command="{Binding DeleteSelectedCommand}"
                                         Padding="8,4"
                                         VerticalAlignment="Center"
                                         IsEnabled="{Binding !IsBusy}"
-                                        ToolTip.Tip="Delete the checked images">
+                                        ToolTip.Tip="Delete the checked files">
                                     <TextBlock Text="{Binding SelectedCount, StringFormat='🗑 Delete selected ({0})'}"/>
                                 </Button>
                                 <Rectangle Width="1" Height="22" Fill="{DynamicResource BorderBrush}" VerticalAlignment="Center"/>
@@ -110,7 +138,7 @@
                                                Maximum="3650"
                                                Increment="1"
                                                FormatString="0"
-                                               Width="110"
+                                               Width="100"
                                                VerticalAlignment="Center"
                                                ToolTip.Tip="Age in days (by last use). 0 = no age filter (sweeps everything in scope)."/>
                                 <TextBlock Text="days" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -119,7 +147,7 @@
                                         Padding="8,4"
                                         VerticalAlignment="Center"
                                         IsEnabled="{Binding !IsBusy}"
-                                        ToolTip.Tip="Delete images of the selected chat older than N days (asks for confirmation)"/>
+                                        ToolTip.Tip="Delete files of the selected chat older than N days (asks for confirmation)"/>
                                 <Button Command="{Binding SweepAllOlderThanCommand}"
                                         Content="🧹 Sweep all chats"
                                         Padding="8,4"
@@ -127,7 +155,7 @@
                                         IsEnabled="{Binding !IsBusy}"
                                         BorderBrush="{DynamicResource WarningBrush}"
                                         BorderThickness="1"
-                                        ToolTip.Tip="Delete images in ALL chats older than N days (asks for confirmation)"/>
+                                        ToolTip.Tip="Delete files in ALL chats older than N days (asks for confirmation)"/>
                             </WrapPanel>
                         </Border>
 
@@ -137,17 +165,17 @@
                                         VerticalAlignment="Center"
                                         Spacing="10">
                                 <ProgressBar IsIndeterminate="True" Width="200"/>
-                                <TextBlock Text="Loading images..." FontSize="12" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Loading files..." FontSize="12" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
                             </StackPanel>
 
                             <TextBlock IsVisible="{Binding !Rows.Count}"
-                                       Text="No stored images for this selection."
+                                       Text="No stored files for this selection."
                                        FontSize="12"
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"/>
 
-                            <!-- Virtualized rows of image cards -->
+                            <!-- Virtualized rows of file cards -->
                             <ListBox ItemsSource="{Binding Rows}"
                                      Background="Transparent"
                                      BorderThickness="0"
@@ -169,7 +197,7 @@
                                     </Style>
                                 </ListBox.Styles>
                                 <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:ChatImageRowModel">
+                                    <DataTemplate x:DataType="vm:ChatFileRowModel">
                                         <ItemsControl ItemsSource="{Binding Items}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -177,7 +205,7 @@
                                                 </ItemsPanelTemplate>
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:ChatImageItemModel">
+                                                <DataTemplate x:DataType="vm:ChatFileItemModel">
                                                     <Border Background="{DynamicResource CardBgBrush}"
                                                             BorderBrush="{DynamicResource BorderBrush}"
                                                             BorderThickness="1"
@@ -189,9 +217,16 @@
                                                             ToolTip.Tip="{Binding Tooltip}"
                                                             AttachedToVisualTree="OnCardAttachedToVisualTree">
                                                         <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="3">
-                                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="4">
                                                                 <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Padding="2,0" MinHeight="0" VerticalAlignment="Center"/>
                                                                 <Border Grid.Column="2"
+                                                                        Background="{DynamicResource DarkBaseBrush}"
+                                                                        CornerRadius="4"
+                                                                        Padding="4,1"
+                                                                        VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding StoreBadge}" FontSize="9" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                                </Border>
+                                                                <Border Grid.Column="3"
                                                                         Background="{DynamicResource AccentSubtleBrush}"
                                                                         CornerRadius="4"
                                                                         Padding="5,1"
@@ -201,7 +236,7 @@
                                                             </Grid>
 
                                                             <Button Grid.Row="1"
-                                                                    Command="{Binding $parent[UserControl].((vm:ChatImagesTabViewModel)DataContext).OpenPreviewCommand}"
+                                                                    Command="{Binding $parent[UserControl].((vm:ChatFilesTabViewModel)DataContext).OpenPreviewCommand}"
                                                                     CommandParameter="{Binding}"
                                                                     Background="{DynamicResource DarkBaseBrush}"
                                                                     BorderThickness="0"
@@ -213,17 +248,26 @@
                                                                     VerticalContentAlignment="Center"
                                                                     Cursor="Hand">
                                                                 <Panel>
-                                                                    <TextBlock Text="🖼" FontSize="32"
+                                                                    <TextBlock Text="{Binding KindIcon}" FontSize="32"
                                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                                IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNull}}"/>
                                                                     <Image Source="{Binding Thumbnail}"
                                                                            Stretch="Uniform"
                                                                            MaxHeight="128"
                                                                            IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                                                    <Border Background="#A0000000"
+                                                                            CornerRadius="4"
+                                                                            Padding="4,1"
+                                                                            HorizontalAlignment="Right"
+                                                                            VerticalAlignment="Bottom"
+                                                                            Margin="4"
+                                                                            IsVisible="{Binding KindBadge, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                        <TextBlock Text="{Binding KindBadge}" FontSize="9" FontWeight="SemiBold" Foreground="White"/>
+                                                                    </Border>
                                                                 </Panel>
                                                             </Button>
 
-                                                            <TextBlock Grid.Row="2" Text="{Binding Handle}" FontSize="11" FontWeight="SemiBold"
+                                                            <TextBlock Grid.Row="2" Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
                                                                        FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis"
                                                                        Foreground="{DynamicResource TextPrimaryBrush}"/>
                                                             <TextBlock Grid.Row="3" Text="{Binding MetaLine}" FontSize="9"
@@ -255,7 +299,7 @@
             </Grid>
         </Grid>
 
-        <!-- Large Preview Overlay -->
+        <!-- Multi-Modal Preview Overlay -->
         <Border IsVisible="{Binding IsPreviewOpen}" Background="#B0000000">
             <Border Background="{DynamicResource CardBgBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
@@ -264,14 +308,17 @@
                     Padding="16"
                     Margin="40"
                     MaxWidth="1100"
+                    MaxHeight="800"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center">
-                <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="10">
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="10">
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                         <StackPanel Spacing="2">
-                            <TextBlock Text="{Binding PreviewItem.Handle, FallbackValue=''}" FontSize="14" FontWeight="Bold"
+                            <TextBlock Text="{Binding PreviewItem.DisplayName, FallbackValue=''}" FontSize="14" FontWeight="Bold"
                                        FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <TextBlock FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
+                                <Run Text="{Binding PreviewItem.Handle, FallbackValue=''}"/>
+                                <Run Text=" · "/>
                                 <Run Text="{Binding PreviewItem.ChatName, FallbackValue=''}"/>
                                 <Run Text=" · "/>
                                 <Run Text="{Binding PreviewItem.OriginBadge, FallbackValue=''}"/>
@@ -281,34 +328,126 @@
                                 <Run Text="{Binding PreviewItem.LastUsedText, FallbackValue=''}"/>
                             </TextBlock>
                         </StackPanel>
-                        <Button Grid.Column="1" Command="{Binding DeletePreviewedCommand}" Content="🗑 Delete" Padding="10,4" VerticalAlignment="Top"/>
-                        <Button Grid.Column="2" Command="{Binding ClosePreviewCommand}" Content="✕ Close" Padding="10,4" VerticalAlignment="Top"/>
+                        <Button Grid.Column="1" Command="{Binding SavePreviewedCommand}" Content="💾 Save As..." Padding="10,4" VerticalAlignment="Top"/>
+                        <Button Grid.Column="2" Command="{Binding OpenExternallyCommand}" Content="↗ Open Externally" Padding="10,4" VerticalAlignment="Top"/>
+                        <Button Grid.Column="3" Command="{Binding DeletePreviewedCommand}" Content="🗑 Delete" Padding="10,4" VerticalAlignment="Top"/>
+                        <Button Grid.Column="4" Command="{Binding ClosePreviewCommand}" Content="✕ Close" Padding="10,4" VerticalAlignment="Top"/>
                     </Grid>
-                    <Panel Grid.Row="1" MinHeight="200" MinWidth="300">
-                        <Image Source="{Binding PreviewImage}" Stretch="Uniform" MaxHeight="640" MaxWidth="1040"/>
+
+                    <!-- Preview Content Area -->
+                    <Panel Grid.Row="1" MinHeight="240" MinWidth="340">
+                        <!-- Image / PDF / Video Image Display -->
+                        <Image Source="{Binding PreviewImage}"
+                               Stretch="Uniform"
+                               MaxHeight="560"
+                               MaxWidth="1040"
+                               IsVisible="{Binding !IsTextPreview}"/>
+
+                        <!-- Text Preview Display -->
+                        <ScrollViewer MaxHeight="560" MaxWidth="1040"
+                                      IsVisible="{Binding IsTextPreview}"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto">
+                            <SelectableTextBlock Text="{Binding PreviewText}"
+                                                 FontFamily="{StaticResource MonoFontFamily}"
+                                                 FontSize="11"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 Padding="10"/>
+                        </ScrollViewer>
+
                         <ProgressBar IsIndeterminate="True" Width="160" VerticalAlignment="Bottom" IsVisible="{Binding IsPreviewLoading}"/>
                     </Panel>
-                    <SelectableTextBlock Grid.Row="2" Text="{Binding PreviewItem.DisplayDescription, FallbackValue=''}"
-                                         TextWrapping="Wrap" FontSize="12" MaxHeight="120"
+
+                    <!-- Multi-Page PDF / PPTX Navigation Controls -->
+                    <StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                Spacing="12"
+                                HorizontalAlignment="Center"
+                                IsVisible="{Binding IsMultiPage}">
+                        <Button Command="{Binding PrevPageCommand}"
+                                Content="◀ Prev"
+                                Padding="12,5"/>
+                        <TextBlock Text="{Binding PageStatusText}"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Button Command="{Binding NextPageCommand}"
+                                Content="Next ▶"
+                                Padding="12,5"/>
+                    </StackPanel>
+
+                    <!-- Video Controls -->
+                    <StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                Spacing="12"
+                                HorizontalAlignment="Center"
+                                IsVisible="{Binding IsVideo}">
+                        <Button Command="{Binding TogglePlayCommand}"
+                                Content="{Binding PlayButtonText}"
+                                Padding="10,4"
+                                Width="80"/>
+                        <Slider Minimum="0"
+                                Maximum="{Binding VideoFrameMaxIndex}"
+                                Value="{Binding CurrentVideoFrameIndex, Mode=TwoWay}"
+                                Width="300"
+                                VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding CurrentVideoFrameIndex, StringFormat='Frame {0}'}"
+                                   FontSize="11"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <SelectableTextBlock Grid.Row="3" Text="{Binding PreviewItem.DisplayDescription, FallbackValue=''}"
+                                         TextWrapping="Wrap" FontSize="12" MaxHeight="100"
                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <TextBlock Grid.Row="3" Text="{Binding PreviewStatus}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock Grid.Row="4" Text="{Binding PreviewStatus}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
                 </Grid>
             </Border>
         </Border>
 
-        <!-- Confirmation Overlay -->
+        <!-- Confirmation & Sweep Guardrails Overlay -->
         <Border IsVisible="{Binding IsConfirmOpen}" Background="#B0000000">
             <Border Background="{DynamicResource CardBgBrush}"
                     BorderBrush="{DynamicResource WarningBrush}"
                     BorderThickness="1"
                     CornerRadius="10"
                     Padding="18"
-                    Width="460"
+                    Width="480"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center">
-                <StackPanel Spacing="12">
+                <StackPanel Spacing="14">
                     <TextBlock Text="{Binding ConfirmTitle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <TextBlock Text="{Binding ConfirmMessage}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+
+                    <!-- On-Demand Calculation Section for Sweeps -->
+                    <Border IsVisible="{Binding IsSweepConfirmation}"
+                            Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,8">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                            <TextBlock Text="{Binding SweepCalculationSummary}"
+                                       TextWrapping="Wrap"
+                                       FontSize="11"
+                                       FontFamily="{StaticResource MonoFontFamily}"
+                                       Foreground="{DynamicResource AccentTextBrush}"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Command="{Binding CalculateSweepCommand}"
+                                    Content="📊 Calculate"
+                                    Padding="10,4"
+                                    IsEnabled="{Binding !IsSweepCalculating}"
+                                    VerticalAlignment="Center"/>
+                            <ProgressBar Grid.Row="1" Grid.ColumnSpan="2"
+                                         IsIndeterminate="True"
+                                         Height="4"
+                                         IsVisible="{Binding IsSweepCalculating}"/>
+                        </Grid>
+                    </Border>
+
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                         <Button Command="{Binding CancelConfirmCommand}" Content="Cancel" Padding="12,5"/>
                         <Button Command="{Binding ConfirmPendingCommand}"

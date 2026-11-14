@@ -36,8 +36,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public NoxTelemetryTabViewModel TelemetryTab { get; }
     public DirectChatTabViewModel DirectChatTab { get; }
     public MemoriesRagTabViewModel MemoriesRagTab { get; }
+    public TipsTabViewModel TipsTab { get; }
     public MediaLibraryTabViewModel MediaLibraryTab { get; }
-    public ChatImagesTabViewModel ChatImagesTab { get; }
+    public ChatFilesTabViewModel ChatFilesTab { get; }
     public ActiveJobsTabViewModel ActiveJobsTab { get; }
     public RawLogsApiTabViewModel RawLogsApiTab { get; }
     public NoxSettingsViewModel SettingsViewModel { get; }
@@ -56,8 +57,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         TelemetryTab = new NoxTelemetryTabViewModel(_nodeManager, _historyCache);
         DirectChatTab = new DirectChatTabViewModel(_nodeManager);
         MemoriesRagTab = new MemoriesRagTabViewModel(_nodeManager);
+        TipsTab = new TipsTabViewModel(_nodeManager);
         MediaLibraryTab = new MediaLibraryTabViewModel(_nodeManager);
-        ChatImagesTab = new ChatImagesTabViewModel(_nodeManager);
+        ChatFilesTab = new ChatFilesTabViewModel(_nodeManager);
         ActiveJobsTab = new ActiveJobsTabViewModel(_nodeManager);
         RawLogsApiTab = new RawLogsApiTabViewModel(_nodeManager, _logCache, _apiCache);
         SettingsViewModel = new NoxSettingsViewModel(_nodeManager, _historyCache, _logCache, _apiCache, _cacheStore);
@@ -72,9 +74,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         };
 
-        MediaLibraryTab.IsTabActive = SelectedWorkspaceTabIndex == 3;
-        ChatImagesTab.IsTabActive = SelectedWorkspaceTabIndex == 4;
-        RawLogsApiTab.IsTabActive = SelectedWorkspaceTabIndex == 6;
+        MediaLibraryTab.IsTabActive = SelectedWorkspaceTabIndex == 4;
+        ChatFilesTab.IsTabActive = SelectedWorkspaceTabIndex == 5;
+        RawLogsApiTab.IsTabActive = SelectedWorkspaceTabIndex == 7;
 
         RefreshActiveNodes();
 
@@ -131,11 +133,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedWorkspaceTabIndexChanged(int value)
     {
-        if (RawLogsApiTab != null) RawLogsApiTab.IsTabActive = value == 6;
-        if (ChatImagesTab != null) ChatImagesTab.IsTabActive = value == 4;
+        if (RawLogsApiTab != null) RawLogsApiTab.IsTabActive = value == 7;
+        if (ChatFilesTab != null) ChatFilesTab.IsTabActive = value == 5;
         if (MediaLibraryTab != null)
         {
-            MediaLibraryTab.IsTabActive = value == 3;
+            MediaLibraryTab.IsTabActive = value == 4;
         }
     }
 
@@ -150,8 +152,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (TelemetryTab != null) TelemetryTab.SelectedNode = value;
         if (DirectChatTab != null) DirectChatTab.SelectedNode = value;
         if (MemoriesRagTab != null) MemoriesRagTab.SelectedNode = value;
+        if (TipsTab != null) TipsTab.SelectedNode = value;
         if (MediaLibraryTab != null) MediaLibraryTab.SelectedNode = value;
-        if (ChatImagesTab != null) ChatImagesTab.SelectedNode = value;
+        if (ChatFilesTab != null) ChatFilesTab.SelectedNode = value;
         if (ActiveJobsTab != null) ActiveJobsTab.SelectedNode = value;
         if (RawLogsApiTab != null) RawLogsApiTab.SelectedNode = value;
 

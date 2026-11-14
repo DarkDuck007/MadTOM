@@ -107,14 +107,19 @@
                     <tabs:MemoriesRagTabView DataContext="{Binding MemoriesRagTab}"/>
                 </TabItem>
 
+                <!-- Tab 4: Tips -->
+                <TabItem Header="💡 Tips" FontSize="12">
+                    <tabs:TipsTabView DataContext="{Binding TipsTab}"/>
+                </TabItem>
+
                 <!-- Tab 4: Stickers & GIFs -->
                 <TabItem Header="🎨 Stickers &amp; GIFs" FontSize="12">
                     <tabs:MediaLibraryTabView DataContext="{Binding MediaLibraryTab}"/>
                 </TabItem>
 
-                <!-- Tab 5: Image Studio storage (chat-bound images) -->
-                <TabItem Header="🖼 Images" FontSize="12">
-                    <tabs:ChatImagesTabView DataContext="{Binding ChatImagesTab}"/>
+                <!-- Tab 5: Workspace storage (chat-bound files) -->
+                <TabItem Header="📁 Files" FontSize="12">
+                    <tabs:ChatFilesTabView DataContext="{Binding ChatFilesTab}"/>
                 </TabItem>
 
                 <!-- Tab 6: Active Jobs -->

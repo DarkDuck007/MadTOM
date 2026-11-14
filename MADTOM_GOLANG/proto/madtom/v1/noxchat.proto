@@ -66,10 +66,25 @@ service NoxChatControlService {
   rpc GetImageStorageStats(NoxImageStorageStatsRequest) returns (NoxImageStorageStatsResponse);
   rpc SweepChatImages(NoxSweepChatImagesRequest) returns (NoxSweepChatImagesResponse);
 
+  // Chat Files (Unified Workspace storage: IMG, VID, DOC, FILE; chat-bound)
+  rpc ListChatFiles(NoxListChatFilesRequest) returns (NoxListChatFilesResponse);
+  rpc GetChatFilePreview(NoxGetChatFilePreviewRequest) returns (NoxGetChatFilePreviewResponse);
+  rpc GetChatFileBytes(NoxGetChatFileBytesRequest) returns (NoxGetChatFileBytesResponse);
+  rpc GetWorkspaceStorageStats(NoxWorkspaceStorageStatsRequest) returns (NoxWorkspaceStorageStatsResponse);
+  rpc SweepChatFiles(NoxSweepChatFilesRequest) returns (NoxSweepChatFilesResponse);
+
   // User Profiles & Avatars
   rpc QueryUserProfiles(NoxUserProfileQueryRequest) returns (NoxUserProfileQueryResponse);
   rpc SearchUserProfiles(NoxUserProfileSearchRequest) returns (NoxUserProfileSearchResponse);
   rpc GetUserProfilePhoto(NoxUserProfilePhotoRequest) returns (NoxUserProfilePhotoResponse);
+
+  // Tips (short prompt tips in their own vector space; scope: global / one chat / one persona)
+  rpc ListTips(NoxTipListRequest) returns (NoxTipListResponse);
+  rpc SearchTips(NoxTipSearchRequest) returns (NoxTipSearchResponse);
+  rpc AddTips(NoxAddTipsRequest) returns (NoxAddTipsResponse);
+  rpc UpdateTip(NoxUpdateTipRequest) returns (NoxTipMutationResponse);
+  rpc DeleteTips(NoxDeleteTipsRequest) returns (NoxTipMutationResponse);
+  rpc TestTips(NoxTestTipsRequest) returns (NoxTestTipsResponse);
 }
 
 // ------------------------------------------------------------------------------
@@ -730,6 +745,125 @@ message NoxSweepChatImagesResponse {
 }
 
 // ------------------------------------------------------------------------------
+// Chat Files (Unified Workspace Storage: IMG, VID, DOC, FILE)
+// Field names mirror the NoxChat Python RPC JSON (snake_case) so the probe can
+// unmarshal the bridge payload directly.
+// ------------------------------------------------------------------------------
+message NoxChatFile {
+  string uuid = 1;
+  string handle = 2;            // "IMG-...", "VID-...", "DOC-...", "FILE-..."
+  string store = 3;             // "image" | "document" | "file"
+  string kind = 4;              // "image" | "animation" | "video" | "pdf" | "pptx" | "docx" | "xlsx" | "csv" | "txt" | "md" | "json" | "other"
+  string role = 5;              // "primary" | "companion_pdf" | ""
+  int64 chat_id = 6;
+  string filename = 7;
+  string mime_type = 8;
+  int64 bytes = 9;              // size on disk
+  int64 source_bundle_bytes = 10;
+  int32 width = 11;
+  int32 height = 12;
+  int32 page_count = 13;
+  double duration_s = 14;
+  bool has_audio = 15;
+  string origin = 16;           // "telegram", "generated", "studio", "job_input"
+  int64 source_message_id = 17;
+  string job_id = 18;
+  string description = 19;
+  string created_at = 20;       // ISO-8601
+  string last_used_at = 21;     // ISO-8601
+  bool pinned = 22;
+}
+
+message NoxListChatFilesRequest {
+  string node_id = 1;
+  int64 chat_id = 2;            // 0 = all chats
+  uint32 limit = 3;
+  uint32 offset = 4;
+  string kind_filter = 5;       // optional: "image", "video", "pdf", "pptx", "document", etc.
+  string origin = 6;            // optional: "telegram", "generated", etc.
+}
+
+message NoxListChatFilesResponse {
+  repeated NoxChatFile files = 1;
+  uint32 total_count = 2;
+}
+
+message NoxGetChatFilePreviewRequest {
+  string node_id = 1;
+  int64 chat_id = 2;
+  string uuid = 3;              // uuid or handle
+  string mode = 4;              // "thumbnail" | "page" | "anim" | "text" | "raw"
+  uint32 max_dimension = 5;     // 0 = original/full, > 0 = thumbnail/render max dimension
+  uint32 page = 6;              // 1-based page/slide index
+}
+
+message NoxGetChatFilePreviewResponse {
+  NoxChatFile file = 1;
+  string mime_type = 2;
+  bytes preview_bytes = 3;      // JPEG/PNG thumbnail, page render, or NOXANIM1 binary payload
+  string text_content = 4;      // UTF-8 text preview snippet
+  uint32 page_count = 5;
+  uint32 current_page = 6;
+  uint32 frame_count = 7;
+}
+
+message NoxGetChatFileBytesRequest {
+  string node_id = 1;
+  int64 chat_id = 2;
+  string uuid = 3;
+}
+
+message NoxGetChatFileBytesResponse {
+  string filename = 1;
+  string mime_type = 2;
+  bytes file_bytes = 3;
+  int64 total_bytes = 4;
+}
+
+message NoxWorkspaceStorageStatsRequest {
+  string node_id = 1;
+}
+
+message NoxChatFileUsage {
+  int64 chat_id = 1;
+  uint32 file_count = 2;
+  int64 total_bytes = 3;
+  uint32 image_count = 4;
+  uint32 video_count = 5;
+  uint32 document_count = 6;
+  uint32 saved_file_count = 7;
+  string oldest = 8;
+  string newest = 9;
+}
+
+message NoxWorkspaceStorageStatsResponse {
+  int64 total_bytes = 1;
+  uint32 file_count = 2;
+  int64 max_total_bytes = 3;
+  int64 max_bytes_per_chat = 4;
+  int64 image_bytes = 5;
+  int64 document_bytes = 6;
+  int64 file_bytes = 7;
+  repeated NoxChatFileUsage chats = 8;
+}
+
+message NoxSweepChatFilesRequest {
+  string node_id = 1;
+  int64 chat_id = 2;            // 0 = all chats
+  repeated string uuids = 3;    // optional explicit deletions
+  double older_than_days = 4;   // 0 = no age filter
+  uint32 keep_recent = 5;       // newest N per chat are kept
+  string kind_filter = 6;       // optional: filter sweep by kind/store
+  bool dry_run = 7;
+}
+
+message NoxSweepChatFilesResponse {
+  uint32 deleted_count = 1;
+  int64 freed_bytes = 2;
+  repeated string protected_job_files = 3;
+}
+
+// ------------------------------------------------------------------------------
 // User Profiles & Avatars
 // ------------------------------------------------------------------------------
 message NoxUserProfile {
@@ -823,4 +957,132 @@ message NoxSearchLogsResponse {
  uint64 corrupt_chunks = 9;
  int64 took_ms = 10;
  string generation = 11;
+}
+
+// ==============================================================================
+// Tips: short prompt tips retrieved by relevance to the recent chat messages.
+// ==============================================================================
+message NoxTipItem {
+  string id = 1;                 // "T-1a2b3c4d"
+  string text = 2;               // the tip shown to the model
+  string trigger = 3;            // optional "when to use" text; matched instead of `text` when set
+  string scope_kind = 4;         // "global" | "chat" | "persona"
+  string scope_value = 5;        // "" | chat id as text | persona key (lower-case)
+  string author = 6;             // "studio" | "nox"
+  string status = 7;             // "active" | "proposed" (waiting for approval) | "rejected"
+  bool enabled = 8;
+  string state = 9;              // embedding state: "pending" | "ready" | "failed"
+  string error = 10;             // embedding error when state == "failed"
+  uint32 use_count = 11;
+  int64 last_used_at_unix_sec = 12;
+  int64 created_at_unix_sec = 13;
+  int64 updated_at_unix_sec = 14;
+  int64 created_chat_id = 15;    // chat where Nox wrote/proposed it (0 = n/a)
+}
+
+message NoxTipSettings {
+  bool enabled = 1;
+  double min_relevance = 2;
+  uint32 max_tips = 3;
+  uint32 max_tip_chars = 4;
+  uint32 max_trigger_chars = 5;
+  uint32 max_tips_per_chat = 6;
+  uint32 query_messages = 7;
+  uint32 repeat_after_turns = 8;
+}
+
+message NoxTipListRequest {
+  string node_id = 1;
+  string scope_kind = 2;         // "" = any
+  string scope_value = 3;
+  string status = 4;             // "" = any
+  string state = 5;              // "" = any
+  string author = 6;             // "" = any
+  string text = 7;               // substring filter on text/trigger
+  uint32 limit = 8;
+  uint32 offset = 9;
+}
+
+message NoxTipListResponse {
+  repeated NoxTipItem tips = 1;
+  uint32 total_count = 2;
+  uint32 queue_size = 3;         // tips still waiting to be embedded
+  uint32 proposed_count = 4;     // tips waiting for approval (all scopes)
+  NoxTipSettings settings = 5;
+}
+
+message NoxTipScored {
+  NoxTipItem tip = 1;
+  double score = 2;              // cosine similarity
+}
+
+message NoxTipSearchRequest {
+  string node_id = 1;
+  string query = 2;
+  string scope_kind = 3;
+  string scope_value = 4;
+  uint32 limit = 5;
+}
+
+message NoxTipSearchResponse {
+  repeated NoxTipScored results = 1;
+}
+
+message NoxAddTipsRequest {
+  string node_id = 1;
+  string raw_text = 2;           // one or many tips separated by a blank line; a first line "when: ..." is the trigger
+  string scope_kind = 3;         // default "global"
+  string scope_value = 4;
+}
+
+message NoxTipRejected {
+  string text = 1;
+  string reason = 2;             // empty | too_long | trigger_too_long | bad_scope | duplicate
+}
+
+message NoxAddTipsResponse {
+  repeated NoxTipItem added = 1;
+  repeated NoxTipRejected rejected = 2;
+  uint32 queue_size = 3;
+}
+
+message NoxUpdateTipRequest {
+  string node_id = 1;
+  string id = 2;
+  bool set_text = 3;
+  string text = 4;
+  bool set_trigger = 5;          // with an empty trigger: clear it
+  string trigger = 6;
+  bool set_enabled = 7;
+  bool enabled = 8;
+  string status = 9;             // "" = unchanged; "active" approves, "rejected" rejects
+  bool set_scope = 10;
+  string scope_kind = 11;
+  string scope_value = 12;
+}
+
+message NoxDeleteTipsRequest {
+  string node_id = 1;
+  repeated string ids = 2;
+}
+
+message NoxTipMutationResponse {
+  bool success = 1;
+  string message = 2;            // reason code or human text on failure
+  NoxTipItem tip = 3;            // the tip after an update
+  uint32 affected = 4;           // rows deleted
+  uint32 queue_size = 5;
+}
+
+message NoxTestTipsRequest {
+  string node_id = 1;
+  string text = 2;               // a chat snippet
+  int64 chat_id = 3;             // 0 = no chat scope
+  string persona_key = 4;        // "" = no persona scope
+}
+
+message NoxTestTipsResponse {
+  double threshold = 1;
+  repeated NoxTipScored shown = 2;
+  repeated NoxTipScored below_threshold = 3;
 }

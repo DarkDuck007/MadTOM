@@ -53,9 +53,20 @@ const (
 	NoxChatControlService_GetChatImage_FullMethodName               = "/madtom.v1.NoxChatControlService/GetChatImage"
 	NoxChatControlService_GetImageStorageStats_FullMethodName       = "/madtom.v1.NoxChatControlService/GetImageStorageStats"
 	NoxChatControlService_SweepChatImages_FullMethodName            = "/madtom.v1.NoxChatControlService/SweepChatImages"
+	NoxChatControlService_ListChatFiles_FullMethodName              = "/madtom.v1.NoxChatControlService/ListChatFiles"
+	NoxChatControlService_GetChatFilePreview_FullMethodName         = "/madtom.v1.NoxChatControlService/GetChatFilePreview"
+	NoxChatControlService_GetChatFileBytes_FullMethodName           = "/madtom.v1.NoxChatControlService/GetChatFileBytes"
+	NoxChatControlService_GetWorkspaceStorageStats_FullMethodName   = "/madtom.v1.NoxChatControlService/GetWorkspaceStorageStats"
+	NoxChatControlService_SweepChatFiles_FullMethodName             = "/madtom.v1.NoxChatControlService/SweepChatFiles"
 	NoxChatControlService_QueryUserProfiles_FullMethodName          = "/madtom.v1.NoxChatControlService/QueryUserProfiles"
 	NoxChatControlService_SearchUserProfiles_FullMethodName         = "/madtom.v1.NoxChatControlService/SearchUserProfiles"
 	NoxChatControlService_GetUserProfilePhoto_FullMethodName        = "/madtom.v1.NoxChatControlService/GetUserProfilePhoto"
+	NoxChatControlService_ListTips_FullMethodName                   = "/madtom.v1.NoxChatControlService/ListTips"
+	NoxChatControlService_SearchTips_FullMethodName                 = "/madtom.v1.NoxChatControlService/SearchTips"
+	NoxChatControlService_AddTips_FullMethodName                    = "/madtom.v1.NoxChatControlService/AddTips"
+	NoxChatControlService_UpdateTip_FullMethodName                  = "/madtom.v1.NoxChatControlService/UpdateTip"
+	NoxChatControlService_DeleteTips_FullMethodName                 = "/madtom.v1.NoxChatControlService/DeleteTips"
+	NoxChatControlService_TestTips_FullMethodName                   = "/madtom.v1.NoxChatControlService/TestTips"
 )
 
 // NoxChatControlServiceClient is the client API for NoxChatControlService service.
@@ -111,10 +122,23 @@ type NoxChatControlServiceClient interface {
 	GetChatImage(ctx context.Context, in *NoxGetChatImageRequest, opts ...grpc.CallOption) (*NoxGetChatImageResponse, error)
 	GetImageStorageStats(ctx context.Context, in *NoxImageStorageStatsRequest, opts ...grpc.CallOption) (*NoxImageStorageStatsResponse, error)
 	SweepChatImages(ctx context.Context, in *NoxSweepChatImagesRequest, opts ...grpc.CallOption) (*NoxSweepChatImagesResponse, error)
+	// Chat Files (Unified Workspace storage: IMG, VID, DOC, FILE; chat-bound)
+	ListChatFiles(ctx context.Context, in *NoxListChatFilesRequest, opts ...grpc.CallOption) (*NoxListChatFilesResponse, error)
+	GetChatFilePreview(ctx context.Context, in *NoxGetChatFilePreviewRequest, opts ...grpc.CallOption) (*NoxGetChatFilePreviewResponse, error)
+	GetChatFileBytes(ctx context.Context, in *NoxGetChatFileBytesRequest, opts ...grpc.CallOption) (*NoxGetChatFileBytesResponse, error)
+	GetWorkspaceStorageStats(ctx context.Context, in *NoxWorkspaceStorageStatsRequest, opts ...grpc.CallOption) (*NoxWorkspaceStorageStatsResponse, error)
+	SweepChatFiles(ctx context.Context, in *NoxSweepChatFilesRequest, opts ...grpc.CallOption) (*NoxSweepChatFilesResponse, error)
 	// User Profiles & Avatars
 	QueryUserProfiles(ctx context.Context, in *NoxUserProfileQueryRequest, opts ...grpc.CallOption) (*NoxUserProfileQueryResponse, error)
 	SearchUserProfiles(ctx context.Context, in *NoxUserProfileSearchRequest, opts ...grpc.CallOption) (*NoxUserProfileSearchResponse, error)
 	GetUserProfilePhoto(ctx context.Context, in *NoxUserProfilePhotoRequest, opts ...grpc.CallOption) (*NoxUserProfilePhotoResponse, error)
+	// Tips (short prompt tips in their own vector space; scope: global / one chat / one persona)
+	ListTips(ctx context.Context, in *NoxTipListRequest, opts ...grpc.CallOption) (*NoxTipListResponse, error)
+	SearchTips(ctx context.Context, in *NoxTipSearchRequest, opts ...grpc.CallOption) (*NoxTipSearchResponse, error)
+	AddTips(ctx context.Context, in *NoxAddTipsRequest, opts ...grpc.CallOption) (*NoxAddTipsResponse, error)
+	UpdateTip(ctx context.Context, in *NoxUpdateTipRequest, opts ...grpc.CallOption) (*NoxTipMutationResponse, error)
+	DeleteTips(ctx context.Context, in *NoxDeleteTipsRequest, opts ...grpc.CallOption) (*NoxTipMutationResponse, error)
+	TestTips(ctx context.Context, in *NoxTestTipsRequest, opts ...grpc.CallOption) (*NoxTestTipsResponse, error)
 }
 
 type noxChatControlServiceClient struct {
@@ -492,6 +516,56 @@ func (c *noxChatControlServiceClient) SweepChatImages(ctx context.Context, in *N
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) ListChatFiles(ctx context.Context, in *NoxListChatFilesRequest, opts ...grpc.CallOption) (*NoxListChatFilesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxListChatFilesResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListChatFiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetChatFilePreview(ctx context.Context, in *NoxGetChatFilePreviewRequest, opts ...grpc.CallOption) (*NoxGetChatFilePreviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxGetChatFilePreviewResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetChatFilePreview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetChatFileBytes(ctx context.Context, in *NoxGetChatFileBytesRequest, opts ...grpc.CallOption) (*NoxGetChatFileBytesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxGetChatFileBytesResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetChatFileBytes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetWorkspaceStorageStats(ctx context.Context, in *NoxWorkspaceStorageStatsRequest, opts ...grpc.CallOption) (*NoxWorkspaceStorageStatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxWorkspaceStorageStatsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetWorkspaceStorageStats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) SweepChatFiles(ctx context.Context, in *NoxSweepChatFilesRequest, opts ...grpc.CallOption) (*NoxSweepChatFilesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSweepChatFilesResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_SweepChatFiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *noxChatControlServiceClient) QueryUserProfiles(ctx context.Context, in *NoxUserProfileQueryRequest, opts ...grpc.CallOption) (*NoxUserProfileQueryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(NoxUserProfileQueryResponse)
@@ -516,6 +590,66 @@ func (c *noxChatControlServiceClient) GetUserProfilePhoto(ctx context.Context, i
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(NoxUserProfilePhotoResponse)
 	err := c.cc.Invoke(ctx, NoxChatControlService_GetUserProfilePhoto_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListTips(ctx context.Context, in *NoxTipListRequest, opts ...grpc.CallOption) (*NoxTipListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxTipListResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListTips_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) SearchTips(ctx context.Context, in *NoxTipSearchRequest, opts ...grpc.CallOption) (*NoxTipSearchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxTipSearchResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_SearchTips_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) AddTips(ctx context.Context, in *NoxAddTipsRequest, opts ...grpc.CallOption) (*NoxAddTipsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxAddTipsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_AddTips_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) UpdateTip(ctx context.Context, in *NoxUpdateTipRequest, opts ...grpc.CallOption) (*NoxTipMutationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxTipMutationResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_UpdateTip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) DeleteTips(ctx context.Context, in *NoxDeleteTipsRequest, opts ...grpc.CallOption) (*NoxTipMutationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxTipMutationResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_DeleteTips_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) TestTips(ctx context.Context, in *NoxTestTipsRequest, opts ...grpc.CallOption) (*NoxTestTipsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxTestTipsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_TestTips_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -575,10 +709,23 @@ type NoxChatControlServiceServer interface {
 	GetChatImage(context.Context, *NoxGetChatImageRequest) (*NoxGetChatImageResponse, error)
 	GetImageStorageStats(context.Context, *NoxImageStorageStatsRequest) (*NoxImageStorageStatsResponse, error)
 	SweepChatImages(context.Context, *NoxSweepChatImagesRequest) (*NoxSweepChatImagesResponse, error)
+	// Chat Files (Unified Workspace storage: IMG, VID, DOC, FILE; chat-bound)
+	ListChatFiles(context.Context, *NoxListChatFilesRequest) (*NoxListChatFilesResponse, error)
+	GetChatFilePreview(context.Context, *NoxGetChatFilePreviewRequest) (*NoxGetChatFilePreviewResponse, error)
+	GetChatFileBytes(context.Context, *NoxGetChatFileBytesRequest) (*NoxGetChatFileBytesResponse, error)
+	GetWorkspaceStorageStats(context.Context, *NoxWorkspaceStorageStatsRequest) (*NoxWorkspaceStorageStatsResponse, error)
+	SweepChatFiles(context.Context, *NoxSweepChatFilesRequest) (*NoxSweepChatFilesResponse, error)
 	// User Profiles & Avatars
 	QueryUserProfiles(context.Context, *NoxUserProfileQueryRequest) (*NoxUserProfileQueryResponse, error)
 	SearchUserProfiles(context.Context, *NoxUserProfileSearchRequest) (*NoxUserProfileSearchResponse, error)
 	GetUserProfilePhoto(context.Context, *NoxUserProfilePhotoRequest) (*NoxUserProfilePhotoResponse, error)
+	// Tips (short prompt tips in their own vector space; scope: global / one chat / one persona)
+	ListTips(context.Context, *NoxTipListRequest) (*NoxTipListResponse, error)
+	SearchTips(context.Context, *NoxTipSearchRequest) (*NoxTipSearchResponse, error)
+	AddTips(context.Context, *NoxAddTipsRequest) (*NoxAddTipsResponse, error)
+	UpdateTip(context.Context, *NoxUpdateTipRequest) (*NoxTipMutationResponse, error)
+	DeleteTips(context.Context, *NoxDeleteTipsRequest) (*NoxTipMutationResponse, error)
+	TestTips(context.Context, *NoxTestTipsRequest) (*NoxTestTipsResponse, error)
 	mustEmbedUnimplementedNoxChatControlServiceServer()
 }
 
@@ -691,6 +838,21 @@ func (UnimplementedNoxChatControlServiceServer) GetImageStorageStats(context.Con
 func (UnimplementedNoxChatControlServiceServer) SweepChatImages(context.Context, *NoxSweepChatImagesRequest) (*NoxSweepChatImagesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SweepChatImages not implemented")
 }
+func (UnimplementedNoxChatControlServiceServer) ListChatFiles(context.Context, *NoxListChatFilesRequest) (*NoxListChatFilesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListChatFiles not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetChatFilePreview(context.Context, *NoxGetChatFilePreviewRequest) (*NoxGetChatFilePreviewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChatFilePreview not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetChatFileBytes(context.Context, *NoxGetChatFileBytesRequest) (*NoxGetChatFileBytesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChatFileBytes not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetWorkspaceStorageStats(context.Context, *NoxWorkspaceStorageStatsRequest) (*NoxWorkspaceStorageStatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkspaceStorageStats not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) SweepChatFiles(context.Context, *NoxSweepChatFilesRequest) (*NoxSweepChatFilesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SweepChatFiles not implemented")
+}
 func (UnimplementedNoxChatControlServiceServer) QueryUserProfiles(context.Context, *NoxUserProfileQueryRequest) (*NoxUserProfileQueryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method QueryUserProfiles not implemented")
 }
@@ -699,6 +861,24 @@ func (UnimplementedNoxChatControlServiceServer) SearchUserProfiles(context.Conte
 }
 func (UnimplementedNoxChatControlServiceServer) GetUserProfilePhoto(context.Context, *NoxUserProfilePhotoRequest) (*NoxUserProfilePhotoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserProfilePhoto not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListTips(context.Context, *NoxTipListRequest) (*NoxTipListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListTips not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) SearchTips(context.Context, *NoxTipSearchRequest) (*NoxTipSearchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchTips not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) AddTips(context.Context, *NoxAddTipsRequest) (*NoxAddTipsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AddTips not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) UpdateTip(context.Context, *NoxUpdateTipRequest) (*NoxTipMutationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateTip not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) DeleteTips(context.Context, *NoxDeleteTipsRequest) (*NoxTipMutationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteTips not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) TestTips(context.Context, *NoxTestTipsRequest) (*NoxTestTipsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TestTips not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) mustEmbedUnimplementedNoxChatControlServiceServer() {}
 func (UnimplementedNoxChatControlServiceServer) testEmbeddedByValue()                               {}
@@ -1312,6 +1492,96 @@ func _NoxChatControlService_SweepChatImages_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_ListChatFiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxListChatFilesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListChatFiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListChatFiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListChatFiles(ctx, req.(*NoxListChatFilesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetChatFilePreview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxGetChatFilePreviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetChatFilePreview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetChatFilePreview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetChatFilePreview(ctx, req.(*NoxGetChatFilePreviewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetChatFileBytes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxGetChatFileBytesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetChatFileBytes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetChatFileBytes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetChatFileBytes(ctx, req.(*NoxGetChatFileBytesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetWorkspaceStorageStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxWorkspaceStorageStatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetWorkspaceStorageStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetWorkspaceStorageStats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetWorkspaceStorageStats(ctx, req.(*NoxWorkspaceStorageStatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_SweepChatFiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSweepChatFilesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).SweepChatFiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_SweepChatFiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).SweepChatFiles(ctx, req.(*NoxSweepChatFilesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _NoxChatControlService_QueryUserProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(NoxUserProfileQueryRequest)
 	if err := dec(in); err != nil {
@@ -1362,6 +1632,114 @@ func _NoxChatControlService_GetUserProfilePhoto_Handler(srv interface{}, ctx con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NoxChatControlServiceServer).GetUserProfilePhoto(ctx, req.(*NoxUserProfilePhotoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListTips_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxTipListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListTips(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListTips_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListTips(ctx, req.(*NoxTipListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_SearchTips_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxTipSearchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).SearchTips(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_SearchTips_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).SearchTips(ctx, req.(*NoxTipSearchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_AddTips_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxAddTipsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).AddTips(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_AddTips_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).AddTips(ctx, req.(*NoxAddTipsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_UpdateTip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxUpdateTipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).UpdateTip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_UpdateTip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).UpdateTip(ctx, req.(*NoxUpdateTipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_DeleteTips_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxDeleteTipsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).DeleteTips(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_DeleteTips_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).DeleteTips(ctx, req.(*NoxDeleteTipsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_TestTips_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxTestTipsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).TestTips(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_TestTips_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).TestTips(ctx, req.(*NoxTestTipsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1498,6 +1876,26 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NoxChatControlService_SweepChatImages_Handler,
 		},
 		{
+			MethodName: "ListChatFiles",
+			Handler:    _NoxChatControlService_ListChatFiles_Handler,
+		},
+		{
+			MethodName: "GetChatFilePreview",
+			Handler:    _NoxChatControlService_GetChatFilePreview_Handler,
+		},
+		{
+			MethodName: "GetChatFileBytes",
+			Handler:    _NoxChatControlService_GetChatFileBytes_Handler,
+		},
+		{
+			MethodName: "GetWorkspaceStorageStats",
+			Handler:    _NoxChatControlService_GetWorkspaceStorageStats_Handler,
+		},
+		{
+			MethodName: "SweepChatFiles",
+			Handler:    _NoxChatControlService_SweepChatFiles_Handler,
+		},
+		{
 			MethodName: "QueryUserProfiles",
 			Handler:    _NoxChatControlService_QueryUserProfiles_Handler,
 		},
@@ -1508,6 +1906,30 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserProfilePhoto",
 			Handler:    _NoxChatControlService_GetUserProfilePhoto_Handler,
+		},
+		{
+			MethodName: "ListTips",
+			Handler:    _NoxChatControlService_ListTips_Handler,
+		},
+		{
+			MethodName: "SearchTips",
+			Handler:    _NoxChatControlService_SearchTips_Handler,
+		},
+		{
+			MethodName: "AddTips",
+			Handler:    _NoxChatControlService_AddTips_Handler,
+		},
+		{
+			MethodName: "UpdateTip",
+			Handler:    _NoxChatControlService_UpdateTip_Handler,
+		},
+		{
+			MethodName: "DeleteTips",
+			Handler:    _NoxChatControlService_DeleteTips_Handler,
+		},
+		{
+			MethodName: "TestTips",
+			Handler:    _NoxChatControlService_TestTips_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

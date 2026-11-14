@@ -830,6 +830,67 @@ func (s *Server) DeleteMemory(ctx context.Context, req *madtomv1.NoxDeleteMemory
 	return &resp, nil
 }
 
+// Tips
+func (s *Server) ListTips(ctx context.Context, req *madtomv1.NoxTipListRequest) (*madtomv1.NoxTipListResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("list_tips", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxTipListResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) SearchTips(ctx context.Context, req *madtomv1.NoxTipSearchRequest) (*madtomv1.NoxTipSearchResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("search_tips", req, 20*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxTipSearchResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) AddTips(ctx context.Context, req *madtomv1.NoxAddTipsRequest) (*madtomv1.NoxAddTipsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("add_tips", req, 30*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxAddTipsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) UpdateTip(ctx context.Context, req *madtomv1.NoxUpdateTipRequest) (*madtomv1.NoxTipMutationResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("update_tip", req, 20*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxTipMutationResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) DeleteTips(ctx context.Context, req *madtomv1.NoxDeleteTipsRequest) (*madtomv1.NoxTipMutationResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("delete_tips", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxTipMutationResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) TestTips(ctx context.Context, req *madtomv1.NoxTestTipsRequest) (*madtomv1.NoxTestTipsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("test_tips", req, 20*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxTestTipsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
 func (s *Server) ListHotMemories(ctx context.Context, req *madtomv1.NoxHotMemoryRequest) (*madtomv1.NoxHotMemoryResponse, error) {
 	reply, err := s.bridgeClient.CallRpc("list_hot_memories", req, 10*time.Second)
 	if err != nil {
@@ -995,6 +1056,72 @@ func (s *Server) SweepChatImages(ctx context.Context, req *madtomv1.NoxSweepChat
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	var resp madtomv1.NoxSweepChatImagesResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+// Chat Files (Unified Workspace) — passthroughs to the NoxChat Python RPC handlers.
+func (s *Server) ListChatFiles(ctx context.Context, req *madtomv1.NoxListChatFilesRequest) (*madtomv1.NoxListChatFilesResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "list_chat_files", req, 20*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxListChatFilesResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) GetChatFilePreview(ctx context.Context, req *madtomv1.NoxGetChatFilePreviewRequest) (*madtomv1.NoxGetChatFilePreviewResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "get_chat_file_preview", req, 60*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxGetChatFilePreviewResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) GetChatFileBytes(ctx context.Context, req *madtomv1.NoxGetChatFileBytesRequest) (*madtomv1.NoxGetChatFileBytesResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "get_chat_file_bytes", req, 60*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxGetChatFileBytesResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) GetWorkspaceStorageStats(ctx context.Context, req *madtomv1.NoxWorkspaceStorageStatsRequest) (*madtomv1.NoxWorkspaceStorageStatsResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "get_workspace_storage_stats", req, 20*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxWorkspaceStorageStatsResponse
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		_ = json.Unmarshal(reply.Payload, &resp)
+	}
+	return &resp, nil
+}
+
+func (s *Server) SweepChatFiles(ctx context.Context, req *madtomv1.NoxSweepChatFilesRequest) (*madtomv1.NoxSweepChatFilesResponse, error) {
+	reply, err := s.bridgeClient.CallRpcContext(ctx, "sweep_chat_files", req, 120*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSweepChatFilesResponse
 	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
 	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
 		_ = json.Unmarshal(reply.Payload, &resp)
