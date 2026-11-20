@@ -23,5 +23,20 @@
     - test_record_for_document_kind
     - test_run_python_sandbox: NO_HOME fails because the uv venv lives under /home; it fails on HEAD too.
     - test_cron_create_validation: croniter is missing in the local env.
-- [ ] Phase 5: tp1 image rebuild, chat VM memory (1024 → 1536 MB suggested), live E2E (vm studio job, chart→appendix steer, Nox self-made PDF)
-- [ ] Follow-up: MADTOM Studio UI shows the executor per doc job (agy). The doc_gen.sandbox settings are visible in config RPCs only.
+- [x] Phase 5 (deployed to tp1 2026-11-20):
+  - `sandbox.chat_vm.mem_mb: 1536` in tp1 config.yaml (reload confirmed).
+  - Image 2026.11.20-5, then -6. Live testing found a real bug: shell execs run `bash -lc`, Debian's /etc/profile reset PATH, so `python3` in a shell was the system interpreter without the compute packages. That broke `python3 -m noxdoc` and the Studio VM executor. Fix: /etc/profile.d/00-nox-venv.sh plus a build gate.
+  - vmexec: `studio:old_image` refusal for VMs resumed from a pre-noxdoc snapshot; the matplotlib font cache is seeded from /opt/mplcache (a read-only MPLCONFIGDIR is ignored by matplotlib).
+  - doc_jobs: `auto` falls back to bwrap on any health-check error. tests: doc_service fixture pins executor=bwrap (on tp1, `chats: all` made 10 tests hit the real sandbox).
+  - Chat VMs on old snapshots restarted (versions_in_use now only the current image).
+  - Live E2E #1 (Nox self-made PDF in chat 1998313581): `python3 -m noxdoc render-pdf` RTL Persian + Inter + colour emoji + matplotlib chart. 1 page, lint clean, matplotlib 0.8 s, render 3 s, preview checked by eye.
+  - Live E2E #2 (Studio executor=vm, real bridge + agy studio agent + MCP): inspect_input → run_python (matplotlib) → render_pdf (Chromium) → submit, 123 s. Host mirror got the HTML, chart, PDF and previews; the guest had /data/studio/<job> with `current`. Persian RTL report checked by eye.
+  - Not run live: the chart→appendix steer with /data inputs (covered by unit tests).
+  - E2E artifacts removed (host job dir, guest /data/e2e, /data/studio job, /data/documents copy).
+  - tp1 tests: doc studio/vmexec/noxdoc 65 pass (1 pre-existing failure, test_record_for_document_kind); bridge 55 pass.
+- [x] MADTOM Studio (agy gemini-4-neon-medium, reviewed; tests mine):
+  - proto: NoxJobProgressEvent.executor, NoxActiveJobsResponse.doc_gen, NoxSandboxVmInfo.snapshot_quota_bytes and cpu_resets_at;
+  - nox-sandbox reports the next local-midnight reset and the snapshot quota;
+  - Active Jobs shows an executor pill, a doc_gen settings line and a details panel;
+  - Sandbox → Budgets shows per-chat CPU, disk and snapshot use with near/exceeded states and a reset countdown.
+  - Tests: Go manager plus decode, and C# ExecutorAndBudgetTests (131/131).
