@@ -31,8 +31,11 @@ public sealed partial class MemoryItemModel : ObservableObject
 
 public sealed partial class HotMemoryItemModel : ObservableObject
 {
+    public long ChatId { get; init; }
     public string Key { get; init; } = string.Empty;
     public string Content { get; set; } = string.Empty;
+    public bool HasChatId => ChatId != 0;
+    public string ChatIdDisplay => ChatId != 0 ? $"Chat {ChatId}" : string.Empty;
 
     public Avalonia.Media.FlowDirection FlowDirection => NoxChatSessionParser.IsRtl(Content) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
     public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(Content) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
@@ -232,6 +235,7 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
             {
                 HotMemories.Add(new HotMemoryItemModel
                 {
+                    ChatId = h.ChatId,
                     Key = h.Key,
                     Content = h.Content
                 });
@@ -354,6 +358,27 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusText = $"Failed to add hot memory: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task DeleteHotMemory(HotMemoryItemModel? item)
+    {
+        if (item == null || SelectedNode == null) return;
+        try
+        {
+            var client = _nodeManager.GetClient(SelectedNode);
+            await client.DeleteHotMemoryAsync(new NoxDeleteHotMemoryRequest
+            {
+                NodeId = SelectedNode.Id,
+                ChatId = item.ChatId,
+                Key = item.Key
+            });
+            await RefreshMemories();
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Failed to delete hot memory: {ex.Message}";
         }
     }
 

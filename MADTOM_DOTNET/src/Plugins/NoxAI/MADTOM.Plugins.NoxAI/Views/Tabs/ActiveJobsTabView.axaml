@@ -36,7 +36,7 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                                         <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="1" Height="6"/>
-                                        <TextBlock Text="{Binding Details}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        <TextBlock Text="{Binding Details}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                     <TextBlock Grid.Column="2" Text="{Binding ElapsedFormatted}" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"/>
                                 </Grid>

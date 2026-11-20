@@ -23,6 +23,7 @@ public sealed partial class ActiveJobItemModel : ObservableObject
     public string JobTypeLabel => JobType switch
     {
         "image_studio" => "🖼 Image Studio",
+        "doc_studio" or "document_studio" => "📄 Document Studio",
         "sticker_pack_analysis" => "📦 Sticker pack analysis",
         "sticker_map" => "🗺 Sticker map",
         "sticker_reduce" => "🧩 Sticker reduce",

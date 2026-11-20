@@ -42,33 +42,49 @@
                                 <TextBlock Text="🔥 HOT CONVERSATION SCRATCHPAD (ACTIVE TOPICS &amp; THREAD NOTES)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
                                 <Button Grid.Column="1" Command="{Binding RefreshMemoriesCommand}" Content="Refresh" Padding="6,2" FontSize="10"/>
                             </Grid>
-                            <ItemsControl ItemsSource="{Binding HotMemories}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:HotMemoryItemModel">
-                                        <Border Background="{DynamicResource DarkBaseBrush}"
-                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="6"
-                                                Padding="8,4"
-                                                Margin="0,0,8,6">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                                <TextBlock Text=":" FontSize="11" Foreground="{DynamicResource TextMutedBrush}"/>
-                                                <TextBlock Text="{Binding Content}"
-                                                           FlowDirection="{Binding FlowDirection}"
-                                                           TextAlignment="{Binding TextAlignment}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding HotMemories}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:HotMemoryItemModel">
+                                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8,5"
+                                                    Margin="0,0,0,6">
+                                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="3">
+                                                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="5,1"
+                                                                IsVisible="{Binding HasChatId}">
+                                                            <TextBlock Text="{Binding ChatIdDisplay}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <Button Grid.Row="0" Grid.Column="1"
+                                                            Command="{Binding $parent[UserControl].((vm:MemoriesRagTabViewModel)DataContext).DeleteHotMemoryCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Content="✕"
+                                                            ToolTip.Tip="Clear hot memory"
+                                                            Padding="5,1"
+                                                            FontSize="10"
+                                                            Foreground="{DynamicResource CriticalBrush}"/>
+                                                    <SelectableTextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                                         Text="{Binding Content}"
+                                                                         FlowDirection="{Binding FlowDirection}"
+                                                                         TextAlignment="{Binding TextAlignment}"
+                                                                         TextWrapping="Wrap"
+                                                                         FontSize="11"
+                                                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </StackPanel>
                     </Border>
 
