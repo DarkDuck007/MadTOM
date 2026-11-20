@@ -88,10 +88,13 @@ type LibraryRequests struct {
 }
 
 type Sandbox struct {
-	Enabled                     bool            `yaml:"enabled"`
-	SocketPath                  string          `yaml:"socket_path"`
-	EnabledChats                []int64         `yaml:"enabled_chats"`
-	AllowAllChats               bool            `yaml:"allow_all_chats"`
+	Enabled       bool    `yaml:"enabled"`
+	SocketPath    string  `yaml:"socket_path"`
+	EnabledChats  []int64 `yaml:"enabled_chats"`
+	AllowAllChats bool    `yaml:"allow_all_chats"` // legacy: same as chats: all
+	// Chats selects which chats get a VM: "all", "whitelist" (enabled_chats + runtime grants) or "none".
+	// Empty means "all" when AllowAllChats is set, else "whitelist" (mirrors NoxChat SandboxConfig).
+	Chats                       string          `yaml:"chats"`
 	AllowGuestChats             bool            `yaml:"allow_guest_chats"`
 	ClientTimeoutMarginSeconds  int             `yaml:"client_timeout_margin_seconds"`
 	ChatVM                      ChatVM          `yaml:"chat_vm"`
@@ -272,9 +275,21 @@ func loadSandbox(host Host) Sandbox {
 	return sandbox
 }
 
+// ChatMode resolves Chats with the legacy allow_all_chats fallback.
+func (cfg Sandbox) ChatMode() string {
+	if cfg.Chats != "" {
+		return cfg.Chats
+	}
+	if cfg.AllowAllChats {
+		return "all"
+	}
+	return "whitelist"
+}
+
 func (cfg Sandbox) valid() bool {
 	_, err := time.Parse("15:04", cfg.LibraryRequests.RebuildWindowLocal)
-	return err == nil && cfg.BackupHourLocal >= 0 && cfg.BackupHourLocal < 24 && cfg.DiskWatermarkPercent <= 100 &&
+	mode := cfg.ChatMode()
+	return err == nil && (mode == "all" || mode == "whitelist" || mode == "none") && cfg.BackupHourLocal >= 0 && cfg.BackupHourLocal < 24 && cfg.DiskWatermarkPercent <= 100 &&
 		cfg.BackupsKeep >= 0 && cfg.TempVM.PoolSize >= 0 && cfg.PreVM.PoolSize >= 0 && cfg.DiskIndexEntries >= 0 && cfg.Global.QueueTimeoutSeconds >= 0 &&
 		positive(cfg.ChatVM.MemMB, cfg.ChatVM.VCPUs, cfg.ChatVM.CPUQuotaPercent, cfg.ChatVM.DiskGB, cfg.ChatVM.DiskBwMBs, cfg.ChatVM.DiskIOPS, cfg.ChatVM.PidsMax,
 			cfg.TempVM.MemMB, cfg.TempVM.VCPUs, cfg.TempVM.CPUQuotaPercent, cfg.TempVM.TmpDiskMB, cfg.PreVM.MemMB, cfg.PreVM.VCPUs, cfg.PreVM.CPUQuotaPercent, cfg.PreVM.ExecTimeoutMS,

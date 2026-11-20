@@ -535,3 +535,35 @@ func TestPreRunStateRoundTrip(t *testing.T) {
 		t.Fatalf("pre run in a disabled chat: %v", err)
 	}
 }
+
+func TestAllowedHonoursChatsMode(t *testing.T) {
+	base := config.Defaults()
+	base.Enabled, base.EnabledChats = true, []int64{5}
+	cases := []struct {
+		chats   string
+		allAll  bool
+		id      int64
+		granted bool
+		ok      bool
+	}{
+		{"all", false, 9, false, true},
+		{"whitelist", false, 5, false, true},
+		{"whitelist", false, 9, true, true},
+		{"whitelist", false, 9, false, false},
+		{"whitelist", true, 9, false, false}, // explicit chats wins over legacy allow_all_chats
+		{"", true, 9, false, true},           // legacy
+		{"none", false, 5, true, false},
+	}
+	for _, c := range cases {
+		cfg := base
+		cfg.Chats, cfg.AllowAllChats = c.chats, c.allAll
+		if err := allowed(cfg, c.id, c.granted); (err == nil) != c.ok {
+			t.Fatalf("%+v: err=%v", c, err)
+		}
+	}
+	off := base
+	off.Enabled, off.Chats = false, "all"
+	if allowed(off, 5, true) == nil {
+		t.Fatal("disabled sandbox must refuse")
+	}
+}

@@ -28,10 +28,15 @@ func allowed(cfg config.Sandbox, id int64, granted bool) error {
 	if !cfg.Enabled {
 		return Err("disabled", "sandbox is disabled")
 	}
-	if !cfg.AllowAllChats && !granted && !slices.Contains(cfg.EnabledChats, id) {
-		return Err("forbidden", "chat not enabled")
+	switch cfg.ChatMode() {
+	case "all":
+		return nil
+	case "whitelist":
+		if granted || slices.Contains(cfg.EnabledChats, id) {
+			return nil
+		}
 	}
-	return nil
+	return Err("forbidden", "chat not enabled")
 }
 
 func fileName(name string) (string, bool) {
