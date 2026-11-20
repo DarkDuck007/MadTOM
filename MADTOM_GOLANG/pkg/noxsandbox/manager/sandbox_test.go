@@ -3,6 +3,7 @@ package manager
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"image"
 	"image/color"
@@ -503,5 +504,34 @@ func TestRuntimeGrantsEnableChatsAndPersist(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(h.cfg.Host.StateDir, "grants.json")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestPreRunStateRoundTrip(t *testing.T) {
+	h := newHarness(t, func(s *config.Sandbox) { s.AllowAllChats = false; s.EnabledChats = []int64{9} })
+	ctx := context.Background()
+	run := func(code, state string) PreResponse {
+		t.Helper()
+		res, err := h.m.PreRun(ctx, PreRequest{ChatID: 9, Code: code, Event: json.RawMessage(`{"kind":"message"}`), State: json.RawMessage(state)})
+		if err != nil || !res.OK {
+			t.Fatalf("pre run: %v %+v", err, res)
+		}
+		return res
+	}
+	// State returned inside the result object must win over the echoed input state.
+	res := run("COUNT", `{"n": 1}`)
+	if string(res.State) != `{"n":2}` || len(res.Actions) != 1 {
+		t.Fatalf("result-object state lost: state=%s actions=%d", res.State, len(res.Actions))
+	}
+	// `return result, state` form.
+	if res := run("TUPLE", `{"n": 5}`); string(res.State) != `{"n":6}` {
+		t.Fatalf("tuple state lost: %s", res.State)
+	}
+	// No new state: the input is kept.
+	if res := run("PASS", `{"keep": true}`); !strings.Contains(string(res.State), `"keep"`) {
+		t.Fatalf("input state not kept: %s", res.State)
+	}
+	if _, err := h.m.PreRun(ctx, PreRequest{ChatID: 10, Code: "PASS", Event: json.RawMessage(`{}`)}); errCode(err) != "forbidden" {
+		t.Fatalf("pre run in a disabled chat: %v", err)
 	}
 }

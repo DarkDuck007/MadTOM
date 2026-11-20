@@ -99,6 +99,15 @@ service NoxChatControlService {
   rpc GetSandboxImageStatus(NoxSandboxImageStatusRequest) returns (NoxSandboxImageStatusResponse);
   rpc RebuildSandboxImage(NoxSandboxRebuildImageRequest) returns (NoxSandboxRebuildImageResponse);
   rpc ListSandboxRuns(NoxSandboxListRunsRequest) returns (NoxSandboxListRunsResponse);
+
+  // Automation: preprocessors and crons (plans/2026-11-20-preprocessors-crons/contracts.md §8)
+  rpc GetAutomationStatus(NoxAutomationStatusRequest) returns (NoxAutomationStatusResponse);
+  rpc ListPreprocessors(NoxListPreprocessorsRequest) returns (NoxListPreprocessorsResponse);
+  rpc GetPreprocessor(NoxGetPreprocessorRequest) returns (NoxGetPreprocessorResponse);
+  rpc PreprocessorAction(NoxPreprocessorActionRequest) returns (NoxAutomationActionResponse);
+  rpc ListPreprocessorLogs(NoxListPreprocessorLogsRequest) returns (NoxListPreprocessorLogsResponse);
+  rpc ListCrons(NoxListCronsRequest) returns (NoxListCronsResponse);
+  rpc CronAction(NoxCronActionRequest) returns (NoxAutomationActionResponse);
 }
 
 // ------------------------------------------------------------------------------
@@ -1370,4 +1379,151 @@ message NoxSandboxListRunsResponse {
   int32 limit = 3;
   int32 offset = 4;
   string error = 5;
+}
+
+
+// ==============================================================================
+// Automation (preprocessors, crons). Times are UTC RFC3339 strings ("" when unset).
+// Optional chat_id: omitted means all chats.
+// ==============================================================================
+
+message NoxAutomationStatusRequest {
+  optional int64 chat_id = 1;
+}
+
+message NoxAutomationChatStatus {
+  int64 chat_id = 1;
+  string chat_title = 2;
+  int32 preprocessors = 3;
+  int32 enabled_preprocessors = 4;
+  int32 crons = 5;
+  int32 say_streak = 6;
+  int32 runs_last_hour = 7;
+  int32 says_last_hour = 8;
+  int32 fires_today = 9;
+  string next_fire_at = 10;
+}
+
+message NoxAutomationStatusResponse {
+  repeated NoxAutomationChatStatus chats = 1;
+  string config_json = 2;   // effective preprocess + cron config
+  string error = 3;
+}
+
+message NoxAutomationPreprocessor {
+  int64 id = 1;
+  int64 chat_id = 2;
+  string chat_title = 3;
+  string name = 4;
+  string kind = 5;              // code | static
+  repeated string triggers = 6; // message, cron
+  int32 priority = 7;
+  bool enabled = 8;
+  string filter_json = 9;
+  int32 code_bytes = 10;
+  int32 state_bytes = 11;
+  int32 error_count = 12;
+  string last_error = 13;
+  string last_run_at = 14;
+  int64 runs = 15;
+  string created_at = 16;
+  string updated_at = 17;
+  int64 created_by_user_id = 18;
+  string expires_at = 19;
+  string description = 20;
+}
+
+message NoxListPreprocessorsRequest {
+  optional int64 chat_id = 1;
+}
+
+message NoxListPreprocessorsResponse {
+  repeated NoxAutomationPreprocessor preprocessors = 1;
+  string error = 2;
+}
+
+message NoxGetPreprocessorRequest {
+  int64 id = 1;
+}
+
+message NoxGetPreprocessorResponse {
+  NoxAutomationPreprocessor preprocessor = 1;
+  string code = 2;
+  string static_actions_json = 3;
+  string state_json = 4;
+  string error = 5;
+}
+
+message NoxPreprocessorActionRequest {
+  int64 id = 1;
+  string action = 2;   // enable | disable | delete | reset_state | reset_errors
+}
+
+message NoxAutomationActionResponse {
+  bool ok = 1;
+  string error = 2;
+}
+
+message NoxListPreprocessorLogsRequest {
+  optional int64 chat_id = 1;
+  optional int64 preprocessor_id = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message NoxAutomationLogEntry {
+  int64 id = 1;
+  int64 chat_id = 2;
+  int64 preprocessor_id = 3;
+  string preprocessor_name = 4;
+  string at = 5;
+  string event_kind = 6;   // message | cron | test
+  int64 message_id = 7;
+  int64 cron_id = 8;
+  string outcome = 9;      // pass | drop | stop | say | invoke | cron | error | skipped | blocked | immune
+  string detail = 10;
+  int32 duration_ms = 11;
+}
+
+message NoxListPreprocessorLogsResponse {
+  repeated NoxAutomationLogEntry entries = 1;
+  int64 total = 2;
+  string error = 3;
+}
+
+message NoxAutomationCron {
+  int64 id = 1;
+  int64 chat_id = 2;
+  string chat_title = 3;
+  string name = 4;
+  int64 preprocessor_id = 5;
+  string preprocessor_name = 6;
+  string spec_kind = 7;    // at | every | cron
+  string spec = 8;
+  string timezone = 9;
+  string next_fire_at = 10;
+  string last_fire_at = 11;
+  int64 fires = 12;
+  int64 max_fires = 13;
+  bool enabled = 14;
+  int32 depth = 15;
+  int64 origin_cron_id = 16;
+  int64 created_by_user_id = 17;
+  string created_at = 18;
+  string payload_json = 19;
+  string expires_at = 20;
+}
+
+message NoxListCronsRequest {
+  optional int64 chat_id = 1;
+}
+
+message NoxListCronsResponse {
+  repeated NoxAutomationCron crons = 1;
+  string error = 2;
+}
+
+message NoxCronActionRequest {
+  int64 id = 1;
+  string action = 2;   // enable | disable | cancel
 }

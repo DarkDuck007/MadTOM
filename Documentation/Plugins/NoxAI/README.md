@@ -238,3 +238,12 @@ Registered in `MainView.axaml` right after Tips, the **📦 Sandbox** tab monito
 - **Libraries & Image**: Displays the `sandbox_library_requests` queue with status filtering and multi-select approval/rejection (`decided_by="studio"`), alongside guest rootfs image build status, installed/pending `pip` and `apt` packages, active image versions, and on-demand rebuilds (`RebuildSandboxImage`).
 - **Runs**: Paged audit log (`ListSandboxRuns`, limit 50, offset paging, optional `chat_id` filter) displaying execution durations, exit codes, single-line code previews (with full code tooltip), input/export counts, and background job IDs.
 
+## Automation tab (`AutomationTabView` / `AutomationTabViewModel`)
+
+Registered in `MainView.axaml` right after the Sandbox tab, the **🤖 Automation** tab monitors and manages NoxChat's per-chat preprocessors and scheduled crons via `GetAutomationStatus`, `ListPreprocessors`, `GetPreprocessor`, `PreprocessorAction`, `ListPreprocessorLogs`, `ListCrons`, and `CronAction`:
+- **Per-Chat Status Grid**: Displays per-chat preprocessor counts (`enabled / total`), active crons, hourly run/say counters, daily cron fires, next fire timestamp, and consecutive `say` streak (highlighted when `SayStreak >= 4`), with optional `chat_id` filtering and a collapsible **Effective config** JSON viewer.
+- **Preprocessors**: Lists per-chat `code` and `static` preprocessors with triggers (`message`, `cron`), run counts, and error tracking. Selecting a row loads its verbatim Python code, persisted state JSON, and static actions JSON into read-only monospace text boxes (no execution or HTML rendering), with controls to `enable`, `disable`, `reset_errors`, `reset_state` (with confirmation), and `delete` (with confirmation).
+- **Crons**: Lists scheduled crons (`at`, `every`, `cron` specs, next fire times, fire counts, recursion depth) with `enable`, `disable`, and `cancel` (with confirmation) actions.
+- **Logs**: Paged execution log viewer (`ListPreprocessorLogs`, page size 50) showing event kind, outcome (`pass`, `drop`, `stop`, `say`, `invoke`, `cron`, `error`, `skipped`, `blocked`, `immune`), detail, duration, and a toggle to filter logs to the selected preprocessor.
+
+

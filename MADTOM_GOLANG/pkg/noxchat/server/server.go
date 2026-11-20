@@ -1012,6 +1012,76 @@ func (s *Server) ListSandboxRuns(ctx context.Context, req *madtomv1.NoxSandboxLi
 	return &resp, nil
 }
 
+func (s *Server) GetAutomationStatus(ctx context.Context, req *madtomv1.NoxAutomationStatusRequest) (*madtomv1.NoxAutomationStatusResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("automation_status", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxAutomationStatusResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) ListPreprocessors(ctx context.Context, req *madtomv1.NoxListPreprocessorsRequest) (*madtomv1.NoxListPreprocessorsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("automation_list_preprocessors", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxListPreprocessorsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) GetPreprocessor(ctx context.Context, req *madtomv1.NoxGetPreprocessorRequest) (*madtomv1.NoxGetPreprocessorResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("automation_get_preprocessor", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxGetPreprocessorResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) PreprocessorAction(ctx context.Context, req *madtomv1.NoxPreprocessorActionRequest) (*madtomv1.NoxAutomationActionResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("automation_preprocessor_action", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxAutomationActionResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) ListPreprocessorLogs(ctx context.Context, req *madtomv1.NoxListPreprocessorLogsRequest) (*madtomv1.NoxListPreprocessorLogsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("automation_preprocessor_logs", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxListPreprocessorLogsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) ListCrons(ctx context.Context, req *madtomv1.NoxListCronsRequest) (*madtomv1.NoxListCronsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("automation_list_crons", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxListCronsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) CronAction(ctx context.Context, req *madtomv1.NoxCronActionRequest) (*madtomv1.NoxAutomationActionResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("automation_cron_action", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxAutomationActionResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
 func (s *Server) ListHotMemories(ctx context.Context, req *madtomv1.NoxHotMemoryRequest) (*madtomv1.NoxHotMemoryResponse, error) {
 	reply, err := s.bridgeClient.CallRpc("list_hot_memories", req, 10*time.Second)
 	if err != nil {

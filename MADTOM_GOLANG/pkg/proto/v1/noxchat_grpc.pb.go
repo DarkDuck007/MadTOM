@@ -79,6 +79,13 @@ const (
 	NoxChatControlService_GetSandboxImageStatus_FullMethodName      = "/madtom.v1.NoxChatControlService/GetSandboxImageStatus"
 	NoxChatControlService_RebuildSandboxImage_FullMethodName        = "/madtom.v1.NoxChatControlService/RebuildSandboxImage"
 	NoxChatControlService_ListSandboxRuns_FullMethodName            = "/madtom.v1.NoxChatControlService/ListSandboxRuns"
+	NoxChatControlService_GetAutomationStatus_FullMethodName        = "/madtom.v1.NoxChatControlService/GetAutomationStatus"
+	NoxChatControlService_ListPreprocessors_FullMethodName          = "/madtom.v1.NoxChatControlService/ListPreprocessors"
+	NoxChatControlService_GetPreprocessor_FullMethodName            = "/madtom.v1.NoxChatControlService/GetPreprocessor"
+	NoxChatControlService_PreprocessorAction_FullMethodName         = "/madtom.v1.NoxChatControlService/PreprocessorAction"
+	NoxChatControlService_ListPreprocessorLogs_FullMethodName       = "/madtom.v1.NoxChatControlService/ListPreprocessorLogs"
+	NoxChatControlService_ListCrons_FullMethodName                  = "/madtom.v1.NoxChatControlService/ListCrons"
+	NoxChatControlService_CronAction_FullMethodName                 = "/madtom.v1.NoxChatControlService/CronAction"
 )
 
 // NoxChatControlServiceClient is the client API for NoxChatControlService service.
@@ -164,6 +171,14 @@ type NoxChatControlServiceClient interface {
 	GetSandboxImageStatus(ctx context.Context, in *NoxSandboxImageStatusRequest, opts ...grpc.CallOption) (*NoxSandboxImageStatusResponse, error)
 	RebuildSandboxImage(ctx context.Context, in *NoxSandboxRebuildImageRequest, opts ...grpc.CallOption) (*NoxSandboxRebuildImageResponse, error)
 	ListSandboxRuns(ctx context.Context, in *NoxSandboxListRunsRequest, opts ...grpc.CallOption) (*NoxSandboxListRunsResponse, error)
+	// Automation: preprocessors and crons (plans/2026-11-20-preprocessors-crons/contracts.md §8)
+	GetAutomationStatus(ctx context.Context, in *NoxAutomationStatusRequest, opts ...grpc.CallOption) (*NoxAutomationStatusResponse, error)
+	ListPreprocessors(ctx context.Context, in *NoxListPreprocessorsRequest, opts ...grpc.CallOption) (*NoxListPreprocessorsResponse, error)
+	GetPreprocessor(ctx context.Context, in *NoxGetPreprocessorRequest, opts ...grpc.CallOption) (*NoxGetPreprocessorResponse, error)
+	PreprocessorAction(ctx context.Context, in *NoxPreprocessorActionRequest, opts ...grpc.CallOption) (*NoxAutomationActionResponse, error)
+	ListPreprocessorLogs(ctx context.Context, in *NoxListPreprocessorLogsRequest, opts ...grpc.CallOption) (*NoxListPreprocessorLogsResponse, error)
+	ListCrons(ctx context.Context, in *NoxListCronsRequest, opts ...grpc.CallOption) (*NoxListCronsResponse, error)
+	CronAction(ctx context.Context, in *NoxCronActionRequest, opts ...grpc.CallOption) (*NoxAutomationActionResponse, error)
 }
 
 type noxChatControlServiceClient struct {
@@ -801,6 +816,76 @@ func (c *noxChatControlServiceClient) ListSandboxRuns(ctx context.Context, in *N
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) GetAutomationStatus(ctx context.Context, in *NoxAutomationStatusRequest, opts ...grpc.CallOption) (*NoxAutomationStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxAutomationStatusResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetAutomationStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListPreprocessors(ctx context.Context, in *NoxListPreprocessorsRequest, opts ...grpc.CallOption) (*NoxListPreprocessorsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxListPreprocessorsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListPreprocessors_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetPreprocessor(ctx context.Context, in *NoxGetPreprocessorRequest, opts ...grpc.CallOption) (*NoxGetPreprocessorResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxGetPreprocessorResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetPreprocessor_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) PreprocessorAction(ctx context.Context, in *NoxPreprocessorActionRequest, opts ...grpc.CallOption) (*NoxAutomationActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxAutomationActionResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_PreprocessorAction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListPreprocessorLogs(ctx context.Context, in *NoxListPreprocessorLogsRequest, opts ...grpc.CallOption) (*NoxListPreprocessorLogsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxListPreprocessorLogsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListPreprocessorLogs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListCrons(ctx context.Context, in *NoxListCronsRequest, opts ...grpc.CallOption) (*NoxListCronsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxListCronsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListCrons_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) CronAction(ctx context.Context, in *NoxCronActionRequest, opts ...grpc.CallOption) (*NoxAutomationActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxAutomationActionResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_CronAction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NoxChatControlServiceServer is the server API for NoxChatControlService service.
 // All implementations must embed UnimplementedNoxChatControlServiceServer
 // for forward compatibility.
@@ -884,6 +969,14 @@ type NoxChatControlServiceServer interface {
 	GetSandboxImageStatus(context.Context, *NoxSandboxImageStatusRequest) (*NoxSandboxImageStatusResponse, error)
 	RebuildSandboxImage(context.Context, *NoxSandboxRebuildImageRequest) (*NoxSandboxRebuildImageResponse, error)
 	ListSandboxRuns(context.Context, *NoxSandboxListRunsRequest) (*NoxSandboxListRunsResponse, error)
+	// Automation: preprocessors and crons (plans/2026-11-20-preprocessors-crons/contracts.md §8)
+	GetAutomationStatus(context.Context, *NoxAutomationStatusRequest) (*NoxAutomationStatusResponse, error)
+	ListPreprocessors(context.Context, *NoxListPreprocessorsRequest) (*NoxListPreprocessorsResponse, error)
+	GetPreprocessor(context.Context, *NoxGetPreprocessorRequest) (*NoxGetPreprocessorResponse, error)
+	PreprocessorAction(context.Context, *NoxPreprocessorActionRequest) (*NoxAutomationActionResponse, error)
+	ListPreprocessorLogs(context.Context, *NoxListPreprocessorLogsRequest) (*NoxListPreprocessorLogsResponse, error)
+	ListCrons(context.Context, *NoxListCronsRequest) (*NoxListCronsResponse, error)
+	CronAction(context.Context, *NoxCronActionRequest) (*NoxAutomationActionResponse, error)
 	mustEmbedUnimplementedNoxChatControlServiceServer()
 }
 
@@ -1073,6 +1166,27 @@ func (UnimplementedNoxChatControlServiceServer) RebuildSandboxImage(context.Cont
 }
 func (UnimplementedNoxChatControlServiceServer) ListSandboxRuns(context.Context, *NoxSandboxListRunsRequest) (*NoxSandboxListRunsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListSandboxRuns not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetAutomationStatus(context.Context, *NoxAutomationStatusRequest) (*NoxAutomationStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAutomationStatus not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListPreprocessors(context.Context, *NoxListPreprocessorsRequest) (*NoxListPreprocessorsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListPreprocessors not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetPreprocessor(context.Context, *NoxGetPreprocessorRequest) (*NoxGetPreprocessorResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPreprocessor not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) PreprocessorAction(context.Context, *NoxPreprocessorActionRequest) (*NoxAutomationActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PreprocessorAction not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListPreprocessorLogs(context.Context, *NoxListPreprocessorLogsRequest) (*NoxListPreprocessorLogsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListPreprocessorLogs not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListCrons(context.Context, *NoxListCronsRequest) (*NoxListCronsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListCrons not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) CronAction(context.Context, *NoxCronActionRequest) (*NoxAutomationActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CronAction not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) mustEmbedUnimplementedNoxChatControlServiceServer() {}
 func (UnimplementedNoxChatControlServiceServer) testEmbeddedByValue()                               {}
@@ -2154,6 +2268,132 @@ func _NoxChatControlService_ListSandboxRuns_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_GetAutomationStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxAutomationStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetAutomationStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetAutomationStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetAutomationStatus(ctx, req.(*NoxAutomationStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListPreprocessors_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxListPreprocessorsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListPreprocessors(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListPreprocessors_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListPreprocessors(ctx, req.(*NoxListPreprocessorsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetPreprocessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxGetPreprocessorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetPreprocessor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetPreprocessor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetPreprocessor(ctx, req.(*NoxGetPreprocessorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_PreprocessorAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxPreprocessorActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).PreprocessorAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_PreprocessorAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).PreprocessorAction(ctx, req.(*NoxPreprocessorActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListPreprocessorLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxListPreprocessorLogsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListPreprocessorLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListPreprocessorLogs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListPreprocessorLogs(ctx, req.(*NoxListPreprocessorLogsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListCrons_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxListCronsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListCrons(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListCrons_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListCrons(ctx, req.(*NoxListCronsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_CronAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxCronActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).CronAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_CronAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).CronAction(ctx, req.(*NoxCronActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NoxChatControlService_ServiceDesc is the grpc.ServiceDesc for NoxChatControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2388,6 +2628,34 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListSandboxRuns",
 			Handler:    _NoxChatControlService_ListSandboxRuns_Handler,
+		},
+		{
+			MethodName: "GetAutomationStatus",
+			Handler:    _NoxChatControlService_GetAutomationStatus_Handler,
+		},
+		{
+			MethodName: "ListPreprocessors",
+			Handler:    _NoxChatControlService_ListPreprocessors_Handler,
+		},
+		{
+			MethodName: "GetPreprocessor",
+			Handler:    _NoxChatControlService_GetPreprocessor_Handler,
+		},
+		{
+			MethodName: "PreprocessorAction",
+			Handler:    _NoxChatControlService_PreprocessorAction_Handler,
+		},
+		{
+			MethodName: "ListPreprocessorLogs",
+			Handler:    _NoxChatControlService_ListPreprocessorLogs_Handler,
+		},
+		{
+			MethodName: "ListCrons",
+			Handler:    _NoxChatControlService_ListCrons_Handler,
+		},
+		{
+			MethodName: "CronAction",
+			Handler:    _NoxChatControlService_CronAction_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

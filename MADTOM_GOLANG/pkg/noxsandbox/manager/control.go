@@ -419,7 +419,9 @@ func (manager *Manager) PreRun(ctx context.Context, request PreRequest) (PreResp
 		if value.Actions != nil {
 			response.Actions = value.Actions
 		}
-		for _, state := range []json.RawMessage{value.State, result.State} {
+		// `return {"actions":..., "state": ...}` puts the new state in the result object; `return result, state`
+		// puts it in the guest's state field (which otherwise echoes the input). The result object wins.
+		for _, state := range []json.RawMessage{result.State, value.State} {
 			if jsonObject(state) && len(state) <= min(cfg.MaxOutputBytes, 1<<20) {
 				response.State = state
 			}

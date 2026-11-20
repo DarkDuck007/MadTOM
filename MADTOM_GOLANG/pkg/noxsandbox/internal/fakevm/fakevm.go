@@ -353,6 +353,16 @@ func (m *Machine) handle(req map[string]any) map[string]any {
 		if strings.Contains(code, "RAISE") {
 			return map[string]any{"ok": false, "error": "Traceback: boom"}
 		}
+		// Like the real agent: a handler returning one dict puts any new state inside that dict and the
+		// guest's state field echoes the input; "TUPLE" mimics `return result, new_state`.
+		count, _ := state["n"].(float64)
+		next := map[string]any{"n": count + 1}
+		if strings.Contains(code, "TUPLE") {
+			return map[string]any{"ok": true, "result": map[string]any{"actions": []any{}}, "state": next}
+		}
+		if strings.Contains(code, "COUNT") {
+			return map[string]any{"ok": true, "result": map[string]any{"actions": []any{map[string]any{"type": "say", "text": "hi"}}, "state": next}, "state": state}
+		}
 		return map[string]any{"ok": true, "result": map[string]any{"action": "pass"}, "state": state}
 	case "prepare_hibernate", "shutdown":
 		return map[string]any{"ok": true}

@@ -117,7 +117,12 @@
                     <tabs:SandboxTabView DataContext="{Binding SandboxTab}"/>
                 </TabItem>
 
-                <!-- Tab 6: Stickers & GIFs -->
+                <!-- Tab 6: Automation -->
+                <TabItem Header="🤖 Automation" FontSize="12">
+                    <tabs:AutomationTabView DataContext="{Binding AutomationTab}"/>
+                </TabItem>
+
+                <!-- Tab 7: Stickers & GIFs -->
                 <TabItem Header="🎨 Stickers &amp; GIFs" FontSize="12">
                     <tabs:MediaLibraryTabView DataContext="{Binding MediaLibraryTab}"/>
                 </TabItem>
