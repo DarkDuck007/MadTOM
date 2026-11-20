@@ -10,7 +10,7 @@
 
     <Panel>
         <Grid RowDefinitions="*,Auto" Margin="16" RowSpacing="10">
-            <!-- Sub-sections TabControl: VMs | Files | Libraries | Runs -->
+            <!-- Sub-sections TabControl: VMs | Budgets | Files | Libraries | Runs -->
             <TabControl Grid.Row="0" Padding="0">
 
                 <!-- ============================================================== -->
@@ -286,7 +286,167 @@
                 </TabItem>
 
                 <!-- ============================================================== -->
-                <!-- 2. Files & Backups Sub-Tab                                     -->
+                <!-- 2. Budgets Sub-Tab                                             -->
+                <!-- ============================================================== -->
+                <TabItem Header="💳 Budgets" FontSize="12">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="10" Margin="0,8,0,0">
+                        <!-- Header Summary & Config Hint -->
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding BudgetSummary}"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               FontFamily="{StaticResource MonoFontFamily}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Limits are per chat and set in config.yaml: sandbox.daily_cpu_seconds_per_chat, sandbox.chat_vm.disk_gb, sandbox.snapshot_quota_mb_per_chat."
+                                               FontSize="10"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Command="{Binding RefreshVmsCommand}"
+                                        Content="🔄 Refresh"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Budgets Table -->
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                ClipToBounds="True">
+                            <Grid RowDefinitions="Auto,*">
+                                <Border Grid.Row="0"
+                                        Background="{DynamicResource CardBgBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="12,7">
+                                    <Grid ColumnDefinitions="180,*,130,180,150,60" ColumnSpacing="8">
+                                        <TextBlock Grid.Column="0" Text="CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="CPU" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="2" Text="RESETS IN" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="3" Text="DISK" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="4" Text="SNAPSHOT QUOTA" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="5" Text="BKPS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </Grid>
+                                </Border>
+
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding BudgetRows}"
+                                         Background="Transparent"
+                                         BorderThickness="0">
+                                    <ListBox.Styles>
+                                        <Style Selector="ListBoxItem">
+                                            <Setter Property="Padding" Value="4,2"/>
+                                            <Setter Property="Margin" Value="0"/>
+                                        </Style>
+                                    </ListBox.Styles>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SandboxVmRow">
+                                            <Border Background="{DynamicResource CardBgBrush}"
+                                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8,6"
+                                                    Margin="0,1">
+                                                <Grid ColumnDefinitions="180,*,130,180,150,60" ColumnSpacing="8" VerticalAlignment="Center">
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding ChatDisplay}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip.Tip="{Binding ChatDisplay}"
+                                                               VerticalAlignment="Center"/>
+
+                                                    <!-- CPU Today / Budget + ProgressBar + BudgetState Pill -->
+                                                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding CpuDisplay}"
+                                                                       FontSize="10"
+                                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                                       VerticalAlignment="Center"/>
+                                                            <Border Grid.Column="1"
+                                                                    Classes.exceeded="{Binding IsBudgetExceeded}"
+                                                                    Classes.near="{Binding IsBudgetNear}"
+                                                                    Background="{DynamicResource DarkBaseBrush}"
+                                                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="4"
+                                                                    Padding="5,1"
+                                                                    VerticalAlignment="Center">
+                                                                <Border.Styles>
+                                                                    <Style Selector="Border TextBlock">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                                                    </Style>
+                                                                    <Style Selector="Border.exceeded">
+                                                                        <Setter Property="Background" Value="{DynamicResource CriticalSubtleBrush}"/>
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource CriticalBrush}"/>
+                                                                    </Style>
+                                                                    <Style Selector="Border.exceeded TextBlock">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource CriticalBrush}"/>
+                                                                    </Style>
+                                                                    <Style Selector="Border.near">
+                                                                        <Setter Property="Background" Value="{DynamicResource WarningSubtleBrush}"/>
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}"/>
+                                                                    </Style>
+                                                                    <Style Selector="Border.near TextBlock">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                                                                    </Style>
+                                                                </Border.Styles>
+                                                                <TextBlock Text="{Binding BudgetState}" FontSize="9" FontWeight="Bold"/>
+                                                            </Border>
+                                                        </Grid>
+                                                        <ProgressBar Value="{Binding CpuFraction}" Minimum="0" Maximum="1" Height="4"/>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="2"
+                                                               Text="{Binding CpuResetsInDisplay}"
+                                                               FontSize="10"
+                                                               FontFamily="{StaticResource MonoFontFamily}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center"/>
+
+                                                    <!-- Disk Used / Quota + Small Bar -->
+                                                    <StackPanel Grid.Column="3" Spacing="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DiskDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                                        <ProgressBar Value="{Binding DiskUsageFraction}" Minimum="0" Maximum="1" Height="4"/>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="4"
+                                                               Text="{Binding SnapshotQuotaDisplay}"
+                                                               FontSize="10"
+                                                               FontFamily="{StaticResource MonoFontFamily}"
+                                                               VerticalAlignment="Center"/>
+
+                                                    <TextBlock Grid.Column="5"
+                                                               Text="{Binding Backups}"
+                                                               FontSize="10"
+                                                               FontFamily="{StaticResource MonoFontFamily}"
+                                                               VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- ============================================================== -->
+                <!-- 3. Files & Backups Sub-Tab                                     -->
                 <!-- ============================================================== -->
                 <TabItem Header="📂 Files &amp; Backups" FontSize="12">
                     <Grid RowDefinitions="Auto,*" RowSpacing="10" Margin="0,8,0,0">

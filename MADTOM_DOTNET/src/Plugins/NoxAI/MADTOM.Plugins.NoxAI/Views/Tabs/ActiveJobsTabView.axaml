@@ -7,10 +7,17 @@
              x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.ActiveJobsTabView"
              x:DataType="vm:ActiveJobsTabViewModel">
 
-    <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="12">
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-            <TextBlock Text="{Binding JobsSummary}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-            <Button Grid.Column="1" Command="{Binding RefreshJobsCommand}" Content="🔄 Refresh Jobs" Padding="8,4"/>
+    <Grid RowDefinitions="Auto,*,Auto" Margin="16" RowSpacing="12">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="3" VerticalAlignment="Center">
+                <TextBlock Text="{Binding JobsSummary}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Text="{Binding DocGenSummary}"
+                           FontSize="11"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding DocGenSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+            <Button Grid.Column="1" Command="{Binding RefreshJobsCommand}" Content="🔄 Refresh Jobs" Padding="8,4" VerticalAlignment="Top"/>
         </Grid>
 
         <Border Grid.Row="1"
@@ -19,32 +26,125 @@
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="12">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ItemsControl ItemsSource="{Binding Jobs}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ActiveJobItemModel">
-                            <Border Background="{DynamicResource CardBgBrush}"
-                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="12,8"
-                                    Margin="0,4">
-                                <Grid ColumnDefinitions="170,*,100">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding JobTypeLabel}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding JobId}"/>
-                                        <TextBlock Text="{Binding StatusLine}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
-                                        <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="1" Height="6"/>
-                                        <TextBlock Text="{Binding Details}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                    <TextBlock Grid.Column="2" Text="{Binding ElapsedFormatted}" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+            <ListBox ItemsSource="{Binding Jobs}"
+                     SelectedItem="{Binding SelectedJob, Mode=TwoWay}"
+                     Background="Transparent"
+                     BorderThickness="0">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ActiveJobItemModel">
+                        <Border Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12,8"
+                                Margin="0,4">
+                            <Grid ColumnDefinitions="190,*,100" ColumnSpacing="10">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="{Binding JobTypeLabel}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentTextBrush}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding JobId}"/>
+                                    <TextBlock Text="{Binding StatusLine}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <Border Background="{DynamicResource AccentSubtleBrush}"
+                                            BorderBrush="{DynamicResource AccentBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="5,1"
+                                            HorizontalAlignment="Left"
+                                            IsVisible="{Binding HasExecutor}"
+                                            ToolTip.Tip="{Binding ExecutorLocation}">
+                                        <TextBlock Text="{Binding ExecutorBadge}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                                    <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="1" Height="6"/>
+                                    <TextBlock Text="{Binding Details}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Text="{Binding ElapsedFormatted}" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <!-- Selected Job Details Panel -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,10"
+                IsVisible="{Binding SelectedJob, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="12">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding SelectedJob.JobTypeLabel, FallbackValue=''}"
+                               FontSize="12"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource AccentTextBrush}"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="Job ID:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding SelectedJob.JobId, Mode=OneWay, FallbackValue=''}"
+                                 IsReadOnly="True"
+                                 FontSize="11"
+                                 FontFamily="{StaticResource MonoFontFamily}"
+                                 MinWidth="160"
+                                 Padding="6,2"
+                                 VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding SelectedJob.ChatId, StringFormat='Chat: {0}', FallbackValue=''}"
+                               FontSize="11"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding SelectedJob.Status, StringFormat='Status: {0}', FallbackValue=''}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding SelectedJob.ElapsedFormatted, StringFormat='Elapsed: {0}', FallbackValue=''}"
+                               FontSize="11"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal"
+                            Spacing="8"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding SelectedJob.HasExecutor, FallbackValue=False}">
+                    <Border Background="{DynamicResource AccentSubtleBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="6,2">
+                        <TextBlock Text="{Binding SelectedJob.ExecutorBadge, FallbackValue=''}"
+                                   FontSize="10"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
+                    <TextBlock Text="{Binding SelectedJob.ExecutorLocation, FallbackValue=''}"
+                               FontSize="11"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding SelectedJob.Details, FallbackValue=''}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               TextWrapping="Wrap"/>
+                </ScrollViewer>
+            </StackPanel>
         </Border>
     </Grid>
 </UserControl>

@@ -36,9 +36,11 @@ public sealed partial class SandboxVmRow : ObservableObject
     public long DiskUsedBytes { get; init; }
     public long DiskQuotaBytes { get; init; }
     public long SnapshotBytes { get; init; }
+    public long SnapshotQuotaBytes { get; init; }
     public int Backups { get; init; }
     public double CpuSecondsToday { get; init; }
     public double CpuBudgetSeconds { get; init; }
+    public string CpuResetsAt { get; init; } = string.Empty;
     public IReadOnlyList<NoxSandboxSession> Sessions { get; init; } = Array.Empty<NoxSandboxSession>();
     public IReadOnlyList<NoxSandboxJob> Jobs { get; init; } = Array.Empty<NoxSandboxJob>();
 
@@ -64,9 +66,11 @@ public sealed partial class SandboxVmRow : ObservableObject
         DiskUsedBytes = info.DiskUsedBytes;
         DiskQuotaBytes = info.DiskQuotaBytes;
         SnapshotBytes = info.SnapshotBytes;
+        SnapshotQuotaBytes = info.SnapshotQuotaBytes;
         Backups = info.Backups;
         CpuSecondsToday = info.CpuSecondsToday;
         CpuBudgetSeconds = info.CpuBudgetSeconds;
+        CpuResetsAt = info.CpuResetsAt ?? string.Empty;
         Sessions = info.Sessions.ToList();
         Jobs = info.Jobs.ToList();
     }
@@ -92,8 +96,52 @@ public sealed partial class SandboxVmRow : ObservableObject
 
     public string SnapshotDisplay => SandboxTabViewModel.FormatBytes(SnapshotBytes);
 
+    public string SnapshotQuotaDisplay => SnapshotQuotaBytes <= 0
+        ? "snapshots off"
+        : $"{SandboxTabViewModel.FormatBytes(SnapshotBytes)} / {SandboxTabViewModel.FormatBytes(SnapshotQuotaBytes)}";
+
     public string CpuDisplay =>
         $"{CpuSecondsToday.ToString("0.#", CultureInfo.InvariantCulture)}s / {CpuBudgetSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s";
+
+    public double CpuFraction => CpuBudgetSeconds > 0
+        ? Math.Clamp(CpuSecondsToday / CpuBudgetSeconds, 0.0, 1.0)
+        : 0.0;
+
+    public string BudgetState => CpuBudgetSeconds <= 0
+        ? "ok"
+        : CpuSecondsToday >= CpuBudgetSeconds
+            ? "exceeded"
+            : CpuSecondsToday >= 0.8 * CpuBudgetSeconds
+                ? "near"
+                : "ok";
+
+    public bool IsBudgetExceeded => BudgetState == "exceeded";
+    public bool IsBudgetNear => BudgetState == "near";
+
+    public string FormatResetsIn(DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(CpuResetsAt) ||
+            !DateTimeOffset.TryParse(CpuResetsAt, CultureInfo.InvariantCulture, DateTimeStyles.None, out var reset))
+        {
+            return string.Empty;
+        }
+
+        if (reset <= now)
+        {
+            return "resets now";
+        }
+
+        var span = reset - now;
+        int hours = (int)span.TotalHours;
+        if (hours >= 1)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"resets in {hours}h {span.Minutes}m");
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"resets in {Math.Max(1, (int)Math.Ceiling(span.TotalMinutes))}m");
+    }
+
+    public string CpuResetsInDisplay => FormatResetsIn(DateTimeOffset.Now);
 
     public string LastUsedDisplay => SandboxTabViewModel.FormatTimestamp(LastUsed);
     public string IdleDeadlineDisplay => SandboxTabViewModel.FormatTimestamp(IdleDeadline);
@@ -275,6 +323,32 @@ public sealed partial class SandboxTabViewModel : ObservableObject, IDisposable
         _ => Vms
     };
 
+    public IEnumerable<SandboxVmRow> BudgetRows => Vms
+        .Where(v => string.Equals(v.Kind, "chat", StringComparison.Ordinal))
+        .OrderByDescending(v => v.CpuFraction)
+        .ThenByDescending(v => v.DiskUsageFraction)
+        .ThenBy(v => v.ChatId);
+
+    public int ChatsOverBudget => BudgetRows.Count(v => v.BudgetState == "exceeded");
+    public int ChatsNearBudget => BudgetRows.Count(v => v.BudgetState == "near");
+
+    public string BudgetSummary
+    {
+        get
+        {
+            var rows = BudgetRows.ToList();
+            int n = rows.Count;
+            int over = rows.Count(r => r.BudgetState == "exceeded");
+            int near = rows.Count(r => r.BudgetState == "near");
+            string summary = string.Create(CultureInfo.InvariantCulture, $"{n} chats · {over} over budget · {near} near budget");
+            if (n > 0)
+            {
+                summary += string.Create(CultureInfo.InvariantCulture, $" · daily CPU budget {rows[0].CpuBudgetSeconds:0}s per chat");
+            }
+            return summary;
+        }
+    }
+
     public bool IsFilterAll => string.IsNullOrWhiteSpace(VmFilter) || string.Equals(VmFilter, "all", StringComparison.OrdinalIgnoreCase);
     public bool IsFilterHot => string.Equals(VmFilter, "hot", StringComparison.OrdinalIgnoreCase);
     public bool IsFilterCold => string.Equals(VmFilter, "cold", StringComparison.OrdinalIgnoreCase);
@@ -422,7 +496,19 @@ public sealed partial class SandboxTabViewModel : ObservableObject, IDisposable
     public SandboxTabViewModel(NoxNodeManager nodeManager)
     {
         _nodeManager = nodeManager;
-        Vms.CollectionChanged += (_, _) => OnPropertyChanged(nameof(FilteredVms));
+        Vms.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(FilteredVms));
+            NotifyBudgetPropertiesChanged();
+        };
+    }
+
+    private void NotifyBudgetPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(BudgetRows));
+        OnPropertyChanged(nameof(ChatsOverBudget));
+        OnPropertyChanged(nameof(ChatsNearBudget));
+        OnPropertyChanged(nameof(BudgetSummary));
     }
 
     public static bool IsTextExt(string path)
@@ -729,6 +815,7 @@ public sealed partial class SandboxTabViewModel : ObservableObject, IDisposable
                     SelectedVm = Vms.FirstOrDefault(v => v.ChatId == prevChatId.Value);
                 }
                 OnPropertyChanged(nameof(FilteredVms));
+                NotifyBudgetPropertiesChanged();
 
                 RunningVms = res.Totals?.Running ?? 0;
                 MaxVms = res.Totals?.MaxVms ?? 0;
