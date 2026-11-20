@@ -267,8 +267,11 @@ public static class NoxChatSessionParser
 
                 if (messagesArray.ValueKind == JsonValueKind.Array)
                 {
+                    var (sentFrom, toolStep) = AgySentSlice(root, messagesArray);
+                    int index = -1;
                     foreach (var m in messagesArray.EnumerateArray())
                     {
+                        index++;
                         int firstTurn = turns.Count;
                         string role = m.TryGetProperty("role", out var r) ? (r.GetString() ?? "user") : "user";
                         string textContent = string.Empty;
@@ -311,6 +314,9 @@ public static class NoxChatSessionParser
                                 textContent = c.GetRawText();
                             }
                         }
+
+                        // Already sent in an earlier step of this turn: the bridge does not send it again.
+                        if (index < sentFrom) continue;
 
                         if (role is "system" or "developer")
                         {
@@ -406,6 +412,20 @@ public static class NoxChatSessionParser
                         }
                         if (turns.Count > firstTurn)
                             foreach (var image in inlineImages) turns[^1].MediaAttachments.Add(image);
+                    }
+                    if (sentFrom > 0)
+                    {
+                        turns.Insert(0, new ParsedTurnItemModel
+                        {
+                            Role = "note",
+                            HeaderTitle = $"TOOL STEP {toolStep} // {sentFrom} EARLIER MESSAGE{(sentFrom == 1 ? "" : "S")} OF THIS TURN NOT RESENT",
+                            TimestampText = callItem.TimestampText,
+                            HeaderBadgeBackground = "#1E293B",
+                            HeaderBadgeForeground = "#94A3B8",
+                            BorderBrushHex = "#475569",
+                            Text = "The request repeats the whole turn, but the agy bridge sends the model only what follows " +
+                                   "its previous reply. The context diff and new messages were sent once, in step 0 of this turn."
+                        });
                     }
                 }
             }
@@ -570,6 +590,38 @@ public static class NoxChatSessionParser
         }
 
         return turns;
+    }
+
+    /// <summary>
+    /// For agy stateful sessions a tool step (<c>agy_session.tool_step</c> &gt; 0) carries the whole turn again,
+    /// but the bridge sends only the messages after the last assistant message (see the bridge's
+    /// <c>_slice_active_messages</c>). Returns the index of the first message actually sent (0: all) and the step.
+    /// </summary>
+    public static (int SentFrom, int ToolStep) AgySentSlice(JsonElement root, JsonElement messages)
+    {
+        if (root.ValueKind != JsonValueKind.Object || messages.ValueKind != JsonValueKind.Array) return (0, 0);
+        if (!TryGetAgySession(root, out var session) &&
+            !(root.TryGetProperty("extra_body", out var extra) && TryGetAgySession(extra, out session)))
+            return (0, 0);
+        if (!session.TryGetProperty("tool_step", out var ts) || ts.ValueKind != JsonValueKind.Number ||
+            !ts.TryGetInt32(out int step) || step <= 0)
+            return (0, 0);
+        int last = -1, count = 0;
+        foreach (var m in messages.EnumerateArray())
+        {
+            if (m.ValueKind == JsonValueKind.Object && m.TryGetProperty("role", out var r) &&
+                r.ValueKind == JsonValueKind.String && r.GetString() == "assistant")
+                last = count;
+            count++;
+        }
+        return (last >= 0 && last + 1 < count ? last + 1 : 0, step);
+    }
+
+    private static bool TryGetAgySession(JsonElement obj, out JsonElement session)
+    {
+        session = default;
+        return obj.ValueKind == JsonValueKind.Object && obj.TryGetProperty("agy_session", out session) &&
+               session.ValueKind == JsonValueKind.Object;
     }
 
     public static List<ParsedSystemSectionModel> ParseSystemSections(string systemPrompt)
