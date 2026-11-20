@@ -67,3 +67,23 @@ Legend: [ ] todo · [~] in progress · [x] done · [!] blocked
   - **Loophole 28:** library rebuild → root on the build host via an sdist `setup.py`. Fixed with wheel-only pip. It immediately caught `odfpy` (sdist-only), which now comes from apt as `python3-odf`. A failed build correctly keeps `current`.
   - **Known limit:** no virtio discard, so files deleted in the guest keep their host blocks. Usage is still bounded by `disk_gb` per chat and the watermark.
   - **Next:** NoxChat deploy with `sandbox.enabled` for a test chat (needs a commit + user OK + test chat id); phase 2 (host parser hardening).
+- 2026-11-20 (deploy):
+  - **/sandbox admin command:**
+    - `/sandbox on|off [chat_id]` and `/sandbox` (status), only for `ADMIN_USER_IDS`; non-admins get no reply.
+    - Grants are persisted by nox-sandbox (`state_dir/grants.json`, `PUT /v1/chats/{id}/grant`, `GET /v1/grants`) and add to `enabled_chats`.
+    - NoxChat mirrors them in `src/sandbox/policy.py` and loads them at startup.
+    - Tests: Go 2, pytest 17.
+  - **Production wiring on tp1:**
+    - `sandbox:` section added to `~/NoxChat/config.yaml` (enabled, no static chats); backup at `config.yaml.bak-pre-sandbox`.
+    - host.yaml `noxchat_config_path` now points to it.
+    - New nox-sandbox and noxchat-probe binaries installed.
+    - noxchat restarted and reaches the socket.
+  - **Bug found in E2E:** image -3, built by the daemon, had `/opt/venv` and `/opt/nox` at 0700 root because build.sh inherited the daemon's `umask 0077`. Python sessions failed with `worker_spawn_failed`. My earlier -3 check used shell mode only.
+    - Fix: `umask 022` in build.sh, plus a build gate that runs the venv python as uid 1000 and imports the base packages, so a broken image can't become `current`.
+  - Image 2026.11.20-4 (umask fix, gate passed) is current. E2E on chat 1998313581 through the NoxChat client as the noxchat user:
+    - grant refused before, accepted during, refused after revoke;
+    - Python numpy 2.5.5;
+    - hibernate → restore keeps `x`;
+    - matplotlib export sanitized;
+    - temp VM works.
+    The grant was left revoked so the owner can test `/sandbox on`.
