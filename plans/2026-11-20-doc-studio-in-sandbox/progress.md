@@ -1,0 +1,27 @@
+# Progress
+
+- [x] Survey (codex read job 766fd16c) and design (README.md, contracts.md)
+- [x] Phase 1: image (codex e53b9005, reviewed):
+  - adds chromium, fontconfig, Vazirmatn, Inter, Liberation and Noto Color Emoji fonts, and qrcode/fonttools;
+  - bakes /opt/noxdoc (+VERSION), /opt/icons and /opt/mplcache, and the /work symlink;
+  - guest env gets PYTHONPATH and NOX_DOC_ICONS_DIR, and the guest creates /data/studio.
+- [x] Phase 2: vmexec.py + server.py executor seam + `python3 -m noxdoc` CLI (codex b7697edc, reviewed).
+  - bwrap argv is unchanged; VM failures raise ToolError, with no silent fallback.
+- [x] Phase 3: NoxChat/bridge (codex cce5f666, reviewed):
+  - executor choice (auto|vm|bwrap), stored in options_json;
+  - /data inputs staged as raw bytes;
+  - document_job inputs for reply/revise/steer;
+  - /data/documents copy;
+  - guides and config.
+  - My fix: `mv -n || true` in the copy loop (mv -n exit status differs across coreutils versions).
+- [x] Phase 4: tests (mine):
+  - tests/test_doc_vmexec.py (24): the real guest wrapper runs in bwrap with a fake /data. Covers push/pull, no re-push, deletions, rewrite, workspace escape, extension skip, guest symlinks, prune, lock timeout, error mapping, hostile result paths, host symlink mirror, timeout, registry validation, and bwrap argv parity.
+  - tests/test_doc_studio.py (+12): executor choice, /data inputs, bad paths, steer with inputs (plus rollback), inputs-only actions, VM copy and the sandbox_path notice, and copy failure.
+  - Bridge (+7): registry fields survive follow-ups, a mismatched executor is refused, and request validation.
+  - tests/test_noxdoc_cli.py (3; pptx skips locally because the local soffice is broken: bad_alloc on .txt).
+  - Pre-existing and local-only failures:
+    - test_record_for_document_kind
+    - test_run_python_sandbox: NO_HOME fails because the uv venv lives under /home; it fails on HEAD too.
+    - test_cron_create_validation: croniter is missing in the local env.
+- [ ] Phase 5: tp1 image rebuild, chat VM memory (1024 → 1536 MB suggested), live E2E (vm studio job, chart→appendix steer, Nox self-made PDF)
+- [ ] Follow-up: MADTOM Studio UI shows the executor per doc job (agy). The doc_gen.sandbox settings are visible in config RPCs only.
