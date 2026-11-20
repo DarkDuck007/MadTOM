@@ -136,3 +136,29 @@ func TestSandboxRepliesDecodeFromPythonShapes(t *testing.T) {
 		t.Fatalf("error passthrough wrong: %+v", &e)
 	}
 }
+
+func TestBudgetAndExecutorFieldsDecode(t *testing.T) {
+	var vms madtomv1.NoxSandboxListVmsResponse
+	decodeInto(t, `{"vms":[{"chat_id":-5,"kind":"chat","state":"cold","cpu_seconds_today":3599.5,"cpu_budget_seconds":3600,
+		"cpu_resets_at":"2026-11-21T00:00:00+09:00","snapshot_quota_bytes":2147483648,"sessions":[],"jobs":[]}]}`, &vms)
+	if v := vms.Vms[0]; v.CpuResetsAt != "2026-11-21T00:00:00+09:00" || v.SnapshotQuotaBytes != 2147483648 || v.CpuSecondsToday != 3599.5 {
+		t.Fatalf("budget fields wrong: %+v", v)
+	}
+
+	// GetActiveJobs decodes the Python reply with encoding/json (server.go); mirror that exactly.
+	var jobs madtomv1.NoxActiveJobsResponse
+	payload := `{"active_jobs":[{"job_id":"D-1","job_type":"doc_studio","executor":"vm","chat_id":-5,"status":"running",
+		"progress":0.5,"details":"PDF \"x\" (vm) — rendering","elapsed_ms":1200}],
+		"doc_gen":{"executor":"auto","copy_to_sandbox":true,"sandbox":{"keep_jobs":5,"sync_max_file_bytes":52428800,"exec_margin_s":15,"lock_wait_s":60}}}`
+	if err := json.Unmarshal([]byte(payload), &jobs); err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs.ActiveJobs) != 1 || jobs.ActiveJobs[0].Executor != "vm" || jobs.ActiveJobs[0].Progress != 0.5 {
+		t.Fatalf("job wrong: %+v", &jobs)
+	}
+	dg := jobs.GetDocGen()
+	if dg.GetExecutor() != "auto" || !dg.GetCopyToSandbox() || dg.GetSandbox().GetKeepJobs() != 5 ||
+		dg.GetSandbox().GetSyncMaxFileBytes() != 52428800 || dg.GetSandbox().GetLockWaitS() != 60 {
+		t.Fatalf("doc_gen wrong: %+v", dg)
+	}
+}

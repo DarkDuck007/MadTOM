@@ -567,3 +567,27 @@ func TestAllowedHonoursChatsMode(t *testing.T) {
 		t.Fatal("disabled sandbox must refuse")
 	}
 }
+
+func TestChatInfoReportsBudgetResetAndSnapshotQuota(t *testing.T) {
+	h := newHarness(t, func(s *config.Sandbox) { s.Hibernate = true; s.SnapshotQuotaMBPerChat = 3 })
+	h.start(t)
+	now := h.clock.Now()
+	want := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+	cold := h.m.ChatInfo(-700)
+	if !cold.CPUResetsAt.Equal(want) || cold.SnapshotQuota != 3<<20 {
+		t.Fatalf("cold chat: resets %v (want %v), quota %d", cold.CPUResetsAt, want, cold.SnapshotQuota)
+	}
+	h.exec(t, -700, "x = 1")
+	warm := h.m.ChatInfo(-700)
+	if !warm.CPUResetsAt.Equal(want) || warm.SnapshotQuota != 3<<20 || warm.CPUBudgetSeconds != h.cfg.Sandbox.DailyCPUSecondsPerChat {
+		t.Fatalf("warm chat: %+v", warm)
+	}
+	h.clock.Advance(26 * time.Hour)
+	if got := h.m.ChatInfo(-700).CPUResetsAt; !got.After(want) {
+		t.Fatalf("reset time did not move to the next day: %v", got)
+	}
+	h.m.cfg.Sandbox.Hibernate = false
+	if q := h.m.ChatInfo(-700).SnapshotQuota; q != 0 {
+		t.Fatalf("hibernation off should report no snapshot quota, got %d", q)
+	}
+}

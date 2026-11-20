@@ -652,6 +652,20 @@ message NoxJobProgressEvent {
   double progress = 5;          // 0.0 .. 1.0
   string details = 6;
   int64 elapsed_ms = 7;
+  string executor = 8;          // doc_studio only: "vm" (chat sandbox VM) or "bwrap" (host jail)
+}
+
+message NoxDocGenSandboxSettings {
+  int32 keep_jobs = 1;
+  int64 sync_max_file_bytes = 2;
+  int32 exec_margin_s = 3;
+  int32 lock_wait_s = 4;
+}
+
+message NoxDocGenSettings {
+  string executor = 1;          // configured doc_gen.executor: auto | vm | bwrap
+  bool copy_to_sandbox = 2;
+  NoxDocGenSandboxSettings sandbox = 3;
 }
 
 message NoxActiveJobsResponse {
@@ -659,6 +673,7 @@ message NoxActiveJobsResponse {
   uint32 decoded_size = 101;
 
   repeated NoxJobProgressEvent active_jobs = 1;
+  NoxDocGenSettings doc_gen = 2;
 }
 
 message NoxVectorInspectRequest {
@@ -1149,6 +1164,8 @@ message NoxSandboxVmInfo {
   repeated NoxSandboxSession sessions = 18;
   repeated NoxSandboxJob jobs = 19;
   string chat_title = 20;
+  int64 snapshot_quota_bytes = 21;  // 0 = hibernation snapshots disabled
+  string cpu_resets_at = 22;        // when cpu_seconds_today next resets (host local midnight), RFC3339
 }
 
 message NoxSandboxPool {

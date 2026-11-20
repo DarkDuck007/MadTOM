@@ -94,6 +94,8 @@ type VMInfo struct {
 	Backups          int           `json:"backups"`
 	CPUSecondsToday  float64       `json:"cpu_seconds_today"`
 	CPUBudgetSeconds int           `json:"cpu_budget_seconds"`
+	CPUResetsAt      time.Time     `json:"cpu_resets_at"`
+	SnapshotQuota    int64         `json:"snapshot_quota_bytes"`
 	Sessions         []SessionInfo `json:"sessions"`
 	Jobs             []JobInfo     `json:"jobs"`
 }

@@ -464,7 +464,21 @@ func (manager *Manager) ChatInfo(chatID int64) VMInfo {
 	}
 	cfg := manager.cfg.Sandbox
 	return VMInfo{ChatID: chatID, Kind: vmm.RoleChat, State: "cold", ImageVersion: manager.image.Current(), Since: manager.now(), MemMB: cfg.ChatVM.MemMB, VCPUs: cfg.ChatVM.VCPUs,
-		CPUBudgetSeconds: cfg.DailyCPUSecondsPerChat, Sessions: []SessionInfo{}, Jobs: manager.chatJobs(chatID)}
+		CPUBudgetSeconds: cfg.DailyCPUSecondsPerChat, CPUResetsAt: manager.cpuResetsAt(), SnapshotQuota: snapshotQuota(cfg),
+		Sessions: []SessionInfo{}, Jobs: manager.chatJobs(chatID)}
+}
+
+// cpuResetsAt is the next local midnight, when rollover() zeroes the daily CPU counter.
+func (manager *Manager) cpuResetsAt() time.Time {
+	now := manager.now()
+	return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+}
+
+func snapshotQuota(cfg config.Sandbox) int64 {
+	if !cfg.Hibernate {
+		return 0
+	}
+	return int64(cfg.SnapshotQuotaMBPerChat) << 20
 }
 
 func (manager *Manager) info(chat *chat) VMInfo {
@@ -477,7 +491,8 @@ func (manager *Manager) info(chat *chat) VMInfo {
 	backups, _ := manager.Backups(chat.id)
 	info := VMInfo{ChatID: chat.id, Kind: vmm.RoleChat, State: chat.state, ImageVersion: manager.image.Current(), MemMB: cfg.ChatVM.MemMB, VCPUs: cfg.ChatVM.VCPUs,
 		Since: chat.since, LastUsed: chat.meta.LastUsed, DiskUsedBytes: disk.UsedBytes, DiskQuotaBytes: disk.QuotaBytes, Backups: len(backups),
-		CPUSecondsToday: chat.meta.CPUSeconds, CPUBudgetSeconds: cfg.DailyCPUSecondsPerChat, Sessions: []SessionInfo{}, Jobs: manager.chatJobs(chat.id)}
+		CPUSecondsToday: chat.meta.CPUSeconds, CPUBudgetSeconds: cfg.DailyCPUSecondsPerChat, CPUResetsAt: manager.cpuResetsAt(),
+		SnapshotQuota: snapshotQuota(cfg), Sessions: []SessionInfo{}, Jobs: manager.chatJobs(chat.id)}
 	if chat.meta.Snapshot != nil {
 		info.ImageVersion, info.SnapshotBytes = chat.meta.Snapshot.Snapshot.ImageVersion, chat.meta.Snapshot.Snapshot.MemBytes
 		info.MemMB, info.VCPUs = chat.meta.Snapshot.Spec.MemMB, chat.meta.Snapshot.Spec.VCPUs
