@@ -37,6 +37,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public DirectChatTabViewModel DirectChatTab { get; }
     public MemoriesRagTabViewModel MemoriesRagTab { get; }
     public TipsTabViewModel TipsTab { get; }
+    public SandboxTabViewModel SandboxTab { get; }
     public MediaLibraryTabViewModel MediaLibraryTab { get; }
     public ChatFilesTabViewModel ChatFilesTab { get; }
     public ActiveJobsTabViewModel ActiveJobsTab { get; }
@@ -58,6 +59,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DirectChatTab = new DirectChatTabViewModel(_nodeManager);
         MemoriesRagTab = new MemoriesRagTabViewModel(_nodeManager);
         TipsTab = new TipsTabViewModel(_nodeManager);
+        SandboxTab = new SandboxTabViewModel(_nodeManager);
         MediaLibraryTab = new MediaLibraryTabViewModel(_nodeManager);
         ChatFilesTab = new ChatFilesTabViewModel(_nodeManager);
         ActiveJobsTab = new ActiveJobsTabViewModel(_nodeManager);
@@ -74,9 +76,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         };
 
-        MediaLibraryTab.IsTabActive = SelectedWorkspaceTabIndex == 4;
-        ChatFilesTab.IsTabActive = SelectedWorkspaceTabIndex == 5;
-        RawLogsApiTab.IsTabActive = SelectedWorkspaceTabIndex == 7;
+        SandboxTab.IsTabActive = SelectedWorkspaceTabIndex == 4;
+        MediaLibraryTab.IsTabActive = SelectedWorkspaceTabIndex == 5;
+        ChatFilesTab.IsTabActive = SelectedWorkspaceTabIndex == 6;
+        RawLogsApiTab.IsTabActive = SelectedWorkspaceTabIndex == 8;
 
         RefreshActiveNodes();
 
@@ -133,11 +136,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedWorkspaceTabIndexChanged(int value)
     {
-        if (RawLogsApiTab != null) RawLogsApiTab.IsTabActive = value == 7;
-        if (ChatFilesTab != null) ChatFilesTab.IsTabActive = value == 5;
+        if (RawLogsApiTab != null) RawLogsApiTab.IsTabActive = value == 8;
+        if (ChatFilesTab != null) ChatFilesTab.IsTabActive = value == 6;
         if (MediaLibraryTab != null)
         {
-            MediaLibraryTab.IsTabActive = value == 4;
+            MediaLibraryTab.IsTabActive = value == 5;
+        }
+        if (SandboxTab != null)
+        {
+            SandboxTab.IsTabActive = value == 4;
         }
     }
 
@@ -153,6 +160,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (DirectChatTab != null) DirectChatTab.SelectedNode = value;
         if (MemoriesRagTab != null) MemoriesRagTab.SelectedNode = value;
         if (TipsTab != null) TipsTab.SelectedNode = value;
+        if (SandboxTab != null) SandboxTab.SelectedNode = value;
         if (MediaLibraryTab != null) MediaLibraryTab.SelectedNode = value;
         if (ChatFilesTab != null) ChatFilesTab.SelectedNode = value;
         if (ActiveJobsTab != null) ActiveJobsTab.SelectedNode = value;
@@ -412,6 +420,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStreamCts?.Cancel();
         _stateStreamCts?.Dispose();
         _stateStreamCts = null;
+        SandboxTab.Dispose();
         RawLogsApiTab.Dispose();
     }
 }

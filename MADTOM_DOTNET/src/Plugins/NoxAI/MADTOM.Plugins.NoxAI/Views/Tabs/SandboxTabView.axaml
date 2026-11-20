@@ -1,0 +1,941 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             xmlns:proto="using:MADTOM.Plugins.NoxAI.Proto.V1"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="780"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.SandboxTabView"
+             x:DataType="vm:SandboxTabViewModel">
+
+    <Panel>
+        <Grid RowDefinitions="*,Auto" Margin="16" RowSpacing="10">
+            <!-- Sub-sections TabControl: VMs | Files | Libraries | Runs -->
+            <TabControl Grid.Row="0" Padding="0">
+
+                <!-- ============================================================== -->
+                <!-- 1. VMs Sub-Tab                                                 -->
+                <!-- ============================================================== -->
+                <TabItem Header="🖥 VMs" FontSize="12">
+                    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10" Margin="0,8,0,0">
+                        <!-- Header & Toolbar -->
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="6" VerticalAlignment="Center">
+                                    <!-- Filter Toggle: All / Hot / Cold -->
+                                    <ComboBox SelectedIndex="{Binding VmFilterIndex, Mode=TwoWay}"
+                                              MinWidth="110"
+                                              VerticalAlignment="Center"
+                                              ToolTip.Tip="Filter VMs by state (All / Hot / Cold)">
+                                        <ComboBoxItem Content="All VMs"/>
+                                        <ComboBoxItem Content="Hot (booting/warm/busy)"/>
+                                        <ComboBoxItem Content="Cold (hibernated/cold)"/>
+                                    </ComboBox>
+
+                                    <Button Command="{Binding RefreshVmsCommand}"
+                                            Content="🔄 Refresh"
+                                            Padding="10,4"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"
+                                            IsEnabled="{Binding !IsBusy}"/>
+
+                                    <CheckBox IsChecked="{Binding AutoRefresh, Mode=TwoWay}"
+                                              Content="Auto-refresh (10s)"
+                                              FontSize="11"
+                                              VerticalAlignment="Center"/>
+
+                                    <!-- Totals / Pools / Host summary pills -->
+                                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TotalsSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </Border>
+                                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding PoolsSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </Border>
+                                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding HostSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    </Border>
+                                </WrapPanel>
+
+                                <!-- Per-selected-VM Actions -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsEnabled="{Binding HasSelectedVm}">
+                                    <TextBox Text="{Binding ActionSession, Mode=TwoWay}"
+                                             PlaceholderText="session"
+                                             Width="80"
+                                             FontSize="11"
+                                             VerticalAlignment="Center"
+                                             ToolTip.Tip="Session name to reset (default: main)"/>
+                                    <Button Command="{Binding ResetSessionCommand}"
+                                            Content="Reset session"
+                                            Padding="8,4"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"/>
+                                    <Button Command="{Binding HibernateVmCommand}"
+                                            Content="Hibernate"
+                                            Padding="8,4"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"/>
+
+                                    <!-- Restart with Confirmation Flyout -->
+                                    <Button Content="Restart"
+                                            Padding="8,4"
+                                            FontSize="11"
+                                            Foreground="{DynamicResource WarningBrush}"
+                                            VerticalAlignment="Center">
+                                        <Button.Flyout>
+                                            <Flyout Placement="BottomEdgeAlignedRight">
+                                                <StackPanel Spacing="8" Width="240" Margin="4">
+                                                    <TextBlock Text="Restart this VM? Snapshot and active sessions will be dropped."
+                                                               TextWrapping="Wrap"
+                                                               FontSize="11"/>
+                                                    <Button Command="{Binding RestartVmCommand}"
+                                                            Content="Confirm Restart"
+                                                            Background="{DynamicResource WarningBrush}"
+                                                            Foreground="White"
+                                                            FontWeight="Bold"
+                                                            HorizontalAlignment="Right"
+                                                            Padding="10,4"
+                                                            FontSize="11"/>
+                                                </StackPanel>
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+
+                                    <!-- Kill with Confirmation Flyout -->
+                                    <Button Content="Kill"
+                                            Padding="8,4"
+                                            FontSize="11"
+                                            Foreground="{DynamicResource CriticalBrush}"
+                                            VerticalAlignment="Center">
+                                        <Button.Flyout>
+                                            <Flyout Placement="BottomEdgeAlignedRight">
+                                                <StackPanel Spacing="8" Width="240" Margin="4">
+                                                    <TextBlock Text="Kill this VM immediately? Running processes and snapshot will be dropped."
+                                                               TextWrapping="Wrap"
+                                                               FontSize="11"/>
+                                                    <Button Command="{Binding KillVmCommand}"
+                                                            Content="Confirm Kill"
+                                                            Background="{DynamicResource CriticalBrush}"
+                                                            Foreground="White"
+                                                            FontWeight="Bold"
+                                                            HorizontalAlignment="Right"
+                                                            Padding="10,4"
+                                                            FontSize="11"/>
+                                                </StackPanel>
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- VMs Table -->
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                ClipToBounds="True">
+                            <Grid RowDefinitions="Auto,*">
+                                <Border Grid.Row="0"
+                                        Background="{DynamicResource CardBgBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="12,7">
+                                    <Grid ColumnDefinitions="150,55,82,95,95,140,75,55,100,125,125,75,45" ColumnSpacing="6">
+                                        <TextBlock Grid.Column="0" Text="CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="KIND" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="2" Text="STATE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="3" Text="IMAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="4" Text="MEM/CPU" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="5" Text="DISK" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="6" Text="SNAPSHOT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="7" Text="BKPS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="8" Text="CPU TODAY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="9" Text="LAST USED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="10" Text="IDLE DEADLINE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="11" Text="SESSIONS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="12" Text="JOBS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </Grid>
+                                </Border>
+
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding FilteredVms}"
+                                         SelectedItem="{Binding SelectedVm, Mode=TwoWay}"
+                                         Background="Transparent"
+                                         BorderThickness="0">
+                                    <ListBox.Styles>
+                                        <Style Selector="ListBoxItem">
+                                            <Setter Property="Padding" Value="4,2"/>
+                                            <Setter Property="Margin" Value="0"/>
+                                        </Style>
+                                    </ListBox.Styles>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SandboxVmRow">
+                                            <Border Background="{DynamicResource CardBgBrush}"
+                                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8,6"
+                                                    Margin="0,1">
+                                                <Grid ColumnDefinitions="150,55,82,95,95,140,75,55,100,125,125,75,45" ColumnSpacing="6" VerticalAlignment="Center">
+                                                    <TextBlock Grid.Column="0" Text="{Binding ChatDisplay}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ChatDisplay}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+
+                                                    <!-- State Badge (hot vs cold) -->
+                                                    <Border Grid.Column="2"
+                                                            Classes.hot="{Binding IsHot}"
+                                                            Classes.cold="{Binding IsCold}"
+                                                            Background="{DynamicResource DarkBaseBrush}"
+                                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            Padding="5,2"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center">
+                                                        <Border.Styles>
+                                                            <Style Selector="Border.hot">
+                                                                <Setter Property="Background" Value="{DynamicResource HealthySubtleBrush}"/>
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource HealthyBrush}"/>
+                                                            </Style>
+                                                            <Style Selector="Border.hot TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource HealthyBrush}"/>
+                                                            </Style>
+                                                            <Style Selector="Border.cold">
+                                                                <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                            </Style>
+                                                            <Style Selector="Border.cold TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+                                                            </Style>
+                                                        </Border.Styles>
+                                                        <TextBlock Text="{Binding StateBadge}" FontSize="9" FontWeight="Bold"/>
+                                                    </Border>
+
+                                                    <TextBlock Grid.Column="3" Text="{Binding ImageVersion}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding ResourcesDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+
+                                                    <!-- Disk Used / Quota + Small Bar -->
+                                                    <StackPanel Grid.Column="5" Spacing="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DiskDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                                        <ProgressBar Value="{Binding DiskUsageFraction}" Minimum="0" Maximum="1" Height="4"/>
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="6" Text="{Binding SnapshotDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="7" Text="{Binding Backups}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="8" Text="{Binding CpuDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="9" Text="{Binding LastUsedDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="10" Text="{Binding IdleDeadlineDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="11" Text="{Binding SessionsDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="12" Text="{Binding JobCount}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Selected VM Sessions and Jobs Detail Pane -->
+                        <Border Grid.Row="2"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8"
+                                IsVisible="{Binding HasSelectedVm}">
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                                <!-- Sessions -->
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="SESSIONS (SELECTED VM)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    <ItemsControl ItemsSource="{Binding SelectedVmSessions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="proto:NoxSandboxSession">
+                                                <Grid ColumnDefinitions="100,70,*" ColumnSpacing="8" Margin="0,2">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Busy, StringFormat='busy: {0}'}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Started}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Jobs -->
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock Text="BACKGROUND JOBS (SELECTED VM)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    <ItemsControl ItemsSource="{Binding SelectedVmJobs}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="proto:NoxSandboxJob">
+                                                <Grid ColumnDefinitions="110,80,*" ColumnSpacing="8" Margin="0,2">
+                                                    <TextBlock Grid.Column="0" Text="{Binding JobId}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding State}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Started}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- ============================================================== -->
+                <!-- 2. Files & Backups Sub-Tab                                     -->
+                <!-- ============================================================== -->
+                <TabItem Header="📂 Files &amp; Backups" FontSize="12">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="10" Margin="0,8,0,0">
+                        <!-- Top Bar -->
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8">
+                            <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="Chat ID:" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding FilesChatIdText, Mode=TwoWay}"
+                                         PlaceholderText="chat_id"
+                                         Width="130"
+                                         FontSize="11"
+                                         VerticalAlignment="Center"/>
+                                <TextBlock Text="Path:" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding FilesPath, Mode=TwoWay}"
+                                         PlaceholderText="/data"
+                                         Width="160"
+                                         FontSize="11"
+                                         VerticalAlignment="Center"/>
+                                <Button Command="{Binding RefreshFilesCommand}"
+                                        Content="🔄 Refresh"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                                <Button Command="{Binding OpenFileCommand}"
+                                        Content="📖 Open / Expand"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                                <Button Command="{Binding PreviewCommand}"
+                                        Content="🖼 Preview"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding CanPreviewSelectedFile}"/>
+                                <Button Command="{Binding RefreshBackupsCommand}"
+                                        Content="💾 Load Backups"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding !IsBusy}"/>
+
+                                <TextBlock Text="{Binding FilesAsOf, StringFormat='as of {0}'}"
+                                           FontSize="10"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           VerticalAlignment="Center"
+                                           IsVisible="{Binding FilesAsOf, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <Border Background="{DynamicResource WarningSubtleBrush}"
+                                        BorderBrush="{DynamicResource WarningBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="6,2"
+                                        VerticalAlignment="Center"
+                                        IsVisible="{Binding FilesFromCache}">
+                                    <TextBlock Text="cached" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                                </Border>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- Split: Left (Files + Backups), Right (Viewer Pane) -->
+                        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <Grid Grid.Column="0" RowDefinitions="2*,*" RowSpacing="10">
+                                <!-- Files List -->
+                                <Border Grid.Row="0"
+                                        Background="{DynamicResource DarkBaseBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        ClipToBounds="True">
+                                    <Grid RowDefinitions="Auto,*">
+                                        <Border Grid.Row="0"
+                                                Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,7">
+                                            <Grid ColumnDefinitions="*,65,80,145,Auto" ColumnSpacing="8">
+                                                <TextBlock Grid.Column="0" Text="PATH" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="1" Text="TYPE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="2" Text="SIZE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                                                <TextBlock Grid.Column="3" Text="MTIME (LOCAL)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="4" Text="ACTION" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <ListBox Grid.Row="1"
+                                                 ItemsSource="{Binding Files}"
+                                                 SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 DoubleTapped="OnFileDoubleTapped">
+                                            <ListBox.Styles>
+                                                <Style Selector="ListBoxItem">
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                    <Setter Property="Margin" Value="0"/>
+                                                </Style>
+                                            </ListBox.Styles>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:SandboxFileRow">
+                                                    <Border Background="{DynamicResource CardBgBrush}"
+                                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="6"
+                                                            Padding="8,5"
+                                                            Margin="0,1">
+                                                        <Grid ColumnDefinitions="*,65,80,145,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Icon}" FontSize="12"/>
+                                                                <TextBlock Text="{Binding Path}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Type}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding SizeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding MtimeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                            <Button Grid.Column="4"
+                                                                    Command="{Binding $parent[UserControl].((vm:SandboxTabViewModel)DataContext).OpenFileCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Content="Open"
+                                                                    Padding="6,2"
+                                                                    FontSize="10"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Backups List -->
+                                <Border Grid.Row="1"
+                                        Background="{DynamicResource DarkBaseBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        ClipToBounds="True">
+                                    <Grid RowDefinitions="Auto,*">
+                                        <Border Grid.Row="0"
+                                                Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="0,0,0,1"
+                                                Padding="12,6">
+                                            <Grid ColumnDefinitions="*,160,90,Auto" ColumnSpacing="8">
+                                                <TextBlock Grid.Column="0" Text="BACKUP ID" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="1" Text="CREATED AT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="2" Text="BYTES" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                                                <TextBlock Grid.Column="3" Text="RESTORE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <ListBox Grid.Row="1"
+                                                 ItemsSource="{Binding Backups}"
+                                                 SelectedItem="{Binding SelectedBackup, Mode=TwoWay}"
+                                                 Background="Transparent"
+                                                 BorderThickness="0">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="proto:NoxSandboxBackup">
+                                                    <Grid ColumnDefinitions="*,160,90,Auto" ColumnSpacing="8" Margin="4,2" VerticalAlignment="Center">
+                                                        <TextBlock Grid.Column="0" Text="{Binding Id}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding CreatedAt}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Bytes}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                        <Button Grid.Column="3"
+                                                                Content="Restore"
+                                                                Padding="6,2"
+                                                                FontSize="10"
+                                                                Foreground="{DynamicResource WarningBrush}">
+                                                            <Button.Flyout>
+                                                                <Flyout Placement="BottomEdgeAlignedRight">
+                                                                    <StackPanel Spacing="8" Width="220" Margin="4">
+                                                                        <TextBlock Text="Restore this backup? Current volume will be backed up first."
+                                                                                   TextWrapping="Wrap"
+                                                                                   FontSize="11"/>
+                                                                        <Button Command="{Binding $parent[UserControl].((vm:SandboxTabViewModel)DataContext).RestoreBackupCommand}"
+                                                                                CommandParameter="{Binding}"
+                                                                                Content="Confirm Restore"
+                                                                                Background="{DynamicResource WarningBrush}"
+                                                                                Foreground="White"
+                                                                                FontWeight="Bold"
+                                                                                HorizontalAlignment="Right"
+                                                                                Padding="10,4"
+                                                                                FontSize="11"/>
+                                                                    </StackPanel>
+                                                                </Flyout>
+                                                            </Button.Flyout>
+                                                        </Button>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Right: File Viewer Pane (Read-only Monospace Text or PNG Preview) -->
+                            <Border Grid.Column="1"
+                                    Background="{DynamicResource CardBgBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12">
+                                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBlock Text="{Binding SelectedFile.Path, FallbackValue='FILE VIEWER'}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                   Foreground="{DynamicResource AccentTextBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding ViewerNotice}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource WarningBrush}"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding ViewerNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    </Grid>
+
+                                    <Panel Grid.Row="1">
+                                        <!-- Plain Read-Only Monospace TextBox (no syntax highlighting, no HTML rendering) -->
+                                        <TextBox Text="{Binding ViewerText, Mode=OneWay}"
+                                                 IsReadOnly="True"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="NoWrap"
+                                                 FontFamily="{StaticResource MonoFontFamily}"
+                                                 FontSize="11"
+                                                 IsVisible="{Binding IsTextViewerVisible}"/>
+
+                                        <!-- Rendered PNG Preview -->
+                                        <Image Source="{Binding PreviewImage}"
+                                               Stretch="Uniform"
+                                               IsVisible="{Binding IsImageViewerVisible}"/>
+                                    </Panel>
+
+                                    <!-- Multi-page controls -->
+                                    <StackPanel Grid.Row="2"
+                                                Orientation="Horizontal"
+                                                Spacing="10"
+                                                HorizontalAlignment="Center"
+                                                IsVisible="{Binding IsImageViewerVisible}">
+                                        <Button Command="{Binding PrevPageCommand}"
+                                                Content="◀ Prev"
+                                                Padding="10,4"
+                                                FontSize="11"/>
+                                        <TextBlock Text="{Binding PageStatusText}"
+                                                   FontSize="11"
+                                                   FontFamily="{StaticResource MonoFontFamily}"
+                                                   VerticalAlignment="Center"/>
+                                        <Button Command="{Binding NextPageCommand}"
+                                                Content="Next ▶"
+                                                Padding="10,4"
+                                                FontSize="11"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </TabItem>
+
+                <!-- ============================================================== -->
+                <!-- 3. Libraries & Image Status Sub-Tab                            -->
+                <!-- ============================================================== -->
+                <TabItem Header="📚 Libraries &amp; Image" FontSize="12">
+                    <Grid ColumnDefinitions="3*,2*" ColumnSpacing="12" Margin="0,8,0,0">
+                        <!-- Left: Library Request Queue -->
+                        <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="10">
+                            <Border Grid.Row="0"
+                                    Background="{DynamicResource CardBgBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12,8">
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6" VerticalAlignment="Center">
+                                    <ComboBox SelectedIndex="{Binding LibraryStatusFilterIndex, Mode=TwoWay}"
+                                              MinWidth="120"
+                                              VerticalAlignment="Center">
+                                        <ComboBoxItem Content="Pending"/>
+                                        <ComboBoxItem Content="Approved"/>
+                                        <ComboBoxItem Content="Installed"/>
+                                        <ComboBoxItem Content="Rejected"/>
+                                        <ComboBoxItem Content="All"/>
+                                    </ComboBox>
+
+                                    <Button Command="{Binding RefreshLibraryRequestsCommand}"
+                                            Content="🔄 Refresh Queue"
+                                            Padding="10,4"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"
+                                            IsEnabled="{Binding !IsBusy}"/>
+
+                                    <TextBox Text="{Binding DecisionNote, Mode=TwoWay}"
+                                             PlaceholderText="Decision note (optional)…"
+                                             MinWidth="180"
+                                             FontSize="11"
+                                             VerticalAlignment="Center"/>
+
+                                    <Button Command="{Binding ApproveSelectedCommand}"
+                                            Content="✓ Approve Selected"
+                                            Background="{DynamicResource HealthySubtleBrush}"
+                                            BorderBrush="{DynamicResource HealthyBrush}"
+                                            BorderThickness="1"
+                                            Foreground="{DynamicResource HealthyBrush}"
+                                            FontWeight="SemiBold"
+                                            Padding="10,4"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"
+                                            IsEnabled="{Binding !IsBusy}"/>
+
+                                    <Button Command="{Binding RejectSelectedCommand}"
+                                            Content="✕ Reject Selected"
+                                            Foreground="{DynamicResource CriticalBrush}"
+                                            Padding="10,4"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"
+                                            IsEnabled="{Binding !IsBusy}"/>
+                                </WrapPanel>
+                            </Border>
+
+                            <Border Grid.Row="1"
+                                    Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    ClipToBounds="True">
+                                <Grid RowDefinitions="Auto,*">
+                                    <Border Grid.Row="0"
+                                            Background="{DynamicResource CardBgBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="12,7">
+                                        <Grid ColumnDefinitions="28,45,95,85,55,120,*,75,125,80,110" ColumnSpacing="6">
+                                            <TextBlock Grid.Column="0" Text="" FontSize="10"/>
+                                            <TextBlock Grid.Column="1" Text="ID" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="2" Text="CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="3" Text="USER" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="4" Text="MGR" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="5" Text="PACKAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="6" Text="REASON" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="7" Text="STATUS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="8" Text="CREATED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="9" Text="BY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Column="10" Text="NOTE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <ListBox Grid.Row="1"
+                                             ItemsSource="{Binding LibraryRequests}"
+                                             SelectedItem="{Binding SelectedLibraryRequest, Mode=TwoWay}"
+                                             Background="Transparent"
+                                             BorderThickness="0">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:SandboxLibraryRow">
+                                                <Border Background="{DynamicResource CardBgBrush}"
+                                                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="6"
+                                                        Padding="8,5"
+                                                        Margin="0,1">
+                                                    <Grid ColumnDefinitions="28,45,95,85,55,120,*,75,125,80,110" ColumnSpacing="6" VerticalAlignment="Center">
+                                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Id}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding ChatId}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="3" Text="{Binding RequesterDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding Manager}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="5" Text="{Binding Package}" FontSize="11" FontWeight="SemiBold" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Package}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="6" Text="{Binding Reason}" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Reason}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="7" Text="{Binding StatusDisplay}" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="8" Text="{Binding CreatedAt}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="9" Text="{Binding DecidedBy}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="10" Text="{Binding DecisionNote}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DecisionNote}" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- Right: Image Status Panel -->
+                        <Border Grid.Column="1"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="14">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                        <TextBlock Text="SANDBOX IMAGE STATUS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1"
+                                                Command="{Binding RefreshImageCommand}"
+                                                Content="🔄 Refresh"
+                                                Padding="8,4"
+                                                FontSize="11"
+                                                IsEnabled="{Binding !IsBusy}"/>
+                                        <Button Grid.Column="2"
+                                                Content="🔨 Rebuild now"
+                                                Padding="10,4"
+                                                FontSize="11"
+                                                Background="{DynamicResource AccentBrush}"
+                                                Foreground="White"
+                                                FontWeight="Bold"
+                                                IsEnabled="{Binding !IsBusy}">
+                                            <Button.Flyout>
+                                                <Flyout Placement="BottomEdgeAlignedRight">
+                                                    <StackPanel Spacing="8" Width="250" Margin="4">
+                                                        <TextBlock Text="Trigger an immediate sandbox image rebuild with all approved packages?"
+                                                                   TextWrapping="Wrap"
+                                                                   FontSize="11"/>
+                                                        <Button Command="{Binding RebuildImageCommand}"
+                                                                Content="Confirm Rebuild"
+                                                                Background="{DynamicResource AccentBrush}"
+                                                                Foreground="White"
+                                                                FontWeight="Bold"
+                                                                HorizontalAlignment="Right"
+                                                                Padding="10,4"
+                                                                FontSize="11"/>
+                                                    </StackPanel>
+                                                </Flyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                    </Grid>
+
+                                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="10,8">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding CurrentImageVersion, StringFormat='Current Version: {0}'}" FontSize="12" FontWeight="SemiBold" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Text="{Binding ImageBuilding, StringFormat='Building: {0}'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding ImageBuildStarted, StringFormat='Build started: {0}'}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       IsVisible="{Binding ImageBuildStarted, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="10,8">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="LAST BUILD" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding LastBuildVersion, StringFormat='Version: {0}'}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            <TextBlock Text="{Binding LastBuildOk, StringFormat='OK: {0}'}" FontSize="11"/>
+                                            <TextBlock Text="{Binding LastBuildFinished, StringFormat='Finished: {0}'}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <Expander Header="Build Log Tail" HorizontalAlignment="Stretch">
+                                                <TextBox Text="{Binding LastBuildLogTail, Mode=OneWay}"
+                                                         IsReadOnly="True"
+                                                         AcceptsReturn="True"
+                                                         TextWrapping="Wrap"
+                                                         MaxHeight="220"
+                                                         FontFamily="{StaticResource MonoFontFamily}"
+                                                         FontSize="10"/>
+                                            </Expander>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="10,8">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="INSTALLED EXTRA PACKAGES" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding InstalledPackagesSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="10,8">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="PENDING PACKAGES (NEXT BUILD)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding PendingPackagesSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="10,8">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="VERSIONS IN USE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding VersionsInUseSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- ============================================================== -->
+                <!-- 4. Runs Sub-Tab                                                -->
+                <!-- ============================================================== -->
+                <TabItem Header="📜 Runs" FontSize="12">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="10" Margin="0,8,0,0">
+                        <!-- Toolbar -->
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8">
+                            <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="Chat ID filter:" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding RunsChatIdText, Mode=TwoWay}"
+                                         PlaceholderText="All chats"
+                                         Width="130"
+                                         FontSize="11"
+                                         VerticalAlignment="Center"/>
+                                <Button Command="{Binding RefreshRunsCommand}"
+                                        Content="🔄 Refresh"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                                <Button Command="{Binding PrevRunsPageCommand}"
+                                        Content="◀ Prev 50"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                                <TextBlock Text="{Binding RunsPageLabel}"
+                                           FontSize="11"
+                                           FontFamily="{StaticResource MonoFontFamily}"
+                                           VerticalAlignment="Center"/>
+                                <Button Command="{Binding NextRunsPageCommand}"
+                                        Content="Next 50 ▶"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- Runs List -->
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                ClipToBounds="True">
+                            <Grid RowDefinitions="Auto,*">
+                                <Border Grid.Row="0"
+                                        Background="{DynamicResource CardBgBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="12,7">
+                                    <Grid ColumnDefinitions="135,90,80,55,60,70,*,45,130,65,45,50,90" ColumnSpacing="6">
+                                        <TextBlock Grid.Column="0" Text="CREATED AT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="CHAT ID" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="2" Text="USER ID" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="3" Text="VM" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="4" Text="KIND" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="5" Text="SESSION" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="6" Text="CODE PREVIEW" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="7" Text="EXIT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="8" Text="ERROR" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="9" Text="DUR (MS)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                                        <TextBlock Grid.Column="10" Text="IN" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                                        <TextBlock Grid.Column="11" Text="OUT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                                        <TextBlock Grid.Column="12" Text="BG JOB" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </Grid>
+                                </Border>
+
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding Runs}"
+                                         Background="Transparent"
+                                         BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="proto:NoxSandboxRun">
+                                            <Border Background="{DynamicResource CardBgBrush}"
+                                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8,5"
+                                                    Margin="0,1">
+                                                <Grid ColumnDefinitions="135,90,80,55,60,70,*,45,130,65,45,50,90" ColumnSpacing="6" VerticalAlignment="Center">
+                                                    <TextBlock Grid.Column="0" Text="{Binding CreatedAt}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding ChatId}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding RequesterUserId}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding Vm}" FontSize="10" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding Kind}" FontSize="10" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="5" Text="{Binding Session}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="6"
+                                                               Text="{Binding CodePreview, Converter={x:Static vm:SandboxTabViewModel.SingleLineConverter}}"
+                                                               ToolTip.Tip="{Binding CodePreview}"
+                                                               FontSize="10"
+                                                               FontFamily="{StaticResource MonoFontFamily}"
+                                                               MaxLines="1"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="7" Text="{Binding ExitCode}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="8" Text="{Binding Error}" ToolTip.Tip="{Binding Error}" FontSize="10" Foreground="{DynamicResource CriticalBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="9" Text="{Binding DurationMs}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="10" Text="{Binding Inputs}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="11" Text="{Binding Exports}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="12" Text="{Binding BackgroundJob}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+
+            <!-- Bottom Status / Error Line -->
+            <Border Grid.Row="1"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,6">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding StatusMessage}"
+                               IsVisible="{Binding !HasError}"/>
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource CriticalBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding ErrorMessage}"
+                               IsVisible="{Binding HasError}"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Programmatic Confirmation Modal Overlay (when RequireConfirmation == true) -->
+        <Border IsVisible="{Binding IsConfirmOpen}" Background="#B0000000">
+            <Border Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource WarningBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="18"
+                    Width="440"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="{Binding ConfirmTitle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding ConfirmMessage}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button Command="{Binding CancelConfirmCommand}" Content="Cancel" Padding="12,5"/>
+                        <Button Command="{Binding ConfirmPendingCommand}"
+                                Content="Confirm"
+                                Background="{DynamicResource CriticalBrush}"
+                                Foreground="White"
+                                FontWeight="Bold"
+                                Padding="12,5"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Panel>
+</UserControl>

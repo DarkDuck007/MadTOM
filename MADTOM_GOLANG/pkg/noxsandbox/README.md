@@ -1,0 +1,9 @@
+# Nox sandbox daemon
+
+Build with `go build ./cmd/nox-sandbox`. Install matching, patched Linux Firecracker and `jailer` binaries and a compatible guest kernel and root filesystem. The host needs `/dev/kvm`, cgroup v2 with the CPU controller available to the jailer, systemd 254+ for the supplied unit's delegated subgroup, and `mkfs.ext4`. No TAP or MMDS configuration is needed.
+
+Install the unit from `systemd/nox-sandbox.service` and a root-owned `/etc/nox-sandbox/host.yaml` using the host configuration in `plans/2026-11-20-nox-sandbox/contracts.md`. For the supplied unit, set `state_dir: /var/lib/nox-sandbox` and `chroot_base: /var/lib/nox-sandbox/jails`. Pre-create root-owned storage directories. Chat volumes and jails must share one writable mount, including inside the systemd namespace, so Firecracker can open the live disk through a hardlink. Put that common parent in `ReadWritePaths`, not separate entries for its children. Configure a restricted `socket_group`, membership, and the allowed numeric peer UIDs. The built image lives at `<images_dir>/<version>/rootfs.ext4`; point `<images_dir>/current` at that version. Production images, state and jail paths must not be writable by NoxChat or other unprivileged users.
+
+Start with `systemctl enable --now nox-sandbox`. `systemctl reload nox-sandbox` re-reads the unprivileged `sandbox:` section; restart the daemon to change trusted host settings. Only the root API peer may wipe a chat. Image rebuilds are privileged and use the approved package set, so only trusted local controllers belong in `allowed_uids`. The daemon passes `--out`, `--packages` and `--version` to the shipped image builder. Set `agent_vsock_port: 52` for the shipped guest image.
+
+Never mount chat disks on the host. Keep old image versions and the matching kernel/Firecracker build while snapshots reference them. The daemon keeps old images by default; consult `GET /v1/image` before any offline cleanup.

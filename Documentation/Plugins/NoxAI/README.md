@@ -150,3 +150,91 @@ Comprehensive diagnostic logging, API payload interception, and chat trace inspe
   - `Force GC Collect` trigger for garbage collection benchmarking.
   - `Force Load (Stress Test)` generating simulated zstd chunk streams for memory pressure verification.
 - **Zero Overhead When Disconnected**: If no MADTOM Studio client is connected, the Python backend disables all telemetry samplers and intercepts; the Go daemon flushes ring buffers to 0 bytes.
+
+## Sandbox control RPCs
+
+The Go probe exposes sandbox administration on `NoxChatControlService` in
+[`noxchat.proto`](../../../MADTOM_GOLANG/proto/madtom/v1/noxchat.proto), forwarding
+requests to the Python `sandbox_*` handlers using the same JSON bridge as Tips.
+All request/response types use the `NoxSandbox` prefix. Every request includes
+`node_id`; every response includes `error`, which clients should display when set.
+
+| gRPC method | Python bridge method | Timeout |
+|---|---|---|
+| `ListSandboxVms` | `sandbox_list_vms` | 15s |
+| `SandboxVmAction` | `sandbox_vm_action` | 60s |
+| `ListSandboxFiles` | `sandbox_list_files` | 30s |
+| `ReadSandboxText` | `sandbox_read_text` | 30s |
+| `PreviewSandboxFile` | `sandbox_preview` | 60s |
+| `ListSandboxBackups` | `sandbox_backups` | 15s |
+| `RestoreSandboxBackup` | `sandbox_backups` (with `backup_id`) | 120s |
+| `ListSandboxLibraryRequests` | `sandbox_library_requests` | 15s |
+| `DecideSandboxLibrary` | `sandbox_decide_library` | 60s |
+| `GetSandboxImageStatus` | `sandbox_image_status` | 15s |
+| `RebuildSandboxImage` | `sandbox_rebuild_image` | 15s |
+| `ListSandboxRuns` | `sandbox_runs` | 10s |
+
+Inventory includes full VM details, sessions/jobs, chat titles, pools, totals and
+host disk usage. Image status includes approved/pending pip and apt packages,
+last build details and version usage counts. File previews expose `png_b64` as a
+base64 string. Backup sizes and file sizes are 64-bit integers; timestamps remain
+RFC3339 strings. Library rows preserve the database integer `notified` field.
+
+Set optional `chat_id` explicitly for operations on chat `0`; omit it only to list
+library requests or runs across all chats. Optional `depth` preserves explicit
+zero; omission uses Python's default of 2. `approve=false` may be omitted by Go's
+JSON encoding and is interpreted by Python as rejection. Runs use `limit` and
+`offset`, returning `runs`, `total`, `limit` and `offset`.
+
+### Sandbox message fields
+
+All names below have the `NoxSandbox` prefix. `[]` means repeated and `?` means
+optional presence. Request `node_id` is always field 1.
+
+| Message | Fields (protobuf type followed by JSON key) |
+|---|---|
+| `Session` | `string name`, `bool busy`, `string started` |
+| `Job` | `string job_id`, `string state`, `string started` |
+| `VmInfo` | `int64 chat_id`, `string kind`, `string state`, `string image_version`, `int64 mem_mb`, `int32 vcpus`, `int64 pid`, `string since`, `string last_used`, `string idle_deadline`, `string session_deadline`, `int64 disk_used_bytes`, `int64 disk_quota_bytes`, `int64 snapshot_bytes`, `int32 backups`, `double cpu_seconds_today`, `double cpu_budget_seconds`, `[]Session sessions`, `[]Job jobs`, `string chat_title` |
+| `Pool` | `int32 ready`, `int32 target` |
+| `Totals` | `int32 running`, `int64 guest_mem_mb`, `int32 max_vms`, `int64 max_guest_mem_mb` |
+| `Host` | `double state_dir_used_percent` |
+| `FileEntry` | `string path`, `string type`, `int64 size`, `string mtime` |
+| `Backup` | `string id`, `string created_at`, `int64 bytes` |
+| `LibraryRequest` | `int64 id`, `int64 chat_id`, `?int64 requester_user_id`, `string manager`, `string package`, `string reason`, `string status`, `string decided_by`, `string decided_at`, `string decision_note`, `string image_version`, `int32 notified`, `string created_at` |
+| `Packages` | `[]string pip`, `[]string apt` |
+| `LastBuild` | `string version`, `bool ok`, `string finished`, `string log_tail` |
+| `Run` | `int64 id`, `int64 chat_id`, `?int64 requester_user_id`, `string vm`, `string kind`, `string session`, `string code_preview`, `?int32 exit_code`, `string error`, `int64 duration_ms`, `int32 inputs`, `int32 exports`, `string background_job`, `string created_at` |
+| `ListVmsRequest` | `string node_id` |
+| `ListVmsResponse` | `[]VmInfo vms`, `map<string, Pool> pools`, `Totals totals`, `Host host`, `string error` |
+| `VmActionRequest` | `string node_id`, `?int64 chat_id`, `string action`, `string session` |
+| `VmActionResponse` | `bool ok`, `string image_version`, `string error` |
+| `ListFilesRequest` | `string node_id`, `?int64 chat_id`, `string path`, `?int32 depth`, `bool refresh` |
+| `ListFilesResponse` | `[]FileEntry entries`, `string as_of`, `bool from_cache`, `string error` |
+| `ReadTextRequest` | `string node_id`, `?int64 chat_id`, `string path` |
+| `ReadTextResponse` | `string text`, `bool truncated`, `bool binary`, `int64 size`, `string error` |
+| `PreviewFileRequest` | `string node_id`, `?int64 chat_id`, `string path`, `int32 page` |
+| `PreviewFileResponse` | `string png_b64`, `int32 width`, `int32 height`, `int32 pages`, `string kind`, `string error` |
+| `ListBackupsRequest` | `string node_id`, `?int64 chat_id` |
+| `ListBackupsResponse` | `[]Backup backups`, `string error` |
+| `RestoreBackupRequest` | `string node_id`, `?int64 chat_id`, `string backup_id` |
+| `RestoreBackupResponse` | `bool ok`, `string error` |
+| `ListLibraryRequestsRequest` | `string node_id`, `?int64 chat_id`, `string status` |
+| `ListLibraryRequestsResponse` | `[]LibraryRequest requests`, `string error` |
+| `DecideLibraryRequest` | `string node_id`, `[]int64 ids`, `bool approve`, `string note`, `string decided_by` |
+| `DecideLibraryResponse` | `bool ok`, `[]int64 ids`, `string error` |
+| `ImageStatusRequest` | `string node_id` |
+| `ImageStatusResponse` | `string current_version`, `bool building`, `string build_started`, `LastBuild last_build`, `Packages packages`, `Packages pending_packages`, `map<string, int32> versions_in_use`, `string error` |
+| `RebuildImageRequest` | `string node_id` |
+| `RebuildImageResponse` | `bool ok`, `bool building`, `string error` |
+| `ListRunsRequest` | `string node_id`, `?int64 chat_id`, `int32 limit`, `int32 offset` |
+| `ListRunsResponse` | `[]Run runs`, `int64 total`, `int32 limit`, `int32 offset`, `string error` |
+
+### Sandbox tab (`SandboxTabView` / `SandboxTabViewModel`)
+
+Registered in `MainView.axaml` right after Tips, the **📦 Sandbox** tab monitors and administers Nox's Firecracker sandbox VMs across four sub-tabs:
+- **VMs**: Lists all sandbox VMs with All / Hot (`booting|warm|busy`) / Cold (`hibernated|cold`) filtering, running/memory totals, `temp` and `pre` pool counts, host state directory usage percentage, optional 10s auto-refresh, per-VM session/job details, and VM actions (`reset_session`, `hibernate`, `restart`, `kill`).
+- **Files & Backups**: Lists `/data` files for the selected VM (or typed `chat_id`) with depth-2 expand-on-demand, cache indicators, a read-only monospace plaintext viewer (`ReadSandboxText`), a host-rendered PNG previewer (`PreviewSandboxFile`, capped at 16 MB `png_b64`, with multi-page navigation), and volume backup listing/restoration (`ListSandboxBackups`, `RestoreSandboxBackup`).
+- **Libraries & Image**: Displays the `sandbox_library_requests` queue with status filtering and multi-select approval/rejection (`decided_by="studio"`), alongside guest rootfs image build status, installed/pending `pip` and `apt` packages, active image versions, and on-demand rebuilds (`RebuildSandboxImage`).
+- **Runs**: Paged audit log (`ListSandboxRuns`, limit 50, offset paging, optional `chat_id` filter) displaying execution durations, exit codes, single-line code previews (with full code tooltip), input/export counts, and background job IDs.
+

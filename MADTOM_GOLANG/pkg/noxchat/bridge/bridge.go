@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -87,7 +88,7 @@ func (c *Client) Start() {
 
 func (c *Client) workerLoop() {
 	for !c.closed {
-		addr := fmt.Sprintf("%s:%d", c.host, c.port)
+		addr := net.JoinHostPort(c.host, strconv.Itoa(c.port))
 		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
 		if err != nil {
 			time.Sleep(1 * time.Second)

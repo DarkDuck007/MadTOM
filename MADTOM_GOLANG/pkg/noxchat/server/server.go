@@ -891,13 +891,139 @@ func (s *Server) TestTips(ctx context.Context, req *madtomv1.NoxTestTipsRequest)
 	return &resp, nil
 }
 
+// Sandbox administration: pass through to the Python sandbox_* control RPCs.
+func (s *Server) ListSandboxVms(ctx context.Context, req *madtomv1.NoxSandboxListVmsRequest) (*madtomv1.NoxSandboxListVmsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_list_vms", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxListVmsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) SandboxVmAction(ctx context.Context, req *madtomv1.NoxSandboxVmActionRequest) (*madtomv1.NoxSandboxVmActionResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_vm_action", req, 60*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxVmActionResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) ListSandboxFiles(ctx context.Context, req *madtomv1.NoxSandboxListFilesRequest) (*madtomv1.NoxSandboxListFilesResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_list_files", req, 30*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxListFilesResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) ReadSandboxText(ctx context.Context, req *madtomv1.NoxSandboxReadTextRequest) (*madtomv1.NoxSandboxReadTextResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_read_text", req, 30*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxReadTextResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) PreviewSandboxFile(ctx context.Context, req *madtomv1.NoxSandboxPreviewFileRequest) (*madtomv1.NoxSandboxPreviewFileResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_preview", req, 60*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxPreviewFileResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) ListSandboxBackups(ctx context.Context, req *madtomv1.NoxSandboxListBackupsRequest) (*madtomv1.NoxSandboxListBackupsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_backups", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxListBackupsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) RestoreSandboxBackup(ctx context.Context, req *madtomv1.NoxSandboxRestoreBackupRequest) (*madtomv1.NoxSandboxRestoreBackupResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_backups", req, 120*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxRestoreBackupResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) ListSandboxLibraryRequests(ctx context.Context, req *madtomv1.NoxSandboxListLibraryRequestsRequest) (*madtomv1.NoxSandboxListLibraryRequestsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_library_requests", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxListLibraryRequestsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) DecideSandboxLibrary(ctx context.Context, req *madtomv1.NoxSandboxDecideLibraryRequest) (*madtomv1.NoxSandboxDecideLibraryResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_decide_library", req, 60*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxDecideLibraryResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) GetSandboxImageStatus(ctx context.Context, req *madtomv1.NoxSandboxImageStatusRequest) (*madtomv1.NoxSandboxImageStatusResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_image_status", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxImageStatusResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) RebuildSandboxImage(ctx context.Context, req *madtomv1.NoxSandboxRebuildImageRequest) (*madtomv1.NoxSandboxRebuildImageResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_rebuild_image", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxRebuildImageResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) ListSandboxRuns(ctx context.Context, req *madtomv1.NoxSandboxListRunsRequest) (*madtomv1.NoxSandboxListRunsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("sandbox_runs", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSandboxListRunsResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
 func (s *Server) ListHotMemories(ctx context.Context, req *madtomv1.NoxHotMemoryRequest) (*madtomv1.NoxHotMemoryResponse, error) {
 	reply, err := s.bridgeClient.CallRpc("list_hot_memories", req, 10*time.Second)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	var resp madtomv1.NoxHotMemoryResponse
-	_ = json.Unmarshal(reply.Payload, &resp)
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		if err2 := json.Unmarshal(reply.Payload, &resp); err2 != nil {
+			return nil, status.Errorf(codes.Internal, "failed to decode hot memories: %v", err2)
+		}
+	}
 	return &resp, nil
 }
 
@@ -907,7 +1033,12 @@ func (s *Server) UpsertHotMemory(ctx context.Context, req *madtomv1.NoxUpsertHot
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	var resp madtomv1.NoxHotMemoryResponse
-	_ = json.Unmarshal(reply.Payload, &resp)
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		if err2 := json.Unmarshal(reply.Payload, &resp); err2 != nil {
+			return nil, status.Errorf(codes.Internal, "failed to decode hot memories: %v", err2)
+		}
+	}
 	return &resp, nil
 }
 
@@ -917,7 +1048,12 @@ func (s *Server) DeleteHotMemory(ctx context.Context, req *madtomv1.NoxDeleteHot
 		return nil, status.Errorf(codes.Internal, "%v", err)
 	}
 	var resp madtomv1.NoxHotMemoryResponse
-	_ = json.Unmarshal(reply.Payload, &resp)
+	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
+		if err2 := json.Unmarshal(reply.Payload, &resp); err2 != nil {
+			return nil, status.Errorf(codes.Internal, "failed to decode hot memories: %v", err2)
+		}
+	}
 	return &resp, nil
 }
 

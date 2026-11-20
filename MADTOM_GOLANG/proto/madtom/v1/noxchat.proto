@@ -85,6 +85,20 @@ service NoxChatControlService {
   rpc UpdateTip(NoxUpdateTipRequest) returns (NoxTipMutationResponse);
   rpc DeleteTips(NoxDeleteTipsRequest) returns (NoxTipMutationResponse);
   rpc TestTips(NoxTestTipsRequest) returns (NoxTestTipsResponse);
+
+  // Sandbox administration (Python sandbox_* control RPCs).
+  rpc ListSandboxVms(NoxSandboxListVmsRequest) returns (NoxSandboxListVmsResponse);
+  rpc SandboxVmAction(NoxSandboxVmActionRequest) returns (NoxSandboxVmActionResponse);
+  rpc ListSandboxFiles(NoxSandboxListFilesRequest) returns (NoxSandboxListFilesResponse);
+  rpc ReadSandboxText(NoxSandboxReadTextRequest) returns (NoxSandboxReadTextResponse);
+  rpc PreviewSandboxFile(NoxSandboxPreviewFileRequest) returns (NoxSandboxPreviewFileResponse);
+  rpc ListSandboxBackups(NoxSandboxListBackupsRequest) returns (NoxSandboxListBackupsResponse);
+  rpc RestoreSandboxBackup(NoxSandboxRestoreBackupRequest) returns (NoxSandboxRestoreBackupResponse);
+  rpc ListSandboxLibraryRequests(NoxSandboxListLibraryRequestsRequest) returns (NoxSandboxListLibraryRequestsResponse);
+  rpc DecideSandboxLibrary(NoxSandboxDecideLibraryRequest) returns (NoxSandboxDecideLibraryResponse);
+  rpc GetSandboxImageStatus(NoxSandboxImageStatusRequest) returns (NoxSandboxImageStatusResponse);
+  rpc RebuildSandboxImage(NoxSandboxRebuildImageRequest) returns (NoxSandboxRebuildImageResponse);
+  rpc ListSandboxRuns(NoxSandboxListRunsRequest) returns (NoxSandboxListRunsResponse);
 }
 
 // ------------------------------------------------------------------------------
@@ -1085,4 +1099,275 @@ message NoxTestTipsResponse {
   double threshold = 1;
   repeated NoxTipScored shown = 2;
   repeated NoxTipScored below_threshold = 3;
+}
+
+// ==============================================================================
+// Sandbox: JSON field names match the Python control RPC payloads.
+// Times are RFC3339 strings. Optional chat IDs preserve chat 0 through encoding/json;
+// omit chat_id only for unfiltered library requests and runs. Set it for chat operations.
+// Optional depth preserves an explicit zero; omission uses Python's default of 2.
+// ==============================================================================
+message NoxSandboxSession {
+  string name = 1;
+  bool busy = 2;
+  string started = 3;
+}
+
+message NoxSandboxJob {
+  string job_id = 1;
+  string state = 2;
+  string started = 3;
+}
+
+message NoxSandboxVmInfo {
+  int64 chat_id = 1;
+  string kind = 2;
+  string state = 3;
+  string image_version = 4;
+  int64 mem_mb = 5;
+  int32 vcpus = 6;
+  int64 pid = 7;
+  string since = 8;
+  string last_used = 9;
+  string idle_deadline = 10;
+  string session_deadline = 11;
+  int64 disk_used_bytes = 12;
+  int64 disk_quota_bytes = 13;
+  int64 snapshot_bytes = 14;
+  int32 backups = 15;
+  double cpu_seconds_today = 16;
+  double cpu_budget_seconds = 17;
+  repeated NoxSandboxSession sessions = 18;
+  repeated NoxSandboxJob jobs = 19;
+  string chat_title = 20;
+}
+
+message NoxSandboxPool {
+  int32 ready = 1;
+  int32 target = 2;
+}
+
+message NoxSandboxTotals {
+  int32 running = 1;
+  int64 guest_mem_mb = 2;
+  int32 max_vms = 3;
+  int64 max_guest_mem_mb = 4;
+}
+
+message NoxSandboxHost {
+  double state_dir_used_percent = 1;
+}
+
+message NoxSandboxFileEntry {
+  string path = 1;
+  string type = 2;
+  int64 size = 3;
+  int64 mtime = 4;  // unix seconds
+}
+
+message NoxSandboxBackup {
+  string id = 1;
+  string created_at = 2;
+  int64 bytes = 3;
+}
+
+message NoxSandboxLibraryRequest {
+  int64 id = 1;
+  int64 chat_id = 2;
+  optional int64 requester_user_id = 3;
+  string manager = 4;
+  string package = 5;
+  string reason = 6;
+  string status = 7;
+  string decided_by = 8;
+  string decided_at = 9;
+  string decision_note = 10;
+  string image_version = 11;
+  int32 notified = 12;
+  string created_at = 13;
+}
+
+message NoxSandboxPackages {
+  repeated string pip = 1;
+  repeated string apt = 2;
+}
+
+message NoxSandboxLastBuild {
+  string version = 1;
+  bool ok = 2;
+  string finished = 3;
+  string log_tail = 4;
+}
+
+message NoxSandboxRun {
+  int64 id = 1;
+  int64 chat_id = 2;
+  optional int64 requester_user_id = 3;
+  string vm = 4;
+  string kind = 5;
+  string session = 6;
+  string code_preview = 7;
+  optional int32 exit_code = 8;
+  string error = 9;
+  int64 duration_ms = 10;
+  int32 inputs = 11;
+  int32 exports = 12;
+  string background_job = 13;
+  string created_at = 14;
+}
+
+message NoxSandboxListVmsRequest {
+  string node_id = 1;
+}
+
+message NoxSandboxListVmsResponse {
+  repeated NoxSandboxVmInfo vms = 1;
+  map<string, NoxSandboxPool> pools = 2;
+  NoxSandboxTotals totals = 3;
+  NoxSandboxHost host = 4;
+  string error = 5;
+}
+
+message NoxSandboxVmActionRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  string action = 3;
+  string session = 4;
+}
+
+message NoxSandboxVmActionResponse {
+  bool ok = 1;
+  string image_version = 2;
+  string error = 3;
+}
+
+message NoxSandboxListFilesRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  string path = 3;
+  optional int32 depth = 4;
+  bool refresh = 5;
+}
+
+message NoxSandboxListFilesResponse {
+  repeated NoxSandboxFileEntry entries = 1;
+  string as_of = 2;
+  bool from_cache = 3;
+  string error = 4;
+}
+
+message NoxSandboxReadTextRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  string path = 3;
+}
+
+message NoxSandboxReadTextResponse {
+  string text = 1;
+  bool truncated = 2;
+  bool binary = 3;
+  int64 size = 4;
+  string error = 5;
+}
+
+message NoxSandboxPreviewFileRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  string path = 3;
+  int32 page = 4;
+}
+
+message NoxSandboxPreviewFileResponse {
+  string png_b64 = 1;
+  int32 width = 2;
+  int32 height = 3;
+  int32 pages = 4;
+  string kind = 5;
+  string error = 6;
+}
+
+message NoxSandboxListBackupsRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+}
+
+message NoxSandboxListBackupsResponse {
+  repeated NoxSandboxBackup backups = 1;
+  string error = 2;
+}
+
+message NoxSandboxRestoreBackupRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  string backup_id = 3;
+}
+
+message NoxSandboxRestoreBackupResponse {
+  bool ok = 1;
+  string error = 2;
+}
+
+message NoxSandboxListLibraryRequestsRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  string status = 3;
+}
+
+message NoxSandboxListLibraryRequestsResponse {
+  repeated NoxSandboxLibraryRequest requests = 1;
+  string error = 2;
+}
+
+message NoxSandboxDecideLibraryRequest {
+  string node_id = 1;
+  repeated int64 ids = 2;
+  bool approve = 3;
+  string note = 4;
+  string decided_by = 5;
+}
+
+message NoxSandboxDecideLibraryResponse {
+  bool ok = 1;
+  repeated int64 ids = 2;
+  string error = 3;
+}
+
+message NoxSandboxImageStatusRequest {
+  string node_id = 1;
+}
+
+message NoxSandboxImageStatusResponse {
+  string current_version = 1;
+  bool building = 2;
+  string build_started = 3;
+  NoxSandboxLastBuild last_build = 4;
+  NoxSandboxPackages packages = 5;
+  NoxSandboxPackages pending_packages = 6;
+  map<string, int32> versions_in_use = 7;
+  string error = 8;
+}
+
+message NoxSandboxRebuildImageRequest {
+  string node_id = 1;
+}
+
+message NoxSandboxRebuildImageResponse {
+  bool ok = 1;
+  bool building = 2;
+  string error = 3;
+}
+
+message NoxSandboxListRunsRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message NoxSandboxListRunsResponse {
+  repeated NoxSandboxRun runs = 1;
+  int64 total = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  string error = 5;
 }

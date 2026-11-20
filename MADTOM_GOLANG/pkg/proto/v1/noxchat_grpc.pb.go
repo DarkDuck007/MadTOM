@@ -67,6 +67,18 @@ const (
 	NoxChatControlService_UpdateTip_FullMethodName                  = "/madtom.v1.NoxChatControlService/UpdateTip"
 	NoxChatControlService_DeleteTips_FullMethodName                 = "/madtom.v1.NoxChatControlService/DeleteTips"
 	NoxChatControlService_TestTips_FullMethodName                   = "/madtom.v1.NoxChatControlService/TestTips"
+	NoxChatControlService_ListSandboxVms_FullMethodName             = "/madtom.v1.NoxChatControlService/ListSandboxVms"
+	NoxChatControlService_SandboxVmAction_FullMethodName            = "/madtom.v1.NoxChatControlService/SandboxVmAction"
+	NoxChatControlService_ListSandboxFiles_FullMethodName           = "/madtom.v1.NoxChatControlService/ListSandboxFiles"
+	NoxChatControlService_ReadSandboxText_FullMethodName            = "/madtom.v1.NoxChatControlService/ReadSandboxText"
+	NoxChatControlService_PreviewSandboxFile_FullMethodName         = "/madtom.v1.NoxChatControlService/PreviewSandboxFile"
+	NoxChatControlService_ListSandboxBackups_FullMethodName         = "/madtom.v1.NoxChatControlService/ListSandboxBackups"
+	NoxChatControlService_RestoreSandboxBackup_FullMethodName       = "/madtom.v1.NoxChatControlService/RestoreSandboxBackup"
+	NoxChatControlService_ListSandboxLibraryRequests_FullMethodName = "/madtom.v1.NoxChatControlService/ListSandboxLibraryRequests"
+	NoxChatControlService_DecideSandboxLibrary_FullMethodName       = "/madtom.v1.NoxChatControlService/DecideSandboxLibrary"
+	NoxChatControlService_GetSandboxImageStatus_FullMethodName      = "/madtom.v1.NoxChatControlService/GetSandboxImageStatus"
+	NoxChatControlService_RebuildSandboxImage_FullMethodName        = "/madtom.v1.NoxChatControlService/RebuildSandboxImage"
+	NoxChatControlService_ListSandboxRuns_FullMethodName            = "/madtom.v1.NoxChatControlService/ListSandboxRuns"
 )
 
 // NoxChatControlServiceClient is the client API for NoxChatControlService service.
@@ -139,6 +151,19 @@ type NoxChatControlServiceClient interface {
 	UpdateTip(ctx context.Context, in *NoxUpdateTipRequest, opts ...grpc.CallOption) (*NoxTipMutationResponse, error)
 	DeleteTips(ctx context.Context, in *NoxDeleteTipsRequest, opts ...grpc.CallOption) (*NoxTipMutationResponse, error)
 	TestTips(ctx context.Context, in *NoxTestTipsRequest, opts ...grpc.CallOption) (*NoxTestTipsResponse, error)
+	// Sandbox administration (Python sandbox_* control RPCs).
+	ListSandboxVms(ctx context.Context, in *NoxSandboxListVmsRequest, opts ...grpc.CallOption) (*NoxSandboxListVmsResponse, error)
+	SandboxVmAction(ctx context.Context, in *NoxSandboxVmActionRequest, opts ...grpc.CallOption) (*NoxSandboxVmActionResponse, error)
+	ListSandboxFiles(ctx context.Context, in *NoxSandboxListFilesRequest, opts ...grpc.CallOption) (*NoxSandboxListFilesResponse, error)
+	ReadSandboxText(ctx context.Context, in *NoxSandboxReadTextRequest, opts ...grpc.CallOption) (*NoxSandboxReadTextResponse, error)
+	PreviewSandboxFile(ctx context.Context, in *NoxSandboxPreviewFileRequest, opts ...grpc.CallOption) (*NoxSandboxPreviewFileResponse, error)
+	ListSandboxBackups(ctx context.Context, in *NoxSandboxListBackupsRequest, opts ...grpc.CallOption) (*NoxSandboxListBackupsResponse, error)
+	RestoreSandboxBackup(ctx context.Context, in *NoxSandboxRestoreBackupRequest, opts ...grpc.CallOption) (*NoxSandboxRestoreBackupResponse, error)
+	ListSandboxLibraryRequests(ctx context.Context, in *NoxSandboxListLibraryRequestsRequest, opts ...grpc.CallOption) (*NoxSandboxListLibraryRequestsResponse, error)
+	DecideSandboxLibrary(ctx context.Context, in *NoxSandboxDecideLibraryRequest, opts ...grpc.CallOption) (*NoxSandboxDecideLibraryResponse, error)
+	GetSandboxImageStatus(ctx context.Context, in *NoxSandboxImageStatusRequest, opts ...grpc.CallOption) (*NoxSandboxImageStatusResponse, error)
+	RebuildSandboxImage(ctx context.Context, in *NoxSandboxRebuildImageRequest, opts ...grpc.CallOption) (*NoxSandboxRebuildImageResponse, error)
+	ListSandboxRuns(ctx context.Context, in *NoxSandboxListRunsRequest, opts ...grpc.CallOption) (*NoxSandboxListRunsResponse, error)
 }
 
 type noxChatControlServiceClient struct {
@@ -656,6 +681,126 @@ func (c *noxChatControlServiceClient) TestTips(ctx context.Context, in *NoxTestT
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) ListSandboxVms(ctx context.Context, in *NoxSandboxListVmsRequest, opts ...grpc.CallOption) (*NoxSandboxListVmsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxListVmsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListSandboxVms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) SandboxVmAction(ctx context.Context, in *NoxSandboxVmActionRequest, opts ...grpc.CallOption) (*NoxSandboxVmActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxVmActionResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_SandboxVmAction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListSandboxFiles(ctx context.Context, in *NoxSandboxListFilesRequest, opts ...grpc.CallOption) (*NoxSandboxListFilesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxListFilesResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListSandboxFiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ReadSandboxText(ctx context.Context, in *NoxSandboxReadTextRequest, opts ...grpc.CallOption) (*NoxSandboxReadTextResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxReadTextResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ReadSandboxText_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) PreviewSandboxFile(ctx context.Context, in *NoxSandboxPreviewFileRequest, opts ...grpc.CallOption) (*NoxSandboxPreviewFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxPreviewFileResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_PreviewSandboxFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListSandboxBackups(ctx context.Context, in *NoxSandboxListBackupsRequest, opts ...grpc.CallOption) (*NoxSandboxListBackupsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxListBackupsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListSandboxBackups_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) RestoreSandboxBackup(ctx context.Context, in *NoxSandboxRestoreBackupRequest, opts ...grpc.CallOption) (*NoxSandboxRestoreBackupResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxRestoreBackupResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_RestoreSandboxBackup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListSandboxLibraryRequests(ctx context.Context, in *NoxSandboxListLibraryRequestsRequest, opts ...grpc.CallOption) (*NoxSandboxListLibraryRequestsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxListLibraryRequestsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListSandboxLibraryRequests_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) DecideSandboxLibrary(ctx context.Context, in *NoxSandboxDecideLibraryRequest, opts ...grpc.CallOption) (*NoxSandboxDecideLibraryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxDecideLibraryResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_DecideSandboxLibrary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetSandboxImageStatus(ctx context.Context, in *NoxSandboxImageStatusRequest, opts ...grpc.CallOption) (*NoxSandboxImageStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxImageStatusResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetSandboxImageStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) RebuildSandboxImage(ctx context.Context, in *NoxSandboxRebuildImageRequest, opts ...grpc.CallOption) (*NoxSandboxRebuildImageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxRebuildImageResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_RebuildSandboxImage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListSandboxRuns(ctx context.Context, in *NoxSandboxListRunsRequest, opts ...grpc.CallOption) (*NoxSandboxListRunsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSandboxListRunsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListSandboxRuns_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NoxChatControlServiceServer is the server API for NoxChatControlService service.
 // All implementations must embed UnimplementedNoxChatControlServiceServer
 // for forward compatibility.
@@ -726,6 +871,19 @@ type NoxChatControlServiceServer interface {
 	UpdateTip(context.Context, *NoxUpdateTipRequest) (*NoxTipMutationResponse, error)
 	DeleteTips(context.Context, *NoxDeleteTipsRequest) (*NoxTipMutationResponse, error)
 	TestTips(context.Context, *NoxTestTipsRequest) (*NoxTestTipsResponse, error)
+	// Sandbox administration (Python sandbox_* control RPCs).
+	ListSandboxVms(context.Context, *NoxSandboxListVmsRequest) (*NoxSandboxListVmsResponse, error)
+	SandboxVmAction(context.Context, *NoxSandboxVmActionRequest) (*NoxSandboxVmActionResponse, error)
+	ListSandboxFiles(context.Context, *NoxSandboxListFilesRequest) (*NoxSandboxListFilesResponse, error)
+	ReadSandboxText(context.Context, *NoxSandboxReadTextRequest) (*NoxSandboxReadTextResponse, error)
+	PreviewSandboxFile(context.Context, *NoxSandboxPreviewFileRequest) (*NoxSandboxPreviewFileResponse, error)
+	ListSandboxBackups(context.Context, *NoxSandboxListBackupsRequest) (*NoxSandboxListBackupsResponse, error)
+	RestoreSandboxBackup(context.Context, *NoxSandboxRestoreBackupRequest) (*NoxSandboxRestoreBackupResponse, error)
+	ListSandboxLibraryRequests(context.Context, *NoxSandboxListLibraryRequestsRequest) (*NoxSandboxListLibraryRequestsResponse, error)
+	DecideSandboxLibrary(context.Context, *NoxSandboxDecideLibraryRequest) (*NoxSandboxDecideLibraryResponse, error)
+	GetSandboxImageStatus(context.Context, *NoxSandboxImageStatusRequest) (*NoxSandboxImageStatusResponse, error)
+	RebuildSandboxImage(context.Context, *NoxSandboxRebuildImageRequest) (*NoxSandboxRebuildImageResponse, error)
+	ListSandboxRuns(context.Context, *NoxSandboxListRunsRequest) (*NoxSandboxListRunsResponse, error)
 	mustEmbedUnimplementedNoxChatControlServiceServer()
 }
 
@@ -879,6 +1037,42 @@ func (UnimplementedNoxChatControlServiceServer) DeleteTips(context.Context, *Nox
 }
 func (UnimplementedNoxChatControlServiceServer) TestTips(context.Context, *NoxTestTipsRequest) (*NoxTestTipsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method TestTips not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListSandboxVms(context.Context, *NoxSandboxListVmsRequest) (*NoxSandboxListVmsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSandboxVms not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) SandboxVmAction(context.Context, *NoxSandboxVmActionRequest) (*NoxSandboxVmActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SandboxVmAction not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListSandboxFiles(context.Context, *NoxSandboxListFilesRequest) (*NoxSandboxListFilesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSandboxFiles not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ReadSandboxText(context.Context, *NoxSandboxReadTextRequest) (*NoxSandboxReadTextResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReadSandboxText not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) PreviewSandboxFile(context.Context, *NoxSandboxPreviewFileRequest) (*NoxSandboxPreviewFileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PreviewSandboxFile not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListSandboxBackups(context.Context, *NoxSandboxListBackupsRequest) (*NoxSandboxListBackupsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSandboxBackups not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) RestoreSandboxBackup(context.Context, *NoxSandboxRestoreBackupRequest) (*NoxSandboxRestoreBackupResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RestoreSandboxBackup not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListSandboxLibraryRequests(context.Context, *NoxSandboxListLibraryRequestsRequest) (*NoxSandboxListLibraryRequestsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSandboxLibraryRequests not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) DecideSandboxLibrary(context.Context, *NoxSandboxDecideLibraryRequest) (*NoxSandboxDecideLibraryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DecideSandboxLibrary not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetSandboxImageStatus(context.Context, *NoxSandboxImageStatusRequest) (*NoxSandboxImageStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSandboxImageStatus not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) RebuildSandboxImage(context.Context, *NoxSandboxRebuildImageRequest) (*NoxSandboxRebuildImageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RebuildSandboxImage not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListSandboxRuns(context.Context, *NoxSandboxListRunsRequest) (*NoxSandboxListRunsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSandboxRuns not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) mustEmbedUnimplementedNoxChatControlServiceServer() {}
 func (UnimplementedNoxChatControlServiceServer) testEmbeddedByValue()                               {}
@@ -1744,6 +1938,222 @@ func _NoxChatControlService_TestTips_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_ListSandboxVms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxListVmsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListSandboxVms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListSandboxVms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListSandboxVms(ctx, req.(*NoxSandboxListVmsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_SandboxVmAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxVmActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).SandboxVmAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_SandboxVmAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).SandboxVmAction(ctx, req.(*NoxSandboxVmActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListSandboxFiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxListFilesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListSandboxFiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListSandboxFiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListSandboxFiles(ctx, req.(*NoxSandboxListFilesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ReadSandboxText_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxReadTextRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ReadSandboxText(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ReadSandboxText_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ReadSandboxText(ctx, req.(*NoxSandboxReadTextRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_PreviewSandboxFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxPreviewFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).PreviewSandboxFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_PreviewSandboxFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).PreviewSandboxFile(ctx, req.(*NoxSandboxPreviewFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListSandboxBackups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxListBackupsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListSandboxBackups(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListSandboxBackups_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListSandboxBackups(ctx, req.(*NoxSandboxListBackupsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_RestoreSandboxBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxRestoreBackupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).RestoreSandboxBackup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_RestoreSandboxBackup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).RestoreSandboxBackup(ctx, req.(*NoxSandboxRestoreBackupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListSandboxLibraryRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxListLibraryRequestsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListSandboxLibraryRequests(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListSandboxLibraryRequests_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListSandboxLibraryRequests(ctx, req.(*NoxSandboxListLibraryRequestsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_DecideSandboxLibrary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxDecideLibraryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).DecideSandboxLibrary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_DecideSandboxLibrary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).DecideSandboxLibrary(ctx, req.(*NoxSandboxDecideLibraryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetSandboxImageStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxImageStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetSandboxImageStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetSandboxImageStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetSandboxImageStatus(ctx, req.(*NoxSandboxImageStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_RebuildSandboxImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxRebuildImageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).RebuildSandboxImage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_RebuildSandboxImage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).RebuildSandboxImage(ctx, req.(*NoxSandboxRebuildImageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListSandboxRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSandboxListRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListSandboxRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListSandboxRuns_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListSandboxRuns(ctx, req.(*NoxSandboxListRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NoxChatControlService_ServiceDesc is the grpc.ServiceDesc for NoxChatControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1930,6 +2340,54 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TestTips",
 			Handler:    _NoxChatControlService_TestTips_Handler,
+		},
+		{
+			MethodName: "ListSandboxVms",
+			Handler:    _NoxChatControlService_ListSandboxVms_Handler,
+		},
+		{
+			MethodName: "SandboxVmAction",
+			Handler:    _NoxChatControlService_SandboxVmAction_Handler,
+		},
+		{
+			MethodName: "ListSandboxFiles",
+			Handler:    _NoxChatControlService_ListSandboxFiles_Handler,
+		},
+		{
+			MethodName: "ReadSandboxText",
+			Handler:    _NoxChatControlService_ReadSandboxText_Handler,
+		},
+		{
+			MethodName: "PreviewSandboxFile",
+			Handler:    _NoxChatControlService_PreviewSandboxFile_Handler,
+		},
+		{
+			MethodName: "ListSandboxBackups",
+			Handler:    _NoxChatControlService_ListSandboxBackups_Handler,
+		},
+		{
+			MethodName: "RestoreSandboxBackup",
+			Handler:    _NoxChatControlService_RestoreSandboxBackup_Handler,
+		},
+		{
+			MethodName: "ListSandboxLibraryRequests",
+			Handler:    _NoxChatControlService_ListSandboxLibraryRequests_Handler,
+		},
+		{
+			MethodName: "DecideSandboxLibrary",
+			Handler:    _NoxChatControlService_DecideSandboxLibrary_Handler,
+		},
+		{
+			MethodName: "GetSandboxImageStatus",
+			Handler:    _NoxChatControlService_GetSandboxImageStatus_Handler,
+		},
+		{
+			MethodName: "RebuildSandboxImage",
+			Handler:    _NoxChatControlService_RebuildSandboxImage_Handler,
+		},
+		{
+			MethodName: "ListSandboxRuns",
+			Handler:    _NoxChatControlService_ListSandboxRuns_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
