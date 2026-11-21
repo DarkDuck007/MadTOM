@@ -17,5 +17,5 @@ Start a plan's folder on the day the plan is approved. Later changes to it go in
 
 | Date | Plan | Status |
 |---|---|---|
-| 2026-11-22 | [Skip audio for GIFs and silent videos](2026-11-22-silent-media/README.md) | in progress |
+| 2026-11-22 | [Skip audio for GIFs and silent videos; audio only when asked](2026-11-22-silent-media/README.md) | deployed (Studio UI pending) |
 | 2026-11-20 | [Nox sandbox VMs, preprocessors, scheduler](2026-11-20-nox-sandbox/README.md) | in progress |
