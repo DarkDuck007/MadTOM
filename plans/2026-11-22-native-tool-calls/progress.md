@@ -6,7 +6,7 @@
 - [x] Export list in config.yaml (verified the Go daemon applies it: 67 exts)
 - [x] FILE- media sent playable, `kind` on `<document>`, tests (NoxChat 674 passed, 1 skipped)
 - [x] Deployed NoxChat 7a4203c on tp1 (tests passed there first); bridge + noxchat restarted with no jobs active, nox-sandbox reloaded
-- [ ] Image rebuild with media packages (`POST /v1/image/rebuild`, started 2026-11-22 19:10 JST)
+- [x] Image rebuild with media packages: 2026.11.22-1 failed the build gate (pydub needs audioop, gone in Python 3.13), fixed with audioop-lts (NoxChat 721bac0); 2026.11.22-2 is current. E2E in a temp VM: ffmpeg + Pillow/raqm Persian caption → mp4 → gif → gifsicle, mp4 and gif exported.
 - [ ] Watch bridge logs for "Recovered native call" / "returning … natively-called tool(s)" in real chats
 
 ## Log
