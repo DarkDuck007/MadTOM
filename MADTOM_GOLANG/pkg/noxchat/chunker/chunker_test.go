@@ -60,3 +60,49 @@ func TestLogChunkerZstdCompression(t *testing.T) {
 		t.Errorf("expected unit 'noxchat.main', got '%s'", list.Records[0].Unit)
 	}
 }
+
+func TestChunkersMonotonicChunkIDsAcrossRestarts(t *testing.T) {
+	now := time.Now().UnixNano()
+
+	// Session 1: write 3 API call records and flush unsealed -> ChunkId 0 (seqs 1..3)
+	api1, err := chunker.NewApiCallChunker("test-node-1", 0)
+	if err != nil {
+		t.Fatalf("NewApiCallChunker failed: %v", err)
+	}
+	defer api1.Close()
+
+	for i := 0; i < 3; i++ {
+		if _, err := api1.Append(&madtomv1.NoxRawApiCallRecord{CallId: "c1", TimestampUnixNano: now}); err != nil {
+			t.Fatalf("append failed: %v", err)
+		}
+	}
+	ch0, err := api1.FlushUnsealed(0)
+	if err != nil || ch0 == nil {
+		t.Fatalf("expected unsealed chunk 0, err=%v", err)
+	}
+	if ch0.ChunkId != 0 || ch0.FirstSeq != 1 || ch0.LastSeq != 3 {
+		t.Fatalf("unexpected chunk 0: id=%d seq=%d..%d", ch0.ChunkId, ch0.FirstSeq, ch0.LastSeq)
+	}
+
+	// Simulate probe restart at startSeq=3, nextChunkID=1
+	api2, err := chunker.NewApiCallChunker("test-node-1", 3)
+	if err != nil {
+		t.Fatalf("NewApiCallChunker restart failed: %v", err)
+	}
+	defer api2.Close()
+	api2.SetNextChunkID(1)
+
+	if _, err := api2.Append(&madtomv1.NoxRawApiCallRecord{CallId: "c2", TimestampUnixNano: now + 1}); err != nil {
+		t.Fatalf("append after restart failed: %v", err)
+	}
+	ch1, err := api2.FlushUnsealed(0)
+	if err != nil || ch1 == nil {
+		t.Fatalf("expected unsealed chunk 1 after restart, err=%v", err)
+	}
+	if ch1.ChunkId == ch0.ChunkId {
+		t.Fatalf("restart chunk overwrote previous chunk ID %d!", ch1.ChunkId)
+	}
+	if ch1.ChunkId != 1 || ch1.FirstSeq != 4 || ch1.LastSeq != 4 {
+		t.Fatalf("unexpected chunk 1: id=%d seq=%d..%d", ch1.ChunkId, ch1.FirstSeq, ch1.LastSeq)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	pb "github.com/DarkDuck007/madtom/pkg/proto/v1"
@@ -25,12 +26,27 @@ const tracePageBytes = 4 << 20
 type chatTraceEntry struct {
 	key       string
 	chatID    int64
+	hasChatID bool
+	chatName  string
 	ordinal   uint64
 	timestamp int64
 	location  frameLocation
 	chunkID   uint64
 	api       *pb.NoxRawApiCallRecord
 	event     *pb.NoxChatTraceEvent
+}
+
+// ChatCallStat summarizes retained API calls and latest agent execution timestamp for a chat.
+type ChatCallStat struct {
+	ChatID           int64
+	HasChatID        bool
+	ChatName         string
+	CallCount        uint32
+	LastCallUnixNano int64
+}
+
+func normalizeChatTitle(title string) string {
+	return strings.ToLower(strings.TrimSpace(title))
 }
 
 func cloneTraceContext(c *pb.NoxTraceContext) *pb.NoxTraceContext {
@@ -63,16 +79,24 @@ func (w *WalSpool) removeTraceEntryLocked(key string) {
 		return
 	}
 	delete(w.traceEntries, key)
-	delete(w.traceByChat[entry.chatID], key)
-	if len(w.traceByChat[entry.chatID]) == 0 {
-		delete(w.traceByChat, entry.chatID)
+	if entry.hasChatID {
+		delete(w.traceByChat[entry.chatID], key)
+		if len(w.traceByChat[entry.chatID]) == 0 {
+			delete(w.traceByChat, entry.chatID)
+		}
+	}
+	if normName := normalizeChatTitle(entry.chatName); normName != "" {
+		delete(w.traceByName[normName], key)
+		if len(w.traceByName[normName]) == 0 {
+			delete(w.traceByName, normName)
+		}
 	}
 }
 
 func (w *WalSpool) putTraceEntryLocked(entry *chatTraceEntry) {
 	if previous := w.traceEntries[entry.key]; previous != nil {
 		entry.ordinal = previous.ordinal
-		if previous.chatID != entry.chatID {
+		if previous.chatID != entry.chatID || previous.hasChatID != entry.hasChatID || previous.chatName != entry.chatName {
 			w.removeTraceEntryLocked(entry.key)
 		}
 	} else {
@@ -80,10 +104,18 @@ func (w *WalSpool) putTraceEntryLocked(entry *chatTraceEntry) {
 		entry.ordinal = w.traceOrdinal
 	}
 	w.traceEntries[entry.key] = entry
-	if w.traceByChat[entry.chatID] == nil {
-		w.traceByChat[entry.chatID] = make(map[string]struct{})
+	if entry.hasChatID {
+		if w.traceByChat[entry.chatID] == nil {
+			w.traceByChat[entry.chatID] = make(map[string]struct{})
+		}
+		w.traceByChat[entry.chatID][entry.key] = struct{}{}
 	}
-	w.traceByChat[entry.chatID][entry.key] = struct{}{}
+	if normName := normalizeChatTitle(entry.chatName); normName != "" {
+		if w.traceByName[normName] == nil {
+			w.traceByName[normName] = make(map[string]struct{})
+		}
+		w.traceByName[normName][entry.key] = struct{}{}
+	}
 }
 
 func (w *WalSpool) indexApiTraceLocked(chunk *pb.NoxApiCallChunk, loc frameLocation) error {
@@ -105,14 +137,44 @@ func (w *WalSpool) indexApiTraceLocked(chunk *pb.NoxApiCallChunk, loc frameLocat
 	}
 	keys := make([]string, 0, len(list.Records))
 	present := make(map[string]struct{})
-	for _, record := range list.Records {
-		if record.CallId == "" || record.TraceContext == nil || record.TraceContext.ChatId == nil {
+	summaryRecords := make([]*pb.NoxRawApiCallRecord, len(list.Records))
+	for i, record := range list.Records {
+		summary := apiCallSummary(record)
+		summaryRecords[i] = summary
+		if record.CallId == "" {
+			continue
+		}
+		hasChatID := record.TraceContext != nil && record.TraceContext.ChatId != nil
+		var chatID int64
+		if hasChatID {
+			chatID = record.TraceContext.GetChatId()
+		}
+		if !hasChatID && summary.ChatName == "" {
 			continue
 		}
 		key := "a:" + record.CallId
 		keys = append(keys, key)
 		present[key] = struct{}{}
-		w.putTraceEntryLocked(&chatTraceEntry{key: key, chatID: record.TraceContext.GetChatId(), timestamp: record.TimestampUnixNano, location: loc, chunkID: chunk.ChunkId, api: apiCallSummary(record)})
+		w.putTraceEntryLocked(&chatTraceEntry{
+			key:       key,
+			chatID:    chatID,
+			hasChatID: hasChatID,
+			chatName:  summary.ChatName,
+			timestamp: record.TimestampUnixNano,
+			location:  loc,
+			chunkID:   chunk.ChunkId,
+			api:       summary,
+		})
+	}
+	// Cache pre-compressed summary chunk so QueryApiCallChunks(summaryOnly: true) is O(1).
+	if lightRaw, err := proto.Marshal(&pb.NoxApiCallRecordList{Records: summaryRecords}); err == nil {
+		if enc, err := zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1), zstd.WithEncoderLevel(zstd.SpeedDefault)); err == nil {
+			sumChunk := proto.Clone(chunk).(*pb.NoxApiCallChunk)
+			sumChunk.ZstdRecords = enc.EncodeAll(lightRaw, nil)
+			sumChunk.RawSize = uint32(len(lightRaw))
+			_ = enc.Close()
+			w.apiSummaryChunks[chunk.ChunkId] = sumChunk
+		}
 	}
 	for _, key := range w.apiTraceKeys[chunk.ChunkId] {
 		if _, ok := present[key]; !ok {
@@ -129,7 +191,67 @@ func (w *WalSpool) indexTraceEventLocked(event *pb.NoxChatTraceEvent, loc frameL
 	if event.EventId == "" || event.TraceContext == nil || event.TraceContext.ChatId == nil {
 		return
 	}
-	w.putTraceEntryLocked(&chatTraceEntry{key: "e:" + event.EventId, chatID: event.TraceContext.GetChatId(), timestamp: event.TimestampUnixNano, location: loc, event: event})
+	w.putTraceEntryLocked(&chatTraceEntry{
+		key:       "e:" + event.EventId,
+		chatID:    event.TraceContext.GetChatId(),
+		hasChatID: true,
+		timestamp: event.TimestampUnixNano,
+		location:  loc,
+		event:     event,
+	})
+}
+
+// ChatCallStats returns per-chat API call counts and latest agent timestamps indexed in the WAL spool.
+func (w *WalSpool) ChatCallStats() (map[int64]ChatCallStat, map[string]ChatCallStat) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	byID := make(map[int64]ChatCallStat, len(w.traceByChat))
+	byName := make(map[string]ChatCallStat, len(w.traceByName))
+
+	for chatID, keys := range w.traceByChat {
+		var stat ChatCallStat
+		stat.ChatID = chatID
+		stat.HasChatID = true
+		for k := range keys {
+			entry := w.traceEntries[k]
+			if entry == nil {
+				continue
+			}
+			if entry.api != nil {
+				stat.CallCount++
+				if stat.ChatName == "" && entry.chatName != "" {
+					stat.ChatName = entry.chatName
+				}
+			}
+			if entry.timestamp > stat.LastCallUnixNano {
+				stat.LastCallUnixNano = entry.timestamp
+			}
+		}
+		if stat.CallCount > 0 || stat.LastCallUnixNano > 0 {
+			byID[chatID] = stat
+		}
+	}
+
+	for normName, keys := range w.traceByName {
+		var stat ChatCallStat
+		stat.ChatName = normName
+		for k := range keys {
+			entry := w.traceEntries[k]
+			if entry == nil || entry.api == nil {
+				continue
+			}
+			stat.CallCount++
+			if entry.timestamp > stat.LastCallUnixNano {
+				stat.LastCallUnixNano = entry.timestamp
+			}
+		}
+		if stat.CallCount > 0 {
+			byName[normName] = stat
+		}
+	}
+
+	return byID, byName
 }
 
 // WriteChatTraceEvent participates in the same quota, recovery and clear rules as raw API calls.
@@ -185,17 +307,19 @@ func (w *WalSpool) QueryChatTrace(ctx context.Context, req *pb.NoxChatTraceReque
 	if err := ctx.Err(); err != nil {
 		return nil, status.FromContextError(err).Err()
 	}
-	if req.ChatId == nil || len(req.SessionId) > 512 || len(req.RunId) > 512 || req.Limit > 200 {
-		return nil, status.Error(codes.InvalidArgument, "chat_id is required and limit must not exceed 200")
+	if (req.ChatId == nil && strings.TrimSpace(req.ChatName) == "") || len(req.SessionId) > 512 || len(req.RunId) > 512 || len(req.ChatName) > 512 || req.Limit > 200 {
+		return nil, status.Error(codes.InvalidArgument, "chat_id or chat_name is required and limit must not exceed 200")
 	}
 	limit := int(req.Limit)
 	if limit == 0 {
 		limit = 100
 	}
+	normChatName := normalizeChatTitle(req.ChatName)
 	queryBytes, _ := json.Marshal(struct {
-		Chat         int64
-		Session, Run string
-	}{req.GetChatId(), req.SessionId, req.RunId})
+		HasChat           bool
+		Chat              int64
+		Name, Session, Run string
+	}{req.ChatId != nil, req.GetChatId(), normChatName, req.SessionId, req.RunId})
 	queryHash := sha256.Sum256(queryBytes)
 	query := hex.EncodeToString(queryHash[:])
 	w.mu.Lock()
@@ -209,8 +333,22 @@ func (w *WalSpool) QueryChatTrace(ctx context.Context, req *pb.NoxChatTraceReque
 			return nil, status.Error(codes.InvalidArgument, "invalid or expired chat trace cursor")
 		}
 	}
-	entries := make([]*chatTraceEntry, 0, len(w.traceByChat[req.GetChatId()]))
-	for entryKey := range w.traceByChat[req.GetChatId()] {
+	candidateKeys := make(map[string]struct{})
+	if req.ChatId != nil {
+		for k := range w.traceByChat[req.GetChatId()] {
+			candidateKeys[k] = struct{}{}
+		}
+	}
+	if normChatName != "" {
+		for k := range w.traceByName[normChatName] {
+			entry := w.traceEntries[k]
+			if entry != nil && (!entry.hasChatID || req.ChatId == nil || entry.chatID == req.GetChatId()) {
+				candidateKeys[k] = struct{}{}
+			}
+		}
+	}
+	entries := make([]*chatTraceEntry, 0, len(candidateKeys))
+	for entryKey := range candidateKeys {
 		if len(entries)%128 == 0 {
 			if err := ctx.Err(); err != nil {
 				w.mu.Unlock()
@@ -218,7 +356,7 @@ func (w *WalSpool) QueryChatTrace(ctx context.Context, req *pb.NoxChatTraceReque
 			}
 		}
 		entry := w.traceEntries[entryKey]
-		if entry.ordinal > cursor.High {
+		if entry == nil || entry.ordinal > cursor.High {
 			continue
 		}
 		trace := entry.api.GetTraceContext()

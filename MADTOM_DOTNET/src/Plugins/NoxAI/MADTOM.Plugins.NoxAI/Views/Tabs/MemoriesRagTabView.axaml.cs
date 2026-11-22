@@ -33,6 +33,34 @@ public partial class MemoriesRagTabView : UserControl
         }
     }
 
+    private void OnMemoriesScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (sender is not ScrollViewer sv || DataContext is not MemoriesRagTabViewModel vm) return;
+        if (!vm.HasMoreMemories || vm.IsLoadingMoreMemories || vm.IsSearchResultsActive) return;
+
+        double maxOffset = System.Math.Max(0, sv.Extent.Height - sv.Viewport.Height);
+        if (maxOffset > 0 && sv.Offset.Y >= maxOffset - 160)
+        {
+            _ = vm.LoadMoreMemoriesAsync();
+        }
+    }
+
+    private void OnProfilesScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (DataContext is not MemoriesRagTabViewModel vm) return;
+        if (!vm.HasMoreUserProfiles || vm.IsLoadingMoreUserProfiles || vm.IsProfileSearchResultsActive) return;
+
+        ScrollViewer? sv = sender as ScrollViewer;
+        if (sv == null && e.Source is ScrollViewer srcSv) sv = srcSv;
+        if (sv == null) return;
+
+        double maxOffset = System.Math.Max(0, sv.Extent.Height - sv.Viewport.Height);
+        if (maxOffset > 0 && sv.Offset.Y >= maxOffset - 200)
+        {
+            _ = vm.LoadMoreUserProfilesAsync();
+        }
+    }
+
     private void OnListItemAvatarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is Control { DataContext: UserProfileItemModel profile })

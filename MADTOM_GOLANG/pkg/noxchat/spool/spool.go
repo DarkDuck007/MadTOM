@@ -19,23 +19,74 @@ import (
 )
 
 var (
-	groupChatRe    = regexp.MustCompile(`(?i)Group\s+Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
-	privateChatRe  = regexp.MustCompile(`(?i)Private\s+Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
-	explicitChatRe = regexp.MustCompile(`(?i)(?:^|[\r\n])Chat:\s*['"]?([^'"\r\n\\]+)['"]?`)
+	groupChatRe        = regexp.MustCompile(`(?i)Group\s+Chat:\s*['"]?([^'"\r\n]+)['"]?`)
+	privateChatRe      = regexp.MustCompile(`(?i)Private\s+Chat:\s*['"]?([^'"\r\n]+)['"]?`)
+	explicitChatRe     = regexp.MustCompile(`(?i)(?:^|[\r\n])Chat:\s*['"]?([^'"\r\n]+)['"]?`)
+	contextGroupChatRe = regexp.MustCompile(`(?i)Type:\s*Group\s+Chat\s*\(\s*['"]?([^'")\r\n]+)['"]?\s*\)`)
+	contextDmChatRe    = regexp.MustCompile(`(?i)Type:\s*1-on-1\s+Private\s+Chat\s*\(\s*Direct\s+Message\s+with\s+([^)\r\n]+)\s*\)`)
+	unicodeEscapeRe    = regexp.MustCompile(`\\u([0-9a-fA-F]{4})`)
 )
+
+func unescapeRequestSnippet(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	s := strings.ReplaceAll(raw, `\r\n`, "\n")
+	s = strings.ReplaceAll(s, `\n`, "\n")
+	s = strings.ReplaceAll(s, `\"`, `"`)
+	s = strings.ReplaceAll(s, `\'`, `'`)
+	if strings.Contains(s, `\u`) {
+		s = unicodeEscapeRe.ReplaceAllStringFunc(s, func(match string) string {
+			v, err := strconv.ParseUint(match[2:], 16, 16)
+			if err != nil {
+				return match
+			}
+			return string(rune(v))
+		})
+	}
+	return s
+}
+
+func cleanExtractedChatTitle(val string) string {
+	val = strings.TrimSpace(val)
+	if idx := strings.Index(val, `\n`); idx >= 0 {
+		val = val[:idx]
+	}
+	if idx := strings.Index(val, `\r`); idx >= 0 {
+		val = val[:idx]
+	}
+	return strings.Trim(val, " \t'\"\\.")
+}
 
 func extractChatName(requestJson, caller string) string {
 	if requestJson == "" {
 		return ""
 	}
-	if m := groupChatRe.FindStringSubmatch(requestJson); len(m) > 1 && strings.TrimSpace(m[1]) != "" {
-		return strings.TrimSpace(m[1])
+	snippet := unescapeRequestSnippet(requestJson)
+	if m := groupChatRe.FindStringSubmatch(snippet); len(m) > 1 {
+		if title := cleanExtractedChatTitle(m[1]); title != "" {
+			return title
+		}
 	}
-	if m := privateChatRe.FindStringSubmatch(requestJson); len(m) > 1 && strings.TrimSpace(m[1]) != "" {
-		return strings.TrimSpace(m[1])
+	if m := privateChatRe.FindStringSubmatch(snippet); len(m) > 1 {
+		if title := cleanExtractedChatTitle(m[1]); title != "" {
+			return title
+		}
 	}
-	if m := explicitChatRe.FindStringSubmatch(requestJson); len(m) > 1 && strings.TrimSpace(m[1]) != "" {
-		return strings.TrimSpace(m[1])
+	if m := contextGroupChatRe.FindStringSubmatch(snippet); len(m) > 1 {
+		if title := cleanExtractedChatTitle(m[1]); title != "" {
+			return title
+		}
+	}
+	if m := contextDmChatRe.FindStringSubmatch(snippet); len(m) > 1 {
+		if title := cleanExtractedChatTitle(m[1]); title != "" {
+			return title
+		}
+	}
+	if m := explicitChatRe.FindStringSubmatch(snippet); len(m) > 1 {
+		if title := cleanExtractedChatTitle(m[1]); title != "" {
+			return title
+		}
 	}
 	// No sender-name fallback: sender names are not chat names (agy context diffs carry no
 	// chat header). NoxChat now fills chat_name from its chats table via the trace chat_id.
@@ -78,21 +129,23 @@ type WalSpool struct {
 	totalApiCalls   uint64
 	maxLogSeq       uint64
 	maxApiSeq       uint64
-	logChunkCounts  map[uint64]uint64
-	apiChunkCounts  map[uint64]uint64
-	logChunks       map[uint64]*madtomv1.LogChunk
-	apiChunks       map[uint64]*madtomv1.NoxApiCallChunk
-	oldestTs        int64
-	newestTs        int64
-	closed          bool
-	logOwners       map[uint64]frameLocation
-	apiOwners       map[uint64]frameLocation
-	generation      [32]byte
-	recoveryErrors  uint64
-	traceEntries    map[string]*chatTraceEntry
-	traceByChat     map[int64]map[string]struct{}
-	apiTraceKeys    map[uint64][]string
-	traceOrdinal    uint64
+	logChunkCounts   map[uint64]uint64
+	apiChunkCounts   map[uint64]uint64
+	logChunks        map[uint64]*madtomv1.LogChunk
+	apiChunks        map[uint64]*madtomv1.NoxApiCallChunk
+	apiSummaryChunks map[uint64]*madtomv1.NoxApiCallChunk
+	oldestTs         int64
+	newestTs         int64
+	closed           bool
+	logOwners        map[uint64]frameLocation
+	apiOwners        map[uint64]frameLocation
+	generation       [32]byte
+	recoveryErrors   uint64
+	traceEntries     map[string]*chatTraceEntry
+	traceByChat      map[int64]map[string]struct{}
+	traceByName      map[string]map[string]struct{}
+	apiTraceKeys     map[uint64][]string
+	traceOrdinal     uint64
 }
 
 type frameLocation struct {
@@ -110,18 +163,20 @@ func NewWalSpool(dir string, maxTotalSpool int64) (*WalSpool, error) {
 		maxTotalSpool = DefaultMaxTotalSpool
 	}
 	w := &WalSpool{
-		dir:            dir,
-		maxSegmentSize: DefaultMaxSegmentSize,
-		maxTotalSpool:  maxTotalSpool,
-		logChunkCounts: make(map[uint64]uint64),
-		apiChunkCounts: make(map[uint64]uint64),
-		logChunks:      make(map[uint64]*madtomv1.LogChunk),
-		apiChunks:      make(map[uint64]*madtomv1.NoxApiCallChunk),
+		dir:              dir,
+		maxSegmentSize:   DefaultMaxSegmentSize,
+		maxTotalSpool:    maxTotalSpool,
+		logChunkCounts:   make(map[uint64]uint64),
+		apiChunkCounts:   make(map[uint64]uint64),
+		logChunks:        make(map[uint64]*madtomv1.LogChunk),
+		apiChunks:        make(map[uint64]*madtomv1.NoxApiCallChunk),
+		apiSummaryChunks: make(map[uint64]*madtomv1.NoxApiCallChunk),
 	}
 	w.logOwners = make(map[uint64]frameLocation)
 	w.apiOwners = make(map[uint64]frameLocation)
 	w.traceEntries = make(map[string]*chatTraceEntry)
 	w.traceByChat = make(map[int64]map[string]struct{})
+	w.traceByName = make(map[string]map[string]struct{})
 	w.apiTraceKeys = make(map[uint64][]string)
 	if _, err := rand.Read(w.generation[:]); err != nil {
 		return nil, err
@@ -137,6 +192,24 @@ func (w *WalSpool) MaxSeqs() (uint64, uint64) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.maxLogSeq, w.maxApiSeq
+}
+
+// NextChunkIDs returns the next unused log and API chunk IDs based on recovered WAL chunks.
+func (w *WalSpool) NextChunkIDs() (uint64, uint64) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var nextLog, nextApi uint64
+	for id := range w.logChunks {
+		if id+1 > nextLog {
+			nextLog = id + 1
+		}
+	}
+	for id := range w.apiChunks {
+		if id+1 > nextApi {
+			nextApi = id + 1
+		}
+	}
+	return nextLog, nextApi
 }
 
 func (w *WalSpool) scanAndRecover() error {
@@ -383,80 +456,20 @@ func (w *WalSpool) QueryApiCallChunks(startChunkID uint64, maxChunks uint32, sum
 
 	var chunks []*madtomv1.NoxApiCallChunk
 	for _, id := range order {
-		chunks = append(chunks, w.apiChunks[id])
+		if summaryOnly {
+			if sum, ok := w.apiSummaryChunks[id]; ok && sum != nil {
+				chunks = append(chunks, proto.Clone(sum).(*madtomv1.NoxApiCallChunk))
+			} else {
+				chunks = append(chunks, w.apiChunks[id])
+			}
+		} else {
+			chunks = append(chunks, w.apiChunks[id])
+		}
 		if uint32(len(chunks)) >= maxChunks {
 			break
 		}
 	}
 	hasMore := len(order) > len(chunks)
-
-	if summaryOnly && len(chunks) > 0 {
-		dec, err := zstd.NewReader(nil)
-		if err == nil {
-			defer dec.Close()
-			enc, err := zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1), zstd.WithEncoderLevel(zstd.SpeedDefault))
-			if err == nil {
-				defer enc.Close()
-				summaryChunks := make([]*madtomv1.NoxApiCallChunk, len(chunks))
-				for chIdx, orig := range chunks {
-					ch := proto.Clone(orig).(*madtomv1.NoxApiCallChunk)
-					summaryChunks[chIdx] = ch
-					if len(ch.ZstdRecords) == 0 {
-						continue
-					}
-					raw, err := dec.DecodeAll(ch.ZstdRecords, nil)
-					if err != nil {
-						continue
-					}
-					list := &madtomv1.NoxApiCallRecordList{}
-					if err := proto.Unmarshal(raw, list); err != nil {
-						continue
-					}
-
-					lightList := &madtomv1.NoxApiCallRecordList{
-						Records: make([]*madtomv1.NoxRawApiCallRecord, len(list.Records)),
-					}
-					for idx, r := range list.Records {
-						var lightImgs []*madtomv1.NoxImageData
-						for _, img := range r.ImageDataUrls {
-							lightImgs = append(lightImgs, &madtomv1.NoxImageData{
-								Label:    img.Label,
-								MimeType: img.MimeType,
-							})
-						}
-						chatName := r.ChatName
-						if chatName == "" && r.RawRequestJson != "" {
-							chatName = extractChatName(r.RawRequestJson, r.Caller)
-						}
-						lightList.Records[idx] = &madtomv1.NoxRawApiCallRecord{
-							CallId:            r.CallId,
-							TimestampUnixNano: r.TimestampUnixNano,
-							Caller:            r.Caller,
-							Model:             r.Model,
-							BaseUrl:           r.BaseUrl,
-							Temperature:       r.Temperature,
-							DurationMs:        r.DurationMs,
-							PromptTokens:      r.PromptTokens,
-							CompletionTokens:  r.CompletionTokens,
-							CachedTokens:      r.CachedTokens,
-							ImageDataUrls:     lightImgs,
-							ErrorMessage:      r.ErrorMessage,
-							ChatName:          chatName,
-							TraceContext:      cloneTraceContext(r.TraceContext),
-							// RawRequestJson and RawResponseJson omitted for summary
-						}
-					}
-
-					lightRaw, err := proto.Marshal(lightList)
-					if err == nil {
-						ch.ZstdRecords = enc.EncodeAll(lightRaw, nil)
-						ch.RawSize = uint32(len(lightRaw))
-					}
-				}
-				chunks = summaryChunks
-			}
-		}
-	}
 
 	return chunks, hasMore, nil
 }
@@ -608,6 +621,7 @@ func (w *WalSpool) evictSegmentLocked(segment int64) {
 		if loc.Segment == segment {
 			delete(w.apiOwners, id)
 			delete(w.apiChunks, id)
+			delete(w.apiSummaryChunks, id)
 			delete(w.apiTraceKeys, id)
 		}
 	}

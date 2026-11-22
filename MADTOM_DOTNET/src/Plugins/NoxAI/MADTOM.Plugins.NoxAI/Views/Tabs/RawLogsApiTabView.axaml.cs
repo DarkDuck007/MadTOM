@@ -54,6 +54,7 @@ public partial class RawLogsApiTabView : UserControl
     // ------------------------------------------------------------------ Chats: bottom-anchored history
 
     private bool _chatStickToBottom = true;
+    private bool _chatScrollToEndQueued;
     private double? _chatOlderAnchorExtent; // extent before older calls were prepended
 
     private void OnChatHistoryReset()
@@ -72,9 +73,19 @@ public partial class RawLogsApiTabView : UserControl
 
     private void OnChatJumpToNewest(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => OnChatHistoryReset();
 
-    // Heights are estimated until items are realized, so re-pin after layout settles.
-    private void ScrollChatToEnd() =>
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => ChatHistoryScroll.ScrollToEnd(), Avalonia.Threading.DispatcherPriority.Background);
+    private void ScrollChatToEnd()
+    {
+        if (_chatScrollToEndQueued) return;
+        _chatScrollToEndQueued = true;
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            _chatScrollToEndQueued = false;
+            if (_chatStickToBottom)
+            {
+                ChatHistoryScroll.ScrollToEnd();
+            }
+        }, Avalonia.Threading.DispatcherPriority.Background);
+    }
 
     private void OnChatScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
@@ -87,19 +98,34 @@ public partial class RawLogsApiTabView : UserControl
         {
             // Older calls were inserted above: shift by the added height so the view doesn't jump.
             _chatOlderAnchorExtent = null;
-            sv.Offset = new Vector(sv.Offset.X, sv.Offset.Y + (sv.Extent.Height - before));
+            sv.Offset = new Vector(sv.Offset.X, Math.Max(0, sv.Offset.Y + (sv.Extent.Height - before)));
             return;
         }
-        // A scroll upward always wins (even if heights were re-estimated in the same pass); only
-        // ScrollToEnd moves the offset down by itself.
-        if (e.OffsetDelta.Y < -0.5) _chatStickToBottom = atBottom;
-        else if (atBottom) _chatStickToBottom = true;
-        // Payloads finishing / live calls arriving: keep following the newest message.
-        if (extentChanged && _chatStickToBottom && !atBottom) ScrollChatToEnd();
+
+        if (extentChanged)
+        {
+            // Layout expansion from coalesced payload batches: keep pinned to bottom if stick-to-bottom is active,
+            // or anchor the current reading position relative to the bottom when payloads above expand.
+            if (_chatStickToBottom)
+            {
+                if (!atBottom) ScrollChatToEnd();
+            }
+            else if (e.ExtentDelta.Y > 0.5 && sv.Offset.Y > 0)
+            {
+                sv.Offset = new Vector(sv.Offset.X, Math.Max(0, sv.Offset.Y + e.ExtentDelta.Y));
+            }
+        }
+        else
+        {
+            // Pure user scroll (extent did not change in this pass)
+            if (e.OffsetDelta.Y < -0.5) _chatStickToBottom = atBottom;
+            else if (atBottom) _chatStickToBottom = true;
+        }
+
         ChatJumpToNewest.IsVisible = !_chatStickToBottom && !atBottom;
 
-        // Near the top: extend the window upwards (one step at a time).
-        if (!_chatStickToBottom && _chatOlderAnchorExtent == null && sv.Offset.Y < sv.Viewport.Height &&
+        // Near the top (on user scroll): extend the window upwards (one step at a time).
+        if (!extentChanged && !_chatStickToBottom && _chatOlderAnchorExtent == null && sv.Offset.Y < sv.Viewport.Height &&
             DataContext is RawLogsApiTabViewModel vm && vm.ChatHasOlder)
             vm.LoadOlderChatHistory(); // anchors via ChatOlderPrepending
     }
@@ -118,6 +144,13 @@ public partial class RawLogsApiTabView : UserControl
         if (DataContext is not RawLogsApiTabViewModel vm) return;
         if (e.Key == Avalonia.Input.Key.Enter) { e.Handled = true; await vm.SearchApiContentAsync(); }
         else if (e.Key == Avalonia.Input.Key.Escape) { e.Handled = true; vm.ApiFilter = string.Empty; }
+    }
+
+    private async void OnChatContentSearchKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (DataContext is not RawLogsApiTabViewModel vm) return;
+        if (e.Key == Avalonia.Input.Key.Enter) { e.Handled = true; await vm.SearchChatHistoryAsync(); }
+        else if (e.Key == Avalonia.Input.Key.Escape) { e.Handled = true; vm.ClearChatHistorySearch(); }
     }
 
     private ScrollViewer? _attachedScrollViewer;

@@ -385,7 +385,7 @@
                                        FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Grid IsVisible="{Binding SelectedChatGroup, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                  RowDefinitions="Auto,Auto,*" RowSpacing="6">
+                                  RowDefinitions="Auto,Auto,Auto,*" RowSpacing="6">
                                 <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}"
                                         BorderThickness="1" CornerRadius="6" Padding="10,6">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
@@ -402,16 +402,47 @@
                                     </Grid>
                                 </Border>
 
+                                <!-- Chat Content Search Bar -->
+                                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+                                    <TextBox x:Name="ChatContentSearchBox"
+                                             Text="{Binding ChatContentSearchQuery, Mode=TwoWay}"
+                                             PlaceholderText="🔍 Search messages, prompts, responses &amp; trace events in this chat (Press Enter for full probe search)…"
+                                             FontSize="11"
+                                             KeyDown="OnChatContentSearchKeyDown"/>
+                                    <Button Grid.Column="1"
+                                            Content="🔍 Search All"
+                                            Command="{Binding SearchChatHistoryCommand}"
+                                            IsEnabled="{Binding !IsChatContentSearching}"
+                                            Padding="10,4"
+                                            FontSize="10"
+                                            FontWeight="SemiBold"/>
+                                    <Button Grid.Column="2"
+                                            Content="✕ Clear"
+                                            Command="{Binding ClearChatHistorySearchCommand}"
+                                            IsVisible="{Binding IsChatContentSearchActive}"
+                                            Padding="8,4"
+                                            FontSize="10"/>
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding ChatContentSearchStatus}"
+                                               IsVisible="{Binding ChatContentSearchStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                               FontSize="9"
+                                               FontFamily="{StaticResource MonoFontFamily}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               MaxWidth="280"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+
                                 <!-- Older calls also load automatically when scrolling near the top -->
-                                <Button Grid.Row="1" Content="↑ Load 100 older calls" Command="{Binding LoadOlderChatCommand}"
+                                <Button Grid.Row="2" Content="↑ Load 100 older calls" Command="{Binding LoadOlderChatCommand}"
                                         IsVisible="{Binding ChatHasOlder}" HorizontalAlignment="Center" Padding="10,2" FontSize="10"/>
 
-                                <Panel Grid.Row="2">
+                                <Panel Grid.Row="3">
                                 <ScrollViewer x:Name="ChatHistoryScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                     <ItemsControl ItemsSource="{Binding ChatHistory}">
                                         <ItemsControl.ItemsPanel>
-                                            <!-- CacheLength 2 (Avalonia max) = 2 viewports realized above and below, so scrolling rarely hits unrealized items -->
-                                            <ItemsPanelTemplate><VirtualizingStackPanel CacheLength="2"/></ItemsPanelTemplate>
+                                            <!-- Windowed StackPanel eliminates VirtualizingStackPanel height re-estimation jumps during async payload expansion -->
+                                            <ItemsPanelTemplate><StackPanel/></ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.DataTemplates>
                                             <!-- One API call: header with the same fields as the Raw API detail header, then the parsed turns -->

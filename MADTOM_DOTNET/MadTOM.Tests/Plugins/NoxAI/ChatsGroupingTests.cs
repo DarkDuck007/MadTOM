@@ -122,4 +122,81 @@ public class ChatsWindowTests
         Assert.False(vm.LoadOlderChatHistory());
         Assert.Equal(2, prepends);
     }
+
+    [Fact]
+    public async Task ChatTimestampMatchesAgentCallNotPassiveMessageAndSearchFiltersChatContent()
+    {
+        await using var manager = new NoxNodeManager(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"), _ => new ChatsGroupingTests.Client());
+        var apiCache = new NoxApiCallChunkCache();
+        using var vm = new RawLogsApiTabViewModel(manager, new LogChunkCache(), apiCache)
+        { SelectedNode = new NoxNodeModel("n", "unused", "", "n", LogMode: TelemetryOptInMode.OptInOff) };
+
+        long agentCallNano = 1700000000_000_000_000L;
+        var call1 = new RawApiCallItemModel
+        {
+            CallId = "call-1",
+            TimestampUnixNano = agentCallNano,
+            Caller = "stream_step",
+            Model = "gemini-2.5-pro",
+            TraceContext = new NoxTraceContext { ChatId = -100 },
+            RequestJson = "[{\"role\":\"user\",\"content\":\"[#101 Alice]: Can we deploy the quantum router?\"}]",
+            ResponseJson = "{\"content\":\"<msg>Deploying quantum router now.</msg>\"}",
+            IsDetailsLoaded = true
+        };
+        var call2 = new RawApiCallItemModel
+        {
+            CallId = "call-2",
+            TimestampUnixNano = agentCallNano + 5_000_000_000L,
+            Caller = "stream_step",
+            Model = "gemini-2.5-pro",
+            TraceContext = new NoxTraceContext { ChatId = -100 },
+            RequestJson = "[{\"role\":\"user\",\"content\":\"[#102 Bob]: What is for lunch?\"}]",
+            ResponseJson = "{\"content\":\"<msg>Sushi!</msg>\"}",
+            IsDetailsLoaded = true
+        };
+
+        apiCache.PutFullRecord("n", new NoxRawApiCallRecord
+        {
+            CallId = "call-1",
+            TimestampUnixNano = call1.TimestampUnixNano,
+            RawRequestJson = call1.RequestJson,
+            RawResponseJson = call1.ResponseJson
+        });
+        apiCache.PutFullRecord("n", new NoxRawApiCallRecord
+        {
+            CallId = "call-2",
+            TimestampUnixNano = call2.TimestampUnixNano,
+            RawRequestJson = call2.RequestJson,
+            RawResponseJson = call2.ResponseJson
+        });
+
+        vm.RecentApiCalls.Add(call2);
+        vm.RecentApiCalls.Add(call1);
+        await vm.RefreshChatsAsync();
+
+        var nest = vm.ChatGroups.Single(g => g.ChatId == -100);
+        Assert.Equal(agentCallNano + 5_000_000_000L, nest.LastActiveUnixNano);
+        Assert.Equal(2, nest.CallCount);
+
+        vm.SelectedChatGroup = nest;
+        Assert.Equal(2, vm.ChatHistory.Count);
+
+        // Search inside the selected chat for "quantum router"
+        vm.ChatContentSearchQuery = "quantum router";
+        Assert.True(vm.IsChatContentSearchActive);
+        Assert.Single(vm.ChatHistory);
+        Assert.Equal("call-1", ((RawApiCallItemModel)vm.ChatHistory[0]).CallId);
+
+        // Clear search restores all calls in the chat
+        vm.ClearChatHistorySearch();
+        Assert.False(vm.IsChatContentSearchActive);
+        Assert.Equal(2, vm.ChatHistory.Count);
+
+        // Switching to another chat unloads uncompressed details from call1 & call2 while keeping them in Zstd _apiCache
+        var pooriya = vm.ChatGroups.Single(g => g.ChatId == 188);
+        vm.SelectedChatGroup = pooriya;
+        Assert.False(call1.IsDetailsLoaded);
+        Assert.Empty(call1.RequestJson);
+        Assert.True(apiCache.HasFullRecord("n", "call-1"));
+    }
 }

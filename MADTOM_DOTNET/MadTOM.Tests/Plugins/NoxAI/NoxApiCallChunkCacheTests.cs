@@ -117,4 +117,46 @@ public class NoxApiCallChunkCacheTests
         Assert.NotNull(r0Again);
         Assert.Equal("call_0005", r0Again.CallId);
     }
+
+    [Fact]
+    public void PutFullRecord_UpgradesSummaryInCompressedChunk_AndCountsCompressedBytes()
+    {
+        var cache = new NoxApiCallChunkCache(maxCacheBytes: 32 * 1024 * 1024, maxDecodedChunks: 2);
+
+        // 1. Insert 32 summary-only records (no RawRequestJson/RawResponseJson)
+        var summaries = new List<NoxRawApiCallRecord>();
+        for (int i = 0; i < 32; i++)
+        {
+            summaries.Add(new NoxRawApiCallRecord
+            {
+                CallId = $"call_{i:D4}",
+                Caller = "stream_step",
+                Model = "gemini-2.5-flash",
+                TimestampUnixNano = 1000 + i
+            });
+        }
+        cache.PutRecords("node-z", summaries);
+        Assert.Equal(1, cache.CompressedChunkCount);
+        Assert.False(cache.HasFullRecord("node-z", "call_0007"));
+        long initialRawBytes = cache.TotalRawBytes;
+
+        // 2. Upgrade call_0007 with full request/response payload via PutFullRecord
+        var fullRec = CreateSampleRecord(7);
+        cache.PutFullRecord("node-z", fullRec);
+
+        Assert.Equal(1, cache.CompressedChunkCount);
+        Assert.True(cache.HasFullRecord("node-z", "call_0007"));
+        Assert.True(cache.TotalRawBytes > initialRawBytes);
+        Assert.True(cache.TotalCompressedBytes > 0);
+
+        // 3. Evict from decoded LRU by adding 2 more chunks, then verify GetRecord decompresses fullRec from Zstd chunk
+        for (int i = 32; i < 96; i++)
+        {
+            cache.PutRecords("node-z", new[] { CreateSampleRecord(i) });
+        }
+        var reloaded = cache.GetRecord("node-z", "call_0007");
+        Assert.NotNull(reloaded);
+        Assert.Contains("smart, cheeky assistant", reloaded.RawRequestJson);
+        Assert.Contains("All systems nominal", reloaded.RawResponseJson);
+    }
 }

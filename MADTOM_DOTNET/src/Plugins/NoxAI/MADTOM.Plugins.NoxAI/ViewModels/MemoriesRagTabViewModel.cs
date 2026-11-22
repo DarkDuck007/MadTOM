@@ -123,6 +123,10 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
     [ObservableProperty] private NoxNodeModel? _selectedNode;
     [ObservableProperty] private int _selectedSubTabIndex;
 
+    private const int MemoriesPageSize = 50;
+    private const int ProfilesPageSize = 100;
+    private readonly System.Threading.SemaphoreSlim _memoriesLock = new(1, 1);
+
     // --- Memories & Hot Scratchpad ---
     [ObservableProperty] private string _searchQuery = string.Empty;
     [ObservableProperty] private bool _isSearching;
@@ -134,6 +138,15 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
     [ObservableProperty] private string _newHotKey = string.Empty;
     [ObservableProperty] private string _newHotContent = string.Empty;
     [ObservableProperty] private string _statusText = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MemoriesHeaderText))]
+    private int _totalMemoriesCount;
+    [ObservableProperty] private bool _hasMoreMemories;
+    [ObservableProperty] private bool _isLoadingMoreMemories;
+
+    public string MemoriesHeaderText => TotalMemoriesCount > Memories.Count
+        ? $"🧠 LONG-TERM ATOMIC MEMORIES ({Memories.Count:N0} / {TotalMemoriesCount:N0} · SQLITE + QDRANT HYBRID RAG)"
+        : $"🧠 LONG-TERM ATOMIC MEMORIES ({TotalMemoriesCount:N0} · SQLITE + QDRANT HYBRID RAG)";
 
     public ObservableCollection<MemoryItemModel> Memories { get; } = new();
     public ObservableCollection<HotMemoryItemModel> HotMemories { get; } = new();
@@ -146,6 +159,15 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
     [ObservableProperty] private bool _isProfileSearching;
     [ObservableProperty] private bool _isProfileSearchResultsActive;
     [ObservableProperty] private string _profileSearchResultsSummary = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProfilesCountHeaderText))]
+    private int _totalUserProfilesCount;
+    [ObservableProperty] private bool _hasMoreUserProfiles;
+    [ObservableProperty] private bool _isLoadingMoreUserProfiles;
+
+    public string ProfilesCountHeaderText => TotalUserProfilesCount > UserProfiles.Count
+        ? $"PROFILES ({UserProfiles.Count:N0} / {TotalUserProfilesCount:N0})"
+        : $"PROFILES ({TotalUserProfilesCount:N0})";
 
     // Full-Screen Avatar Lightbox Modal
     [ObservableProperty] private bool _isAvatarLightboxOpen;
@@ -173,6 +195,10 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
             Memories.Clear();
             HotMemories.Clear();
             UserProfiles.Clear();
+            TotalMemoriesCount = 0;
+            HasMoreMemories = false;
+            TotalUserProfilesCount = 0;
+            HasMoreUserProfiles = false;
             SelectedUserProfile = null;
             StatusText = "No node selected";
         }
@@ -198,6 +224,7 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
     public async Task RefreshMemories()
     {
         if (SelectedNode == null) return;
+        await _memoriesLock.WaitAsync();
         IsSearchResultsActive = false;
         SearchResultsSummary = string.Empty;
         try
@@ -207,7 +234,8 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
             {
                 NodeId = SelectedNode.Id,
                 ChatId = 0,
-                Limit = 50
+                Limit = MemoriesPageSize,
+                Offset = 0
             });
 
             Memories.Clear();
@@ -223,6 +251,11 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
                     IsActive = m.IsActive
                 });
             }
+
+            int total = (int)Math.Max(res.TotalCount, (uint)Memories.Count);
+            TotalMemoriesCount = total;
+            HasMoreMemories = Memories.Count < total && res.Memories.Count >= MemoriesPageSize;
+            OnPropertyChanged(nameof(MemoriesHeaderText));
 
             var hotRes = await client.ListHotMemoriesAsync(new NoxHotMemoryRequest
             {
@@ -240,11 +273,72 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
                     Content = h.Content
                 });
             }
-            StatusText = $"Loaded {Memories.Count} memories and {HotMemories.Count} hot keys.";
+            StatusText = TotalMemoriesCount > Memories.Count
+                ? $"Loaded {Memories.Count:N0} of {TotalMemoriesCount:N0} memories and {HotMemories.Count:N0} hot keys."
+                : $"Loaded {Memories.Count:N0} memories and {HotMemories.Count:N0} hot keys.";
         }
         catch (Exception ex)
         {
             StatusText = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _memoriesLock.Release();
+        }
+    }
+
+    [RelayCommand]
+    public async Task LoadMoreMemoriesAsync()
+    {
+        if (SelectedNode == null || IsSearchResultsActive || !HasMoreMemories || IsLoadingMoreMemories) return;
+        if (!await _memoriesLock.WaitAsync(0)) return;
+        IsLoadingMoreMemories = true;
+        try
+        {
+            if (SelectedNode == null || IsSearchResultsActive || !HasMoreMemories) return;
+            var client = _nodeManager.GetClient(SelectedNode);
+            uint offset = (uint)Memories.Count;
+            var res = await client.QueryMemoriesAsync(new NoxMemoryQueryRequest
+            {
+                NodeId = SelectedNode.Id,
+                ChatId = 0,
+                Limit = MemoriesPageSize,
+                Offset = offset
+            });
+
+            var existingIds = new HashSet<string>(Memories.Select(m => m.Id), StringComparer.Ordinal);
+            int added = 0;
+            foreach (var m in res.Memories)
+            {
+                if (!string.IsNullOrEmpty(m.Id) && !existingIds.Add(m.Id)) continue;
+                Memories.Add(new MemoryItemModel
+                {
+                    Id = m.Id,
+                    Category = m.Category,
+                    EntityKey = m.EntityKey,
+                    Content = m.Content,
+                    Importance = m.Importance,
+                    IsActive = m.IsActive
+                });
+                added++;
+            }
+
+            int total = (int)Math.Max(res.TotalCount, (uint)Memories.Count);
+            TotalMemoriesCount = total;
+            HasMoreMemories = added > 0 && Memories.Count < total && res.Memories.Count >= MemoriesPageSize;
+            OnPropertyChanged(nameof(MemoriesHeaderText));
+            StatusText = TotalMemoriesCount > Memories.Count
+                ? $"Loaded {Memories.Count:N0} of {TotalMemoriesCount:N0} memories and {HotMemories.Count:N0} hot keys."
+                : $"Loaded {Memories.Count:N0} memories and {HotMemories.Count:N0} hot keys.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Error loading more memories: {ex.Message}";
+        }
+        finally
+        {
+            IsLoadingMoreMemories = false;
+            _memoriesLock.Release();
         }
     }
 
@@ -291,6 +385,9 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
             }
 
             IsSearchResultsActive = true;
+            HasMoreMemories = false;
+            TotalMemoriesCount = Memories.Count;
+            OnPropertyChanged(nameof(MemoriesHeaderText));
             SearchResultsSummary = $"Semantic Search: {Memories.Count} result{(Memories.Count == 1 ? "" : "s")} for \"{query}\"";
             StatusText = $"Found {Memories.Count} memories matching \"{query}\".";
         }
@@ -438,7 +535,8 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
             var res = await client.QueryUserProfilesAsync(new NoxUserProfileQueryRequest
             {
                 NodeId = SelectedNode.Id,
-                Limit = 100
+                Limit = ProfilesPageSize,
+                Offset = 0
             });
 
             UserProfiles.Clear();
@@ -448,12 +546,19 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
                 UserProfiles.Add(item);
             }
 
+            int total = (int)Math.Max(res.TotalCount, (uint)UserProfiles.Count);
+            TotalUserProfilesCount = total;
+            HasMoreUserProfiles = UserProfiles.Count < total && res.Profiles.Count >= ProfilesPageSize;
+            OnPropertyChanged(nameof(ProfilesCountHeaderText));
+
             if (SelectedUserProfile == null && UserProfiles.Count > 0)
             {
                 SelectedUserProfile = UserProfiles[0];
             }
 
-            StatusText = $"Loaded {UserProfiles.Count} user profiles.";
+            StatusText = TotalUserProfilesCount > UserProfiles.Count
+                ? $"Loaded {UserProfiles.Count:N0} of {TotalUserProfilesCount:N0} user profiles."
+                : $"Loaded {UserProfiles.Count:N0} user profiles.";
             TriggerAvatarLoading(UserProfiles);
         }
         catch (Exception ex)
@@ -462,6 +567,58 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
         }
         finally
         {
+            _profilesLock.Release();
+        }
+    }
+
+    [RelayCommand]
+    public async Task LoadMoreUserProfilesAsync()
+    {
+        if (SelectedNode == null || IsProfileSearchResultsActive || !HasMoreUserProfiles || IsLoadingMoreUserProfiles) return;
+        if (!await _profilesLock.WaitAsync(0)) return;
+        IsLoadingMoreUserProfiles = true;
+        try
+        {
+            if (SelectedNode == null || IsProfileSearchResultsActive || !HasMoreUserProfiles) return;
+            var client = _nodeManager.GetClient(SelectedNode);
+            uint offset = (uint)UserProfiles.Count;
+            var res = await client.QueryUserProfilesAsync(new NoxUserProfileQueryRequest
+            {
+                NodeId = SelectedNode.Id,
+                Limit = ProfilesPageSize,
+                Offset = offset
+            });
+
+            var existingIds = new HashSet<long>(UserProfiles.Select(p => p.UserId));
+            var addedItems = new List<UserProfileItemModel>();
+            foreach (var p in res.Profiles)
+            {
+                if (p.UserId != 0 && !existingIds.Add(p.UserId)) continue;
+                var item = MapUserProfile(p);
+                UserProfiles.Add(item);
+                addedItems.Add(item);
+            }
+
+            int total = (int)Math.Max(res.TotalCount, (uint)UserProfiles.Count);
+            TotalUserProfilesCount = total;
+            HasMoreUserProfiles = addedItems.Count > 0 && UserProfiles.Count < total && res.Profiles.Count >= ProfilesPageSize;
+            OnPropertyChanged(nameof(ProfilesCountHeaderText));
+
+            StatusText = TotalUserProfilesCount > UserProfiles.Count
+                ? $"Loaded {UserProfiles.Count:N0} of {TotalUserProfilesCount:N0} user profiles."
+                : $"Loaded {UserProfiles.Count:N0} user profiles.";
+            if (addedItems.Count > 0)
+            {
+                TriggerAvatarLoading(addedItems);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Failed to load more user profiles: {ex.Message}";
+        }
+        finally
+        {
+            IsLoadingMoreUserProfiles = false;
             _profilesLock.Release();
         }
     }
@@ -498,6 +655,9 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
             }
 
             IsProfileSearchResultsActive = true;
+            HasMoreUserProfiles = false;
+            TotalUserProfilesCount = (int)Math.Max(res.TotalCount, (uint)UserProfiles.Count);
+            OnPropertyChanged(nameof(ProfilesCountHeaderText));
             ProfileSearchResultsSummary = $"Profile Search: {UserProfiles.Count} result{(UserProfiles.Count == 1 ? "" : "s")} for \"{query}\"";
             StatusText = $"Found {UserProfiles.Count} profiles matching \"{query}\".";
 

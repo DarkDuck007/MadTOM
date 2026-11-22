@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
@@ -41,11 +42,15 @@ public sealed class NoxNodeManager : IAsyncDisposable
     private readonly Func<NoxNodeModel, NoxChatControlService.NoxChatControlServiceClient>? _clientFactory;
     private readonly ConcurrentDictionary<string, GrpcChannel> _channels = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, NoxNodeModel> _nodes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ClientPayloadCounter> _transportCounters = new(StringComparer.OrdinalIgnoreCase);
 
     public event Action? NodesChanged;
     public event Action<NoxNodeModel>? NodeSettingsChanged;
 
     public IReadOnlyCollection<NoxNodeModel> Nodes => _nodes.Values.ToList();
+
+    public ClientPayloadCounter GetTransportCounter(string nodeId) =>
+        _transportCounters.GetOrAdd(nodeId ?? "default", _ => new ClientPayloadCounter());
 
     public NoxNodeManager(string? storePath = null, Func<NoxNodeModel, NoxChatControlService.NoxChatControlServiceClient>? clientFactory = null)
     {
@@ -127,15 +132,21 @@ public sealed class NoxNodeManager : IAsyncDisposable
             });
         });
 
-        var callInvoker = channel.Intercept(new NoxAuthInterceptor(node));
+        var counter = GetTransportCounter(node.Id);
+        var callInvoker = channel.Intercept(new NoxAuthInterceptor(node, counter));
         return new NoxChatControlService.NoxChatControlServiceClient(callInvoker);
     }
 
     private sealed class NoxAuthInterceptor : Interceptor
     {
         private readonly NoxNodeModel _node;
+        private readonly ClientPayloadCounter _counter;
 
-        public NoxAuthInterceptor(NoxNodeModel node) => _node = node;
+        public NoxAuthInterceptor(NoxNodeModel node, ClientPayloadCounter counter)
+        {
+            _node = node;
+            _counter = counter;
+        }
 
         private void AddAuthHeaders(Metadata metadata)
         {
@@ -152,6 +163,37 @@ public sealed class NoxNodeManager : IAsyncDisposable
             }
         }
 
+        private async Task<TResponse> DecodeResponseAsync<TResponse>(Task<TResponse> responseTask)
+        {
+            var response = await responseTask.ConfigureAwait(false);
+            if (response is IMessage msg)
+            {
+                var payloadField = msg.Descriptor.FindFieldByName("zstd_payload");
+                var sizeField = msg.Descriptor.FindFieldByName("decoded_size");
+                if (payloadField == null || sizeField == null)
+                {
+                    _counter.Record(msg.CalculateSize());
+                    return response;
+                }
+                var payload = (ByteString)payloadField.Accessor.GetValue(msg);
+                var size = (uint)sizeField.Accessor.GetValue(msg);
+                if (payload.IsEmpty)
+                {
+                    if (size != 0) throw new InvalidDataException("Missing zstd response payload.");
+                    _counter.Record(msg.CalculateSize());
+                    return response;
+                }
+                if (size == 0 || size > ZstdCodec.MaxDecodedBytes) throw new InvalidDataException("Invalid zstd response size.");
+                var raw = ZstdCodec.Decode(payload.Span, (int)size);
+                var decoded = msg.Descriptor.Parser.ParseFrom(raw);
+                if (!((ByteString)payloadField.Accessor.GetValue(decoded)).IsEmpty || (uint)sizeField.Accessor.GetValue(decoded) != 0)
+                    throw new InvalidDataException("Nested zstd response envelope.");
+                _counter.RecordCompressed(raw.Length, payload.Length);
+                return (TResponse)decoded;
+            }
+            return response;
+        }
+
         public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
             TRequest request,
             ClientInterceptorContext<TRequest, TResponse> context,
@@ -161,7 +203,13 @@ public sealed class NoxNodeManager : IAsyncDisposable
             AddAuthHeaders(headers);
             var newOptions = context.Options.WithHeaders(headers);
             var newContext = new ClientInterceptorContext<TRequest, TResponse>(context.Method, context.Host, newOptions);
-            return continuation(request, newContext);
+            var inner = continuation(request, newContext);
+            return new AsyncUnaryCall<TResponse>(
+                DecodeResponseAsync(inner.ResponseAsync),
+                inner.ResponseHeadersAsync,
+                inner.GetStatus,
+                inner.GetTrailers,
+                inner.Dispose);
         }
 
         public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type Server struct {
@@ -66,6 +68,9 @@ type Server struct {
 	zstdBytes      uint64
 	decodedBytes   uint64
 	rawBytesPassed uint64
+
+	zstdEncMu sync.Mutex
+	zstdEnc   *zstd.Encoder
 }
 
 type historyPoint struct {
@@ -85,18 +90,26 @@ func NewServer(cfg *config.ProbeConfig, keyPair *auth.KeyPair, tlsConfig *tls.Co
 	}
 
 	startLogSeq, startApiSeq := wal.MaxSeqs()
+	nextLogChunkID, nextApiChunkID := wal.NextChunkIDs()
 
 	lChunker, err := chunker.NewLogChunker(cfg.NodeID, startLogSeq)
 	if err != nil {
 		return nil, err
 	}
+	lChunker.SetNextChunkID(nextLogChunkID)
 
 	aChunker, err := chunker.NewApiCallChunker(cfg.NodeID, startApiSeq)
 	if err != nil {
 		return nil, err
 	}
+	aChunker.SetNextChunkID(nextApiChunkID)
 
 	sChunker, err := chunker.NewStateChunker(cfg.NodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	zEnc, err := zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1), zstd.WithEncoderLevel(zstd.SpeedDefault))
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +124,7 @@ func NewServer(cfg *config.ProbeConfig, keyPair *auth.KeyPair, tlsConfig *tls.Co
 		logChunker:       lChunker,
 		apiChunker:       aChunker,
 		stateChunker:     sChunker,
+		zstdEnc:          zEnc,
 		telemetryHistory: make(map[string][]historyPoint),
 		stateSubs:        make(map[uint64]chan *madtomv1.NoxStateChunk),
 		logSubs:          make(map[uint64]chan *madtomv1.NoxLogApiChunk),
@@ -156,6 +170,11 @@ func (s *Server) Stop() {
 	s.logChunker.Close()
 	s.apiChunker.Close()
 	s.stateChunker.Close()
+	s.zstdEncMu.Lock()
+	if s.zstdEnc != nil {
+		_ = s.zstdEnc.Close()
+	}
+	s.zstdEncMu.Unlock()
 }
 
 // Dispatcher callbacks from Python bridge
@@ -606,7 +625,7 @@ func (s *Server) QueryTelemetryRange(ctx context.Context, req *madtomv1.RangeQue
 
 func (s *Server) GetSpoolStats(ctx context.Context, req *madtomv1.NoxSpoolStatsRequest) (*madtomv1.NoxSpoolStatsResponse, error) {
 	spoolBytes, maxSpool, logs, apis, oldest, newest := s.walSpool.Stats()
-	return &madtomv1.NoxSpoolStatsResponse{
+	resp := &madtomv1.NoxSpoolStatsResponse{
 		NodeId:           s.cfg.NodeID,
 		TotalSpoolBytes:  spoolBytes,
 		MaxSpoolBytes:    maxSpool,
@@ -614,7 +633,8 @@ func (s *Server) GetSpoolStats(ctx context.Context, req *madtomv1.NoxSpoolStatsR
 		TotalApiCalls:    apis,
 		OldestTsUnixNano: oldest,
 		NewestTsUnixNano: newest,
-	}, nil
+	}
+	return encodeZstdEnvelope(s, ctx, resp)
 }
 
 func (s *Server) SearchLogs(ctx context.Context, req *madtomv1.NoxSearchLogsRequest) (*madtomv1.NoxSearchLogsResponse, error) {
@@ -643,7 +663,11 @@ func (s *Server) SearchLogs(ctx context.Context, req *madtomv1.NoxSearchLogsRequ
 	limits.PageBytes = s.cfg.LogSearchPageBytes
 	limits.PageTime = time.Duration(s.cfg.LogSearchPageMs) * time.Millisecond
 	limits.CursorTTL = time.Duration(s.cfg.LogSearchCursorSeconds) * time.Second
-	return s.walSpool.SearchLogs(ctx, req, limits)
+	resp, err := s.walSpool.SearchLogs(ctx, req, limits)
+	if err != nil {
+		return nil, err
+	}
+	return encodeZstdEnvelope(s, ctx, resp)
 }
 
 func (s *Server) QueryLogChunks(ctx context.Context, req *madtomv1.LogChunkQuery) (*madtomv1.LogChunkResponse, error) {
@@ -660,31 +684,36 @@ func (s *Server) QueryLogChunks(ctx context.Context, req *madtomv1.LogChunkQuery
 		}
 		chunks = headers
 	}
-	return &madtomv1.LogChunkResponse{
+	resp := &madtomv1.LogChunkResponse{
 		NodeId:  s.cfg.NodeID,
 		Chunks:  chunks,
 		HasMore: hasMore,
-	}, nil
+	}
+	return encodeZstdEnvelope(s, ctx, resp)
 }
 
 func (s *Server) QueryApiCallChunks(ctx context.Context, req *madtomv1.NoxApiCallChunkQuery) (*madtomv1.NoxApiCallChunkResponse, error) {
+	if chunk, err := s.apiChunker.FlushUnsealed(0); err == nil && chunk != nil {
+		s.handleNewApiChunk(chunk)
+	}
 	chunks, hasMore, err := s.walSpool.QueryApiCallChunks(req.StartChunkId, req.MaxChunks, req.SummaryOnly)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "wal api query: %v", err)
 	}
-	return &madtomv1.NoxApiCallChunkResponse{
+	resp := &madtomv1.NoxApiCallChunkResponse{
 		NodeId:  s.cfg.NodeID,
 		Chunks:  chunks,
 		HasMore: hasMore,
-	}, nil
+	}
+	return encodeZstdEnvelope(s, ctx, resp)
 }
 
 func (s *Server) QueryChatTrace(ctx context.Context, req *madtomv1.NoxChatTraceRequest) (*madtomv1.NoxChatTraceResponse, error) {
 	if req.NodeId != s.cfg.NodeID {
 		return nil, status.Error(codes.InvalidArgument, "node_id does not match this probe")
 	}
-	if req.ChatId == nil || req.Limit > 200 {
-		return nil, status.Error(codes.InvalidArgument, "chat_id is required and limit must not exceed 200")
+	if (req.ChatId == nil && strings.TrimSpace(req.ChatName) == "") || req.Limit > 200 {
+		return nil, status.Error(codes.InvalidArgument, "chat_id or chat_name is required and limit must not exceed 200")
 	}
 	s.mu.Lock()
 	if s.chatTraceSlots == nil {
@@ -706,10 +735,13 @@ func (s *Server) QueryChatTrace(ctx context.Context, req *madtomv1.NoxChatTraceR
 		s.handleNewApiChunk(chunk)
 	}
 	response, err := s.walSpool.QueryChatTrace(ctx, req)
-	if err == nil && !s.cfg.StoreRawLogs {
+	if err != nil {
+		return nil, err
+	}
+	if !s.cfg.StoreRawLogs {
 		response.Notice += " Store is currently disabled; new execution history is not retained."
 	}
-	return response, err
+	return encodeZstdEnvelope(s, ctx, response)
 }
 
 func (s *Server) GetApiCallDetail(ctx context.Context, req *madtomv1.NoxApiCallDetailRequest) (*madtomv1.NoxRawApiCallRecord, error) {
@@ -772,7 +804,7 @@ func (s *Server) GetChatHistory(ctx context.Context, req *madtomv1.NoxChatHistor
 	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
 		return nil, status.Errorf(codes.Internal, "decode chat history: %v", err)
 	}
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) ListChats(ctx context.Context, req *madtomv1.NoxListChatsRequest) (*madtomv1.NoxListChatsResponse, error) {
@@ -787,7 +819,30 @@ func (s *Server) ListChats(ctx context.Context, req *madtomv1.NoxListChatsReques
 	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
 		return nil, status.Errorf(codes.Internal, "decode chat list: %v", err)
 	}
-	return &resp, nil
+	if chunk, err := s.apiChunker.FlushUnsealed(0); err == nil && chunk != nil {
+		s.handleNewApiChunk(chunk)
+	}
+	byID, byName := s.walSpool.ChatCallStats()
+	for _, chat := range resp.Chats {
+		if chat == nil {
+			continue
+		}
+		if stat, ok := byID[chat.ChatId]; ok {
+			chat.ApiCallCount = stat.CallCount
+			chat.LastAgentCallUnixNano = stat.LastCallUnixNano
+		}
+		if normTitle := strings.ToLower(strings.TrimSpace(chat.Title)); normTitle != "" {
+			if stat, ok := byName[normTitle]; ok {
+				if chat.ApiCallCount == 0 {
+					chat.ApiCallCount = stat.CallCount
+				}
+				if stat.LastCallUnixNano > chat.LastAgentCallUnixNano {
+					chat.LastAgentCallUnixNano = stat.LastCallUnixNano
+				}
+			}
+		}
+	}
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) QueryMemories(ctx context.Context, req *madtomv1.NoxMemoryQueryRequest) (*madtomv1.NoxMemoryQueryResponse, error) {
@@ -797,7 +852,7 @@ func (s *Server) QueryMemories(ctx context.Context, req *madtomv1.NoxMemoryQuery
 	}
 	var resp madtomv1.NoxMemoryQueryResponse
 	_ = json.Unmarshal(reply.Payload, &resp)
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) SearchMemoriesHybrid(ctx context.Context, req *madtomv1.NoxHybridSearchRequest) (*madtomv1.NoxHybridSearchResponse, error) {
@@ -807,7 +862,7 @@ func (s *Server) SearchMemoriesHybrid(ctx context.Context, req *madtomv1.NoxHybr
 	}
 	var resp madtomv1.NoxHybridSearchResponse
 	_ = json.Unmarshal(reply.Payload, &resp)
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) UpsertMemory(ctx context.Context, req *madtomv1.NoxUpsertMemoryRequest) (*madtomv1.NoxMemoryMutationResponse, error) {
@@ -1094,7 +1149,7 @@ func (s *Server) ListHotMemories(ctx context.Context, req *madtomv1.NoxHotMemory
 			return nil, status.Errorf(codes.Internal, "failed to decode hot memories: %v", err2)
 		}
 	}
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) UpsertHotMemory(ctx context.Context, req *madtomv1.NoxUpsertHotMemoryRequest) (*madtomv1.NoxHotMemoryResponse, error) {
@@ -1109,7 +1164,7 @@ func (s *Server) UpsertHotMemory(ctx context.Context, req *madtomv1.NoxUpsertHot
 			return nil, status.Errorf(codes.Internal, "failed to decode hot memories: %v", err2)
 		}
 	}
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) DeleteHotMemory(ctx context.Context, req *madtomv1.NoxDeleteHotMemoryRequest) (*madtomv1.NoxHotMemoryResponse, error) {
@@ -1124,7 +1179,7 @@ func (s *Server) DeleteHotMemory(ctx context.Context, req *madtomv1.NoxDeleteHot
 			return nil, status.Errorf(codes.Internal, "failed to decode hot memories: %v", err2)
 		}
 	}
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) QueryMediaLibrary(ctx context.Context, req *madtomv1.NoxMediaQueryRequest) (*madtomv1.NoxMediaQueryResponse, error) {
@@ -1137,7 +1192,7 @@ func (s *Server) QueryMediaLibrary(ctx context.Context, req *madtomv1.NoxMediaQu
 	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
 		_ = json.Unmarshal(reply.Payload, &resp)
 	}
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) GetMediaAssetPreview(ctx context.Context, req *madtomv1.NoxMediaPreviewRequest) (*madtomv1.NoxMediaPreviewResponse, error) {
@@ -1203,7 +1258,7 @@ func (s *Server) GetActiveJobs(ctx context.Context, req *madtomv1.NoxActiveJobsR
 	}
 	var resp madtomv1.NoxActiveJobsResponse
 	_ = json.Unmarshal(reply.Payload, &resp)
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) InspectVectors(ctx context.Context, req *madtomv1.NoxVectorInspectRequest) (*madtomv1.NoxVectorInspectResponse, error) {
@@ -1213,7 +1268,7 @@ func (s *Server) InspectVectors(ctx context.Context, req *madtomv1.NoxVectorInsp
 	}
 	var resp madtomv1.NoxVectorInspectResponse
 	_ = json.Unmarshal(reply.Payload, &resp)
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 // Chat Images (Image Studio) — passthroughs to the NoxChat Python RPC handlers.
@@ -1345,7 +1400,7 @@ func (s *Server) QueryUserProfiles(ctx context.Context, req *madtomv1.NoxUserPro
 	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
 		_ = json.Unmarshal(reply.Payload, &resp)
 	}
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) SearchUserProfiles(ctx context.Context, req *madtomv1.NoxUserProfileSearchRequest) (*madtomv1.NoxUserProfileSearchResponse, error) {
@@ -1358,7 +1413,7 @@ func (s *Server) SearchUserProfiles(ctx context.Context, req *madtomv1.NoxUserPr
 	if err := opts.Unmarshal(reply.Payload, &resp); err != nil {
 		_ = json.Unmarshal(reply.Payload, &resp)
 	}
-	return &resp, nil
+	return encodeZstdEnvelope(s, ctx, &resp)
 }
 
 func (s *Server) GetUserProfilePhoto(ctx context.Context, req *madtomv1.NoxUserProfilePhotoRequest) (*madtomv1.NoxUserProfilePhotoResponse, error) {
@@ -1375,50 +1430,61 @@ func (s *Server) GetUserProfilePhoto(ctx context.Context, req *madtomv1.NoxUserP
 }
 
 // Zstd Response Envelopes
-func (s *Server) encodeResponse(ctx context.Context, resp *madtomv1.NoxNodeStatusResponse) (*madtomv1.NoxNodeStatusResponse, error) {
+func encodeZstdEnvelope[T proto.Message](s *Server, ctx context.Context, resp T) (T, error) {
+	raw, err := proto.Marshal(resp)
+	if err != nil || len(raw) == 0 {
+		return resp, nil
+	}
+	atomic.AddUint64(&s.batchesTotal, 1)
 	md, _ := metadata.FromIncomingContext(ctx)
 	if len(md.Get("madtom-accept-zstd")) == 0 {
+		atomic.AddUint64(&s.rawBytesPassed, uint64(len(raw)))
 		return resp, nil
 	}
-	raw, err := proto.Marshal(resp)
-	if err != nil {
+
+	m := resp.ProtoReflect()
+	payloadField := m.Descriptor().Fields().ByNumber(100)
+	sizeField := m.Descriptor().Fields().ByNumber(101)
+	if payloadField == nil || sizeField == nil {
+		atomic.AddUint64(&s.rawBytesPassed, uint64(len(raw)))
 		return resp, nil
 	}
-	enc, err := zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1), zstd.WithEncoderLevel(zstd.SpeedDefault))
-	if err != nil {
-		return resp, nil
+
+	var compressed []byte
+	s.zstdEncMu.Lock()
+	if s.zstdEnc != nil {
+		compressed = s.zstdEnc.EncodeAll(raw, nil)
 	}
-	defer enc.Close()
-	compressed := enc.EncodeAll(raw, nil)
+	s.zstdEncMu.Unlock()
+	if len(compressed) == 0 {
+		enc, err := zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1), zstd.WithEncoderLevel(zstd.SpeedDefault))
+		if err != nil {
+			atomic.AddUint64(&s.rawBytesPassed, uint64(len(raw)))
+			return resp, nil
+		}
+		compressed = enc.EncodeAll(raw, nil)
+		_ = enc.Close()
+	}
+
 	if len(compressed) < len(raw) {
-		return &madtomv1.NoxNodeStatusResponse{
-			ZstdPayload: compressed,
-			DecodedSize: uint32(len(raw)),
-		}, nil
+		atomic.AddUint64(&s.zstdBatches, 1)
+		atomic.AddUint64(&s.zstdBytes, uint64(len(compressed)))
+		atomic.AddUint64(&s.decodedBytes, uint64(len(raw)))
+
+		envelope := m.New()
+		envelope.Set(payloadField, protoreflect.ValueOfBytes(compressed))
+		envelope.Set(sizeField, protoreflect.ValueOfUint32(uint32(len(raw))))
+		return envelope.Interface().(T), nil
 	}
+
+	atomic.AddUint64(&s.rawBytesPassed, uint64(len(raw)))
 	return resp, nil
 }
 
+func (s *Server) encodeResponse(ctx context.Context, resp *madtomv1.NoxNodeStatusResponse) (*madtomv1.NoxNodeStatusResponse, error) {
+	return encodeZstdEnvelope(s, ctx, resp)
+}
+
 func (s *Server) encodeRangeResponse(ctx context.Context, resp *madtomv1.RangeQueryResponse) (*madtomv1.RangeQueryResponse, error) {
-	md, _ := metadata.FromIncomingContext(ctx)
-	if len(md.Get("madtom-accept-zstd")) == 0 {
-		return resp, nil
-	}
-	raw, err := proto.Marshal(resp)
-	if err != nil {
-		return resp, nil
-	}
-	enc, err := zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1), zstd.WithEncoderLevel(zstd.SpeedDefault))
-	if err != nil {
-		return resp, nil
-	}
-	defer enc.Close()
-	compressed := enc.EncodeAll(raw, nil)
-	if len(compressed) < len(raw) {
-		return &madtomv1.RangeQueryResponse{
-			ZstdPayload: compressed,
-			DecodedSize: uint32(len(raw)),
-		}, nil
-	}
-	return resp, nil
+	return encodeZstdEnvelope(s, ctx, resp)
 }

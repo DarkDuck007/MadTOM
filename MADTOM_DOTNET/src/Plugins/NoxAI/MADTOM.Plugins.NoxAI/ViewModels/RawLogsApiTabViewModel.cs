@@ -58,6 +58,24 @@ public sealed partial class RawApiCallItemModel : ObservableObject
     // Chats view: raw payload panes are collapsed by default to keep the history dense
     [ObservableProperty] private bool _showRequestJson;
     [ObservableProperty] private bool _showResponseJson;
+
+    /// <summary>
+    /// Releases uncompressed JSON strings, parsed turn trees, and decoded Bitmaps from the view-model
+    /// while the full record remains Zstd-compressed in <see cref="NoxApiCallChunkCache"/>.
+    /// </summary>
+    public void UnloadDetails()
+    {
+        if (!IsDetailsLoaded && RequestJson.Length == 0 && ResponseJson.Length == 0 && ParsedTurns.Count == 0 && Images.Count == 0)
+            return;
+
+        RequestJson = string.Empty;
+        ResponseJson = string.Empty;
+        foreach (var img in Images) img.Preview?.Dispose();
+        Images.Clear();
+        ParsedTurns.Clear();
+        HasParsedTurns = false;
+        IsDetailsLoaded = false;
+    }
 }
 
 public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposable
@@ -153,6 +171,17 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
     {
         var node = SelectedNode;
         var item = RecentApiCalls.FirstOrDefault(c => c.CallId == callId);
+        if (item == null && _chatExtraCalls.TryGetValue(callId, out var extra))
+        {
+            item = extra;
+            if (_seenApiCallIds.Add(item.CallId))
+            {
+                int insertIdx = 0;
+                while (insertIdx < RecentApiCalls.Count && RecentApiCalls[insertIdx].TimestampUnixNano > item.TimestampUnixNano)
+                    insertIdx++;
+                RecentApiCalls.Insert(insertIdx, item);
+            }
+        }
         if (item == null)
         {
             ChatHistoryStatus = "That call is not in the loaded Raw API Calls list (it came from the probe's per-chat index).";
@@ -404,6 +433,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     {
                         return false;
                     }
+                    _apiCache.FlushPending(nodeId);
 
                     var models = decoded.Select(r => BuildApiCallItemModel(r, loadFullDetails: false)).ToList();
                     Dispatcher.UIThread.Post(() =>
@@ -422,8 +452,20 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         return false;
     }
 
+    private RawApiCallItemModel? _previousSelectedApiCall;
+
     partial void OnSelectedApiCallChanged(RawApiCallItemModel? value)
     {
+        if (_previousSelectedApiCall != null && !ReferenceEquals(_previousSelectedApiCall, value))
+        {
+            // Evict uncompressed details from previously selected raw call if it isn't currently displayed in Chats
+            if (!_chatHistoryMembers.Contains(_previousSelectedApiCall) && SelectedNode != null &&
+                _apiCache.HasFullRecord(SelectedNode.Id, _previousSelectedApiCall.CallId))
+            {
+                _previousSelectedApiCall.UnloadDetails();
+            }
+        }
+        _previousSelectedApiCall = value;
         if (value == null || value.IsDetailsLoaded) return;
         EnsureDetailsLoaded(value);
     }
@@ -700,6 +742,14 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
             _seenApiCallIds.Remove(removed.CallId);
             RecentApiCalls.RemoveAt(RecentApiCalls.Count - 1);
             FilteredApiCalls.Remove(removed);
+            if (!_chatHistoryMembers.Contains(removed))
+            {
+                removed.UnloadDetails();
+            }
+            if (!string.IsNullOrEmpty(removed.CallId))
+            {
+                _chatExtraCalls[removed.CallId] = removed;
+            }
         }
 
         OnApiCallsAddedForChats(newItems);
@@ -929,6 +979,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                             models.Add(BuildApiCallItemModel(record, loadFullDetails: false));
                         }
                     }
+                    _apiCache.FlushPending(node.Id);
                     return models;
                 }, token);
                 if (!IsCurrent()) return false;
@@ -1160,6 +1211,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
     {
         _disposed = true;
         CancelChatLoads();
+        CancelChatContentSearch();
         _chatRefreshTimer?.Stop();
         CancelApiContentSearch();
         _historyCts.Cancel(); _historyCts.Dispose();

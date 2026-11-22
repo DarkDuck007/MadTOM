@@ -341,6 +341,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             transportRows.Add(new CompressionDiagnosticRow($"{endpoint} · daemon → probe", "Awaiting data", "—", "—", "—", "0"));
         }
+
+        if (SelectedNode != null)
+        {
+            var rx = _nodeManager.GetTransportCounter(SelectedNode.Id).Snapshot();
+            if (rx.Messages > 0)
+            {
+                transportRows.Add(new CompressionDiagnosticRow(
+                    $"{endpoint} · probe → client (gRPC RX)",
+                    rx.CompressedMessages > 0 ? "Zstd active" : "Raw so far",
+                    ClientCompressionSnapshot.FormatBytes(rx.Decoded),
+                    ClientCompressionSnapshot.FormatBytes(rx.Encoded),
+                    Ratio(rx.Decoded, rx.Encoded),
+                    $"{rx.CompressedMessages:N0}/{rx.Messages:N0}",
+                    ClientCompressionSnapshot.FormatBytes(rx.Raw),
+                    ClientCompressionSnapshot.FormatBytes(rx.Raw + rx.Encoded)
+                ));
+            }
+        }
         TransportCompressionRows = transportRows;
     }
 

@@ -66,13 +66,17 @@ public sealed partial class RawLogsApiTabViewModel
 
     private readonly Dictionary<long, NoxChatItem> _chatRegistry = new();
     private readonly Dictionary<string, long> _chatTitleToId = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _chatTitleToIdIgnoreCase = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ChatGroupModel> _chatGroupsByKey = new(StringComparer.Ordinal);
     private readonly Dictionary<long, List<ChatTraceRowModel>> _chatTraceRows = new();
     private readonly Dictionary<string, RawApiCallItemModel> _chatExtraCalls = new(StringComparer.Ordinal);
     private readonly HashSet<object> _chatHistoryMembers = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<string> _chatContentSearchMatchCallIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _chatContentSearchMatchEventKeys = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _chatDetailSlots = new(4, 4);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _chatDetailInflight = new(StringComparer.Ordinal);
     private CancellationTokenSource _chatCts = new();
+    private CancellationTokenSource _chatSearchCts = new();
     private DispatcherTimer? _chatRefreshTimer;
     private bool _chatRefreshPending;
     private bool? _chatTraceSupported;
@@ -89,6 +93,10 @@ public sealed partial class RawLogsApiTabViewModel
     [ObservableProperty] private string _chatHistoryStatus = "Select a chat.";
     [ObservableProperty] private bool _chatHasOlder;
     [ObservableProperty] private bool _chatShowTraceEvents = true;
+    [ObservableProperty] private string _chatContentSearchQuery = string.Empty;
+    [ObservableProperty] private string _chatContentSearchStatus = string.Empty;
+    [ObservableProperty] private bool _isChatContentSearching;
+    [ObservableProperty] private bool _isChatContentSearchActive;
 
     private bool IsChatsViewActive => IsTabActive && SelectedSubViewIndex == 2;
 
@@ -97,13 +105,70 @@ public sealed partial class RawLogsApiTabViewModel
 
     partial void OnChatFilterChanged(string value) => ApplyChatGroupFilter();
     partial void OnChatShowTraceEventsChanged(bool value) => RebuildChatHistory(resetLimit: false);
-    partial void OnSelectedChatGroupChanged(ChatGroupModel? value)
+    partial void OnChatContentSearchQueryChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            CancelChatContentSearch();
+            _chatContentSearchMatchCallIds.Clear();
+            _chatContentSearchMatchEventKeys.Clear();
+            IsChatContentSearchActive = false;
+            ChatContentSearchStatus = string.Empty;
+            RebuildChatHistory(resetLimit: false);
+        }
+        else
+        {
+            // Immediate fast local filter across cached records & metadata
+            RunLocalChatContentFilter(value);
+            RebuildChatHistory(resetLimit: false);
+        }
+    }
+
+    partial void OnSelectedChatGroupChanged(ChatGroupModel? oldValue, ChatGroupModel? newValue)
     {
         if (_suppressChatSelection) return;
         CancelChatLoads();
+        CancelChatContentSearch();
+        _chatContentSearchMatchCallIds.Clear();
+        _chatContentSearchMatchEventKeys.Clear();
+        IsChatContentSearchActive = !string.IsNullOrWhiteSpace(ChatContentSearchQuery);
+        if (IsChatContentSearchActive)
+        {
+            RunLocalChatContentFilter(ChatContentSearchQuery);
+        }
+        else
+        {
+            ChatContentSearchStatus = string.Empty;
+        }
+
+        // Unload uncompressed details from the previous chat's calls so memory stays Zstd-compressed in _apiCache
+        if (oldValue != null && !ReferenceEquals(oldValue, newValue))
+        {
+            UnloadChatGroupDetails(oldValue.Key);
+        }
+
         RebuildChatHistory(resetLimit: true);
         ChatHistoryReset?.Invoke();
-        if (value?.ChatId is long chatId) _ = LoadChatTraceAsync(chatId, _chatCts.Token);
+        if (newValue != null && newValue.Key != NoChatKey)
+        {
+            _ = LoadChatTraceForGroupAsync(newValue, _chatCts.Token);
+        }
+    }
+
+    private void UnloadChatGroupDetails(string groupKey)
+    {
+        var node = SelectedNode;
+        if (node == null) return;
+        foreach (var call in AllKnownCalls())
+        {
+            if (call.IsDetailsLoaded &&
+                !ReferenceEquals(call, SelectedApiCall) &&
+                ChatKeyOf(call) == groupKey &&
+                _apiCache.HasFullRecord(node.Id, call.CallId))
+            {
+                call.UnloadDetails();
+            }
+        }
     }
 
     // ------------------------------------------------------------------ identity
@@ -116,7 +181,9 @@ public sealed partial class RawLogsApiTabViewModel
         if (call.TraceContext?.HasChatId == true) return ChatKey(call.TraceContext.ChatId);
         string name = call.ChatName?.Trim() ?? string.Empty;
         if (name.Length == 0) return NoChatKey;
-        return _chatTitleToId.TryGetValue(name, out long id) ? ChatKey(id) : "name:" + name;
+        if (_chatTitleToId.TryGetValue(name, out long id)) return ChatKey(id);
+        if (_chatTitleToIdIgnoreCase.TryGetValue(name, out long idIgnoreCase)) return ChatKey(idIgnoreCase);
+        return "name:" + name;
     }
 
     /// <summary>Authoritative display name for a call (registry title by chat_id when known).</summary>
@@ -196,8 +263,13 @@ public sealed partial class RawLogsApiTabViewModel
     private void ResetChatsState()
     {
         CancelChatLoads();
-        _chatRegistry.Clear(); _chatTitleToId.Clear(); _chatGroupsByKey.Clear();
+        CancelChatContentSearch();
+        _chatRegistry.Clear(); _chatTitleToId.Clear(); _chatTitleToIdIgnoreCase.Clear(); _chatGroupsByKey.Clear();
         _chatTraceRows.Clear(); _chatExtraCalls.Clear(); _chatHistoryMembers.Clear();
+        _chatContentSearchMatchCallIds.Clear(); _chatContentSearchMatchEventKeys.Clear();
+        ChatContentSearchQuery = string.Empty;
+        ChatContentSearchStatus = string.Empty;
+        IsChatContentSearchActive = false;
         _chatTraceSupported = null;
         ++_chatRegistryRevision;
         ChatHistory.Clear(); ChatGroups.Clear();
@@ -211,6 +283,12 @@ public sealed partial class RawLogsApiTabViewModel
         _chatCts.Cancel(); _chatCts.Dispose(); _chatCts = new();
     }
 
+    private void CancelChatContentSearch()
+    {
+        _chatSearchCts.Cancel(); _chatSearchCts.Dispose(); _chatSearchCts = new();
+        IsChatContentSearching = false;
+    }
+
     // ------------------------------------------------------------------ chat list
 
     [RelayCommand]
@@ -219,8 +297,8 @@ public sealed partial class RawLogsApiTabViewModel
         await LoadChatRegistryAsync();
         RebuildChatGroups();
         RebuildChatHistory(resetLimit: false);
-        if (SelectedChatGroup?.ChatId is long chatId)
-            await LoadChatTraceAsync(chatId, _chatCts.Token);
+        if (SelectedChatGroup != null && SelectedChatGroup.Key != NoChatKey)
+            await LoadChatTraceForGroupAsync(SelectedChatGroup, _chatCts.Token);
     }
 
     private async Task LoadChatRegistryAsync() => await LoadChatRegistryCoreAsync();
@@ -250,9 +328,12 @@ public sealed partial class RawLogsApiTabViewModel
             _chatRegistry.Clear();
             foreach (var pair in chats) _chatRegistry[pair.Key] = pair.Value;
             _chatTitleToId.Clear();
+            _chatTitleToIdIgnoreCase.Clear();
             foreach (var group in chats.Values.Where(c => !string.IsNullOrWhiteSpace(c.Title)).GroupBy(c => c.Title.Trim(), StringComparer.Ordinal))
                 if (group.Count() == 1) _chatTitleToId[group.Key] = group.First().ChatId; // ambiguous titles never match
-            foreach (var call in RecentApiCalls) ResolveChatName(call);
+            foreach (var group in chats.Values.Where(c => !string.IsNullOrWhiteSpace(c.Title)).GroupBy(c => c.Title.Trim(), StringComparer.OrdinalIgnoreCase))
+                if (group.Count() == 1) _chatTitleToIdIgnoreCase[group.Key] = group.First().ChatId;
+            foreach (var call in AllKnownCalls()) ResolveChatName(call);
             RebuildChatGroups();
             return true;
         }
@@ -292,18 +373,41 @@ public sealed partial class RawLogsApiTabViewModel
                 : key == NoChatKey ? "(no chat — background calls)"
                 : key.StartsWith("name:", StringComparison.Ordinal) ? key[5..] + "  (unverified)"
                 : !string.IsNullOrWhiteSpace(s.Name) ? s.Name : "Chat " + chatId;
-            long last = Math.Max(s.Last, reg != null && reg.LastActiveUnixSec > 0 ? reg.LastActiveUnixSec * 1_000_000_000L : 0);
+
+            // Count reflects loaded calls, probe's retained WAL per-chat call index, or SQLite bot message count
+            int callCount = s.Count;
+            if (reg != null)
+            {
+                if (reg.ApiCallCount > callCount) callCount = (int)reg.ApiCallCount;
+                else if (callCount == 0 && reg.BotMessageCount > 0) callCount = (int)reg.BotMessageCount;
+            }
+
+            // Timestamp at the top must reflect the final message/call sent by the agent (never passive group message arrivals)
+            long last = s.Last;
+            if (reg != null && reg.LastAgentCallUnixNano > last)
+            {
+                last = reg.LastAgentCallUnixNano;
+            }
             if (chatId.HasValue && _chatTraceRows.TryGetValue(chatId.Value, out var rows) && rows.Count > 0)
+            {
                 last = Math.Max(last, rows[^1].TimestampUnixNano);
+            }
+            // Only fall back to SQLite LastActiveUnixSec when no nanosecond agent call/trace timestamp is known
+            if (last == 0 && reg != null && reg.LastActiveUnixSec > 0)
+            {
+                last = reg.LastActiveUnixSec * 1_000_000_000L;
+            }
+
             if (!_chatGroupsByKey.TryGetValue(key, out var group))
                 _chatGroupsByKey[key] = group = new ChatGroupModel { Key = key, ChatId = chatId };
             group.Title = title;
             group.ChatType = reg?.ChatType ?? (key == NoChatKey ? "system" : string.Empty);
-            group.CallCount = s.Count;
+            group.CallCount = callCount;
             group.LastActiveUnixNano = last;
         }
         foreach (string stale in _chatGroupsByKey.Keys.Where(k => !live.Contains(k)).ToList()) _chatGroupsByKey.Remove(stale);
-        ChatListStatus = $"{_chatGroupsByKey.Count(g => g.Key != NoChatKey):N0} chats · {RecentApiCalls.Count:N0} API calls loaded" +
+        int totalKnownCalls = AllKnownCalls().Count();
+        ChatListStatus = $"{_chatGroupsByKey.Count(g => g.Key != NoChatKey):N0} chats · {totalKnownCalls:N0} API calls indexed" +
             (_chatRegistry.Count == 0 ? " · chat list not loaded" : string.Empty);
         ApplyChatGroupFilter();
     }
@@ -369,10 +473,27 @@ public sealed partial class RawLogsApiTabViewModel
             ChatHistoryStatus = "Select a chat.";
             return;
         }
-        var calls = AllKnownCalls().Where(c => ChatKeyOf(c) == group.Key)
+        var allChatCalls = AllKnownCalls().Where(c => ChatKeyOf(c) == group.Key)
             .OrderByDescending(c => c.TimestampUnixNano).ToList();
+
+        bool filterBySearch = IsChatContentSearchActive && !string.IsNullOrWhiteSpace(ChatContentSearchQuery);
+        var calls = filterBySearch
+            ? allChatCalls.Where(c => _chatContentSearchMatchCallIds.Contains(c.CallId)).ToList()
+            : allChatCalls;
+
         var shown = calls.Take(_chatVisibleLimit).ToList();
         ChatHasOlder = calls.Count > shown.Count;
+
+        // Unload details of calls in this chat that fell outside the visible window so memory remains Zstd-compressed
+        var shownSet = new HashSet<RawApiCallItemModel>(shown, ReferenceEqualityComparer.Instance);
+        foreach (var c in allChatCalls)
+        {
+            if (c.IsDetailsLoaded && !shownSet.Contains(c) && !ReferenceEquals(c, SelectedApiCall) &&
+                _apiCache.HasFullRecord(node.Id, c.CallId))
+            {
+                c.UnloadDetails();
+            }
+        }
 
         var entries = new List<(long Ts, object Item)>(shown.Count);
         entries.AddRange(shown.Select(c => (c.TimestampUnixNano, (object)c)));
@@ -380,16 +501,227 @@ public sealed partial class RawLogsApiTabViewModel
         if (ChatShowTraceEvents && group.ChatId is long chatId && _chatTraceRows.TryGetValue(chatId, out var rows))
         {
             // Only events inside the time span of the visible calls (or all, when every call is shown).
-            long floor = ChatHasOlder && shown.Count > 0 ? shown[^1].TimestampUnixNano : long.MinValue;
-            foreach (var row in rows.Where(r => r.TimestampUnixNano >= floor)) { entries.Add((row.TimestampUnixNano, row)); eventCount++; }
+            long floor = !filterBySearch && ChatHasOlder && shown.Count > 0 ? shown[^1].TimestampUnixNano : long.MinValue;
+            foreach (var row in rows.Where(r => r.TimestampUnixNano >= floor))
+            {
+                if (filterBySearch && !_chatContentSearchMatchEventKeys.Contains(row.Key)) continue;
+                entries.Add((row.TimestampUnixNano, row));
+                eventCount++;
+            }
         }
         // Chronological, like a chat: oldest at the top, newest at the bottom (the view opens at the bottom).
         var ordered = entries.OrderBy(e => e.Ts).Select(e => e.Item).ToList();
         SyncChatHistory(ordered);
 
         string trace = _chatTraceSupported == false ? " · probe has no per-chat trace index (only loaded calls shown)" : string.Empty;
-        ChatHistoryStatus = $"{shown.Count:N0} of {calls.Count:N0} calls" + (eventCount > 0 ? $" · {eventCount:N0} trace events" : string.Empty) + trace;
+        if (filterBySearch)
+        {
+            ChatHistoryStatus = $"Search matches: {shown.Count:N0} of {allChatCalls.Count:N0} calls" + (eventCount > 0 ? $" · {eventCount:N0} trace events" : string.Empty) + trace;
+        }
+        else
+        {
+            ChatHistoryStatus = $"{shown.Count:N0} of {calls.Count:N0} calls" + (eventCount > 0 ? $" · {eventCount:N0} trace events" : string.Empty) + trace;
+        }
         _ = LoadChatCallDetailsAsync(node, shown, _chatCts.Token);
+    }
+
+    // ------------------------------------------------------------------ chat content search
+
+    private void RunLocalChatContentFilter(string rawQuery)
+    {
+        _chatContentSearchMatchCallIds.Clear();
+        _chatContentSearchMatchEventKeys.Clear();
+        string q = NormalizeApiFilter(rawQuery);
+        if (string.IsNullOrEmpty(q))
+        {
+            IsChatContentSearchActive = false;
+            ChatContentSearchStatus = string.Empty;
+            return;
+        }
+
+        IsChatContentSearchActive = true;
+        var group = SelectedChatGroup;
+        var node = SelectedNode;
+        if (group == null || node == null) return;
+
+        int uncachedCount = 0;
+        foreach (var call in AllKnownCalls().Where(c => ChatKeyOf(c) == group.Key))
+        {
+            if (MatchesChatCallQuery(node.Id, call, q, out bool hadPayload))
+            {
+                _chatContentSearchMatchCallIds.Add(call.CallId);
+            }
+            else if (!hadPayload)
+            {
+                uncachedCount++;
+            }
+        }
+
+        if (group.ChatId is long chatId && _chatTraceRows.TryGetValue(chatId, out var rows))
+        {
+            foreach (var row in rows)
+            {
+                if (FindLiteral(NormalizeApiFilter(row.Kind), q, false).Start >= 0 ||
+                    FindLiteral(NormalizeApiFilter(row.Content), q, false).Start >= 0)
+                {
+                    _chatContentSearchMatchEventKeys.Add(row.Key);
+                }
+            }
+        }
+
+        int totalMatches = _chatContentSearchMatchCallIds.Count + _chatContentSearchMatchEventKeys.Count;
+        ChatContentSearchStatus = uncachedCount > 0
+            ? $"{totalMatches:N0} match(es) in cached memory ({uncachedCount:N0} uncached calls on probe — press Enter to search all)"
+            : $"{totalMatches:N0} match(es) for \"{rawQuery.Trim()}\"";
+    }
+
+    private bool MatchesChatCallQuery(string nodeId, RawApiCallItemModel call, string normalizedQuery, out bool hadPayload)
+    {
+        hadPayload = false;
+        if (MatchesApiFilter(call, normalizedQuery))
+        {
+            hadPayload = true;
+            return true;
+        }
+
+        if (call.IsDetailsLoaded && (!string.IsNullOrEmpty(call.RequestJson) || !string.IsNullOrEmpty(call.ResponseJson)))
+        {
+            hadPayload = true;
+            if (FindLiteral(NormalizeApiFilter(call.RequestJson), normalizedQuery, false).Start >= 0 ||
+                FindLiteral(NormalizeApiFilter(call.ResponseJson), normalizedQuery, false).Start >= 0)
+                return true;
+            return false;
+        }
+
+        var record = _apiCache.GetRecord(nodeId, call.CallId);
+        if (record != null && (!string.IsNullOrEmpty(record.RawRequestJson) || !string.IsNullOrEmpty(record.RawResponseJson)))
+        {
+            hadPayload = true;
+            string reqText = FormatJsonForDisplay(record.RawRequestJson);
+            string respText = FormatJsonForDisplay(record.RawResponseJson);
+            if (FindLiteral(NormalizeApiFilter(reqText), normalizedQuery, false).Start >= 0 ||
+                FindLiteral(NormalizeApiFilter(respText), normalizedQuery, false).Start >= 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    [RelayCommand]
+    public async Task SearchChatHistoryAsync()
+    {
+        var group = SelectedChatGroup;
+        var node = SelectedNode;
+        string rawQuery = ChatContentSearchQuery?.Trim() ?? string.Empty;
+        if (group == null || node == null || string.IsNullOrEmpty(rawQuery))
+        {
+            ClearChatHistorySearch();
+            return;
+        }
+
+        CancelChatContentSearch();
+        var token = _chatSearchCts.Token;
+        IsChatContentSearching = true;
+        IsChatContentSearchActive = true;
+
+        try
+        {
+            // Ensure all retained trace summaries for this chat are loaded first
+            if (group.Key != NoChatKey)
+            {
+                await LoadChatTraceForGroupAsync(group, token);
+            }
+            if (token.IsCancellationRequested || SelectedNode != node || SelectedChatGroup != group) return;
+
+            string q = NormalizeApiFilter(rawQuery);
+            var chatCalls = AllKnownCalls().Where(c => ChatKeyOf(c) == group.Key)
+                .OrderByDescending(c => c.TimestampUnixNano).ToList();
+
+            _chatContentSearchMatchCallIds.Clear();
+            _chatContentSearchMatchEventKeys.Clear();
+
+            if (group.ChatId is long chatId && _chatTraceRows.TryGetValue(chatId, out var rows))
+            {
+                foreach (var row in rows)
+                {
+                    if (FindLiteral(NormalizeApiFilter(row.Kind), q, false).Start >= 0 ||
+                        FindLiteral(NormalizeApiFilter(row.Content), q, false).Start >= 0)
+                    {
+                        _chatContentSearchMatchEventKeys.Add(row.Key);
+                    }
+                }
+            }
+
+            int scanned = 0;
+            var client = _nodeManager.GetClient(node);
+            foreach (var call in chatCalls)
+            {
+                token.ThrowIfCancellationRequested();
+                scanned++;
+                if (MatchesChatCallQuery(node.Id, call, q, out bool hadPayload))
+                {
+                    _chatContentSearchMatchCallIds.Add(call.CallId);
+                    continue;
+                }
+
+                if (!hadPayload)
+                {
+                    try
+                    {
+                        var fullRec = await Task.Run(async () =>
+                            await client.GetApiCallDetailAsync(
+                                new NoxApiCallDetailRequest { NodeId = node.Id, CallId = call.CallId },
+                                deadline: DateTime.UtcNow.AddSeconds(10),
+                                cancellationToken: token).ResponseAsync.ConfigureAwait(false), token);
+                        if (fullRec != null && !string.IsNullOrEmpty(fullRec.CallId))
+                        {
+                            _apiCache.PutFullRecord(node.Id, fullRec);
+                            string reqText = FormatJsonForDisplay(fullRec.RawRequestJson);
+                            string respText = FormatJsonForDisplay(fullRec.RawResponseJson);
+                            if (FindLiteral(NormalizeApiFilter(reqText), q, false).Start >= 0 ||
+                                FindLiteral(NormalizeApiFilter(respText), q, false).Start >= 0 ||
+                                FindLiteral(NormalizeApiFilter(fullRec.ErrorMessage), q, false).Start >= 0)
+                            {
+                                _chatContentSearchMatchCallIds.Add(call.CallId);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch { }
+                }
+
+                if (scanned % 8 == 0)
+                {
+                    int currentMatches = _chatContentSearchMatchCallIds.Count + _chatContentSearchMatchEventKeys.Count;
+                    ChatContentSearchStatus = $"Searching {scanned:N0}/{chatCalls.Count:N0} calls ({currentMatches:N0} matches)…";
+                    RebuildChatHistory(resetLimit: false);
+                }
+            }
+
+            int finalMatches = _chatContentSearchMatchCallIds.Count + _chatContentSearchMatchEventKeys.Count;
+            ChatContentSearchStatus = $"Found {finalMatches:N0} match(es) across {chatCalls.Count:N0} calls for \"{rawQuery}\".";
+            RebuildChatHistory(resetLimit: true);
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+            {
+                IsChatContentSearching = false;
+            }
+        }
+    }
+
+    [RelayCommand]
+    public void ClearChatHistorySearch()
+    {
+        CancelChatContentSearch();
+        ChatContentSearchQuery = string.Empty;
+        _chatContentSearchMatchCallIds.Clear();
+        _chatContentSearchMatchEventKeys.Clear();
+        IsChatContentSearchActive = false;
+        ChatContentSearchStatus = string.Empty;
+        RebuildChatHistory(resetLimit: false);
     }
 
     /// <summary>Minimal in-place update so live arrivals don't reset scroll position or realized containers.</summary>
@@ -412,42 +744,131 @@ public sealed partial class RawLogsApiTabViewModel
     }
 
     /// <summary>
-    /// Prefetches and parses full payloads for the whole window (newest first, since the view opens at the
-    /// bottom). Everything except the final property assignment runs on the thread pool.
+    /// Prefetches and parses full payloads for the active window (newest first, since the view opens at the
+    /// bottom). Records already in the Zstd in-memory cache are decoded and applied in one coalesced batch;
+    /// remote fetches are applied in coalesced batches to eliminate scrollbar layout jitter.
     /// </summary>
     private async Task LoadChatCallDetailsAsync(NoxNodeModel node, List<RawApiCallItemModel> calls, CancellationToken token)
     {
         // `calls` is newest-first; skip anything another refresh is already fetching
         var pending = calls.Where(c => !c.IsDetailsLoaded && _chatDetailInflight.TryAdd(c.CallId, 0)).ToList();
         if (pending.Count == 0) return;
-        var tasks = pending.Select(call => Task.Run(async () =>
+
+        var readyQueue = new System.Collections.Concurrent.ConcurrentQueue<(RawApiCallItemModel Target, RawApiCallItemModel Prepared)>();
+
+        async Task FlushReadyBatchAsync()
         {
-            try { await _chatDetailSlots.WaitAsync(token).ConfigureAwait(false); }
-            catch (OperationCanceledException) { _chatDetailInflight.TryRemove(call.CallId, out _); return; }
-            try
+            if (readyQueue.IsEmpty) return;
+            var batch = new List<(RawApiCallItemModel Target, RawApiCallItemModel Prepared)>();
+            while (readyQueue.TryDequeue(out var pair))
             {
-                if (token.IsCancellationRequested || call.IsDetailsLoaded) return;
-                var record = _apiCache.GetRecord(node.Id, call.CallId);
-                if (record == null || (string.IsNullOrWhiteSpace(record.RawRequestJson) && string.IsNullOrWhiteSpace(record.RawResponseJson)))
-                {
-                    record = await _nodeManager.GetClient(node).GetApiCallDetailAsync(
-                        new NoxApiCallDetailRequest { NodeId = node.Id, CallId = call.CallId }, cancellationToken: token).ResponseAsync.ConfigureAwait(false);
-                    if (record == null || record.CallId != call.CallId) return;
-                    _apiCache.PutFullRecord(node.Id, record);
-                }
-                var prepared = PrepareDetails(call, record, token);
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    if (token.IsCancellationRequested || SelectedNode != node || call.IsDetailsLoaded) { DisposeImages(prepared); return; }
-                    ApplyPreparedDetails(call, prepared);
-                }, DispatcherPriority.Background); // never ahead of input/render
+                batch.Add(pair);
             }
-            catch (OperationCanceledException) { }
-            catch (RpcException) { /* expired from the probe spool: the summary row stays visible */ }
-            catch (Exception) { }
-            finally { _chatDetailSlots.Release(); _chatDetailInflight.TryRemove(call.CallId, out _); }
-        }, CancellationToken.None));
-        try { await Task.WhenAll(tasks).ConfigureAwait(false); } catch { }
+            if (batch.Count == 0) return;
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                foreach (var (target, prepared) in batch)
+                {
+                    if (token.IsCancellationRequested || SelectedNode != node || target.IsDetailsLoaded)
+                    {
+                        DisposeImages(prepared);
+                        continue;
+                    }
+                    ApplyPreparedDetails(target, prepared);
+                }
+            }, DispatcherPriority.Background);
+        }
+
+        // Fast pass: decode any records already present in client Zstd memory cache (_apiCache) in one batch
+        var remotePending = new List<RawApiCallItemModel>();
+        try
+        {
+            await Task.Run(() =>
+            {
+                foreach (var call in pending)
+                {
+                    if (token.IsCancellationRequested)
+                    {
+                        _chatDetailInflight.TryRemove(call.CallId, out _);
+                        continue;
+                    }
+                    var cached = _apiCache.GetRecord(node.Id, call.CallId);
+                    if (cached != null && (!string.IsNullOrWhiteSpace(cached.RawRequestJson) || !string.IsNullOrWhiteSpace(cached.RawResponseJson)))
+                    {
+                        try
+                        {
+                            var prepared = PrepareDetails(call, cached, token);
+                            readyQueue.Enqueue((call, prepared));
+                        }
+                        finally
+                        {
+                            _chatDetailInflight.TryRemove(call.CallId, out _);
+                        }
+                    }
+                    else
+                    {
+                        remotePending.Add(call);
+                    }
+                }
+            }, CancellationToken.None).ConfigureAwait(false);
+
+            await FlushReadyBatchAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            foreach (var c in pending) _chatDetailInflight.TryRemove(c.CallId, out _);
+            while (readyQueue.TryDequeue(out var leftover)) DisposeImages(leftover.Prepared);
+            return;
+        }
+
+        if (remotePending.Count == 0 || token.IsCancellationRequested)
+        {
+            foreach (var c in remotePending) _chatDetailInflight.TryRemove(c.CallId, out _);
+            return;
+        }
+
+        // Process remote calls in small newest-first waves (8 calls per wave) so each wave updates the UI in a single layout pass
+        const int waveSize = 8;
+        for (int offset = 0; offset < remotePending.Count; offset += waveSize)
+        {
+            if (token.IsCancellationRequested)
+            {
+                for (int j = offset; j < remotePending.Count; j++)
+                    _chatDetailInflight.TryRemove(remotePending[j].CallId, out _);
+                break;
+            }
+
+            var wave = remotePending.Skip(offset).Take(waveSize).ToList();
+            var tasks = wave.Select(call => Task.Run(async () =>
+            {
+                try { await _chatDetailSlots.WaitAsync(token).ConfigureAwait(false); }
+                catch (OperationCanceledException) { _chatDetailInflight.TryRemove(call.CallId, out _); return; }
+                try
+                {
+                    if (token.IsCancellationRequested || call.IsDetailsLoaded) return;
+                    var record = _apiCache.GetRecord(node.Id, call.CallId);
+                    if (record == null || (string.IsNullOrWhiteSpace(record.RawRequestJson) && string.IsNullOrWhiteSpace(record.RawResponseJson)))
+                    {
+                        record = await _nodeManager.GetClient(node).GetApiCallDetailAsync(
+                            new NoxApiCallDetailRequest { NodeId = node.Id, CallId = call.CallId }, cancellationToken: token).ResponseAsync.ConfigureAwait(false);
+                        if (record == null || record.CallId != call.CallId) return;
+                        _apiCache.PutFullRecord(node.Id, record);
+                    }
+                    var prepared = PrepareDetails(call, record, token);
+                    readyQueue.Enqueue((call, prepared));
+                }
+                catch (OperationCanceledException) { }
+                catch (RpcException) { /* expired from the probe spool: the summary row stays visible */ }
+                catch (Exception) { }
+                finally { _chatDetailSlots.Release(); _chatDetailInflight.TryRemove(call.CallId, out _); }
+            }, CancellationToken.None));
+
+            try { await Task.WhenAll(tasks).ConfigureAwait(false); } catch { }
+            await FlushReadyBatchAsync().ConfigureAwait(false);
+        }
+
+        while (readyQueue.TryDequeue(out var remaining)) DisposeImages(remaining.Prepared);
     }
 
     /// <summary>Formats JSON, decodes images and parses turns on a detached copy (safe off the UI thread).</summary>
@@ -488,8 +909,20 @@ public sealed partial class RawLogsApiTabViewModel
         foreach (var img in prepared.Images) img.Preview?.Dispose();
     }
 
+    private Task<bool> LoadChatTraceForGroupAsync(ChatGroupModel group, CancellationToken token)
+    {
+        string rawTitle = group.Key.StartsWith("name:", StringComparison.Ordinal) ? group.Key[5..] : group.Title;
+        return LoadChatTraceCoreAsync(group.Key, group.ChatId, rawTitle, token);
+    }
+
     /// <summary>Pulls the chat's full retained history (metadata only) from the probe's per-chat trace index.</summary>
-    private async Task<bool> LoadChatTraceAsync(long chatId, CancellationToken token)
+    private Task<bool> LoadChatTraceAsync(long chatId, CancellationToken token)
+    {
+        _chatRegistry.TryGetValue(chatId, out var reg);
+        return LoadChatTraceCoreAsync(ChatKey(chatId), chatId, reg?.Title ?? string.Empty, token);
+    }
+
+    private async Task<bool> LoadChatTraceCoreAsync(string groupKey, long? chatId, string chatTitle, CancellationToken token)
     {
         var node = SelectedNode;
         if (node == null) return false;
@@ -499,10 +932,19 @@ public sealed partial class RawLogsApiTabViewModel
             var client = _nodeManager.GetClient(node);
             string cursor = string.Empty;
             bool changed = false;
-            for (int page = 0; page < 25 && !token.IsCancellationRequested; page++)
+            var newRecordsToCache = new List<NoxRawApiCallRecord>();
+            for (int page = 0; page < 50 && !token.IsCancellationRequested; page++)
             {
-                var response = await client.QueryChatTraceAsync(new NoxChatTraceRequest
-                { NodeId = node.Id, ChatId = chatId, Limit = 200, Cursor = cursor }, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: token);
+                var req = new NoxChatTraceRequest
+                {
+                    NodeId = node.Id,
+                    Limit = 200,
+                    Cursor = cursor,
+                    ChatName = chatTitle ?? string.Empty
+                };
+                if (chatId.HasValue) req.ChatId = chatId.Value;
+
+                var response = await client.QueryChatTraceAsync(req, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: token);
                 if (token.IsCancellationRequested || SelectedNode != node) return false;
                 _chatTraceSupported = true;
                 foreach (var record in response.Calls)
@@ -511,6 +953,7 @@ public sealed partial class RawLogsApiTabViewModel
                     var item = BuildApiCallItemModel(record);
                     ResolveChatName(item);
                     _chatExtraCalls[record.CallId] = item;
+                    newRecordsToCache.Add(record);
                     changed = true;
                 }
                 foreach (var ev in response.Events)
@@ -519,8 +962,17 @@ public sealed partial class RawLogsApiTabViewModel
                 if (response.NextCursor.Length == 0 || response.NextCursor == cursor) break;
                 cursor = response.NextCursor;
             }
-            if (changed && SelectedChatGroup?.ChatId == chatId)
+            if (newRecordsToCache.Count > 0)
             {
+                _apiCache.PutRecords(node.Id, newRecordsToCache);
+                _apiCache.FlushPending(node.Id);
+            }
+            if (changed && SelectedChatGroup?.Key == groupKey)
+            {
+                if (IsChatContentSearchActive && !string.IsNullOrWhiteSpace(ChatContentSearchQuery))
+                {
+                    RunLocalChatContentFilter(ChatContentSearchQuery);
+                }
                 RebuildChatGroups();
                 RebuildChatHistory(resetLimit: false);
             }
@@ -529,7 +981,7 @@ public sealed partial class RawLogsApiTabViewModel
         {
             if (token.IsCancellationRequested || SelectedNode != node) return false;
             _chatTraceSupported = false;
-            if (SelectedChatGroup?.ChatId == chatId) RebuildChatHistory(resetLimit: false);
+            if (SelectedChatGroup?.Key == groupKey) RebuildChatHistory(resetLimit: false);
             return true;
         }
         catch (OperationCanceledException) { return false; }

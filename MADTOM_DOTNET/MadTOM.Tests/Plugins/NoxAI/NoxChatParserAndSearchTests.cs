@@ -620,4 +620,123 @@ public class NoxChatParserAndSearchTests
         vm.CloseAvatarLightbox();
         Assert.False(vm.IsAvatarLightboxOpen);
     }
+
+    [Fact]
+    public void NoxChatSessionParser_Parses_AllSystemHeaders_DisambiguatedSenders_LiveContextTiers_And_BotTags()
+    {
+        string sysPrompt =
+            "YOUR IDENTITY:\nYou are Nox.\n\n" +
+            "PARTICIPANTS' PROFILES:\n• Alice (@alice, ID: 123): Bio: Loves Rust.\n\n" +
+            "TIPS FOR THIS MOMENT (guidance for the current situation, from your operator or saved by you for this chat; follow them quietly and never mention or quote them):\n• Keep answers short.\n\n" +
+            "ACTIVE BACKGROUND JOBS (still running: image and document jobs):\n• Job #1: rendering PDF\n\n" +
+            "STUDIO QUESTIONS WAITING FOR YOUR ANSWER (the job is paused until you reply):\n• Question #2: dark or light theme?\n\n" +
+            "Your VM /data (as of 12:00 UTC, 4.0 KB used of 1.0 GB):\n\"notes.txt\" 4.0 KB";
+
+        var sections = NoxChatSessionParser.ParseSystemSections(sysPrompt);
+        // Must not split on "ID:" or "Bio:" inside PARTICIPANTS' PROFILES, and must not merge TIPS / ACTIVE BACKGROUND JOBS / STUDIO QUESTIONS / VM /data
+        Assert.Equal(6, sections.Count);
+        Assert.Contains(sections, s => s.Header.StartsWith("TIPS FOR THIS MOMENT", StringComparison.Ordinal));
+        Assert.Contains(sections, s => s.Header.StartsWith("ACTIVE BACKGROUND JOBS", StringComparison.Ordinal));
+        Assert.Contains(sections, s => s.Header.StartsWith("STUDIO QUESTIONS WAITING FOR YOUR ANSWER", StringComparison.Ordinal));
+        Assert.Contains(sections, s => s.Header.StartsWith("Your VM /data", StringComparison.Ordinal));
+
+        string tieredUserText =
+            "Group Chat: 'Nest'\n" +
+            "=== ARCHIVED CONVERSATION HISTORY ===\n" +
+            "[2026/11/20 12:00:00] [#101 Alice (id: 12345)]: First message from disambiguated sender\n" +
+            "[2026/11/20 12:01:00] [#102 Danial: Dev -> #101]: Second message from sender with colon\n" +
+            "=== LIVE CONTEXT & RECALLED KNOWLEDGE ===\n" +
+            "RELEVANT RECALLED MEMORIES:\n• [ID: 9] Server uses Zstd\n\n" +
+            "HOT CONVERSATION MEMORY:\n• [Topic]: NoxAI plugin refactor\n" +
+            "=== RECENT MESSAGES & CURRENT TURN ===\n" +
+            "[2026/11/20 12:02:00] [#103 Alice (id: 12345)]: Did you fix the parser?\n" +
+            "[Respond to this merged batch of message IDs: #103]";
+
+        var entries = NoxChatSessionParser.ParseChatEntries(tieredUserText);
+        // #101 and #102 must be separate entries (not merged together), RELEVANT RECALLED MEMORIES and HOT CONVERSATION MEMORY must be separate, and [Respond to this merged batch...] must not be merged into #103's body
+        Assert.Contains(entries, e => e.Header.Contains("#101 Alice (id: 12345)") && e.Body == "First message from disambiguated sender");
+        Assert.Contains(entries, e => e.Header.Contains("#102 Danial: Dev") && e.Body == "Second message from sender with colon");
+        Assert.Contains(entries, e => e.Header.StartsWith("RELEVANT RECALLED MEMORIES", StringComparison.Ordinal));
+        Assert.Contains(entries, e => e.Header.StartsWith("HOT CONVERSATION MEMORY", StringComparison.Ordinal));
+        var msg103 = entries.FirstOrDefault(e => e.Header.Contains("#103 Alice"));
+        Assert.NotNull(msg103);
+        Assert.Equal("Did you fix the parser?", msg103.Body);
+
+        // Multi-tag bot response parsing
+        var botEntries = NoxChatSessionParser.ParseBotResponseEntries("<reply to=\"103\">Yes, fixed!</reply><msg>And Zstd is active.</msg><react to=\"103\">🔥</react>");
+        Assert.Equal(3, botEntries.Count);
+        Assert.Equal("<reply to=\"103\">", botEntries[0].Header);
+        Assert.Equal("Yes, fixed!", botEntries[0].Body);
+        Assert.Equal("<msg>", botEntries[1].Header);
+        Assert.Equal("<react to=\"103\">", botEntries[2].Header);
+    }
+
+    private sealed class PagedMemoriesAndProfilesClient : NoxChatControlService.NoxChatControlServiceClient
+    {
+        private static AsyncUnaryCall<T> Call<T>(Task<T> task) => new(task, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
+
+        public override AsyncUnaryCall<NoxMemoryQueryResponse> QueryMemoriesAsync(NoxMemoryQueryRequest request, Metadata? headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+        {
+            var resp = new NoxMemoryQueryResponse { TotalCount = 120 };
+            int start = (int)request.Offset;
+            int count = Math.Min((int)request.Limit, Math.Max(0, 120 - start));
+            for (int i = 0; i < count; i++)
+            {
+                resp.Memories.Add(new NoxAtomicMemoryItem { Id = $"mem-{start + i}", Category = "fact", Content = $"Memory #{start + i}" });
+            }
+            return Call(Task.FromResult(resp));
+        }
+
+        public override AsyncUnaryCall<NoxHotMemoryResponse> ListHotMemoriesAsync(NoxHotMemoryRequest request, Metadata? headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+            => Call(Task.FromResult(new NoxHotMemoryResponse()));
+
+        public override AsyncUnaryCall<NoxUserProfileQueryResponse> QueryUserProfilesAsync(NoxUserProfileQueryRequest request, Metadata? headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
+        {
+            var resp = new NoxUserProfileQueryResponse { TotalCount = 240 };
+            int start = (int)request.Offset;
+            int count = Math.Min((int)request.Limit, Math.Max(0, 240 - start));
+            for (int i = 0; i < count; i++)
+            {
+                resp.Profiles.Add(new NoxUserProfile { UserId = 1000 + start + i, FullName = $"User {start + i}" });
+            }
+            return Call(Task.FromResult(resp));
+        }
+    }
+
+    [Fact]
+    public async Task MemoriesAndUserProfiles_PageSeamlesslyOnScroll_AndShowRealTotals()
+    {
+        await using var manager = new NoxNodeManager(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"), _ => new PagedMemoriesAndProfilesClient());
+        var vm = new MemoriesRagTabViewModel(manager);
+
+        await vm.RefreshMemories();
+        Assert.Equal(50, vm.Memories.Count);
+        Assert.Equal(120, vm.TotalMemoriesCount);
+        Assert.True(vm.HasMoreMemories);
+        Assert.Contains("50 / 120", vm.MemoriesHeaderText);
+
+        await vm.LoadMoreMemoriesAsync();
+        Assert.Equal(100, vm.Memories.Count);
+        Assert.True(vm.HasMoreMemories);
+
+        await vm.LoadMoreMemoriesAsync();
+        Assert.Equal(120, vm.Memories.Count);
+        Assert.False(vm.HasMoreMemories);
+        Assert.Contains("(120 ·", vm.MemoriesHeaderText);
+
+        await vm.RefreshUserProfiles();
+        Assert.Equal(100, vm.UserProfiles.Count);
+        Assert.Equal(240, vm.TotalUserProfilesCount);
+        Assert.True(vm.HasMoreUserProfiles);
+        Assert.Equal("PROFILES (100 / 240)", vm.ProfilesCountHeaderText);
+
+        await vm.LoadMoreUserProfilesAsync();
+        Assert.Equal(200, vm.UserProfiles.Count);
+        Assert.True(vm.HasMoreUserProfiles);
+
+        await vm.LoadMoreUserProfilesAsync();
+        Assert.Equal(240, vm.UserProfiles.Count);
+        Assert.False(vm.HasMoreUserProfiles);
+        Assert.Equal("PROFILES (240)", vm.ProfilesCountHeaderText);
+    }
 }

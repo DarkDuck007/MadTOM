@@ -97,7 +97,7 @@
                             Padding="12">
                         <Grid RowDefinitions="Auto,Auto,*">
                             <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                <TextBlock Text="🧠 LONG-TERM ATOMIC MEMORIES (SQLITE + QDRANT HYBRID RAG)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding MemoriesHeaderText}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding SearchResultsSummary}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding IsSearchResultsActive}"/>
                             </Grid>
 
@@ -111,7 +111,7 @@
                                 <Button Grid.Column="2" Command="{Binding ClearSearchCommand}" Content="✕ Clear" Padding="8,5" IsVisible="{Binding IsSearchResultsActive}"/>
                             </Grid>
 
-                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                            <ScrollViewer x:Name="MemoriesScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" ScrollChanged="OnMemoriesScrollChanged">
                                 <ItemsControl ItemsSource="{Binding Memories}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:MemoryItemModel">
@@ -202,14 +202,16 @@
                                 CornerRadius="8"
                                 Padding="8">
                             <Grid RowDefinitions="Auto,*">
-                                <TextBlock Text="{Binding UserProfiles.Count, StringFormat='{}PROFILES ({0})'}"
+                                <TextBlock Text="{Binding ProfilesCountHeaderText}"
                                            FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"
                                            Margin="4,2,4,6"/>
-                                <ListBox Grid.Row="1"
+                                <ListBox x:Name="UserProfilesListBox"
+                                         Grid.Row="1"
                                          ItemsSource="{Binding UserProfiles}"
                                          SelectedItem="{Binding SelectedUserProfile, Mode=TwoWay}"
                                          Background="Transparent"
-                                         BorderThickness="0">
+                                         BorderThickness="0"
+                                         ScrollViewer.ScrollChanged="OnProfilesScrollChanged">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:UserProfileItemModel">
                                             <Border Background="{DynamicResource CardBgBrush}"

@@ -246,9 +246,13 @@ message NoxChatTraceRequest {
   string run_id = 4;
   uint32 limit = 5;
   string cursor = 6;
+  string chat_name = 7;
 }
 
 message NoxChatTraceResponse {
+  bytes zstd_payload = 100;
+  uint32 decoded_size = 101;
+
   repeated NoxRawApiCallRecord calls = 1; // metadata only; bodies use GetApiCallDetail
   repeated NoxChatTraceEvent events = 2;
   string next_cursor = 3;
@@ -406,6 +410,9 @@ message NoxChatItem {
   string trigger_nicknames = 4;
   int32 auto_reply_interval = 5;
   int64 last_active_unix_sec = 6;
+  uint32 bot_message_count = 7;
+  uint32 api_call_count = 8;
+  int64 last_agent_call_unix_nano = 9;
 }
 
 message NoxListChatsResponse {
@@ -925,6 +932,7 @@ message NoxUserProfile {
 message NoxUserProfileQueryRequest {
   string node_id = 1;
   uint32 limit = 2;
+  uint32 offset = 3;
 }
 
 message NoxUserProfileQueryResponse {
@@ -932,6 +940,7 @@ message NoxUserProfileQueryResponse {
   uint32 decoded_size = 101;
 
   repeated NoxUserProfile profiles = 1;
+  uint32 total_count = 2;
 }
 
 message NoxUserProfileSearchRequest {
@@ -945,6 +954,7 @@ message NoxUserProfileSearchResponse {
   uint32 decoded_size = 101;
 
   repeated NoxUserProfile profiles = 1;
+  uint32 total_count = 2;
 }
 
 message NoxUserProfilePhotoRequest {
@@ -984,6 +994,9 @@ message NoxLogSearchHit {
  bool message_truncated = 9;
 }
 message NoxSearchLogsResponse {
+ bytes zstd_payload = 100;
+ uint32 decoded_size = 101;
+
  repeated NoxLogSearchHit hits = 1;
  string next_cursor = 2;
  uint64 high_water_seq = 3;

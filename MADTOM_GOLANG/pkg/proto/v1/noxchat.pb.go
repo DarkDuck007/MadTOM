@@ -1104,6 +1104,7 @@ type NoxChatTraceRequest struct {
 	RunId         string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Limit         uint32                 `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
 	Cursor        string                 `protobuf:"bytes,6,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	ChatName      string                 `protobuf:"bytes,7,opt,name=chat_name,json=chatName,proto3" json:"chat_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1180,8 +1181,17 @@ func (x *NoxChatTraceRequest) GetCursor() string {
 	return ""
 }
 
+func (x *NoxChatTraceRequest) GetChatName() string {
+	if x != nil {
+		return x.ChatName
+	}
+	return ""
+}
+
 type NoxChatTraceResponse struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
+	ZstdPayload             []byte                 `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
+	DecodedSize             uint32                 `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
 	Calls                   []*NoxRawApiCallRecord `protobuf:"bytes,1,rep,name=calls,proto3" json:"calls,omitempty"` // metadata only; bodies use GetApiCallDetail
 	Events                  []*NoxChatTraceEvent   `protobuf:"bytes,2,rep,name=events,proto3" json:"events,omitempty"`
 	NextCursor              string                 `protobuf:"bytes,3,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
@@ -1221,6 +1231,20 @@ func (x *NoxChatTraceResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use NoxChatTraceResponse.ProtoReflect.Descriptor instead.
 func (*NoxChatTraceResponse) Descriptor() ([]byte, []int) {
 	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *NoxChatTraceResponse) GetZstdPayload() []byte {
+	if x != nil {
+		return x.ZstdPayload
+	}
+	return nil
+}
+
+func (x *NoxChatTraceResponse) GetDecodedSize() uint32 {
+	if x != nil {
+		return x.DecodedSize
+	}
+	return 0
 }
 
 func (x *NoxChatTraceResponse) GetCalls() []*NoxRawApiCallRecord {
@@ -2560,15 +2584,18 @@ func (x *NoxListChatsRequest) GetCursor() string {
 }
 
 type NoxChatItem struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	ChatId            int64                  `protobuf:"varint,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
-	ChatType          string                 `protobuf:"bytes,2,opt,name=chat_type,json=chatType,proto3" json:"chat_type,omitempty"`
-	Title             string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	TriggerNicknames  string                 `protobuf:"bytes,4,opt,name=trigger_nicknames,json=triggerNicknames,proto3" json:"trigger_nicknames,omitempty"`
-	AutoReplyInterval int32                  `protobuf:"varint,5,opt,name=auto_reply_interval,json=autoReplyInterval,proto3" json:"auto_reply_interval,omitempty"`
-	LastActiveUnixSec int64                  `protobuf:"varint,6,opt,name=last_active_unix_sec,json=lastActiveUnixSec,proto3" json:"last_active_unix_sec,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	ChatId                int64                  `protobuf:"varint,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	ChatType              string                 `protobuf:"bytes,2,opt,name=chat_type,json=chatType,proto3" json:"chat_type,omitempty"`
+	Title                 string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	TriggerNicknames      string                 `protobuf:"bytes,4,opt,name=trigger_nicknames,json=triggerNicknames,proto3" json:"trigger_nicknames,omitempty"`
+	AutoReplyInterval     int32                  `protobuf:"varint,5,opt,name=auto_reply_interval,json=autoReplyInterval,proto3" json:"auto_reply_interval,omitempty"`
+	LastActiveUnixSec     int64                  `protobuf:"varint,6,opt,name=last_active_unix_sec,json=lastActiveUnixSec,proto3" json:"last_active_unix_sec,omitempty"`
+	BotMessageCount       uint32                 `protobuf:"varint,7,opt,name=bot_message_count,json=botMessageCount,proto3" json:"bot_message_count,omitempty"`
+	ApiCallCount          uint32                 `protobuf:"varint,8,opt,name=api_call_count,json=apiCallCount,proto3" json:"api_call_count,omitempty"`
+	LastAgentCallUnixNano int64                  `protobuf:"varint,9,opt,name=last_agent_call_unix_nano,json=lastAgentCallUnixNano,proto3" json:"last_agent_call_unix_nano,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *NoxChatItem) Reset() {
@@ -2639,6 +2666,27 @@ func (x *NoxChatItem) GetAutoReplyInterval() int32 {
 func (x *NoxChatItem) GetLastActiveUnixSec() int64 {
 	if x != nil {
 		return x.LastActiveUnixSec
+	}
+	return 0
+}
+
+func (x *NoxChatItem) GetBotMessageCount() uint32 {
+	if x != nil {
+		return x.BotMessageCount
+	}
+	return 0
+}
+
+func (x *NoxChatItem) GetApiCallCount() uint32 {
+	if x != nil {
+		return x.ApiCallCount
+	}
+	return 0
+}
+
+func (x *NoxChatItem) GetLastAgentCallUnixNano() int64 {
+	if x != nil {
+		return x.LastAgentCallUnixNano
 	}
 	return 0
 }
@@ -7245,6 +7293,7 @@ type NoxUserProfileQueryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        uint32                 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7293,11 +7342,19 @@ func (x *NoxUserProfileQueryRequest) GetLimit() uint32 {
 	return 0
 }
 
+func (x *NoxUserProfileQueryRequest) GetOffset() uint32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
 type NoxUserProfileQueryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ZstdPayload   []byte                 `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
 	DecodedSize   uint32                 `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
 	Profiles      []*NoxUserProfile      `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	TotalCount    uint32                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7351,6 +7408,13 @@ func (x *NoxUserProfileQueryResponse) GetProfiles() []*NoxUserProfile {
 		return x.Profiles
 	}
 	return nil
+}
+
+func (x *NoxUserProfileQueryResponse) GetTotalCount() uint32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
 }
 
 type NoxUserProfileSearchRequest struct {
@@ -7418,6 +7482,7 @@ type NoxUserProfileSearchResponse struct {
 	ZstdPayload   []byte                 `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
 	DecodedSize   uint32                 `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
 	Profiles      []*NoxUserProfile      `protobuf:"bytes,1,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	TotalCount    uint32                 `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7471,6 +7536,13 @@ func (x *NoxUserProfileSearchResponse) GetProfiles() []*NoxUserProfile {
 		return x.Profiles
 	}
 	return nil
+}
+
+func (x *NoxUserProfileSearchResponse) GetTotalCount() uint32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
 }
 
 type NoxUserProfilePhotoRequest struct {
@@ -7805,6 +7877,8 @@ func (x *NoxLogSearchHit) GetMessageTruncated() bool {
 
 type NoxSearchLogsResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
+	ZstdPayload      []byte                 `protobuf:"bytes,100,opt,name=zstd_payload,json=zstdPayload,proto3" json:"zstd_payload,omitempty"`
+	DecodedSize      uint32                 `protobuf:"varint,101,opt,name=decoded_size,json=decodedSize,proto3" json:"decoded_size,omitempty"`
 	Hits             []*NoxLogSearchHit     `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
 	NextCursor       string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	HighWaterSeq     uint64                 `protobuf:"varint,3,opt,name=high_water_seq,json=highWaterSeq,proto3" json:"high_water_seq,omitempty"`
@@ -7848,6 +7922,20 @@ func (x *NoxSearchLogsResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use NoxSearchLogsResponse.ProtoReflect.Descriptor instead.
 func (*NoxSearchLogsResponse) Descriptor() ([]byte, []int) {
 	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{99}
+}
+
+func (x *NoxSearchLogsResponse) GetZstdPayload() []byte {
+	if x != nil {
+		return x.ZstdPayload
+	}
+	return nil
+}
+
+func (x *NoxSearchLogsResponse) GetDecodedSize() uint32 {
+	if x != nil {
+		return x.DecodedSize
+	}
+	return 0
 }
 
 func (x *NoxSearchLogsResponse) GetHits() []*NoxLogSearchHit {
@@ -13129,7 +13217,7 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"\x0frelated_call_id\x18\a \x01(\tR\rrelatedCallId\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbc\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd9\x01\n" +
 	"\x13NoxChatTraceRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1c\n" +
 	"\achat_id\x18\x02 \x01(\x03H\x00R\x06chatId\x88\x01\x01\x12\x1d\n" +
@@ -13137,10 +13225,13 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"session_id\x18\x03 \x01(\tR\tsessionId\x12\x15\n" +
 	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x14\n" +
 	"\x05limit\x18\x05 \x01(\rR\x05limit\x12\x16\n" +
-	"\x06cursor\x18\x06 \x01(\tR\x06cursorB\n" +
+	"\x06cursor\x18\x06 \x01(\tR\x06cursor\x12\x1b\n" +
+	"\tchat_name\x18\a \x01(\tR\bchatNameB\n" +
 	"\n" +
-	"\b_chat_id\"\xe2\x02\n" +
-	"\x14NoxChatTraceResponse\x124\n" +
+	"\b_chat_id\"\xa8\x03\n" +
+	"\x14NoxChatTraceResponse\x12!\n" +
+	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
+	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x124\n" +
 	"\x05calls\x18\x01 \x03(\v2\x1e.madtom.v1.NoxRawApiCallRecordR\x05calls\x124\n" +
 	"\x06events\x18\x02 \x03(\v2\x1c.madtom.v1.NoxChatTraceEventR\x06events\x12\x1f\n" +
 	"\vnext_cursor\x18\x03 \x01(\tR\n" +
@@ -13269,14 +13360,17 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"\x13NoxListChatsRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\x12\x16\n" +
-	"\x06cursor\x18\x03 \x01(\tR\x06cursor\"\xe7\x01\n" +
+	"\x06cursor\x18\x03 \x01(\tR\x06cursor\"\xf3\x02\n" +
 	"\vNoxChatItem\x12\x17\n" +
 	"\achat_id\x18\x01 \x01(\x03R\x06chatId\x12\x1b\n" +
 	"\tchat_type\x18\x02 \x01(\tR\bchatType\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12+\n" +
 	"\x11trigger_nicknames\x18\x04 \x01(\tR\x10triggerNicknames\x12.\n" +
 	"\x13auto_reply_interval\x18\x05 \x01(\x05R\x11autoReplyInterval\x12/\n" +
-	"\x14last_active_unix_sec\x18\x06 \x01(\x03R\x11lastActiveUnixSec\"\x8b\x02\n" +
+	"\x14last_active_unix_sec\x18\x06 \x01(\x03R\x11lastActiveUnixSec\x12*\n" +
+	"\x11bot_message_count\x18\a \x01(\rR\x0fbotMessageCount\x12$\n" +
+	"\x0eapi_call_count\x18\b \x01(\rR\fapiCallCount\x128\n" +
+	"\x19last_agent_call_unix_nano\x18\t \x01(\x03R\x15lastAgentCallUnixNano\"\x8b\x02\n" +
 	"\x14NoxListChatsResponse\x12!\n" +
 	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
 	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12,\n" +
@@ -13713,22 +13807,27 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"\x0flast_checked_at\x18\r \x01(\tR\rlastCheckedAt\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x0e \x01(\tR\tcreatedAt\x12'\n" +
-	"\x0frelevance_score\x18\x0f \x01(\x01R\x0erelevanceScore\"K\n" +
+	"\x0frelevance_score\x18\x0f \x01(\x01R\x0erelevanceScore\"c\n" +
 	"\x1aNoxUserProfileQueryRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\"\x9a\x01\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\rR\x06offset\"\xbb\x01\n" +
 	"\x1bNoxUserProfileQueryResponse\x12!\n" +
 	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
 	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x125\n" +
-	"\bprofiles\x18\x01 \x03(\v2\x19.madtom.v1.NoxUserProfileR\bprofiles\"b\n" +
+	"\bprofiles\x18\x01 \x03(\v2\x19.madtom.v1.NoxUserProfileR\bprofiles\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\rR\n" +
+	"totalCount\"b\n" +
 	"\x1bNoxUserProfileSearchRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\"\x9b\x01\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\"\xbc\x01\n" +
 	"\x1cNoxUserProfileSearchResponse\x12!\n" +
 	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
 	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x125\n" +
-	"\bprofiles\x18\x01 \x03(\v2\x19.madtom.v1.NoxUserProfileR\bprofiles\"N\n" +
+	"\bprofiles\x18\x01 \x03(\v2\x19.madtom.v1.NoxUserProfileR\bprofiles\x12\x1f\n" +
+	"\vtotal_count\x18\x02 \x01(\rR\n" +
+	"totalCount\"N\n" +
 	"\x1aNoxUserProfilePhotoRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\"t\n" +
@@ -13759,8 +13858,10 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"\vmatch_start\x18\a \x01(\rR\n" +
 	"matchStart\x12!\n" +
 	"\fmatch_length\x18\b \x01(\rR\vmatchLength\x12+\n" +
-	"\x11message_truncated\x18\t \x01(\bR\x10messageTruncated\"\xb1\x03\n" +
-	"\x15NoxSearchLogsResponse\x12.\n" +
+	"\x11message_truncated\x18\t \x01(\bR\x10messageTruncated\"\xf7\x03\n" +
+	"\x15NoxSearchLogsResponse\x12!\n" +
+	"\fzstd_payload\x18d \x01(\fR\vzstdPayload\x12!\n" +
+	"\fdecoded_size\x18e \x01(\rR\vdecodedSize\x12.\n" +
 	"\x04hits\x18\x01 \x03(\v2\x1a.madtom.v1.NoxLogSearchHitR\x04hits\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\x12$\n" +

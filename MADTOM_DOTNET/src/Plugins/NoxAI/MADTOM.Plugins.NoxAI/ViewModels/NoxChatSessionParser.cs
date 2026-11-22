@@ -171,55 +171,111 @@ public static class NoxChatSessionParser
     }
 
     private static readonly Regex ThoughtRegex = new(@"<thought>(.*?)</thought>", RegexOptions.Singleline | RegexOptions.Compiled);
+    private static readonly Regex BotActionTagRegex = new(
+        @"<(?<tag>reply|msg|react|sticker|gif|image|document|remember|forget|hot|caption)\b(?<attrs>[^>]*)>(?<body>.*?)</\k<tag>>",
+        RegexOptions.Singleline | RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static readonly Regex SectionHeaderRegex = new(
-        @"(?m)^(?:YOUR VOICE & STYLE:|YOUR BACKGROUND & PERSPECTIVES:|COMMUNICATION PROTOCOL:|PINNED FAVORITE STICKERS:|PINNED FAVORITE GIFS:|RELEVANT MEDIA CANDIDATES:|PARTICIPANTS' STICKER PREFERENCES:|PARTICIPANTS' PROFILES:|USER PROFILES:|PARTICIPANTS' USER PROFILES:|RELEVANT RECALLED MEMORIES:|HOT CONVERSATION MEMORY:|BACKGROUND TASK RESULTS:|Current Time:|[A-Z0-9 _\-']{3,40}:|#{1,3}\s+.+)",
+        @"(?m)^(?:YOUR IDENTITY:|IDENTITY & ROLE:|YOUR VOICE & STYLE:|YOUR BACKGROUND & PERSPECTIVES:|CONVERSATION GUIDELINES:|TOOL USE PROTOCOL:|COMMUNICATION PROTOCOL:|PINNED FAVORITE STICKERS:|PINNED FAVORITE GIFS:|RELEVANT MEDIA CANDIDATES:|RELEVANT STICKERS:|RELEVANT GIFS:|PARTICIPANTS' STICKER PREFERENCES:|PARTICIPANTS' PROFILES:|USER PROFILES:|PARTICIPANTS' USER PROFILES:|CALLER PROFILE:|RELEVANT RECALLED MEMORIES:|HOT CONVERSATION MEMORY:|BACKGROUND TASK RESULTS:|ACTIVE BACKGROUND JOBS[^\r\n]*:|TIPS FOR THIS MOMENT[^\r\n]*:|STUDIO QUESTIONS WAITING FOR YOUR ANSWER[^\r\n]*:|SANDBOX DISK[^\r\n]*:|Your VM /data[^\r\n]*:|CURRENT CHAT CONTEXT:|STATEFUL SESSION PROTOCOL:|TELEGRAM GUEST MODE ACTIVE:|Current Time:|(?:\A|(?<=\r?\n[ \t]*\r?\n))(?:[A-Z][A-Z0-9 _\-'&/]{2,48}(?:\s*\([^)\r\n]*\))?:|#{1,3}\s+[^\r\n]+))",
         RegexOptions.Compiled);
 
     private static readonly Regex GroupChatRegex = new(
-        @"Group\s+Chat:\s*['""]?([^'""\r\n\\]+)['""]?",
+        @"Group\s+Chat:\s*['""]?([^'""\r\n]+)['""]?",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex PrivateChatRegex = new(
-        @"Private\s+Chat:\s*['""]?([^'""\r\n\\]+)['""]?",
+        @"Private\s+Chat:\s*['""]?([^'""\r\n]+)['""]?",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex ContextGroupChatRegex = new(
+        @"Type:\s*Group\s+Chat\s*\(\s*['""]?([^'"")\r\n]+)['""]?\s*\)",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex ContextPrivateChatRegex = new(
+        @"Type:\s*1-on-1\s+Private\s+Chat\s*\(\s*Direct\s+Message\s+with\s+([^)\r\n]+)\s*\)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex ExplicitChatRegex = new(
-        @"(?:^|[\r\n])Chat:\s*['""]?([^'""\r\n\\]+)['""]?",
+        @"(?:^|[\r\n])Chat:\s*['""]?([^'""\r\n]+)['""]?",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex SenderLineRegex = new(
-        @"\[(?:EDIT\s+)?#\d+\s+([^\]:\r\n]+?)(?:\s+->\s+#\d+)?\]:",
+        @"\[(?:EDIT\s+)?#\d+\s+([^\r\n]+?)(?:\s+->\s+#\d+)?\]:",
         RegexOptions.Compiled);
 
     private static readonly Regex ChatEntryHeaderRegex = new(
-        @"(?:^|[\r\n]+)(?:((?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*)?\[(?:EDIT\s+)?#\d+\s+[^\]:\r\n]+?(?:\s+->\s+#\d+)?\]:|\[CONTEXT DIFF\]|\[NEW MESSAGES\]|===\s*ARCHIVED CONVERSATION HISTORY\s*===|===\s*LIVE CONTEXT & RECALLED KNOWLEDGE\s*===|===\s*RECENT MESSAGES & CURRENT TURN\s*===|\[Current request\]:|\[Incoming[^\]]*\]:|(?:Group|Private)?\s*Chat:\s*['""][^'""]+['""])[ \t]*)",
+        @"(?:^|[\r\n]+)(?:((?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*)?\[(?:EDIT\s+)?#\d+\s+[^\r\n]+?(?:\s+->\s+#\d+)?\]:|\[CONTEXT DIFF\]|\[NEW MESSAGES\]|\[Your previous reply was assigned message ID\(s\):[^\]]*\]|\[Ambient Check:[^\]]*\]|\[Respond to this merged batch of message IDs:[^\]]*\]|\[Replied-to message[^\]]*\]:?|\[Attached [^\]]+\]|===\s*ARCHIVED CONVERSATION HISTORY\s*===|===\s*LIVE CONTEXT & RECALLED KNOWLEDGE\s*===|===\s*RECENT MESSAGES & CURRENT TURN\s*===|PINNED FAVORITE STICKERS:|PINNED FAVORITE GIFS:|RELEVANT MEDIA CANDIDATES:|RELEVANT STICKERS:|RELEVANT GIFS:|PARTICIPANTS' STICKER PREFERENCES:|PARTICIPANTS' PROFILES:|USER PROFILES:|PARTICIPANTS' USER PROFILES:|CALLER PROFILE:|RELEVANT RECALLED MEMORIES:|HOT CONVERSATION MEMORY:|BACKGROUND TASK RESULTS:|ACTIVE BACKGROUND JOBS[^\r\n]*:|TIPS FOR THIS MOMENT[^\r\n]*:|STUDIO QUESTIONS WAITING FOR YOUR ANSWER[^\r\n]*:|SANDBOX DISK[^\r\n]*:|Your VM /data[^\r\n]*:|\[Current request[^\]]*\]:|\[Incoming[^\]]*\]:|(?:Group|Private)?\s*Chat:\s*['""][^'""\r\n]+['""])[ \t]*)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static string UnescapeJsonSnippetForChatName(string raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return string.Empty;
+        string s = raw.Replace("\\r\\n", "\n", StringComparison.Ordinal)
+                      .Replace("\\n", "\n", StringComparison.Ordinal)
+                      .Replace("\\\"", "\"", StringComparison.Ordinal)
+                      .Replace("\\'", "'", StringComparison.Ordinal);
+        if (s.Contains(@"\u", StringComparison.Ordinal))
+        {
+            s = Regex.Replace(s, @"\\u([0-9a-fA-F]{4})", m =>
+            {
+                int code = int.Parse(m.Groups[1].Value, System.Globalization.NumberStyles.HexNumber);
+                return ((char)code).ToString();
+            });
+        }
+        return s;
+    }
+
+    private static string CleanExtractedChatTitle(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        int nl = raw.IndexOf(@"\n", StringComparison.Ordinal);
+        if (nl >= 0) raw = raw[..nl];
+        int cr = raw.IndexOf(@"\r", StringComparison.Ordinal);
+        if (cr >= 0) raw = raw[..cr];
+        return raw.Trim(' ', '\t', '\'', '"', '\\', '.');
+    }
 
     public static string ExtractChatName(string? requestJson, string? caller)
     {
         if (string.IsNullOrWhiteSpace(requestJson)) return string.Empty;
+        string snippet = UnescapeJsonSnippetForChatName(requestJson);
 
         // 1. Check for Group Chat: 'Title'
-        var mGroup = GroupChatRegex.Match(requestJson);
+        var mGroup = GroupChatRegex.Match(snippet);
         if (mGroup.Success)
         {
-            string title = mGroup.Groups[1].Value.Trim();
+            string title = CleanExtractedChatTitle(mGroup.Groups[1].Value);
             if (!string.IsNullOrEmpty(title)) return title;
         }
 
         // 2. Check for Private Chat: 'Title'
-        var mPriv = PrivateChatRegex.Match(requestJson);
+        var mPriv = PrivateChatRegex.Match(snippet);
         if (mPriv.Success)
         {
-            string title = mPriv.Groups[1].Value.Trim();
+            string title = CleanExtractedChatTitle(mPriv.Groups[1].Value);
             if (!string.IsNullOrEmpty(title)) return title;
         }
 
-        // 3. Check for Chat: 'Title'
-        var mChat = ExplicitChatRegex.Match(requestJson);
+        // 3. Check for CURRENT CHAT CONTEXT: Type: Group Chat ('Title') or Direct Message with Title
+        var mCtxGroup = ContextGroupChatRegex.Match(snippet);
+        if (mCtxGroup.Success)
+        {
+            string title = CleanExtractedChatTitle(mCtxGroup.Groups[1].Value);
+            if (!string.IsNullOrEmpty(title)) return title;
+        }
+
+        var mCtxPriv = ContextPrivateChatRegex.Match(snippet);
+        if (mCtxPriv.Success)
+        {
+            string title = CleanExtractedChatTitle(mCtxPriv.Groups[1].Value);
+            if (!string.IsNullOrEmpty(title)) return title;
+        }
+
+        // 4. Check for Chat: 'Title'
+        var mChat = ExplicitChatRegex.Match(snippet);
         if (mChat.Success)
         {
-            string title = mChat.Groups[1].Value.Trim();
+            string title = CleanExtractedChatTitle(mChat.Groups[1].Value);
             if (!string.IsNullOrEmpty(title)) return title;
         }
 
@@ -376,14 +432,7 @@ public static class NoxChatSessionParser
                         }
                         else if (role == "assistant")
                         {
-                            string botContent = textContent;
-                            string? thought = null;
-                            var thoughtMatch = ThoughtRegex.Match(botContent);
-                            if (thoughtMatch.Success)
-                            {
-                                thought = thoughtMatch.Groups[1].Value.Trim();
-                                botContent = botContent.Replace(thoughtMatch.Value, "").Trim();
-                            }
+                            var (botContent, thought) = ExtractThoughts(textContent);
 
                             var asstTurn = new ParsedTurnItemModel
                             {
@@ -396,6 +445,10 @@ public static class NoxChatSessionParser
                                 Text = botContent,
                                 ThoughtText = thought
                             };
+                            foreach (var botEntry in ParseBotResponseEntries(botContent))
+                            {
+                                asstTurn.ChatEntries.Add(botEntry);
+                            }
                             if (m.TryGetProperty("tool_calls", out var historyTools) && historyTools.ValueKind == JsonValueKind.Array)
                             {
                                 foreach (var tool in historyTools.EnumerateArray())
@@ -483,12 +536,7 @@ public static class NoxChatSessionParser
                     }
                 }
 
-                var thoughtMatch = ThoughtRegex.Match(botReply);
-                if (thoughtMatch.Success)
-                {
-                    botThought = thoughtMatch.Groups[1].Value.Trim();
-                    botReply = botReply.Replace(thoughtMatch.Value, "").Trim();
-                }
+                (botReply, botThought) = ExtractThoughts(botReply);
 
                 var botTurn = new ParsedTurnItemModel
                 {
@@ -501,6 +549,11 @@ public static class NoxChatSessionParser
                     Text = botReply,
                     ThoughtText = botThought
                 };
+
+                foreach (var botEntry in ParseBotResponseEntries(botReply))
+                {
+                    botTurn.ChatEntries.Add(botEntry);
+                }
 
                 foreach (var tc in toolCalls)
                 {
@@ -667,6 +720,82 @@ public static class NoxChatSessionParser
         return sections;
     }
 
+    private static (string CleanReply, string? Thought) ExtractThoughts(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return (string.Empty, null);
+        var matches = ThoughtRegex.Matches(text);
+        if (matches.Count == 0) return (text, null);
+
+        var thoughts = new List<string>(matches.Count);
+        foreach (Match m in matches)
+        {
+            string val = m.Groups[1].Value.Trim();
+            if (!string.IsNullOrEmpty(val)) thoughts.Add(val);
+        }
+        string cleaned = ThoughtRegex.Replace(text, string.Empty).Trim();
+        return (cleaned, thoughts.Count > 0 ? string.Join("\n\n", thoughts) : null);
+    }
+
+    public static List<ParsedChatEntryModel> ParseBotResponseEntries(string botReply)
+    {
+        var entries = new List<ParsedChatEntryModel>();
+        if (string.IsNullOrWhiteSpace(botReply)) return entries;
+
+        var matches = BotActionTagRegex.Matches(botReply);
+        if (matches.Count == 0) return entries;
+
+        int cursor = 0;
+        foreach (Match m in matches)
+        {
+            if (m.Index > cursor)
+            {
+                string between = botReply[cursor..m.Index].Trim();
+                if (!string.IsNullOrWhiteSpace(between))
+                {
+                    entries.Add(new ParsedChatEntryModel
+                    {
+                        Header = "[BOT TEXT]",
+                        Body = between,
+                        Sender = "Nox",
+                        IsBot = true
+                    });
+                }
+            }
+
+            string tag = m.Groups["tag"].Value.ToLowerInvariant();
+            string attrs = m.Groups["attrs"].Value.Trim();
+            string body = m.Groups["body"].Value.Trim();
+            string header = string.IsNullOrEmpty(attrs) ? $"<{tag}>" : $"<{tag} {attrs}>";
+
+            entries.Add(new ParsedChatEntryModel
+            {
+                Header = header,
+                Body = body,
+                Sender = "Nox",
+                IsBot = true
+            });
+
+            cursor = m.Index + m.Length;
+        }
+
+        if (cursor < botReply.Length)
+        {
+            string tail = botReply[cursor..].Trim();
+            if (!string.IsNullOrWhiteSpace(tail))
+            {
+                entries.Add(new ParsedChatEntryModel
+                {
+                    Header = "[BOT TEXT]",
+                    Body = tail,
+                    Sender = "Nox",
+                    IsBot = true
+                });
+            }
+        }
+
+        return entries;
+    }
+
     private static ParsedSystemSectionModel ClassifySection(string header, string content)
     {
         string hUpper = header.ToUpperInvariant();
@@ -693,17 +822,32 @@ public static class NoxChatSessionParser
             badgeColor = "#8B5CF6";
             icon = "🧠";
         }
-        else if (hUpper.Contains("PROTOCOL") || hUpper.Contains("COMMUNICATION") || hUpper.Contains("TAG"))
+        else if (hUpper.Contains("GUIDELINE") || hUpper.Contains("PROTOCOL") || hUpper.Contains("COMMUNICATION") || hUpper.Contains("TAG") || hUpper.Contains("TOOL USE") || hUpper.Contains("STATEFUL"))
         {
             badgeColor = "#7C3AED";
             icon = "📋";
+        }
+        else if (hUpper.Contains("TIP"))
+        {
+            badgeColor = "#10B981";
+            icon = "💡";
+        }
+        else if (hUpper.Contains("SANDBOX") || hUpper.Contains("VM /DATA"))
+        {
+            badgeColor = "#14B8A6";
+            icon = "🖥️";
+        }
+        else if (hUpper.Contains("STUDIO QUESTION") || hUpper.Contains("ACTIVE BACKGROUND JOB"))
+        {
+            badgeColor = "#F59E0B";
+            icon = "⏳";
         }
         else if (hUpper.Contains("PINNED") || hUpper.Contains("FAVORITE"))
         {
             badgeColor = "#EC4899";
             icon = "📌";
         }
-        else if (hUpper.Contains("MEDIA") || hUpper.Contains("CANDIDATES") || hUpper.Contains("RAG"))
+        else if (hUpper.Contains("MEDIA") || hUpper.Contains("CANDIDATES") || hUpper.Contains("STICKER") || hUpper.Contains("GIF") || hUpper.Contains("RAG"))
         {
             badgeColor = "#F43F5E";
             icon = "🖼️";
@@ -728,7 +872,7 @@ public static class NoxChatSessionParser
             badgeColor = "#EAB308";
             icon = "⚡";
         }
-        else if (hUpper.Contains("TIME") || hUpper.Contains("CURRENT"))
+        else if (hUpper.Contains("TIME") || hUpper.Contains("CURRENT") || hUpper.Contains("GUEST MODE"))
         {
             badgeColor = "#06B6D4";
             icon = "⏱️";
@@ -772,7 +916,11 @@ public static class NoxChatSessionParser
                 int bodyEnd = (i + 1 < matches.Count) ? matches[i + 1].Index : userText.Length;
                 string body = userText[bodyStart..bodyEnd].Trim();
 
-                if (string.IsNullOrWhiteSpace(body) && (header.Contains("Chat:", StringComparison.OrdinalIgnoreCase)))
+                if (string.IsNullOrWhiteSpace(body) &&
+                    (header.Contains("Chat:", StringComparison.OrdinalIgnoreCase) ||
+                     header.StartsWith("===", StringComparison.Ordinal) ||
+                     string.Equals(header, "[NEW MESSAGES]", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(header, "[CONTEXT DIFF]", StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }

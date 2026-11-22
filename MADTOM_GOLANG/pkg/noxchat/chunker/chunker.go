@@ -32,14 +32,26 @@ func NewLogChunker(nodeID string, startSeq uint64) (*LogChunker, error) {
 	if err != nil {
 		return nil, err
 	}
+	var startChunk uint64
+	if startSeq > 0 {
+		startChunk = (startSeq / DefaultRecordsPerLogChunk) + 1
+	}
 	return &LogChunker{
 		nodeID:       nodeID,
 		encoder:      enc,
 		currentSeq:   startSeq,
 		records:      make([]*madtomv1.LogRecord, 0, DefaultRecordsPerLogChunk),
 		lastFlush:    time.Now(),
-		chunkCounter: startSeq / DefaultRecordsPerLogChunk,
+		chunkCounter: startChunk,
 	}, nil
+}
+
+func (c *LogChunker) SetNextChunkID(nextChunkID uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if nextChunkID > c.chunkCounter {
+		c.chunkCounter = nextChunkID
+	}
 }
 
 // Append adds a record and returns a sealed LogChunk if 256 records were reached.
@@ -94,7 +106,7 @@ func (c *LogChunker) sealLocked(isSealed bool) (*madtomv1.LogChunk, error) {
 	}
 
 	compressed := c.encoder.EncodeAll(raw, nil)
-	chunkID := first.Seq / DefaultRecordsPerLogChunk
+	chunkID := c.chunkCounter
 
 	chunk := &madtomv1.LogChunk{
 		NodeId:            c.nodeID,
@@ -113,6 +125,7 @@ func (c *LogChunker) sealLocked(isSealed bool) (*madtomv1.LogChunk, error) {
 	c.dirty = false
 	if isSealed {
 		c.records = make([]*madtomv1.LogRecord, 0, DefaultRecordsPerLogChunk)
+		c.chunkCounter++
 	}
 	return chunk, nil
 }
@@ -142,14 +155,26 @@ func NewApiCallChunker(nodeID string, startSeq uint64) (*ApiCallChunker, error) 
 	if err != nil {
 		return nil, err
 	}
+	var startChunk uint64
+	if startSeq > 0 {
+		startChunk = (startSeq / 16) + 1
+	}
 	return &ApiCallChunker{
 		nodeID:       nodeID,
 		encoder:      enc,
 		currentSeq:   startSeq,
 		records:      make([]*madtomv1.NoxRawApiCallRecord, 0, 16),
-		chunkCounter: startSeq / 16,
+		chunkCounter: startChunk,
 		lastFlush:    time.Now(),
 	}, nil
+}
+
+func (c *ApiCallChunker) SetNextChunkID(nextChunkID uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if nextChunkID > c.chunkCounter {
+		c.chunkCounter = nextChunkID
+	}
 }
 
 // Append adds a raw API call and returns a sealed chunk every 16 calls.
@@ -205,7 +230,7 @@ func (c *ApiCallChunker) sealLocked(isSealed bool) (*madtomv1.NoxApiCallChunk, e
 
 	compressed := c.encoder.EncodeAll(raw, nil)
 	firstSeq := c.currentSeq - uint64(len(c.records)) + 1
-	chunkID := firstSeq / 16
+	chunkID := c.chunkCounter
 
 	chunk := &madtomv1.NoxApiCallChunk{
 		NodeId:            c.nodeID,
@@ -224,6 +249,7 @@ func (c *ApiCallChunker) sealLocked(isSealed bool) (*madtomv1.NoxApiCallChunk, e
 	c.dirty = false
 	if isSealed {
 		c.records = make([]*madtomv1.NoxRawApiCallRecord, 0, 16)
+		c.chunkCounter++
 	}
 	return chunk, nil
 }

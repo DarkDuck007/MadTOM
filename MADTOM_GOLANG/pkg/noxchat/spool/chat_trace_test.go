@@ -267,3 +267,34 @@ func TestChatTracePageByteBudgetPreservesLargeCompletedEvents(t *testing.T) {
 		t.Fatal(second)
 	}
 }
+
+func TestExtractChatNameUnescapesJsonAndIndexesByTitle(t *testing.T) {
+	w, err := NewWalSpool(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	// JSON-escaped unicode and newline in raw_request_json without explicit TraceContext
+	rec := &pb.NoxRawApiCallRecord{
+		CallId:            "legacy-1",
+		TimestampUnixNano: 555,
+		Caller:            "stream_step",
+		Model:             "model",
+		RawRequestJson:    `{"messages":[{"role":"user","content":"Group Chat: '\u06af\u0631\u0648\u0647 \u062a\u0633\u062a'\n=== RECENT MESSAGES ==="}]}`,
+	}
+	if err := w.WriteApiCallChunk(apiChunk(t, 1, rec)); err != nil {
+		t.Fatal(err)
+	}
+
+	got := queryTrace(t, w, &pb.NoxChatTraceRequest{ChatName: "گروه تست"})
+	if len(got.Calls) != 1 || got.Calls[0].CallId != "legacy-1" || got.Calls[0].ChatName != "گروه تست" {
+		t.Fatalf("expected legacy call indexed by unescaped title, got %+v", got.Calls)
+	}
+
+	_, byName := w.ChatCallStats()
+	stat, ok := byName["گروه تست"]
+	if !ok || stat.CallCount != 1 || stat.LastCallUnixNano != 555 {
+		t.Fatalf("unexpected ChatCallStats byName: %+v", stat)
+	}
+}

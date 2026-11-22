@@ -1,0 +1,1646 @@
+{
+  "NoxChat/config.yaml": {
+    "mtime": 1795247490.2125475,
+    "seen": 1795248098.4158165,
+    "ast_hash": "8baeee296ea6c34ec126b4614f3a5d13",
+    "semantic_hash": "8baeee296ea6c34ec126b4614f3a5d13"
+  },
+  "NoxChat/docs/doc-studio-progress/spike-driver/echo_mcp.py": {
+    "mtime": 1794504047.775156,
+    "seen": 1795248098.4158254,
+    "ast_hash": "5b5f2c505966a4b4c7683f93cf57b932",
+    "semantic_hash": "5b5f2c505966a4b4c7683f93cf57b932"
+  },
+  "NoxChat/docs/doc-studio-progress/spike-driver/run_all.sh": {
+    "mtime": 1794508124.8128903,
+    "seen": 1795248098.4158294,
+    "ast_hash": "08ec2ef6f280197dbe573661b5193233",
+    "semantic_hash": "08ec2ef6f280197dbe573661b5193233"
+  },
+  "NoxChat/docs/doc-studio-progress/spike-driver/setup.sh": {
+    "mtime": 1794504047.7750573,
+    "seen": 1795248098.4158318,
+    "ast_hash": "4fb8e0ae9e4efede4459124daf8383ee",
+    "semantic_hash": "4fb8e0ae9e4efede4459124daf8383ee"
+  },
+  "NoxChat/docs/doc-studio-progress/spike-driver/spike.py": {
+    "mtime": 1794508124.810974,
+    "seen": 1795248098.4158332,
+    "ast_hash": "38fb13c773554f6f41aeebab2f4d7e44",
+    "semantic_hash": "38fb13c773554f6f41aeebab2f4d7e44"
+  },
+  "NoxChat/personas/_base.yaml": {
+    "mtime": 1795247490.2189343,
+    "seen": 1795248098.4158347,
+    "ast_hash": "26af6cd7a91d13e94057bceef70fa62e",
+    "semantic_hash": "26af6cd7a91d13e94057bceef70fa62e"
+  },
+  "NoxChat/personas/_guides.yaml": {
+    "mtime": 1795247490.2192333,
+    "seen": 1795248098.415836,
+    "ast_hash": "c2e406861a4391c9ae811f1aacd37ca3",
+    "semantic_hash": "c2e406861a4391c9ae811f1aacd37ca3"
+  },
+  "NoxChat/personas/minthara.yaml": {
+    "mtime": 1792661502.7485244,
+    "seen": 1795248098.4158368,
+    "ast_hash": "9a884e6330ca6f110df7691bdcb651a7",
+    "semantic_hash": "9a884e6330ca6f110df7691bdcb651a7"
+  },
+  "NoxChat/personas/nox.yaml": {
+    "mtime": 1794324815.1879618,
+    "seen": 1795248098.4158382,
+    "ast_hash": "9518571586fabf1803971aaa29961b6d",
+    "semantic_hash": "9518571586fabf1803971aaa29961b6d"
+  },
+  "NoxChat/scripts/benchmark_audio.py": {
+    "mtime": 1792145962.2801754,
+    "seen": 1795248098.4158392,
+    "ast_hash": "cd974adf2c40ab69083f0a0621aa5b94",
+    "semantic_hash": "cd974adf2c40ab69083f0a0621aa5b94"
+  },
+  "NoxChat/scripts/dbbackup.sh": {
+    "mtime": 1795160801.468618,
+    "seen": 1795248098.4158401,
+    "ast_hash": "bbce81efed37733c5994a78225c32cac",
+    "semantic_hash": "bbce81efed37733c5994a78225c32cac"
+  },
+  "NoxChat/scripts/memory_explorer.py": {
+    "mtime": 1792145962.280286,
+    "seen": 1795248098.4158418,
+    "ast_hash": "4659c9be9bef039ecc43bb416e590de3",
+    "semantic_hash": "4659c9be9bef039ecc43bb416e590de3"
+  },
+  "NoxChat/scripts/reindex_chat_fts.py": {
+    "mtime": 1792743664.9969957,
+    "seen": 1795248098.4158425,
+    "ast_hash": "d15eb02ca5811e6133d9877ea68bd562",
+    "semantic_hash": "d15eb02ca5811e6133d9877ea68bd562"
+  },
+  "NoxChat/scripts/reindex_memories.py": {
+    "mtime": 1792145962.280286,
+    "seen": 1795248098.4158437,
+    "ast_hash": "4918c00e62bf00722f16655032a90508",
+    "semantic_hash": "4918c00e62bf00722f16655032a90508"
+  },
+  "NoxChat/scripts/test_searxng_endpoints.py": {
+    "mtime": 1792521175.3006756,
+    "seen": 1795248098.4158447,
+    "ast_hash": "1ffb2b17b89ef463b88b0ee455c09b70",
+    "semantic_hash": "1ffb2b17b89ef463b88b0ee455c09b70"
+  },
+  "NoxChat/searxng_endpoints.yaml": {
+    "mtime": 1792521175.3006756,
+    "seen": 1795248098.4158456,
+    "ast_hash": "4e6edd8a717f5b5b17105c599a204c4a",
+    "semantic_hash": "4e6edd8a717f5b5b17105c599a204c4a"
+  },
+  "NoxChat/services/agy-openai-bridge/app.py": {
+    "mtime": 1795164339.1593418,
+    "seen": 1795248098.4158468,
+    "ast_hash": "a55cd50295f94ebd2c8f62a05be7725d",
+    "semantic_hash": "a55cd50295f94ebd2c8f62a05be7725d"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/__init__.py": {
+    "mtime": 1794399049.1840467,
+    "seen": 1795248098.415848,
+    "ast_hash": "8ff4643edbd5e2a7d03577901065ee78",
+    "semantic_hash": "8ff4643edbd5e2a7d03577901065ee78"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/acp_pool.py": {
+    "mtime": 1794509120.624049,
+    "seen": 1795248098.415849,
+    "ast_hash": "2f912d3702fb8e8144825733400df8d6",
+    "semantic_hash": "2f912d3702fb8e8144825733400df8d6"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/doc_studio.py": {
+    "mtime": 1795164339.0859487,
+    "seen": 1795248098.4158497,
+    "ast_hash": "236222abe7e676820704ae8726b528aa",
+    "semantic_hash": "236222abe7e676820704ae8726b528aa"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/media_staging.py": {
+    "mtime": 1794399049.1841252,
+    "seen": 1795248098.4158506,
+    "ast_hash": "9b8d1ecb63c1a7df2b6d7aa403ef25cd",
+    "semantic_hash": "9b8d1ecb63c1a7df2b6d7aa403ef25cd"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/studio.py": {
+    "mtime": 1794575259.799832,
+    "seen": 1795248098.4158518,
+    "ast_hash": "07c062f272f9cdc9b750d2be71659eed",
+    "semantic_hash": "07c062f272f9cdc9b750d2be71659eed"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/tool_protocol.py": {
+    "mtime": 1794399049.183935,
+    "seen": 1795248098.4158533,
+    "ast_hash": "0dfb682bc48a327911702adc4d578ff2",
+    "semantic_hash": "0dfb682bc48a327911702adc4d578ff2"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/worker_pool.py": {
+    "mtime": 1794508418.1782782,
+    "seen": 1795248098.4158545,
+    "ast_hash": "dade420be365a7c13bd5e28553d95b00",
+    "semantic_hash": "dade420be365a7c13bd5e28553d95b00"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/workspace.py": {
+    "mtime": 1794532632.3691733,
+    "seen": 1795248098.4158554,
+    "ast_hash": "28b5abe8f408949cb43c6efffc7ae135",
+    "semantic_hash": "28b5abe8f408949cb43c6efffc7ae135"
+  },
+  "NoxChat/services/agy-openai-bridge/tests/test_agy_bridge.py": {
+    "mtime": 1794399049.185204,
+    "seen": 1795248098.4158564,
+    "ast_hash": "1e5a41dcef9e1e9ef5374ee94df839e3",
+    "semantic_hash": "1e5a41dcef9e1e9ef5374ee94df839e3"
+  },
+  "NoxChat/services/agy-openai-bridge/tests/test_doc_studio_bridge.py": {
+    "mtime": 1795165261.5240555,
+    "seen": 1795248098.4158573,
+    "ast_hash": "f3ce6d01811b477a04b411b26d5bface",
+    "semantic_hash": "f3ce6d01811b477a04b411b26d5bface"
+  },
+  "NoxChat/services/agy-openai-bridge/tests/test_image_tools_workspace.py": {
+    "mtime": 1794575512.1044602,
+    "seen": 1795248098.4158585,
+    "ast_hash": "0456ce465a10fcfd92e83a71f1e96ab6",
+    "semantic_hash": "0456ce465a10fcfd92e83a71f1e96ab6"
+  },
+  "NoxChat/services/agy-openai-bridge/tests/test_studio.py": {
+    "mtime": 1794575498.2624445,
+    "seen": 1795248098.4158592,
+    "ast_hash": "3ed56bbf5249e27e5de41205b7069759",
+    "semantic_hash": "3ed56bbf5249e27e5de41205b7069759"
+  },
+  "NoxChat/services/nox-doc-tools/examples/make_samples.py": {
+    "mtime": 1794508810.4909554,
+    "seen": 1795248098.4158602,
+    "ast_hash": "b3545ead32ebf4e6cc1a238b4546570b",
+    "semantic_hash": "b3545ead32ebf4e6cc1a238b4546570b"
+  },
+  "NoxChat/services/nox-doc-tools/icons/lucide.json": {
+    "mtime": 1794504001.8421826,
+    "seen": 1795248098.4158611,
+    "ast_hash": "5dc305d3e147ec1b8f00c17b2bb25deb",
+    "semantic_hash": "5dc305d3e147ec1b8f00c17b2bb25deb"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/__init__.py": {
+    "mtime": 1794532965.7736626,
+    "seen": 1795248098.4158623,
+    "ast_hash": "b30485d98ff28c8122c333c98c921780",
+    "semantic_hash": "b30485d98ff28c8122c333c98c921780"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/__main__.py": {
+    "mtime": 1795164311.4554405,
+    "seen": 1795248098.4158635,
+    "ast_hash": "3a7af0b9c2d88b6e1527b7a273baef84",
+    "semantic_hash": "3a7af0b9c2d88b6e1527b7a273baef84"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/_tasks.py": {
+    "mtime": 1794532591.0785367,
+    "seen": 1795248098.4158642,
+    "ast_hash": "f306cadb37f77573e752dae72b0fe7aa",
+    "semantic_hash": "f306cadb37f77573e752dae72b0fe7aa"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/charts.py": {
+    "mtime": 1794508021.7871556,
+    "seen": 1795248098.4158654,
+    "ast_hash": "b1e1a850956a0af463e4796fbda4b9c5",
+    "semantic_hash": "b1e1a850956a0af463e4796fbda4b9c5"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/cli.py": {
+    "mtime": 1795164311.4514406,
+    "seen": 1795248098.4158664,
+    "ast_hash": "e94e5217fe9289548953972a75f185e1",
+    "semantic_hash": "e94e5217fe9289548953972a75f185e1"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/deck.py": {
+    "mtime": 1794530837.8723757,
+    "seen": 1795248098.4158673,
+    "ast_hash": "3de9f8b2f04ffc74a0b7ca3d34f4e564",
+    "semantic_hash": "3de9f8b2f04ffc74a0b7ca3d34f4e564"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/edit.py": {
+    "mtime": 1794510355.46826,
+    "seen": 1795248098.4158685,
+    "ast_hash": "e48822c10338537da82e5d8866f17c96",
+    "semantic_hash": "e48822c10338537da82e5d8866f17c96"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/fonts.py": {
+    "mtime": 1794546840.663744,
+    "seen": 1795248098.4158692,
+    "ast_hash": "ba47fccc46045f6bde607dda9d43d34c",
+    "semantic_hash": "ba47fccc46045f6bde607dda9d43d34c"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/icons.py": {
+    "mtime": 1794507259.965971,
+    "seen": 1795248098.4158702,
+    "ast_hash": "61ee4c888b413030e1f1fc47461c92f1",
+    "semantic_hash": "61ee4c888b413030e1f1fc47461c92f1"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/images.py": {
+    "mtime": 1794530802.454985,
+    "seen": 1795248098.4158711,
+    "ast_hash": "d3b514c14e5efb2a70ec1913a909f746",
+    "semantic_hash": "d3b514c14e5efb2a70ec1913a909f746"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/inspect.py": {
+    "mtime": 1794508277.3637846,
+    "seen": 1795248098.415872,
+    "ast_hash": "2458014ddff011b5dc8a99e5d315dd2e",
+    "semantic_hash": "2458014ddff011b5dc8a99e5d315dd2e"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/lint.py": {
+    "mtime": 1794508739.1601496,
+    "seen": 1795248098.415873,
+    "ast_hash": "013258a9dce3c1cc1b2e6063014e27ec",
+    "semantic_hash": "013258a9dce3c1cc1b2e6063014e27ec"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/ooxml.py": {
+    "mtime": 1794507234.2502155,
+    "seen": 1795248098.4158747,
+    "ast_hash": "cd95a62585ae8521dc48bdc9ad14afdf",
+    "semantic_hash": "cd95a62585ae8521dc48bdc9ad14afdf"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/pdfedit.py": {
+    "mtime": 1794532981.33575,
+    "seen": 1795248098.415876,
+    "ast_hash": "e5a3532f6649762de804461a20c41eae",
+    "semantic_hash": "e5a3532f6649762de804461a20c41eae"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/report.py": {
+    "mtime": 1794510056.6851027,
+    "seen": 1795248098.4158766,
+    "ast_hash": "ea56a0ecb213ff91d5bb30dbffb51979",
+    "semantic_hash": "ea56a0ecb213ff91d5bb30dbffb51979"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/svgart.py": {
+    "mtime": 1794530837.871415,
+    "seen": 1795248098.4158776,
+    "ast_hash": "d77c5e6cc1e6103e1fedd458266a3ed8",
+    "semantic_hash": "d77c5e6cc1e6103e1fedd458266a3ed8"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/themes.py": {
+    "mtime": 1794509141.2754571,
+    "seen": 1795248098.4158788,
+    "ast_hash": "72d6e59284386b903f24d38e318ae88b",
+    "semantic_hash": "72d6e59284386b903f24d38e318ae88b"
+  },
+  "NoxChat/services/nox-doc-tools/server.py": {
+    "mtime": 1795165591.3968427,
+    "seen": 1795248098.4158795,
+    "ast_hash": "8483f926e180726af8ed42e2e2234de9",
+    "semantic_hash": "8483f926e180726af8ed42e2e2234de9"
+  },
+  "NoxChat/services/nox-doc-tools/tools/build_icons.py": {
+    "mtime": 1794504001.1673176,
+    "seen": 1795248098.4158804,
+    "ast_hash": "b39d11342351f88dc74d6085d56c400d",
+    "semantic_hash": "b39d11342351f88dc74d6085d56c400d"
+  },
+  "NoxChat/services/nox-doc-tools/vmexec.py": {
+    "mtime": 1795166345.0584192,
+    "seen": 1795248098.4158814,
+    "ast_hash": "014e6d77d61c54ddc41fb7d24821aa53",
+    "semantic_hash": "014e6d77d61c54ddc41fb7d24821aa53"
+  },
+  "NoxChat/services/nox-image-tools/server.py": {
+    "mtime": 1794575564.3152606,
+    "seen": 1795248098.4158823,
+    "ast_hash": "57e44a3e585a5cadbeddbb576bb9927a",
+    "semantic_hash": "57e44a3e585a5cadbeddbb576bb9927a"
+  },
+  "NoxChat/services/nox-image-tools/videokit.py": {
+    "mtime": 1794575564.314272,
+    "seen": 1795248098.415883,
+    "ast_hash": "884a69ed63cfd1b81fda9af2ac01463c",
+    "semantic_hash": "884a69ed63cfd1b81fda9af2ac01463c"
+  },
+  "NoxChat/services/nox-sandbox-image/agent.py": {
+    "mtime": 1795164069.5723023,
+    "seen": 1795248098.415884,
+    "ast_hash": "b12f91d8735a85e2743a1eadfb31e76e",
+    "semantic_hash": "b12f91d8735a85e2743a1eadfb31e76e"
+  },
+  "NoxChat/services/nox-sandbox-image/build.sh": {
+    "mtime": 1795166866.2508662,
+    "seen": 1795248098.415885,
+    "ast_hash": "a1e1f61d936cbcea7f308698c1ef1180",
+    "semantic_hash": "a1e1f61d936cbcea7f308698c1ef1180"
+  },
+  "NoxChat/services/nox-sandbox-image/fetch-kernel.sh": {
+    "mtime": 1795149212.5851662,
+    "seen": 1795248098.415886,
+    "ast_hash": "855958cfdd5db437d1d0ac0d3c19fff6",
+    "semantic_hash": "855958cfdd5db437d1d0ac0d3c19fff6"
+  },
+  "NoxChat/services/nox-sandbox-image/nox-init": {
+    "mtime": 1795152005.0740044,
+    "seen": 1795248098.4158869,
+    "ast_hash": "950daaa60ad89bff16fba12a4506eb08",
+    "semantic_hash": "950daaa60ad89bff16fba12a4506eb08"
+  },
+  "NoxChat/services/nox-sandbox-image/tests/test_agent.py": {
+    "mtime": 1795148731.1692588,
+    "seen": 1795248098.415888,
+    "ast_hash": "c002345ad3f539ff1597c0101258a4dd",
+    "semantic_hash": "c002345ad3f539ff1597c0101258a4dd"
+  },
+  "NoxChat/src/agents/prompts/sticker_analyst.yaml": {
+    "mtime": 1792145962.2808297,
+    "seen": 1795248098.4158888,
+    "ast_hash": "58c1deb3fd48a8d9b5cbbf0f14b12544",
+    "semantic_hash": "58c1deb3fd48a8d9b5cbbf0f14b12544"
+  },
+  "NoxChat/src/agents/sticker_analyst.py": {
+    "mtime": 1794324815.1879618,
+    "seen": 1795248098.41589,
+    "ast_hash": "547eda80b53956efaf2b9e80a451654a",
+    "semantic_hash": "547eda80b53956efaf2b9e80a451654a"
+  },
+  "NoxChat/src/audio/__init__.py": {
+    "mtime": 1792145962.2813966,
+    "seen": 1795248098.415891,
+    "ast_hash": "36ed4bb6ec170e09cb78054938c5a0ba",
+    "semantic_hash": "36ed4bb6ec170e09cb78054938c5a0ba"
+  },
+  "NoxChat/src/audio/classifier.py": {
+    "mtime": 1792743664.9969957,
+    "seen": 1795248098.4158916,
+    "ast_hash": "805461e3fc6b6405abe33147547ef24f",
+    "semantic_hash": "805461e3fc6b6405abe33147547ef24f"
+  },
+  "NoxChat/src/audio/processor.py": {
+    "mtime": 1792661502.7485244,
+    "seen": 1795248098.415893,
+    "ast_hash": "476ca6c4f920e9e7bff152e1a812835a",
+    "semantic_hash": "476ca6c4f920e9e7bff152e1a812835a"
+  },
+  "NoxChat/src/audio/repository.py": {
+    "mtime": 1794859726.0833175,
+    "seen": 1795248098.415894,
+    "ast_hash": "1259e4ed2a5bb57403bda35ee081ca65",
+    "semantic_hash": "1259e4ed2a5bb57403bda35ee081ca65"
+  },
+  "NoxChat/src/audio/service.py": {
+    "mtime": 1794859752.9313576,
+    "seen": 1795248098.415895,
+    "ast_hash": "9d339960a5de9d6472d03698dd209558",
+    "semantic_hash": "9d339960a5de9d6472d03698dd209558"
+  },
+  "NoxChat/src/audio/song_recognizer.py": {
+    "mtime": 1792145962.2819345,
+    "seen": 1795248098.4158962,
+    "ast_hash": "dae99e81f13073c90956cef71ab3e52c",
+    "semantic_hash": "dae99e81f13073c90956cef71ab3e52c"
+  },
+  "NoxChat/src/audio/stt.py": {
+    "mtime": 1792661502.7485244,
+    "seen": 1795248098.4158971,
+    "ast_hash": "84f10a8e190c79e72f67d181996dede6",
+    "semantic_hash": "84f10a8e190c79e72f67d181996dede6"
+  },
+  "NoxChat/src/audio/tools.py": {
+    "mtime": 1794860042.656038,
+    "seen": 1795248098.415898,
+    "ast_hash": "79a0a40472911a479bd39abd9f676200",
+    "semantic_hash": "79a0a40472911a479bd39abd9f676200"
+  },
+  "NoxChat/src/audio/types.py": {
+    "mtime": 1794859592.555219,
+    "seen": 1795248098.415899,
+    "ast_hash": "dee505eac224707c38acd1c6955bb3a3",
+    "semantic_hash": "dee505eac224707c38acd1c6955bb3a3"
+  },
+  "NoxChat/src/config.py": {
+    "mtime": 1795247490.2195098,
+    "seen": 1795248098.4159002,
+    "ast_hash": "7e9409b0ee240c8ce38e7db39f3c9ed3",
+    "semantic_hash": "7e9409b0ee240c8ce38e7db39f3c9ed3"
+  },
+  "NoxChat/src/control/direct_chat.py": {
+    "mtime": 1794576161.307763,
+    "seen": 1795248098.4159012,
+    "ast_hash": "fd88cd0545bdac1852334fdcf125daa7",
+    "semantic_hash": "fd88cd0545bdac1852334fdcf125daa7"
+  },
+  "NoxChat/src/control/rpc_handlers.py": {
+    "mtime": 1795164371.5832264,
+    "seen": 1795248098.4159021,
+    "ast_hash": "b03ee741f74495d7b0ad989040c61585",
+    "semantic_hash": "b03ee741f74495d7b0ad989040c61585"
+  },
+  "NoxChat/src/control/server.py": {
+    "mtime": 1794859560.6592274,
+    "seen": 1795248098.415903,
+    "ast_hash": "6be012f28e91270359dfce824a425fad",
+    "semantic_hash": "6be012f28e91270359dfce824a425fad"
+  },
+  "NoxChat/src/control/state.py": {
+    "mtime": 1792149654.9239144,
+    "seen": 1795248098.415904,
+    "ast_hash": "5c4bd7c193151cb00e440c84a2375807",
+    "semantic_hash": "5c4bd7c193151cb00e440c84a2375807"
+  },
+  "NoxChat/src/control/telemetry.py": {
+    "mtime": 1792355400.5740159,
+    "seen": 1795248098.4159052,
+    "ast_hash": "88f738b0270e3458a81485757d1fe070",
+    "semantic_hash": "88f738b0270e3458a81485757d1fe070"
+  },
+  "NoxChat/src/control/trace.py": {
+    "mtime": 1794407333.219015,
+    "seen": 1795248098.4159062,
+    "ast_hash": "e5f5869b4e418e21bc94aade4dc71af0",
+    "semantic_hash": "e5f5869b4e418e21bc94aade4dc71af0"
+  },
+  "NoxChat/src/cron/__init__.py": {
+    "mtime": 1795155591.606645,
+    "seen": 1795248098.4159071,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "NoxChat/src/cron/origin.py": {
+    "mtime": 1795155591.6657975,
+    "seen": 1795248098.415908,
+    "ast_hash": "3465d220871c992c714785dd92e92634",
+    "semantic_hash": "3465d220871c992c714785dd92e92634"
+  },
+  "NoxChat/src/cron/service.py": {
+    "mtime": 1795160150.560063,
+    "seen": 1795248098.415909,
+    "ast_hash": "5c9cdc6414c137e7d32cfe441e02c4d7",
+    "semantic_hash": "5c9cdc6414c137e7d32cfe441e02c4d7"
+  },
+  "NoxChat/src/cron/tools.py": {
+    "mtime": 1795173237.9962776,
+    "seen": 1795248098.41591,
+    "ast_hash": "4c56b386f03db4daf90b23332e5defe8",
+    "semantic_hash": "4c56b386f03db4daf90b23332e5defe8"
+  },
+  "NoxChat/src/db/chat_history.py": {
+    "mtime": 1794407418.336424,
+    "seen": 1795248098.415911,
+    "ast_hash": "c95ed795df3a208407f09f2e07a2da5a",
+    "semantic_hash": "c95ed795df3a208407f09f2e07a2da5a"
+  },
+  "NoxChat/src/db/repository.py": {
+    "mtime": 1794946171.3513174,
+    "seen": 1795248098.415912,
+    "ast_hash": "6d4444c1959bcdb79d978dfd0fa59d3f",
+    "semantic_hash": "6d4444c1959bcdb79d978dfd0fa59d3f"
+  },
+  "NoxChat/src/db/schema.py": {
+    "mtime": 1795155591.656968,
+    "seen": 1795248098.4159126,
+    "ast_hash": "098599a3eeb32c2416f86d9e245deb70",
+    "semantic_hash": "098599a3eeb32c2416f86d9e245deb70"
+  },
+  "NoxChat/src/db/session.py": {
+    "mtime": 1794546021.0475574,
+    "seen": 1795248098.4159138,
+    "ast_hash": "2d96dacd4e1fcf6cd11fcedc61ec6cf2",
+    "semantic_hash": "2d96dacd4e1fcf6cd11fcedc61ec6cf2"
+  },
+  "NoxChat/src/history/__init__.py": {
+    "mtime": 1792743665.004258,
+    "seen": 1795248098.4159148,
+    "ast_hash": "cb8179068de2822e100addfb35509416",
+    "semantic_hash": "cb8179068de2822e100addfb35509416"
+  },
+  "NoxChat/src/history/tools.py": {
+    "mtime": 1795091250.3103676,
+    "seen": 1795248098.4159157,
+    "ast_hash": "adf96f7f3709668df1e14d5462ff8798",
+    "semantic_hash": "adf96f7f3709668df1e14d5462ff8798"
+  },
+  "NoxChat/src/llm/client.py": {
+    "mtime": 1795091152.1549215,
+    "seen": 1795248098.4159179,
+    "ast_hash": "105e87c535e658192b9ce9af2b71c75c",
+    "semantic_hash": "105e87c535e658192b9ce9af2b71c75c"
+  },
+  "NoxChat/src/media/chat_members.py": {
+    "mtime": 1794530664.0260031,
+    "seen": 1795248098.415927,
+    "ast_hash": "e8a93f246efca86c0775707febbc2adf",
+    "semantic_hash": "e8a93f246efca86c0775707febbc2adf"
+  },
+  "NoxChat/src/media/doc_inputs.py": {
+    "mtime": 1795164599.3504148,
+    "seen": 1795248098.4159281,
+    "ast_hash": "fee822025ff44dc2de82671307d9b1d8",
+    "semantic_hash": "fee822025ff44dc2de82671307d9b1d8"
+  },
+  "NoxChat/src/media/doc_jobs.py": {
+    "mtime": 1795166739.7511296,
+    "seen": 1795248098.415929,
+    "ast_hash": "55efbc2315caa8d8a73f8c159d147e68",
+    "semantic_hash": "55efbc2315caa8d8a73f8c159d147e68"
+  },
+  "NoxChat/src/media/doc_store.py": {
+    "mtime": 1794531899.5121968,
+    "seen": 1795248098.41593,
+    "ast_hash": "fe0f2efa29a8685afc0db61d42590149",
+    "semantic_hash": "fe0f2efa29a8685afc0db61d42590149"
+  },
+  "NoxChat/src/media/file_store.py": {
+    "mtime": 1795148768.1447077,
+    "seen": 1795248098.415931,
+    "ast_hash": "6249618fd59a971fffaa862d02430028",
+    "semantic_hash": "6249618fd59a971fffaa862d02430028"
+  },
+  "NoxChat/src/media/frames.py": {
+    "mtime": 1792661502.7485244,
+    "seen": 1795248098.415932,
+    "ast_hash": "c2d69d8e3977df38ba2fd6501bfd4c4e",
+    "semantic_hash": "c2d69d8e3977df38ba2fd6501bfd4c4e"
+  },
+  "NoxChat/src/media/grids.py": {
+    "mtime": 1792145962.2838604,
+    "seen": 1795248098.415933,
+    "ast_hash": "733808bcb26fd6aa7d6c196cdf5d4878",
+    "semantic_hash": "733808bcb26fd6aa7d6c196cdf5d4878"
+  },
+  "NoxChat/src/media/handles.py": {
+    "mtime": 1795091316.387736,
+    "seen": 1795248098.4159338,
+    "ast_hash": "da5a88466906948dc552af490a0e25b5",
+    "semantic_hash": "da5a88466906948dc552af490a0e25b5"
+  },
+  "NoxChat/src/media/image_inputs.py": {
+    "mtime": 1794575024.3484266,
+    "seen": 1795248098.415935,
+    "ast_hash": "9b34f733217c705d2269d23711625f37",
+    "semantic_hash": "9b34f733217c705d2269d23711625f37"
+  },
+  "NoxChat/src/media/image_jobs.py": {
+    "mtime": 1795091250.3082643,
+    "seen": 1795248098.4159358,
+    "ast_hash": "8364545599c332ac99c5b1a779df5e69",
+    "semantic_hash": "8364545599c332ac99c5b1a779df5e69"
+  },
+  "NoxChat/src/media/image_quota.py": {
+    "mtime": 1794507597.5765052,
+    "seen": 1795248098.4159367,
+    "ast_hash": "c5274fa377592a4bcee7dbf5709ae09d",
+    "semantic_hash": "c5274fa377592a4bcee7dbf5709ae09d"
+  },
+  "NoxChat/src/media/image_store.py": {
+    "mtime": 1794574983.9930472,
+    "seen": 1795248098.4159374,
+    "ast_hash": "c636018da30776bb6ee175340dacdbbf",
+    "semantic_hash": "c636018da30776bb6ee175340dacdbbf"
+  },
+  "NoxChat/src/media/jobs.py": {
+    "mtime": 1794410326.775905,
+    "seen": 1795248098.4159386,
+    "ast_hash": "c2d235b8e71181c2597f65118aefc83d",
+    "semantic_hash": "c2d235b8e71181c2597f65118aefc83d"
+  },
+  "NoxChat/src/media/pdf_documents.py": {
+    "mtime": 1794465678.1711195,
+    "seen": 1795248098.4159393,
+    "ast_hash": "590763a87d46d42f5f871bb69246078d",
+    "semantic_hash": "590763a87d46d42f5f871bb69246078d"
+  },
+  "NoxChat/src/media/pdf_render.py": {
+    "mtime": 1794465586.0667982,
+    "seen": 1795248098.4159403,
+    "ast_hash": "3ea3c69c2119deb744163f947e460dc7",
+    "semantic_hash": "3ea3c69c2119deb744163f947e460dc7"
+  },
+  "NoxChat/src/media/pdf_tools.py": {
+    "mtime": 1794465426.8290777,
+    "seen": 1795248098.4159412,
+    "ast_hash": "2200f79e303369ed3cfee9d16fc63048",
+    "semantic_hash": "2200f79e303369ed3cfee9d16fc63048"
+  },
+  "NoxChat/src/media/profile_photos.py": {
+    "mtime": 1794530685.6567283,
+    "seen": 1795248098.415942,
+    "ast_hash": "2b6b0383da3d831a8117e91213bed66a",
+    "semantic_hash": "2b6b0383da3d831a8117e91213bed66a"
+  },
+  "NoxChat/src/media/repository.py": {
+    "mtime": 1795109933.3599842,
+    "seen": 1795248098.415943,
+    "ast_hash": "1bf565d01168f4a61a0b0db88e2219fa",
+    "semantic_hash": "1bf565d01168f4a61a0b0db88e2219fa"
+  },
+  "NoxChat/src/media/search.py": {
+    "mtime": 1794497170.46624,
+    "seen": 1795248098.4159436,
+    "ast_hash": "d38228d7fdf16982656139bece4005af",
+    "semantic_hash": "d38228d7fdf16982656139bece4005af"
+  },
+  "NoxChat/src/media/store.py": {
+    "mtime": 1795171604.6608057,
+    "seen": 1795248098.4159448,
+    "ast_hash": "af39809ffb1e3036340b6a0b69e28b4d",
+    "semantic_hash": "af39809ffb1e3036340b6a0b69e28b4d"
+  },
+  "NoxChat/src/media/studio_sse.py": {
+    "mtime": 1794661916.5538392,
+    "seen": 1795248098.4159455,
+    "ast_hash": "507671e86e2598ae7b0778648d6510f6",
+    "semantic_hash": "507671e86e2598ae7b0778648d6510f6"
+  },
+  "NoxChat/src/media/tools.py": {
+    "mtime": 1795091124.727801,
+    "seen": 1795248098.4159462,
+    "ast_hash": "1bdc8044af48e5388a5610150c440165",
+    "semantic_hash": "1bdc8044af48e5388a5610150c440165"
+  },
+  "NoxChat/src/media/video_encode.py": {
+    "mtime": 1794576161.2862105,
+    "seen": 1795248098.4159472,
+    "ast_hash": "7081981422522354428179435b10c30a",
+    "semantic_hash": "7081981422522354428179435b10c30a"
+  },
+  "NoxChat/src/media/video_tools.py": {
+    "mtime": 1794575149.8515935,
+    "seen": 1795248098.415948,
+    "ast_hash": "cf4b8fe56fb5279502c424d14fe8586b",
+    "semantic_hash": "cf4b8fe56fb5279502c424d14fe8586b"
+  },
+  "NoxChat/src/media/workspace.py": {
+    "mtime": 1794634340.4349964,
+    "seen": 1795248098.4159489,
+    "ast_hash": "00a736d59f9f05431160cb7aca23354d",
+    "semantic_hash": "00a736d59f9f05431160cb7aca23354d"
+  },
+  "NoxChat/src/memory/embeddings.py": {
+    "mtime": 1792145962.2846975,
+    "seen": 1795248098.4159498,
+    "ast_hash": "6a496b9472eb2a37b2f93549b7f7cdec",
+    "semantic_hash": "6a496b9472eb2a37b2f93549b7f7cdec"
+  },
+  "NoxChat/src/memory/extractor.py": {
+    "mtime": 1792743665.0059216,
+    "seen": 1795248098.4159505,
+    "ast_hash": "7eacfef3dde3f9022c23b8abb99ff3fa",
+    "semantic_hash": "7eacfef3dde3f9022c23b8abb99ff3fa"
+  },
+  "NoxChat/src/memory/hybrid_search.py": {
+    "mtime": 1795171861.264147,
+    "seen": 1795248098.4159513,
+    "ast_hash": "bf8a851dea9f8b31f7be354c452703df",
+    "semantic_hash": "bf8a851dea9f8b31f7be354c452703df"
+  },
+  "NoxChat/src/memory/qdrant_store.py": {
+    "mtime": 1795171604.6594462,
+    "seen": 1795248098.4159527,
+    "ast_hash": "6ed4464653dbdb25c96a0b8448ba8e45",
+    "semantic_hash": "6ed4464653dbdb25c96a0b8448ba8e45"
+  },
+  "NoxChat/src/memory/tools.py": {
+    "mtime": 1794497170.4664195,
+    "seen": 1795248098.4159534,
+    "ast_hash": "c9ef61e2300a6d4afea90c1c14c9bd86",
+    "semantic_hash": "c9ef61e2300a6d4afea90c1c14c9bd86"
+  },
+  "NoxChat/src/parser/tag_stream.py": {
+    "mtime": 1795173237.992822,
+    "seen": 1795248098.4159544,
+    "ast_hash": "59d91e2422c79f4211d96d1ec5c5c4d2",
+    "semantic_hash": "59d91e2422c79f4211d96d1ec5c5c4d2"
+  },
+  "NoxChat/src/persona/guides.py": {
+    "mtime": 1795247490.2196221,
+    "seen": 1795248098.4159553,
+    "ast_hash": "1464789d84f53affe5879bae53e17a79",
+    "semantic_hash": "1464789d84f53affe5879bae53e17a79"
+  },
+  "NoxChat/src/persona/nicknames.py": {
+    "mtime": 1792661502.7485244,
+    "seen": 1795248098.4159563,
+    "ast_hash": "3c21329adf23c1aac2b5aa09534f31e2",
+    "semantic_hash": "3c21329adf23c1aac2b5aa09534f31e2"
+  },
+  "NoxChat/src/persona/persona.yaml": {
+    "mtime": 1792743665.0067244,
+    "seen": 1795248098.4159572,
+    "ast_hash": "96c632b098d969524df7c77b754349dc",
+    "semantic_hash": "96c632b098d969524df7c77b754349dc"
+  },
+  "NoxChat/src/persona/prompt_builder.py": {
+    "mtime": 1795171861.2653587,
+    "seen": 1795248098.4159582,
+    "ast_hash": "24dadfd272cc11228207043412546478",
+    "semantic_hash": "24dadfd272cc11228207043412546478"
+  },
+  "NoxChat/src/persona/registry.py": {
+    "mtime": 1792661502.7506506,
+    "seen": 1795248098.4159594,
+    "ast_hash": "65d6cb71feadf62798aff12d16ad2e04",
+    "semantic_hash": "65d6cb71feadf62798aff12d16ad2e04"
+  },
+  "NoxChat/src/persona/session_tracker.py": {
+    "mtime": 1795091336.40577,
+    "seen": 1795248098.4159603,
+    "ast_hash": "c02d51821e0635ee1470c06f0ca77f79",
+    "semantic_hash": "c02d51821e0635ee1470c06f0ca77f79"
+  },
+  "NoxChat/src/preprocess/__init__.py": {
+    "mtime": 1795155591.606645,
+    "seen": 1795248098.415961,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "NoxChat/src/preprocess/engine.py": {
+    "mtime": 1795173237.9958155,
+    "seen": 1795248098.4159622,
+    "ast_hash": "d38ac1de3bce42e2175c6b9cfa1b23f5",
+    "semantic_hash": "d38ac1de3bce42e2175c6b9cfa1b23f5"
+  },
+  "NoxChat/src/preprocess/immunity.py": {
+    "mtime": 1795155591.6693552,
+    "seen": 1795248098.415963,
+    "ast_hash": "795ac6f8acc1ef29bff0778de3a331db",
+    "semantic_hash": "795ac6f8acc1ef29bff0778de3a331db"
+  },
+  "NoxChat/src/preprocess/limits.py": {
+    "mtime": 1795156435.6088898,
+    "seen": 1795248098.415964,
+    "ast_hash": "23f6756f7807b77e23966213ec2a3cb9",
+    "semantic_hash": "23f6756f7807b77e23966213ec2a3cb9"
+  },
+  "NoxChat/src/preprocess/media.py": {
+    "mtime": 1795173307.4926035,
+    "seen": 1795248098.4159648,
+    "ast_hash": "6792a88403c9733439488dcb5dbdc238",
+    "semantic_hash": "6792a88403c9733439488dcb5dbdc238"
+  },
+  "NoxChat/src/preprocess/notify.py": {
+    "mtime": 1795156100.6812038,
+    "seen": 1795248098.415966,
+    "ast_hash": "e0fc4350b013cbbfd7e8e941e7f9cf7d",
+    "semantic_hash": "e0fc4350b013cbbfd7e8e941e7f9cf7d"
+  },
+  "NoxChat/src/preprocess/store.py": {
+    "mtime": 1795159177.2410104,
+    "seen": 1795248098.4159667,
+    "ast_hash": "255a9d3352d84915f416b0ea5bc01001",
+    "semantic_hash": "255a9d3352d84915f416b0ea5bc01001"
+  },
+  "NoxChat/src/preprocess/tools.py": {
+    "mtime": 1795173237.9960778,
+    "seen": 1795248098.4159677,
+    "ast_hash": "b72029b1083bdf1d95593c9aaeb9209b",
+    "semantic_hash": "b72029b1083bdf1d95593c9aaeb9209b"
+  },
+  "NoxChat/src/profile/__init__.py": {
+    "mtime": 1792661502.7506506,
+    "seen": 1795248098.4159684,
+    "ast_hash": "1f2c3b47fe9064fbf4b8aedf6cdc55e6",
+    "semantic_hash": "1f2c3b47fe9064fbf4b8aedf6cdc55e6"
+  },
+  "NoxChat/src/profile/service.py": {
+    "mtime": 1792675204.2382112,
+    "seen": 1795248098.4159694,
+    "ast_hash": "a6dfd69b69776099cc9dbf1dde6b2190",
+    "semantic_hash": "a6dfd69b69776099cc9dbf1dde6b2190"
+  },
+  "NoxChat/src/profile/store.py": {
+    "mtime": 1792661502.750886,
+    "seen": 1795248098.4159703,
+    "ast_hash": "a12bbf7db60b0c89444572cca5d1d03b",
+    "semantic_hash": "a12bbf7db60b0c89444572cca5d1d03b"
+  },
+  "NoxChat/src/profile/tools.py": {
+    "mtime": 1794546041.8744943,
+    "seen": 1795248098.415971,
+    "ast_hash": "23b39e28a10c4d889a92e7c8af732696",
+    "semantic_hash": "23b39e28a10c4d889a92e7c8af732696"
+  },
+  "NoxChat/src/quota/admin.py": {
+    "mtime": 1794324815.1931167,
+    "seen": 1795248098.415972,
+    "ast_hash": "db0f4144102f21a7ec70bcd723edeaa5",
+    "semantic_hash": "db0f4144102f21a7ec70bcd723edeaa5"
+  },
+  "NoxChat/src/quota/service.py": {
+    "mtime": 1794325210.6849196,
+    "seen": 1795248098.4159732,
+    "ast_hash": "e2687a7fe005ea556ef485add600c86f",
+    "semantic_hash": "e2687a7fe005ea556ef485add600c86f"
+  },
+  "NoxChat/src/retrieval/__init__.py": {
+    "mtime": 1794497170.4666255,
+    "seen": 1795248098.415974,
+    "ast_hash": "c1d47a6e5dc456734f13a44a8648cd53",
+    "semantic_hash": "c1d47a6e5dc456734f13a44a8648cd53"
+  },
+  "NoxChat/src/retrieval/ranker.py": {
+    "mtime": 1794497170.466795,
+    "seen": 1795248098.4159749,
+    "ast_hash": "0b7f68517e06651b9f207e56f4ae9211",
+    "semantic_hash": "0b7f68517e06651b9f207e56f4ae9211"
+  },
+  "NoxChat/src/retrieval/textmatch.py": {
+    "mtime": 1794497170.46691,
+    "seen": 1795248098.4159756,
+    "ast_hash": "e11fccd1dede8908863755891e50a86f",
+    "semantic_hash": "e11fccd1dede8908863755891e50a86f"
+  },
+  "NoxChat/src/sandbox/__init__.py": {
+    "mtime": 1795148814.9176097,
+    "seen": 1795248098.4159768,
+    "ast_hash": "17257b5d9c9e28983c0c9b16d3e31d2a",
+    "semantic_hash": "17257b5d9c9e28983c0c9b16d3e31d2a"
+  },
+  "NoxChat/src/sandbox/client.py": {
+    "mtime": 1795152934.1872392,
+    "seen": 1795248098.4159777,
+    "ast_hash": "1a85103a30680e1243598174c3226c7f",
+    "semantic_hash": "1a85103a30680e1243598174c3226c7f"
+  },
+  "NoxChat/src/sandbox/library.py": {
+    "mtime": 1795150088.1535053,
+    "seen": 1795248098.4159787,
+    "ast_hash": "1930f986ed27c7258ab115d1b14f4894",
+    "semantic_hash": "1930f986ed27c7258ab115d1b14f4894"
+  },
+  "NoxChat/src/sandbox/policy.py": {
+    "mtime": 1795159177.2379794,
+    "seen": 1795248098.4159796,
+    "ast_hash": "29adea79f2d925d7ffacc6346c0e768c",
+    "semantic_hash": "29adea79f2d925d7ffacc6346c0e768c"
+  },
+  "NoxChat/src/sandbox/prompt.py": {
+    "mtime": 1795148814.9223218,
+    "seen": 1795248098.4159806,
+    "ast_hash": "9a7fd8ffa13651e01188fefc9f895d00",
+    "semantic_hash": "9a7fd8ffa13651e01188fefc9f895d00"
+  },
+  "NoxChat/src/sandbox/tools.py": {
+    "mtime": 1795150056.3536174,
+    "seen": 1795248098.4159813,
+    "ast_hash": "0bfdf01d6a8eb26df74fda88011f0528",
+    "semantic_hash": "0bfdf01d6a8eb26df74fda88011f0528"
+  },
+  "NoxChat/src/search/__init__.py": {
+    "mtime": 1792521175.3006756,
+    "seen": 1795248098.4159822,
+    "ast_hash": "aba6bf482e3bb852d5697914b6a6d3c4",
+    "semantic_hash": "aba6bf482e3bb852d5697914b6a6d3c4"
+  },
+  "NoxChat/src/search/aggregator.py": {
+    "mtime": 1792387189.6633706,
+    "seen": 1795248098.4159832,
+    "ast_hash": "7c1236eb810eadab7a5e546de0af198e",
+    "semantic_hash": "7c1236eb810eadab7a5e546de0af198e"
+  },
+  "NoxChat/src/search/client.py": {
+    "mtime": 1792521175.300689,
+    "seen": 1795248098.4159842,
+    "ast_hash": "166d55235d27ab9ed6bdf5b1ac875334",
+    "semantic_hash": "166d55235d27ab9ed6bdf5b1ac875334"
+  },
+  "NoxChat/src/search/endpoints.py": {
+    "mtime": 1792521175.300689,
+    "seen": 1795248098.4159849,
+    "ast_hash": "5ef305da285b65ff0f7cae2e446ac846",
+    "semantic_hash": "5ef305da285b65ff0f7cae2e446ac846"
+  },
+  "NoxChat/src/search/fetcher.py": {
+    "mtime": 1792387189.6634755,
+    "seen": 1795248098.4159858,
+    "ast_hash": "4461df358a72ebe549f9fb0817d3e517",
+    "semantic_hash": "4461df358a72ebe549f9fb0817d3e517"
+  },
+  "NoxChat/src/search/safety.py": {
+    "mtime": 1794508723.6509738,
+    "seen": 1795248098.415987,
+    "ast_hash": "0167ac1e204ad1f28856b23c5b81fd45",
+    "semantic_hash": "0167ac1e204ad1f28856b23c5b81fd45"
+  },
+  "NoxChat/src/search/tools.py": {
+    "mtime": 1792387189.6634755,
+    "seen": 1795248098.415988,
+    "ast_hash": "b6816374b43ddccadc1eb03b687f35fd",
+    "semantic_hash": "b6816374b43ddccadc1eb03b687f35fd"
+  },
+  "NoxChat/src/search/types.py": {
+    "mtime": 1792387189.6634755,
+    "seen": 1795248098.4159887,
+    "ast_hash": "fe108c1204c2f5ebdf42caa356d9a4bd",
+    "semantic_hash": "fe108c1204c2f5ebdf42caa356d9a4bd"
+  },
+  "NoxChat/src/telegram/bot.py": {
+    "mtime": 1794675787.5179126,
+    "seen": 1795248098.4159899,
+    "ast_hash": "3cc62e82699dbecb33cac0a40e29d587",
+    "semantic_hash": "3cc62e82699dbecb33cac0a40e29d587"
+  },
+  "NoxChat/src/telegram/coalescer.py": {
+    "mtime": 1794851822.4010544,
+    "seen": 1795248098.415991,
+    "ast_hash": "ae7f9567c12d5bffc1fce6413f61885f",
+    "semantic_hash": "ae7f9567c12d5bffc1fce6413f61885f"
+  },
+  "NoxChat/src/telegram/commands.py": {
+    "mtime": 1795159177.2398777,
+    "seen": 1795248098.415992,
+    "ast_hash": "1c353b68d657bfb040e0240da08cb349",
+    "semantic_hash": "1c353b68d657bfb040e0240da08cb349"
+  },
+  "NoxChat/src/telegram/dispatcher.py": {
+    "mtime": 1795173237.9947386,
+    "seen": 1795248098.4159935,
+    "ast_hash": "0d3c805fc8ca1b6fb6b68f8f5903383b",
+    "semantic_hash": "0d3c805fc8ca1b6fb6b68f8f5903383b"
+  },
+  "NoxChat/src/telegram/guest.py": {
+    "mtime": 1794675787.5179913,
+    "seen": 1795248098.4159944,
+    "ast_hash": "8c2180e3688dbbf17e811ec5f885422d",
+    "semantic_hash": "8c2180e3688dbbf17e811ec5f885422d"
+  },
+  "NoxChat/src/telegram/handlers.py": {
+    "mtime": 1795143000.9892619,
+    "seen": 1795248098.4159954,
+    "ast_hash": "9c4411295080e51302fd53cc20e6d6dd",
+    "semantic_hash": "9c4411295080e51302fd53cc20e6d6dd"
+  },
+  "NoxChat/src/telegram/media.py": {
+    "mtime": 1794465499.1224935,
+    "seen": 1795248098.4159963,
+    "ast_hash": "e62d5da14596e48f1b3357d35948cd06",
+    "semantic_hash": "e62d5da14596e48f1b3357d35948cd06"
+  },
+  "NoxChat/src/telegram/message_tools.py": {
+    "mtime": 1795143051.3932576,
+    "seen": 1795248098.4159977,
+    "ast_hash": "63f51971322faf702e3c07945d3dcb11",
+    "semantic_hash": "63f51971322faf702e3c07945d3dcb11"
+  },
+  "NoxChat/src/telegram/references.py": {
+    "mtime": 1792743665.0093758,
+    "seen": 1795248098.4159987,
+    "ast_hash": "6dc75cd5a8807ae5b7ff2111e20ed404",
+    "semantic_hash": "6dc75cd5a8807ae5b7ff2111e20ed404"
+  },
+  "NoxChat/src/telegram/rich_send.py": {
+    "mtime": 1794851781.6608105,
+    "seen": 1795248098.416,
+    "ast_hash": "1dae4f8f2023c33d8be8faa4301ec2c2",
+    "semantic_hash": "1dae4f8f2023c33d8be8faa4301ec2c2"
+  },
+  "NoxChat/src/telegram/runtime.py": {
+    "mtime": 1795156435.6084955,
+    "seen": 1795248098.416001,
+    "ast_hash": "665b20a0b1431b7d6142870e9ae39256",
+    "semantic_hash": "665b20a0b1431b7d6142870e9ae39256"
+  },
+  "NoxChat/src/telegram/scheduler.py": {
+    "mtime": 1795155983.6121602,
+    "seen": 1795248098.416002,
+    "ast_hash": "97dffa0f9b58f2fda362d0d25f65e15f",
+    "semantic_hash": "97dffa0f9b58f2fda362d0d25f65e15f"
+  },
+  "NoxChat/src/tips/__init__.py": {
+    "mtime": 1794673652.4273334,
+    "seen": 1795248098.416003,
+    "ast_hash": "6e260496ab2f6fe9b242d9f682c8b2de",
+    "semantic_hash": "6e260496ab2f6fe9b242d9f682c8b2de"
+  },
+  "NoxChat/src/tips/models.py": {
+    "mtime": 1794673652.4673336,
+    "seen": 1795248098.4160044,
+    "ast_hash": "f0452d33427975f68c3471517b71b6f0",
+    "semantic_hash": "f0452d33427975f68c3471517b71b6f0"
+  },
+  "NoxChat/src/tips/repository.py": {
+    "mtime": 1794673652.5073335,
+    "seen": 1795248098.4160056,
+    "ast_hash": "6c60917fbf83b6adc8b3d74ac482f3a4",
+    "semantic_hash": "6c60917fbf83b6adc8b3d74ac482f3a4"
+  },
+  "NoxChat/src/tips/service.py": {
+    "mtime": 1794674647.9806972,
+    "seen": 1795248098.4160066,
+    "ast_hash": "f96b9107a504e24ad5800b40696b0a44",
+    "semantic_hash": "f96b9107a504e24ad5800b40696b0a44"
+  },
+  "NoxChat/src/tips/store.py": {
+    "mtime": 1794673896.3759868,
+    "seen": 1795248098.4160094,
+    "ast_hash": "9b45374de8b7a742854d232fd9bfea9c",
+    "semantic_hash": "9b45374de8b7a742854d232fd9bfea9c"
+  },
+  "NoxChat/src/tips/tools.py": {
+    "mtime": 1794674181.0480669,
+    "seen": 1795248098.4160104,
+    "ast_hash": "8db3a8ea1703f012d2d5f96612f62b7c",
+    "semantic_hash": "8db3a8ea1703f012d2d5f96612f62b7c"
+  },
+  "NoxChat/src/tools/registry.py": {
+    "mtime": 1795149081.9908953,
+    "seen": 1795248098.4160116,
+    "ast_hash": "a28777b6f933c0b16466ef16aa49eed9",
+    "semantic_hash": "a28777b6f933c0b16466ef16aa49eed9"
+  },
+  "NoxChat/src/vector/client_pool.py": {
+    "mtime": 1792156022.228193,
+    "seen": 1795248098.4160128,
+    "ast_hash": "f96331ba92dfa88055901184cc8e41e5",
+    "semantic_hash": "f96331ba92dfa88055901184cc8e41e5"
+  },
+  "NoxChat/tests/conftest.py": {
+    "mtime": 1794546719.8970144,
+    "seen": 1795248098.4160137,
+    "ast_hash": "c98904cf587711d6fc68d7e7fced414b",
+    "semantic_hash": "c98904cf587711d6fc68d7e7fced414b"
+  },
+  "NoxChat/tests/test_add_sticker_tool.py": {
+    "mtime": 1792312500.3979537,
+    "seen": 1795248098.4160151,
+    "ast_hash": "56b6f280c6f86ce506a12dc4c2ba1d67",
+    "semantic_hash": "56b6f280c6f86ce506a12dc4c2ba1d67"
+  },
+  "NoxChat/tests/test_agent_tools.py": {
+    "mtime": 1795091712.5128825,
+    "seen": 1795248098.416016,
+    "ast_hash": "3afee26981e388ba01e6fc95c05b26a7",
+    "semantic_hash": "3afee26981e388ba01e6fc95c05b26a7"
+  },
+  "NoxChat/tests/test_audio.py": {
+    "mtime": 1794545131.92594,
+    "seen": 1795248098.4160168,
+    "ast_hash": "2192c283899d13ab9fa6310660365291",
+    "semantic_hash": "2192c283899d13ab9fa6310660365291"
+  },
+  "NoxChat/tests/test_audio_differentiation.py": {
+    "mtime": 1794860053.068068,
+    "seen": 1795248098.4160197,
+    "ast_hash": "d0680a393eb2c3610f7a8cdc449c89a2",
+    "semantic_hash": "d0680a393eb2c3610f7a8cdc449c89a2"
+  },
+  "NoxChat/tests/test_audio_integration.py": {
+    "mtime": 1794547187.160293,
+    "seen": 1795248098.4160206,
+    "ast_hash": "6c2f36f430ff9c516ac36e832c877698",
+    "semantic_hash": "6c2f36f430ff9c516ac36e832c877698"
+  },
+  "NoxChat/tests/test_caption_tag.py": {
+    "mtime": 1794545183.5783324,
+    "seen": 1795248098.4160218,
+    "ast_hash": "dee68fd0d21ff83da2ef00c843da19de",
+    "semantic_hash": "dee68fd0d21ff83da2ef00c843da19de"
+  },
+  "NoxChat/tests/test_chat_inspection.py": {
+    "mtime": 1794407394.120402,
+    "seen": 1795248098.4160228,
+    "ast_hash": "1c8653e631317a5a05f8b5655c5de28d",
+    "semantic_hash": "1c8653e631317a5a05f8b5655c5de28d"
+  },
+  "NoxChat/tests/test_chat_search.py": {
+    "mtime": 1792743665.0106246,
+    "seen": 1795248098.4160237,
+    "ast_hash": "68296c256ee2c2f6051d88f1414dc18c",
+    "semantic_hash": "68296c256ee2c2f6051d88f1414dc18c"
+  },
+  "NoxChat/tests/test_chat_search_filters.py": {
+    "mtime": 1794946331.6204808,
+    "seen": 1795248098.416025,
+    "ast_hash": "42efc2d4e62a38136cbbfa010ec0d717",
+    "semantic_hash": "42efc2d4e62a38136cbbfa010ec0d717"
+  },
+  "NoxChat/tests/test_control_files_rpc.py": {
+    "mtime": 1794634302.0284147,
+    "seen": 1795248098.4160256,
+    "ast_hash": "1b100266caf02b531ad89adeb7e393a7",
+    "semantic_hash": "1b100266caf02b531ad89adeb7e393a7"
+  },
+  "NoxChat/tests/test_dispatcher_callbacks.py": {
+    "mtime": 1794852112.8709486,
+    "seen": 1795248098.4160266,
+    "ast_hash": "7e7ff21ea25ce6bf34e3a2da8fd351cd",
+    "semantic_hash": "7e7ff21ea25ce6bf34e3a2da8fd351cd"
+  },
+  "NoxChat/tests/test_doc_delivery.py": {
+    "mtime": 1795154376.223943,
+    "seen": 1795248098.416028,
+    "ast_hash": "377998b09426392d81e2cbde8afe177d",
+    "semantic_hash": "377998b09426392d81e2cbde8afe177d"
+  },
+  "NoxChat/tests/test_doc_studio.py": {
+    "mtime": 1795166739.805927,
+    "seen": 1795248098.4160287,
+    "ast_hash": "3fed892f18453dad56fd2715df431042",
+    "semantic_hash": "3fed892f18453dad56fd2715df431042"
+  },
+  "NoxChat/tests/test_doc_tools.py": {
+    "mtime": 1794668944.0661283,
+    "seen": 1795248098.4160297,
+    "ast_hash": "07d7a7027f39ad4ee54f64dee0ae3bf6",
+    "semantic_hash": "07d7a7027f39ad4ee54f64dee0ae3bf6"
+  },
+  "NoxChat/tests/test_doc_vmexec.py": {
+    "mtime": 1795166368.769495,
+    "seen": 1795248098.4160306,
+    "ast_hash": "16c7488e891b36d93ee5b89b6dd0bdb4",
+    "semantic_hash": "16c7488e891b36d93ee5b89b6dd0bdb4"
+  },
+  "NoxChat/tests/test_e2e_simulation.py": {
+    "mtime": 1792661502.7527423,
+    "seen": 1795248098.4160318,
+    "ast_hash": "f4018697442a54788cc6c50cf99bcdfc",
+    "semantic_hash": "f4018697442a54788cc6c50cf99bcdfc"
+  },
+  "NoxChat/tests/test_files_not_walls.py": {
+    "mtime": 1795247490.2196796,
+    "seen": 1795248098.4160328,
+    "ast_hash": "1949512065fdc03d75dd275e7a1bd61e",
+    "semantic_hash": "1949512065fdc03d75dd275e7a1bd61e"
+  },
+  "NoxChat/tests/test_foundation.py": {
+    "mtime": 1792743665.0106246,
+    "seen": 1795248098.416034,
+    "ast_hash": "8761b6004e744d291de8b6ad5e996153",
+    "semantic_hash": "8761b6004e744d291de8b6ad5e996153"
+  },
+  "NoxChat/tests/test_frames.py": {
+    "mtime": 1792661502.7527423,
+    "seen": 1795248098.4160347,
+    "ast_hash": "96fb62a26355d2d097a540e910729af4",
+    "semantic_hash": "96fb62a26355d2d097a540e910729af4"
+  },
+  "NoxChat/tests/test_guest_mode.py": {
+    "mtime": 1794545571.6851115,
+    "seen": 1795248098.416036,
+    "ast_hash": "a1a095b9e78229c0c4291e30e8478a55",
+    "semantic_hash": "a1a095b9e78229c0c4291e30e8478a55"
+  },
+  "NoxChat/tests/test_history_modes.py": {
+    "mtime": 1795091398.391449,
+    "seen": 1795248098.4160366,
+    "ast_hash": "18ebdd5593b00c13c935feec45e3e24b",
+    "semantic_hash": "18ebdd5593b00c13c935feec45e3e24b"
+  },
+  "NoxChat/tests/test_hot_memory_rpc.py": {
+    "mtime": 1795110020.424169,
+    "seen": 1795248098.4160376,
+    "ast_hash": "836054ad6ab9a70c37b9d25e71ca4afd",
+    "semantic_hash": "836054ad6ab9a70c37b9d25e71ca4afd"
+  },
+  "NoxChat/tests/test_image_studio.py": {
+    "mtime": 1794575415.4100335,
+    "seen": 1795248098.4160385,
+    "ast_hash": "bee86d3b82b7864ead282a39319d514b",
+    "semantic_hash": "bee86d3b82b7864ead282a39319d514b"
+  },
+  "NoxChat/tests/test_leave_group.py": {
+    "mtime": 1795143053.4652576,
+    "seen": 1795248098.4160395,
+    "ast_hash": "3197553828f68cc0ca27a0f1dfd778b7",
+    "semantic_hash": "3197553828f68cc0ca27a0f1dfd778b7"
+  },
+  "NoxChat/tests/test_llm_client.py": {
+    "mtime": 1794324815.1949604,
+    "seen": 1795248098.4160402,
+    "ast_hash": "d68e7b8897b537aa5ad54bc8c8663e45",
+    "semantic_hash": "d68e7b8897b537aa5ad54bc8c8663e45"
+  },
+  "NoxChat/tests/test_media_plumbing.py": {
+    "mtime": 1792145962.2896407,
+    "seen": 1795248098.4160414,
+    "ast_hash": "01f3c62a73767dacec37d8941ae6e58f",
+    "semantic_hash": "01f3c62a73767dacec37d8941ae6e58f"
+  },
+  "NoxChat/tests/test_media_usage.py": {
+    "mtime": 1794497170.4607763,
+    "seen": 1795248098.4160423,
+    "ast_hash": "b7962cc6d497ed75e2f5c0b5dfbb92ab",
+    "semantic_hash": "b7962cc6d497ed75e2f5c0b5dfbb92ab"
+  },
+  "NoxChat/tests/test_memory.py": {
+    "mtime": 1792145962.2898066,
+    "seen": 1795248098.416043,
+    "ast_hash": "543d4c62c71bdb493639a2d9aab0846b",
+    "semantic_hash": "543d4c62c71bdb493639a2d9aab0846b"
+  },
+  "NoxChat/tests/test_memory_deduplication.py": {
+    "mtime": 1792675204.2382112,
+    "seen": 1795248098.416044,
+    "ast_hash": "4c4fedb430fd2830c8c62069406c2e79",
+    "semantic_hash": "4c4fedb430fd2830c8c62069406c2e79"
+  },
+  "NoxChat/tests/test_memory_explorer.py": {
+    "mtime": 1794547026.497268,
+    "seen": 1795248098.416045,
+    "ast_hash": "4aaf5d44bd558e29942a4037c11a5680",
+    "semantic_hash": "4aaf5d44bd558e29942a4037c11a5680"
+  },
+  "NoxChat/tests/test_memory_upgrade.py": {
+    "mtime": 1792661502.7527423,
+    "seen": 1795248098.4160461,
+    "ast_hash": "d4cd42cec72a7a56b2f673c031d70fe3",
+    "semantic_hash": "d4cd42cec72a7a56b2f673c031d70fe3"
+  },
+  "NoxChat/tests/test_message_tools.py": {
+    "mtime": 1794662099.8262959,
+    "seen": 1795248098.4160469,
+    "ast_hash": "92e64a1750f3bd1022b9bbd652c7192a",
+    "semantic_hash": "92e64a1750f3bd1022b9bbd652c7192a"
+  },
+  "NoxChat/tests/test_noxdoc_cli.py": {
+    "mtime": 1795165677.661131,
+    "seen": 1795248098.4160478,
+    "ast_hash": "403e49db02571dffe87b9fa5c72fb202",
+    "semantic_hash": "403e49db02571dffe87b9fa5c72fb202"
+  },
+  "NoxChat/tests/test_pack_analysis.py": {
+    "mtime": 1792312500.3979537,
+    "seen": 1795248098.416049,
+    "ast_hash": "d94b180230f2ee50df90e681b6d77bac",
+    "semantic_hash": "d94b180230f2ee50df90e681b6d77bac"
+  },
+  "NoxChat/tests/test_parser.py": {
+    "mtime": 1792145962.2903457,
+    "seen": 1795248098.4160497,
+    "ast_hash": "0671eab19646d26684951214bf881c53",
+    "semantic_hash": "0671eab19646d26684951214bf881c53"
+  },
+  "NoxChat/tests/test_pdf_vision.py": {
+    "mtime": 1794466918.839682,
+    "seen": 1795248098.4160523,
+    "ast_hash": "0fe7a97f848916d01080bc062304c7d8",
+    "semantic_hash": "0fe7a97f848916d01080bc062304c7d8"
+  },
+  "NoxChat/tests/test_persona.py": {
+    "mtime": 1794545203.1062543,
+    "seen": 1795248098.4160533,
+    "ast_hash": "5b9488dfd4372d6f5b7de5deb8ab702f",
+    "semantic_hash": "5b9488dfd4372d6f5b7de5deb8ab702f"
+  },
+  "NoxChat/tests/test_preprocess_cron.py": {
+    "mtime": 1795173293.4929848,
+    "seen": 1795248098.4160542,
+    "ast_hash": "f8a238d901909604293a743d3a518c0e",
+    "semantic_hash": "f8a238d901909604293a743d3a518c0e"
+  },
+  "NoxChat/tests/test_preprocess_media.py": {
+    "mtime": 1795173307.4931908,
+    "seen": 1795248098.4160552,
+    "ast_hash": "55fa2cd65c867e750d15e025d3a843bb",
+    "semantic_hash": "55fa2cd65c867e750d15e025d3a843bb"
+  },
+  "NoxChat/tests/test_profile_photos.py": {
+    "mtime": 1794530856.9051762,
+    "seen": 1795248098.4160576,
+    "ast_hash": "a043ae4e551e4602148f9a1074235bcd",
+    "semantic_hash": "a043ae4e551e4602148f9a1074235bcd"
+  },
+  "NoxChat/tests/test_profile_service.py": {
+    "mtime": 1792675204.2382112,
+    "seen": 1795248098.4160585,
+    "ast_hash": "d505a1c84e47d160e389f483b2c8e8a9",
+    "semantic_hash": "d505a1c84e47d160e389f483b2c8e8a9"
+  },
+  "NoxChat/tests/test_profile_tools.py": {
+    "mtime": 1794547353.2832663,
+    "seen": 1795248098.41606,
+    "ast_hash": "db6d1043986e08b0dac25083bf78dc65",
+    "semantic_hash": "db6d1043986e08b0dac25083bf78dc65"
+  },
+  "NoxChat/tests/test_quota.py": {
+    "mtime": 1794325324.9011996,
+    "seen": 1795248098.416061,
+    "ast_hash": "f102aab6f3170005933f5a97aa2a46e5",
+    "semantic_hash": "f102aab6f3170005933f5a97aa2a46e5"
+  },
+  "NoxChat/tests/test_rag_relevance_floor.py": {
+    "mtime": 1795171877.8216588,
+    "seen": 1795248098.4160619,
+    "ast_hash": "784c5e29c7960d1e25456ab9ccd26d79",
+    "semantic_hash": "784c5e29c7960d1e25456ab9ccd26d79"
+  },
+  "NoxChat/tests/test_references.py": {
+    "mtime": 1792723264.0922236,
+    "seen": 1795248098.416063,
+    "ast_hash": "c76753a536d65d94ad17782c5535501f",
+    "semantic_hash": "c76753a536d65d94ad17782c5535501f"
+  },
+  "NoxChat/tests/test_retrieval.py": {
+    "mtime": 1794497170.46691,
+    "seen": 1795248098.416064,
+    "ast_hash": "46d70bc56364717927286bad5694b254",
+    "semantic_hash": "46d70bc56364717927286bad5694b254"
+  },
+  "NoxChat/tests/test_sandbox_client.py": {
+    "mtime": 1795159194.912401,
+    "seen": 1795248098.416065,
+    "ast_hash": "4b7837fc1dc36033c5dd0e541abf9254",
+    "semantic_hash": "4b7837fc1dc36033c5dd0e541abf9254"
+  },
+  "NoxChat/tests/test_sandbox_command.py": {
+    "mtime": 1795152963.9301655,
+    "seen": 1795248098.4160657,
+    "ast_hash": "5ebc53ca5b8cdd2fa469213aa61c5d70",
+    "semantic_hash": "5ebc53ca5b8cdd2fa469213aa61c5d70"
+  },
+  "NoxChat/tests/test_sandbox_tools.py": {
+    "mtime": 1795150150.2964067,
+    "seen": 1795248098.416067,
+    "ast_hash": "58361817ad13c61d7bbfcb94f853492e",
+    "semantic_hash": "58361817ad13c61d7bbfcb94f853492e"
+  },
+  "NoxChat/tests/test_scheduler.py": {
+    "mtime": 1794395719.6854184,
+    "seen": 1795248098.4160676,
+    "ast_hash": "17c87d02b896899a336ae209a9482ad4",
+    "semantic_hash": "17c87d02b896899a336ae209a9482ad4"
+  },
+  "NoxChat/tests/test_search.py": {
+    "mtime": 1792521175.300689,
+    "seen": 1795248098.4160686,
+    "ast_hash": "388b68c1719c88f1eb59a04920cc04c1",
+    "semantic_hash": "388b68c1719c88f1eb59a04920cc04c1"
+  },
+  "NoxChat/tests/test_stickers.py": {
+    "mtime": 1792145962.2907734,
+    "seen": 1795248098.4160697,
+    "ast_hash": "af4e4f0dfe4e1dfe4f19f0ca6c58b336",
+    "semantic_hash": "af4e4f0dfe4e1dfe4f19f0ca6c58b336"
+  },
+  "NoxChat/tests/test_task_result_skips_rag.py": {
+    "mtime": 1794942267.1938822,
+    "seen": 1795248098.4160707,
+    "ast_hash": "6a1acb37e02ee19378042afe9ce55814",
+    "semantic_hash": "6a1acb37e02ee19378042afe9ce55814"
+  },
+  "NoxChat/tests/test_tips.py": {
+    "mtime": 1794673480.0988533,
+    "seen": 1795248098.4160714,
+    "ast_hash": "08edebeb1842d18d0748ad3e073469d6",
+    "semantic_hash": "08edebeb1842d18d0748ad3e073469d6"
+  },
+  "NoxChat/tests/test_tips_prompt.py": {
+    "mtime": 1794673605.2697022,
+    "seen": 1795248098.4160724,
+    "ast_hash": "5a6ca10988d6abdf9cdbc5e14cbe527e",
+    "semantic_hash": "5a6ca10988d6abdf9cdbc5e14cbe527e"
+  },
+  "NoxChat/tests/test_tips_rpc.py": {
+    "mtime": 1794673980.2391481,
+    "seen": 1795248098.4160733,
+    "ast_hash": "5f413e379bfbf8ef8b51feb09dd9d47d",
+    "semantic_hash": "5f413e379bfbf8ef8b51feb09dd9d47d"
+  },
+  "NoxChat/tests/test_token_budget.py": {
+    "mtime": 1795091435.448681,
+    "seen": 1795248098.4160743,
+    "ast_hash": "efb47d8790b677eca692bb0ccd6ac2ea",
+    "semantic_hash": "efb47d8790b677eca692bb0ccd6ac2ea"
+  },
+  "NoxChat/tests/test_tool_guides.py": {
+    "mtime": 1795247490.2197657,
+    "seen": 1795248098.416075,
+    "ast_hash": "ee773cad4917795e43003775ef97b286",
+    "semantic_hash": "ee773cad4917795e43003775ef97b286"
+  },
+  "NoxChat/tests/test_tool_status_coalescer.py": {
+    "mtime": 1794545183.578605,
+    "seen": 1795248098.416076,
+    "ast_hash": "1a5ffae143a2f061480ef1304813d4e6",
+    "semantic_hash": "1a5ffae143a2f061480ef1304813d4e6"
+  },
+  "NoxChat/tests/test_triggers.py": {
+    "mtime": 1792145962.2907734,
+    "seen": 1795248098.416077,
+    "ast_hash": "68a8001a59c0ab6501094b113913413d",
+    "semantic_hash": "68a8001a59c0ab6501094b113913413d"
+  },
+  "NoxChat/tests/test_vector_pool.py": {
+    "mtime": 1792145962.2907734,
+    "seen": 1795248098.416078,
+    "ast_hash": "fecd5944735aacddbde7f375c3c5788f",
+    "semantic_hash": "fecd5944735aacddbde7f375c3c5788f"
+  },
+  "NoxChat/tests/test_video.py": {
+    "mtime": 1794575777.0481057,
+    "seen": 1795248098.416079,
+    "ast_hash": "dba02101381b3c265b64d949910801ce",
+    "semantic_hash": "dba02101381b3c265b64d949910801ce"
+  },
+  "NoxChat/tests/test_video_studio_tools.py": {
+    "mtime": 1794575564.336947,
+    "seen": 1795248098.4160802,
+    "ast_hash": "a7cf8fa25fc718fc0d43b65a676a2b36",
+    "semantic_hash": "a7cf8fa25fc718fc0d43b65a676a2b36"
+  },
+  "NoxChat/tests/test_vision.py": {
+    "mtime": 1794545581.5740533,
+    "seen": 1795248098.416081,
+    "ast_hash": "1dced239861995aba92e70c041569b47",
+    "semantic_hash": "1dced239861995aba92e70c041569b47"
+  },
+  "NoxChat/tests/test_workspace.py": {
+    "mtime": 1794634160.4631214,
+    "seen": 1795248098.416082,
+    "ast_hash": "997b5a3d917d08ae877d7cb6f7adb41c",
+    "semantic_hash": "997b5a3d917d08ae877d7cb6f7adb41c"
+  },
+  "NoxChat/Initial_Plan.md": {
+    "mtime": 1792661502.7478938,
+    "seen": 1795248098.4160826,
+    "ast_hash": "4575fbd19608cab19efb38330770e2cf",
+    "semantic_hash": "4575fbd19608cab19efb38330770e2cf"
+  },
+  "NoxChat/Message_Info_Score_and_Segment_Embedding_Plan.md": {
+    "mtime": 1795089937.8538985,
+    "seen": 1795248098.4160838,
+    "ast_hash": "db6a3aad3a17982c666d1d8a02e4d526",
+    "semantic_hash": "db6a3aad3a17982c666d1d8a02e4d526"
+  },
+  "NoxChat/New_Search_Plan.md": {
+    "mtime": 1792745823.2798855,
+    "seen": 1795248098.4160848,
+    "ast_hash": "f6b33ddf69f99dc1ad255e1277c30a46",
+    "semantic_hash": "f6b33ddf69f99dc1ad255e1277c30a46"
+  },
+  "NoxChat/README.md": {
+    "mtime": 1794674756.703072,
+    "seen": 1795248098.4160857,
+    "ast_hash": "6f410a7488f90d591bda35005b2c5bc6",
+    "semantic_hash": "6f410a7488f90d591bda35005b2c5bc6"
+  },
+  "NoxChat/commands.md": {
+    "mtime": 1794553021.6458185,
+    "seen": 1795248098.4160864,
+    "ast_hash": "8d013a304c7a0511908e9788ad569f00",
+    "semantic_hash": "8d013a304c7a0511908e9788ad569f00"
+  },
+  "NoxChat/docs/agents-and-mcp.md": {
+    "mtime": 1794674698.344956,
+    "seen": 1795248098.4160874,
+    "ast_hash": "66071d7cf140e2f68a093cc26b8a5029",
+    "semantic_hash": "66071d7cf140e2f68a093cc26b8a5029"
+  },
+  "NoxChat/docs/architecture.md": {
+    "mtime": 1794674734.302659,
+    "seen": 1795248098.4160883,
+    "ast_hash": "0fefb0f06523e9e71f118306dc020930",
+    "semantic_hash": "0fefb0f06523e9e71f118306dc020930"
+  },
+  "NoxChat/docs/audio.md": {
+    "mtime": 1792145962.279315,
+    "seen": 1795248098.4160893,
+    "ast_hash": "5f73cd70d7f88ba6a7bbd8a7f19ce23c",
+    "semantic_hash": "5f73cd70d7f88ba6a7bbd8a7f19ce23c"
+  },
+  "NoxChat/docs/chat-workspace.md": {
+    "mtime": 1794576209.8569837,
+    "seen": 1795248098.41609,
+    "ast_hash": "2a7ad9da1399a4acd6e6c1e16c726d9e",
+    "semantic_hash": "2a7ad9da1399a4acd6e6c1e16c726d9e"
+  },
+  "NoxChat/docs/configuration.md": {
+    "mtime": 1795247490.2187717,
+    "seen": 1795248098.4160912,
+    "ast_hash": "3d28420aa968e4c8b8fe4a8cfa447ac0",
+    "semantic_hash": "3d28420aa968e4c8b8fe4a8cfa447ac0"
+  },
+  "NoxChat/docs/deployment.md": {
+    "mtime": 1795167149.5765543,
+    "seen": 1795248098.416092,
+    "ast_hash": "4391d9f63f3d5896930e43ace1dfec3f",
+    "semantic_hash": "4391d9f63f3d5896930e43ace1dfec3f"
+  },
+  "NoxChat/docs/doc-studio-contracts.md": {
+    "mtime": 1794669299.2919428,
+    "seen": 1795248098.4160929,
+    "ast_hash": "ba3c21f4a3c46c2f8d88f4a13dff72a7",
+    "semantic_hash": "ba3c21f4a3c46c2f8d88f4a13dff72a7"
+  },
+  "NoxChat/docs/doc-studio-progress/mcp-noxdoc.md": {
+    "mtime": 1794509304.2174692,
+    "seen": 1795248098.4160936,
+    "ast_hash": "a5d641d3cd50d26f0330dccec354510a",
+    "semantic_hash": "a5d641d3cd50d26f0330dccec354510a"
+  },
+  "NoxChat/docs/doc-studio-progress/noxchat-core-baseline.txt": {
+    "mtime": 1794504089.7459507,
+    "seen": 1795248098.4160948,
+    "ast_hash": "79804cba3c6983eb35055fdc407c4be5",
+    "semantic_hash": "79804cba3c6983eb35055fdc407c4be5"
+  },
+  "NoxChat/docs/doc-studio-progress/noxchat-core.md": {
+    "mtime": 1794508004.9839504,
+    "seen": 1795248098.4160957,
+    "ast_hash": "414a18963021773b2908546e92fb1c88",
+    "semantic_hash": "414a18963021773b2908546e92fb1c88"
+  },
+  "NoxChat/docs/doc-studio-progress/spike.md": {
+    "mtime": 1794508124.8153903,
+    "seen": 1795248098.4160967,
+    "ast_hash": "ccf1850400f54a00bcd14f7c898e7a77",
+    "semantic_hash": "ccf1850400f54a00bcd14f7c898e7a77"
+  },
+  "NoxChat/docs/log_search_implementation.md": {
+    "mtime": 1792897193.4670336,
+    "seen": 1795248098.4160979,
+    "ast_hash": "43601ba466a8f231112ec8ac2d30a9e4",
+    "semantic_hash": "43601ba466a8f231112ec8ac2d30a9e4"
+  },
+  "NoxChat/docs/media-and-stickers.md": {
+    "mtime": 1794465543.130648,
+    "seen": 1795248098.4160988,
+    "ast_hash": "7f6a7c704a8e8bcc11644913d012e878",
+    "semantic_hash": "7f6a7c704a8e8bcc11644913d012e878"
+  },
+  "NoxChat/docs/memory-and-rag.md": {
+    "mtime": 1794674743.4459367,
+    "seen": 1795248098.4160995,
+    "ast_hash": "f9cc6409ed55efa813de273c28d4d140",
+    "semantic_hash": "f9cc6409ed55efa813de273c28d4d140"
+  },
+  "NoxChat/docs/tips.md": {
+    "mtime": 1794674856.4342687,
+    "seen": 1795248098.4161003,
+    "ast_hash": "ca23eb6eeb1d611fc6c6488e249dec6a",
+    "semantic_hash": "ca23eb6eeb1d611fc6c6488e249dec6a"
+  },
+  "NoxChat/input.txt": {
+    "mtime": 1792521175.3005645,
+    "seen": 1795248098.4161015,
+    "ast_hash": "afa5e5ce4ed7984fc4fcee33a1ce11ef",
+    "semantic_hash": "afa5e5ce4ed7984fc4fcee33a1ce11ef"
+  },
+  "NoxChat/output.txt": {
+    "mtime": 1792521175.3006756,
+    "seen": 1795248098.4161024,
+    "ast_hash": "5b47a974d99a1e8e2830899244d04fbc",
+    "semantic_hash": "5b47a974d99a1e8e2830899244d04fbc"
+  },
+  "NoxChat/requirements-audio.txt": {
+    "mtime": 1792145962.2797153,
+    "seen": 1795248098.4161031,
+    "ast_hash": "3dbce644b1fb49cdcccf096267e97dcd",
+    "semantic_hash": "3dbce644b1fb49cdcccf096267e97dcd"
+  },
+  "NoxChat/requirements.txt": {
+    "mtime": 1795156737.8295023,
+    "seen": 1795248098.416104,
+    "ast_hash": "bcd29c981c01bc55c106412147d67d5c",
+    "semantic_hash": "bcd29c981c01bc55c106412147d67d5c"
+  },
+  "NoxChat/services/agy-openai-bridge/bridge/doc_studio_prompt.md": {
+    "mtime": 1794668318.5713997,
+    "seen": 1795248098.416105,
+    "ast_hash": "fe9514ade379a6a9d02d00fb92529074",
+    "semantic_hash": "fe9514ade379a6a9d02d00fb92529074"
+  },
+  "NoxChat/services/agy-openai-bridge/requirements.txt": {
+    "mtime": 1794399049.185009,
+    "seen": 1795248098.416106,
+    "ast_hash": "4bebd6aa914638b4308551e8828051fe",
+    "semantic_hash": "4bebd6aa914638b4308551e8828051fe"
+  },
+  "NoxChat/services/agy-openai-bridge/workspace-doc-studio/.agents/agents/nox-doc-studio-noai.md": {
+    "mtime": 1795247490.2138696,
+    "seen": 1795248098.4161067,
+    "ast_hash": "ad9f3266f849c8686124bfa6cccc14ec",
+    "semantic_hash": "ad9f3266f849c8686124bfa6cccc14ec"
+  },
+  "NoxChat/services/agy-openai-bridge/workspace-doc-studio/.agents/agents/nox-doc-studio.md": {
+    "mtime": 1795247490.2140393,
+    "seen": 1795248098.4161074,
+    "ast_hash": "62a524cd29328a0f7bd8a3952b7bb5b9",
+    "semantic_hash": "62a524cd29328a0f7bd8a3952b7bb5b9"
+  },
+  "NoxChat/services/agy-openai-bridge/workspace-studio/.agents/agents/nox-studio.md": {
+    "mtime": 1794575474.222713,
+    "seen": 1795248098.4161086,
+    "ast_hash": "0025db449753bf292d93c5e9293a340c",
+    "semantic_hash": "0025db449753bf292d93c5e9293a340c"
+  },
+  "NoxChat/services/agy-openai-bridge/workspace/.agents/agents/noxchat.md": {
+    "mtime": 1794399049.1836889,
+    "seen": 1795248098.4161096,
+    "ast_hash": "0b32567faf3e47c7a93af92e3a3e7b20",
+    "semantic_hash": "0b32567faf3e47c7a93af92e3a3e7b20"
+  },
+  "NoxChat/services/nox-doc-tools/AGENT_TOOLS.md": {
+    "mtime": 1795164394.7549934,
+    "seen": 1795248098.4161103,
+    "ast_hash": "a28f9b34efbfb7c9afbea76577b342f9",
+    "semantic_hash": "a28f9b34efbfb7c9afbea76577b342f9"
+  },
+  "NoxChat/services/nox-doc-tools/noxdoc/templates/base.html.j2": {
+    "mtime": 1794510056.6853006,
+    "seen": 1795248098.4161115,
+    "ast_hash": "3c216462234bfe49fa0804d7f28fbc5e",
+    "semantic_hash": "3c216462234bfe49fa0804d7f28fbc5e"
+  },
+  "NoxChat/services/nox-sandbox-image/README.md": {
+    "mtime": 1795164176.079923,
+    "seen": 1795248098.4161124,
+    "ast_hash": "f261680442c0ea17a0a932ce9a7c55a8",
+    "semantic_hash": "f261680442c0ea17a0a932ce9a7c55a8"
+  }
+}
