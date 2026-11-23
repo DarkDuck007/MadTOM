@@ -36,6 +36,7 @@ public partial class App : Application
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AndroidToolkit.AndroidToolkitPluginModule()).GetAwaiter().GetResult();
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.MediaCenter.MediaCenterPluginModule()).GetAwaiter().GetResult();
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.NoxAI.NoxAIPluginModule()).GetAwaiter().GetResult();
+        _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.SlideForge.SlideForgePluginModule()).GetAwaiter().GetResult();
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.AudioSync.AudioSyncPluginModule()).GetAwaiter().GetResult();
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.VNA.VNAPluginModule()).GetAwaiter().GetResult();
         _pluginManager.RegisterModuleAsync(new MADTOM.Plugins.ConnectionToolkit.ConnectionToolkitPluginModule()).GetAwaiter().GetResult();

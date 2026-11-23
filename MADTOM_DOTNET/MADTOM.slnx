@@ -32,6 +32,10 @@
     <Project Path="src/Plugins/NoxAI/MADTOM.Plugins.NoxAI.App/MADTOM.Plugins.NoxAI.App.csproj" />
     <Project Path="src/Plugins/NoxAI/MADTOM.Plugins.NoxAI/MADTOM.Plugins.NoxAI.csproj" />
   </Folder>
+  <Folder Name="/src/Plugins/SlideForge/">
+    <Project Path="src/Plugins/SlideForge/MADTOM.Plugins.SlideForge.App/MADTOM.Plugins.SlideForge.App.csproj" />
+    <Project Path="src/Plugins/SlideForge/MADTOM.Plugins.SlideForge/MADTOM.Plugins.SlideForge.csproj" />
+  </Folder>
   <Folder Name="/src/Plugins/AudioSync/">
     <Project Path="src/Plugins/AudioSync/MADTOM.Plugins.AudioSync.App/MADTOM.Plugins.AudioSync.App.csproj" />
     <Project Path="src/Plugins/AudioSync/MADTOM.Plugins.AudioSync/MADTOM.Plugins.AudioSync.csproj" />
@@ -62,6 +66,7 @@
     <Project Path="MadTOM.Tests/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/NoxAI/MADTOM.Plugins.NoxAI.Tests.csproj" />
+    <Project Path="MadTOM.Tests/Plugins/SlideForge/MADTOM.Plugins.SlideForge.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/AudioSync/MADTOM.Plugins.AudioSync.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/VNA/MADTOM.Plugins.VNA.Tests.csproj" />
     <Project Path="MadTOM.Tests/Plugins/ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit.Tests.csproj" />

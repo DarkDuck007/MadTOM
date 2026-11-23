@@ -1,0 +1,144 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.SlideForge.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.SlideForge.Views.Tabs.SfSandboxTabView"
+             x:DataType="vm:SfSandboxViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16" RowSpacing="10">
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6" VerticalAlignment="Center">
+                    <Button Command="{Binding RefreshAllCommand}" Content="Refresh" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                    <TextBlock Text="{Binding TotalsSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding HostSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                </WrapPanel>
+
+                <!-- VM Actions with Confirmations -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsEnabled="{Binding HasSelectedVm}">
+                    <TextBox Text="{Binding SessionName, Mode=TwoWay}" PlaceholderText="session" Width="80" FontSize="11"/>
+
+                    <Button Content="Reset Session" Padding="8,4" FontSize="11">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Spacing="8" Width="220" Margin="4">
+                                    <TextBlock Text="Reset active session in selected VM?" TextWrapping="Wrap" FontSize="11"/>
+                                    <Button Command="{Binding ResetSessionCommand}" Content="Confirm Reset" Background="{DynamicResource AccentBrush}" Foreground="White" HorizontalAlignment="Right" Padding="10,4" FontSize="11"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Button Content="Hibernate" Padding="8,4" FontSize="11">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Spacing="8" Width="220" Margin="4">
+                                    <TextBlock Text="Hibernate selected VM?" TextWrapping="Wrap" FontSize="11"/>
+                                    <Button Command="{Binding HibernateVmCommand}" Content="Confirm Hibernate" Background="{DynamicResource AccentBrush}" Foreground="White" HorizontalAlignment="Right" Padding="10,4" FontSize="11"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Button Content="Restart" Padding="8,4" FontSize="11" Foreground="{DynamicResource WarningBrush}">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Spacing="8" Width="220" Margin="4">
+                                    <TextBlock Text="Restart selected VM? Running sessions will be stopped." TextWrapping="Wrap" FontSize="11"/>
+                                    <Button Command="{Binding RestartVmCommand}" Content="Confirm Restart" Background="{DynamicResource WarningBrush}" Foreground="White" HorizontalAlignment="Right" Padding="10,4" FontSize="11"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Button Content="Kill" Padding="8,4" FontSize="11" Foreground="{DynamicResource CriticalBrush}">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Spacing="8" Width="220" Margin="4">
+                                    <TextBlock Text="Kill selected VM immediately?" TextWrapping="Wrap" FontSize="11"/>
+                                    <Button Command="{Binding KillVmCommand}" Content="Confirm Kill" Background="{DynamicResource CriticalBrush}" Foreground="White" HorizontalAlignment="Right" Padding="10,4" FontSize="11"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Button Content="Wipe" Padding="8,4" FontSize="11" Foreground="{DynamicResource CriticalBrush}">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Spacing="8" Width="240" Margin="4">
+                                    <TextBlock Text="Wipe selected VM disk and state permanently?" TextWrapping="Wrap" FontSize="11"/>
+                                    <Button Command="{Binding WipeVmCommand}" Content="Confirm Wipe" Background="{DynamicResource CriticalBrush}" Foreground="White" HorizontalAlignment="Right" Padding="10,4" FontSize="11"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- VMs Table -->
+        <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+            <Grid RowDefinitions="Auto,*">
+                <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
+                    <Grid ColumnDefinitions="200,70,90,110,130,150,*" ColumnSpacing="8">
+                        <TextBlock Text="USER / CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="1" Text="KIND" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="2" Text="STATE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="3" Text="IMAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="4" Text="RESOURCES" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="5" Text="DISK" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="6" Text="LAST USED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </Grid>
+                </Border>
+                <ListBox Grid.Row="1" ItemsSource="{Binding Vms}" SelectedItem="{Binding SelectedVm, Mode=TwoWay}" Background="Transparent" BorderThickness="0">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SfSandboxVmRow">
+                            <Grid ColumnDefinitions="200,70,90,110,130,150,*" ColumnSpacing="8" Margin="2,3">
+                                <TextBlock Text="{Binding DisplayLabel}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding State}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                                <TextBlock Grid.Column="3" Text="{Binding ImageVersion}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                <TextBlock Grid.Column="4" Text="{Binding ResourcesDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                <TextBlock Grid.Column="5" Text="{Binding DiskDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                <TextBlock Grid.Column="6" Text="{Binding LastUsed}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!-- Sandbox Image Status -->
+        <Border Grid.Row="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="SANDBOX IMAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ImageStatusSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                        <Button Command="{Binding LoadImageStatusCommand}" Content="Check Image" Padding="8,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                        <Button Command="{Binding RebuildImageCommand}" Content="Rebuild Image" Background="{DynamicResource WarningBrush}" Foreground="White" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                    </StackPanel>
+                </Grid>
+                <TextBox Grid.Row="1"
+                         Text="{Binding ImageLastBuildLog, Mode=OneWay}"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         Height="90"
+                         FontFamily="{StaticResource MonoFontFamily}"
+                         FontSize="10"/>
+            </Grid>
+        </Border>
+
+        <!-- Status / Error Footer -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="{DynamicResource HealthyBrush}"/>
+            <TextBlock Text="{Binding ErrorMessage}" FontSize="11" Foreground="{DynamicResource CriticalBrush}" IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

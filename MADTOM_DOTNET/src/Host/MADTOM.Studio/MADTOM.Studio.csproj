@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\Plugins\AndroidToolkit\MADTOM.Plugins.AndroidToolkit\MADTOM.Plugins.AndroidToolkit.csproj" />
     <ProjectReference Include="..\..\Plugins\MediaCenter\MADTOM.Plugins.MediaCenter\MADTOM.Plugins.MediaCenter.csproj" />
     <ProjectReference Include="..\..\Plugins\NoxAI\MADTOM.Plugins.NoxAI\MADTOM.Plugins.NoxAI.csproj" />
+    <ProjectReference Include="..\..\Plugins\SlideForge\MADTOM.Plugins.SlideForge\MADTOM.Plugins.SlideForge.csproj" />
     <ProjectReference Include="..\..\Plugins\AudioSync\MADTOM.Plugins.AudioSync\MADTOM.Plugins.AudioSync.csproj" />
     <ProjectReference Include="..\..\Plugins\VNA\MADTOM.Plugins.VNA\MADTOM.Plugins.VNA.csproj" />
     <ProjectReference Include="..\..\Plugins\ConnectionToolkit\MADTOM.Plugins.ConnectionToolkit\MADTOM.Plugins.ConnectionToolkit.csproj" />

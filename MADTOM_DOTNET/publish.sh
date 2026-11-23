@@ -60,6 +60,7 @@ ${BOLD}Options:${NC}
                               - android-app     (MADTOM.Plugins.AndroidToolkit.App)
                               - mediacenter-app (MADTOM.Plugins.MediaCenter.App)
                               - noxai-app       (MADTOM.Plugins.NoxAI.App)
+                              - slideforge-app  (MADTOM.Plugins.SlideForge.App)
                               - audiosync-app   (MADTOM.Plugins.AudioSync.App)
                               - vna-app         (MADTOM.Plugins.VNA.App)
                               - connection-app  (MADTOM.Plugins.ConnectionToolkit.App)
@@ -140,6 +141,7 @@ PROJECTS["MADTOM.Plugins.Squeeze.App"]="$SCRIPT_DIR/src/Plugins/Squeeze/MADTOM.P
 PROJECTS["MADTOM.Plugins.AndroidToolkit.App"]="$SCRIPT_DIR/src/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit.App/MADTOM.Plugins.AndroidToolkit.App.csproj"
 PROJECTS["MADTOM.Plugins.MediaCenter.App"]="$SCRIPT_DIR/src/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter.App/MADTOM.Plugins.MediaCenter.App.csproj"
 PROJECTS["MADTOM.Plugins.NoxAI.App"]="$SCRIPT_DIR/src/Plugins/NoxAI/MADTOM.Plugins.NoxAI.App/MADTOM.Plugins.NoxAI.App.csproj"
+PROJECTS["MADTOM.Plugins.SlideForge.App"]="$SCRIPT_DIR/src/Plugins/SlideForge/MADTOM.Plugins.SlideForge.App/MADTOM.Plugins.SlideForge.App.csproj"
 PROJECTS["MADTOM.Plugins.AudioSync.App"]="$SCRIPT_DIR/src/Plugins/AudioSync/MADTOM.Plugins.AudioSync.App/MADTOM.Plugins.AudioSync.App.csproj"
 PROJECTS["MADTOM.Plugins.VNA.App"]="$SCRIPT_DIR/src/Plugins/VNA/MADTOM.Plugins.VNA.App/MADTOM.Plugins.VNA.App.csproj"
 PROJECTS["MADTOM.Plugins.ConnectionToolkit.App"]="$SCRIPT_DIR/src/Plugins/ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit.App/MADTOM.Plugins.ConnectionToolkit.App.csproj"
@@ -168,6 +170,9 @@ case "$PROJECT_SEL" in
     noxai-app)
         SELECTED_PROJECTS["MADTOM.Plugins.NoxAI.App"]="${PROJECTS["MADTOM.Plugins.NoxAI.App"]}"
         ;;
+    slideforge-app)
+        SELECTED_PROJECTS["MADTOM.Plugins.SlideForge.App"]="${PROJECTS["MADTOM.Plugins.SlideForge.App"]}"
+        ;;
     audiosync-app)
         SELECTED_PROJECTS["MADTOM.Plugins.AudioSync.App"]="${PROJECTS["MADTOM.Plugins.AudioSync.App"]}"
         ;;
@@ -192,7 +197,7 @@ case "$PROJECT_SEL" in
         done
         ;;
     *)
-        echo -e "${RED}Error: Unknown project '$PROJECT_SEL'. Choose 'studio', 'telemetry-app', 'squeeze-app', 'android-app', 'mediacenter-app', 'noxai-app', 'audiosync-app', 'vna-app', 'connection-app', 'videofeedcenter-app', 'ipcam-app', 'feedd', or 'all'.${NC}" >&2
+        echo -e "${RED}Error: Unknown project '$PROJECT_SEL'. Choose 'studio', 'telemetry-app', 'squeeze-app', 'android-app', 'mediacenter-app', 'noxai-app', 'slideforge-app', 'audiosync-app', 'vna-app', 'connection-app', 'videofeedcenter-app', 'ipcam-app', 'feedd', or 'all'.${NC}" >&2
         exit 1
         ;;
 esac

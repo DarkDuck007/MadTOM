@@ -1,0 +1,166 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.SlideForge.ViewModels"
+             xmlns:svc="using:MADTOM.Plugins.SlideForge.Services"
+             xmlns:tabs="using:MADTOM.Plugins.SlideForge.Views.Tabs"
+             xmlns:modals="using:MADTOM.Plugins.SlideForge.Views.Modals"
+             mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="740"
+             x:Class="MADTOM.Plugins.SlideForge.Views.MainView"
+             x:DataType="vm:MainViewModel"
+             Background="{DynamicResource AppBgBrush}">
+
+    <Panel>
+        <Grid RowDefinitions="Auto,Auto,*" Margin="0">
+            <!-- Top Header Bar -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource HeaderBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,6">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <!-- Title + Status Info -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="SLIDEFORGE CONTROL CENTER" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                            <TextBlock Text="slideforge-probe" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                        </Border>
+                        <TextBlock Text="{Binding BotStatusSummary}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding VersionsSummary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding UptimeSummary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SpoolSummary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Controls -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <ComboBox ItemsSource="{Binding ActiveNodes}"
+                                  SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                                  MinWidth="150"
+                                  Height="26"
+                                  Padding="6,2"
+                                  FontSize="11"
+                                  VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="svc:SfNodeModel">
+                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <Button Command="{Binding ConnectCommand}"
+                                Content="Connect"
+                                IsVisible="{Binding !IsConnected}"
+                                Background="{DynamicResource AccentBrush}"
+                                Foreground="White"
+                                CornerRadius="4"
+                                Padding="8,4"
+                                Height="26"
+                                FontSize="11"
+                                VerticalAlignment="Center"/>
+
+                        <Button Command="{Binding DisconnectCommand}"
+                                Content="Disconnect"
+                                IsVisible="{Binding IsConnected}"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                Foreground="{DynamicResource TextPrimaryBrush}"
+                                CornerRadius="4"
+                                Padding="8,4"
+                                Height="26"
+                                FontSize="11"
+                                VerticalAlignment="Center"/>
+
+                        <Button Command="{Binding OpenSettingsCommand}"
+                                Content="⚙ Settings"
+                                Background="{DynamicResource DarkBaseBrush}"
+                                Foreground="{DynamicResource TextPrimaryBrush}"
+                                CornerRadius="4"
+                                Padding="8,4"
+                                Height="26"
+                                FontSize="11"
+                                VerticalAlignment="Center"/>
+
+                        <TextBlock Text="{Binding ConnectionStatusBadge}"
+                                   FontWeight="Bold"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource HealthyBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="4,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- TOFU First-Use & Mismatch Banners -->
+            <StackPanel Grid.Row="1" Spacing="4">
+                <!-- FirstUse Prompt -->
+                <Border IsVisible="{Binding HasPendingFirstUse}"
+                        Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource WarningBrush}"
+                        BorderThickness="0,0,0,2"
+                        Padding="16,10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="FIRST-TIME TLS CERTIFICATE VERIFICATION (TOFU)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                            <TextBlock Text="{Binding PendingFirstUseNodeKey, StringFormat='Endpoint: {0}'}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding PendingFirstUseFingerprint, StringFormat='SHA-256: {0}'}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
+                            <TextBlock Text="Compare this fingerprint with the probe journal line: TLS certificate SHA-256: &lt;hex&gt;" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Command="{Binding TrustPendingCertificateCommand}" Content="Trust &amp; Pin" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold" Padding="12,5" FontSize="11"/>
+                            <Button Command="{Binding DismissFirstUsePromptCommand}" Content="Cancel" Padding="10,5" FontSize="11"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Blocking Mismatch Alert -->
+                <Border IsVisible="{Binding HasCertificateMismatch}"
+                        Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource CriticalBrush}"
+                        BorderThickness="0,0,0,2"
+                        Padding="16,10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="TLS CERTIFICATE MISMATCH — CONNECTION BLOCKED" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource CriticalBrush}"/>
+                            <TextBlock Text="{Binding MismatchNodeKey, StringFormat='Endpoint: {0}'}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding MismatchPinnedFingerprint, StringFormat='Pinned SHA-256:    {0}'}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource HealthyBrush}"/>
+                            <TextBlock Text="{Binding MismatchPresentedFingerprint, StringFormat='Presented SHA-256: {0}'}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource CriticalBrush}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Command="{Binding ForgetMismatchedPinCommand}" Content="Forget Pin" Background="{DynamicResource CriticalBrush}" Foreground="White" FontWeight="Bold" Padding="12,5" FontSize="11"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+            <!-- Main Tabs -->
+            <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedWorkspaceTabIndex}">
+                <TabItem Header="📈 Overview &amp; Telemetry" FontSize="12">
+                    <tabs:SfOverviewTabView DataContext="{Binding OverviewTab}"/>
+                </TabItem>
+                <TabItem Header="⚡ Jobs" FontSize="12">
+                    <tabs:SfJobsTabView DataContext="{Binding JobsTab}"/>
+                </TabItem>
+                <TabItem Header="👤 Users &amp; Quota" FontSize="12">
+                    <tabs:SfUsersTabView DataContext="{Binding UsersTab}"/>
+                </TabItem>
+                <TabItem Header="📝 Guides &amp; Tips" FontSize="12">
+                    <tabs:SfGuidesTabView DataContext="{Binding GuidesTab}"/>
+                </TabItem>
+                <TabItem Header="📦 Sandbox" FontSize="12">
+                    <tabs:SfSandboxTabView DataContext="{Binding SandboxTab}"/>
+                </TabItem>
+                <TabItem Header="⚙ Config" FontSize="12">
+                    <tabs:SfConfigTabView DataContext="{Binding ConfigTab}"/>
+                </TabItem>
+                <TabItem Header="📜 Raw Logs &amp; API" FontSize="12">
+                    <tabs:SfLogsTabView DataContext="{Binding LogsTab}"/>
+                </TabItem>
+            </TabControl>
+        </Grid>
+
+        <!-- Settings Modal Overlay -->
+        <Panel IsVisible="{Binding IsSettingsModalOpen}">
+            <modals:SfSettingsModal DataContext="{Binding SettingsViewModel}"/>
+        </Panel>
+    </Panel>
+</UserControl>

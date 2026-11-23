@@ -1,0 +1,134 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.SlideForge.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.SlideForge.Views.Tabs.SfJobsTabView"
+             x:DataType="vm:SfJobsViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="16" RowSpacing="10">
+        <!-- Filter Toolbar -->
+        <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6" VerticalAlignment="Center">
+                    <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding StatusFilter, Mode=TwoWay}" MinWidth="130" FontSize="11"/>
+                    <TextBox Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="Search job ID or title..." Width="220" FontSize="11"/>
+                    <Button Command="{Binding LoadCommand}" Content="Load / Filter" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                    <Button Command="{Binding PrevPageCommand}" Content="◀ Prev" Padding="8,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                    <Button Command="{Binding NextPageCommand}" Content="Next ▶" Padding="8,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                    <TextBlock Text="{Binding PageSummary}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                </WrapPanel>
+
+                <TextBlock Grid.Column="1" Text="{Binding ErrorMessage}" Foreground="{DynamicResource CriticalBrush}" FontSize="11" VerticalAlignment="Center" IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </Grid>
+        </Border>
+
+        <!-- Split: Jobs List | Job Detail -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,1.2*" ColumnSpacing="12">
+            <!-- Jobs List -->
+            <Border Grid.Column="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                <Grid RowDefinitions="Auto,*">
+                    <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+                        <Grid ColumnDefinitions="100,80,75,50,*" ColumnSpacing="6">
+                            <TextBlock Text="JOB ID" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="1" Text="STATUS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="2" Text="USER" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="3" Text="FMT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="4" Text="TITLE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        </Grid>
+                    </Border>
+                    <ListBox Grid.Row="1"
+                             ItemsSource="{Binding Jobs}"
+                             SelectedItem="{Binding SelectedJob, Mode=TwoWay}"
+                             SelectionChanged="OnJobSelectionChanged"
+                             Background="Transparent"
+                             BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SfJobRow">
+                                <Grid ColumnDefinitions="100,80,75,50,*" ColumnSpacing="6" Margin="2,3">
+                                    <TextBlock Text="{Binding JobId}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding UserDisplay}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding OutputFormat}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding Title}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- Detail Panel -->
+            <Border Grid.Column="1" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Detail Header + Actions -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBlock Text="{Binding Detail.JobId, FallbackValue='Select a job to inspect'}" FontSize="13" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" IsEnabled="{Binding HasDetail}">
+                            <Button Command="{Binding ExtendSelectedCommand}" Content="More Time" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                            <Button Command="{Binding CancelSelectedCommand}" Content="Cancel Job" Padding="10,4" FontSize="11" Foreground="{DynamicResource CriticalBrush}" IsEnabled="{Binding !IsBusy}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Detail Sub-Tabs -->
+                    <TabControl Grid.Row="1" IsVisible="{Binding HasDetail}">
+                        <TabItem Header="Timeline" FontSize="11">
+                            <ListBox ItemsSource="{Binding Detail.Events}" Background="Transparent" BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:SfJobEventItem">
+                                        <Grid ColumnDefinitions="70,150,*" ColumnSpacing="8" Margin="0,3">
+                                            <TextBlock Text="{Binding Type}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding At}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Summary}" FontSize="11" TextWrapping="Wrap"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+
+                        <TabItem Header="Q&amp;A" FontSize="11">
+                            <ListBox ItemsSource="{Binding Detail.Questions}" Background="Transparent" BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:SfJobQuestionItem">
+                                        <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="6" Padding="8" Margin="0,3">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Text="{Binding Text}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding OptionsDisplay, StringFormat='Options: {0}'}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding AnswerDisplay, StringFormat='Answer: {0}'}" FontSize="11" Foreground="{DynamicResource HealthyBrush}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+
+                        <TabItem Header="Files" FontSize="11">
+                            <ListBox ItemsSource="{Binding Detail.Files}" Background="Transparent" BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:SfJobFileItem">
+                                        <Grid ColumnDefinitions="*,70,75,Auto" ColumnSpacing="8" Margin="0,3">
+                                            <TextBlock Text="{Binding Name}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Role}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding SizeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="3" Content="Download" Padding="8,2" FontSize="10" Click="OnDownloadFileClick" Tag="{Binding .}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+
+                        <TabItem Header="Spec JSON" FontSize="11">
+                            <TextBox Text="{Binding Detail.SpecJson, Mode=OneWay}"
+                                     IsReadOnly="True"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     FontFamily="{StaticResource MonoFontFamily}"
+                                     FontSize="11"/>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

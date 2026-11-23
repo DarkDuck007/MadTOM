@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.SlideForge.ViewModels"
+             xmlns:svc="using:MADTOM.Plugins.SlideForge.Services"
+             mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="620"
+             x:Class="MADTOM.Plugins.SlideForge.Views.Modals.SfSettingsModal"
+             x:DataType="vm:SfSettingsViewModel">
+
+    <Grid Background="#B3000000">
+        <Border Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="14"
+                Width="740"
+                Height="600"
+                Padding="22"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <!-- Header -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="SlideForge · Nodes, Keys &amp; TLS Pins" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Configure slideforge-probe endpoints, Ed25519 keys, mDNS discovery, and TOFU certificate pins" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Command="{Binding CloseCommand}" Content="✕" Background="Transparent" BorderThickness="0" FontWeight="Bold"/>
+                </Grid>
+
+                <!-- Body -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12">
+                        <!-- Configured Nodes -->
+                        <TextBlock Text="CONFIGURED NODES" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="6">
+                            <ItemsControl ItemsSource="{Binding ConfiguredNodes}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:SfConfiguredNodeItem">
+                                        <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="8,6">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <StackPanel Spacing="2">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="{Binding Id}" FontWeight="Bold" FontSize="11"/>
+                                                        <TextBlock Text="{Binding Alias}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                        <TextBlock Text="{Binding Endpoint}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding PublicKeyDisplay}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding PinnedFingerprintDisplay}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource HealthyBrush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <Button Command="{Binding $parent[UserControl].((vm:SfSettingsViewModel)DataContext).EditNodeCommand}" CommandParameter="{Binding Id}" Content="Edit" FontSize="10" Padding="8,2"/>
+                                                    <Button Command="{Binding $parent[UserControl].((vm:SfSettingsViewModel)DataContext).ForgetNodePinCommand}" CommandParameter="{Binding Id}" Content="Forget Pin" FontSize="10" Padding="8,2" Foreground="{DynamicResource WarningBrush}"/>
+                                                    <Button Command="{Binding $parent[UserControl].((vm:SfSettingsViewModel)DataContext).RemoveNodeCommand}" CommandParameter="{Binding Id}" Content="Remove" FontSize="10" Padding="8,2" Foreground="{DynamicResource CriticalBrush}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
+                        <!-- mDNS Discovery -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="mDNS DISCOVERY (_slideforge-probe._tcp.local)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Command="{Binding ScanMdnsCommand}" Content="{Binding ScanButtonText}" Padding="8,3" FontSize="10"/>
+                        </Grid>
+                        <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="6" MinHeight="44">
+                            <ItemsControl ItemsSource="{Binding DiscoveredMdnsNodes}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="svc:DiscoveredSfNode">
+                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="4,2">
+                                            <TextBlock Text="{Binding NodeId}" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Endpoint}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="2" Command="{Binding $parent[UserControl].((vm:SfSettingsViewModel)DataContext).UseDiscoveredNodeCommand}" CommandParameter="{Binding .}" Content="Use" FontSize="10" Padding="8,2"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
+                        <!-- Add / Edit Form -->
+                        <TextBlock Text="ADD / EDIT NODE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <Grid ColumnDefinitions="110,*,*,Auto,Auto" ColumnSpacing="8">
+                            <TextBox Text="{Binding NewNodeId, Mode=TwoWay}" PlaceholderText="Node ID (slideforge)"/>
+                            <TextBox Grid.Column="1" Text="{Binding NewNodeAlias, Mode=TwoWay}" PlaceholderText="Alias"/>
+                            <TextBox Grid.Column="2" Text="{Binding NewNodeEndpoint, Mode=TwoWay}" PlaceholderText="host:50057"/>
+                            <Button Grid.Column="3" Command="{Binding SaveNodeCommand}" Content="{Binding SaveButtonText}" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold"/>
+                            <Button Grid.Column="4" IsVisible="{Binding IsEditingNode}" Command="{Binding CancelEditCommand}" Content="Cancel"/>
+                        </Grid>
+
+                        <!-- Public Key Snippet -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="PUBLIC KEY FOR PROBE (.env / authorized-keys)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                <Button Command="{Binding CopyEnvSnippetCommand}" Content="{Binding CopyButtonText}" Background="{DynamicResource AccentBrush}" Foreground="White" Padding="10,4" FontSize="11"/>
+                                <Button Command="{Binding GenerateNewClientKeyCommand}" Content="Re-roll Key" Padding="8,4" FontSize="11"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBox Text="{Binding EnvSnippet, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" FontFamily="{StaticResource MonoFontFamily}" FontSize="11"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Footer -->
+                <Border Grid.Row="2" Margin="0,12,0,0" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding StatusMessage}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Command="{Binding CloseCommand}" Content="Done" Padding="16,4"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

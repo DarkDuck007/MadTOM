@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.SlideForge.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="700"
+             x:Class="MADTOM.Plugins.SlideForge.Views.Tabs.SfLogsTabView"
+             x:DataType="vm:SfLogsViewModel">
+
+    <TabControl Margin="16">
+        <!-- Sub-Tab 1: Live Logs -->
+        <TabItem Header="Live Logs" FontSize="12">
+            <Grid RowDefinitions="Auto,*" RowSpacing="8" Margin="0,8,0,0">
+                <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10,6">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <ComboBox ItemsSource="{Binding LevelOptions}" SelectedItem="{Binding LevelFilter, Mode=TwoWay}" MinWidth="95" FontSize="11"/>
+                            <TextBox Text="{Binding SearchText, Mode=TwoWay}" PlaceholderText="Filter log text or unit..." Width="240" FontSize="11"/>
+                            <TextBlock Text="{Binding TotalLogCount, StringFormat='{}{0} buffered (max 5000)'}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Command="{Binding ClearLogsCommand}" Content="Clear" Padding="10,4" FontSize="11"/>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                    <ListBox ItemsSource="{Binding FilteredLogs}" Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SfLogLineItem">
+                                <Grid ColumnDefinitions="90,52,130,*" ColumnSpacing="8" Margin="2,1">
+                                    <TextBlock Text="{Binding Timestamp}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Level}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Unit}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding Message}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextWrapping="Wrap"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </Grid>
+        </TabItem>
+
+        <!-- Sub-Tab 2: API Calls -->
+        <TabItem Header="API &amp; Tool Calls" FontSize="12">
+            <Grid RowDefinitions="Auto,*" RowSpacing="8" Margin="0,8,0,0">
+                <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10,6">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding TotalApiCount, StringFormat='{}{0} API/tool calls buffered'}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Command="{Binding ClearApiCallsCommand}" Content="Clear" Padding="10,4" FontSize="11"/>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                    <ListBox ItemsSource="{Binding ApiCalls}" Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SfApiCallItem">
+                                <Grid ColumnDefinitions="85,95,60,180,55,40,*" ColumnSpacing="8" Margin="2,2">
+                                    <TextBlock Text="{Binding Timestamp}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding JobId}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Kind}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding Name}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding DurationDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    <TextBlock Grid.Column="5" Text="{Binding StatusBadge}" FontSize="10" FontWeight="Bold"/>
+                                    <TextBlock Grid.Column="6" Text="{Binding Summary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </Grid>
+        </TabItem>
+    </TabControl>
+</UserControl>

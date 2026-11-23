@@ -37,7 +37,7 @@ usage() {
     echo "                         (default: host architecture)"
     echo "  --release              Build both Go and .NET projects with Release optimizations"
     echo "  --debug                Build projects in Debug configuration (default)"
-    echo "  --test-plugin NAME     Run targeted tests for a plugin (telemetry, squeeze, videofeedcenter, ipcam, android, mediacenter, noxai, audiosync, vna, connection, studio)"
+    echo "  --test-plugin NAME     Run targeted tests for a plugin (telemetry, squeeze, videofeedcenter, ipcam, android, mediacenter, noxai, slideforge, audiosync, vna, connection, studio)"
     echo "  --clean                Clean previous build artifacts before compiling"
     echo "  -h, --help             Display this help message"
     exit 0
@@ -173,6 +173,7 @@ if [[ "$RUN_TESTS" == true ]]; then
     TEST_PROJECTS["android"]="$DOTNET_DIR/MadTOM.Tests/Plugins/AndroidToolkit/MADTOM.Plugins.AndroidToolkit.Tests.csproj"
     TEST_PROJECTS["mediacenter"]="$DOTNET_DIR/MadTOM.Tests/Plugins/MediaCenter/MADTOM.Plugins.MediaCenter.Tests.csproj"
     TEST_PROJECTS["noxai"]="$DOTNET_DIR/MadTOM.Tests/Plugins/NoxAI/MADTOM.Plugins.NoxAI.Tests.csproj"
+    TEST_PROJECTS["slideforge"]="$DOTNET_DIR/MadTOM.Tests/Plugins/SlideForge/MADTOM.Plugins.SlideForge.Tests.csproj"
     TEST_PROJECTS["audiosync"]="$DOTNET_DIR/MadTOM.Tests/Plugins/AudioSync/MADTOM.Plugins.AudioSync.Tests.csproj"
     TEST_PROJECTS["vna"]="$DOTNET_DIR/MadTOM.Tests/Plugins/VNA/MADTOM.Plugins.VNA.Tests.csproj"
     TEST_PROJECTS["connection"]="$DOTNET_DIR/MadTOM.Tests/Plugins/ConnectionToolkit/MADTOM.Plugins.ConnectionToolkit.Tests.csproj"
