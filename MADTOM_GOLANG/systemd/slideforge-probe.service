@@ -1,0 +1,29 @@
+[Unit]
+Description=MADTOM SlideForge Probe Daemon
+After=network.target slideforge.service
+Wants=slideforge.service
+
+[Service]
+Type=simple
+User=danial
+Group=danial
+WorkingDirectory=/home/danial/SlideForge
+EnvironmentFile=-/home/danial/SlideForge/.env
+StateDirectory=slideforge-probe
+StateDirectoryMode=0700
+ExecStart=/opt/slideforge-probe/bin/slideforge-probe \
+    -node-id tp2 \
+    -listen :50057 \
+    -bot-host 127.0.0.1 \
+    -bot-port 50058 \
+    -auth-key-file /home/danial/SlideForge/.env
+Restart=always
+RestartSec=3s
+LimitNOFILE=65536
+
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

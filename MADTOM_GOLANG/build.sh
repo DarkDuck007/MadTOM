@@ -27,7 +27,7 @@ case "$HOST_UNAME" in
 esac
 
 TARGET_ARCH="$DEFAULT_ARCH"
-TARGET_PKG="all" # all, daemon, collector
+TARGET_PKG="all"
 CONFIG="Release"
 CLEAN=false
 
@@ -50,6 +50,8 @@ ${BOLD}Options:${NC}
                           - collector (madtom-collector only)
                           - squeeze   (squeeze-server only)
                           - telemetry (madtom-collector and madtom-daemon)
+                          - noxchat-probe
+                          - slideforge-probe
                           - all       (all Go services, default)
 
   -c, --clean           Clean bin directory before building
@@ -86,9 +88,10 @@ while [[ $# -gt 0 ]]; do
                 collector|madtom-collector) TARGET_PKG="collector" ;;
                 squeeze|squeeze-server|madtom-squeeze) TARGET_PKG="squeeze" ;;
                 telemetry)                  TARGET_PKG="telemetry" ;;
+                noxchat-probe|slideforge-probe) TARGET_PKG="${2,,}" ;;
                 all)                        TARGET_PKG="all" ;;
                 *)
-                    echo -e "${RED}Error: Unknown package '$2'. Choose 'daemon', 'collector', 'squeeze', 'telemetry', or 'all'.${NC}" >&2
+                    echo -e "${RED}Error: Unknown package '$2'. Choose 'daemon', 'collector', 'squeeze', 'telemetry', 'noxchat-probe', 'slideforge-probe', or 'all'.${NC}" >&2
                     exit 1
                     ;;
             esac
@@ -144,7 +147,8 @@ case "$TARGET_PKG" in
     collector) PKGS=("madtom-collector") ;;
     squeeze)   PKGS=("squeeze-server") ;;
     telemetry) PKGS=("madtom-collector" "madtom-daemon") ;;
-    all)       PKGS=("madtom-collector" "madtom-daemon" "squeeze-server") ;;
+    noxchat-probe|slideforge-probe) PKGS=("$TARGET_PKG") ;;
+    all)       PKGS=("madtom-collector" "madtom-daemon" "squeeze-server" "noxchat-probe" "slideforge-probe") ;;
 esac
 
 echo -e "${BOLD}${CYAN}================================================================${NC}"

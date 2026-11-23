@@ -10,8 +10,9 @@
   - 0x05 JOB_EVENT
   - 0x10 RPC request
   - 0x11 RPC reply
-- RPC request: `{"id": n, "method": "...", "payload": {...}}`.
-- RPC reply: `{"id": n, "ok": bool, "payload": {...}, "error": "..."}`.
+- RPC frames reuse `pkg/noxchat/bridge.RpcMessage`: the request is `{"req_id": "...", "method": "...", "payload": {...}}`.
+- The reply is the same envelope with `payload`, or with a non-empty `error`.
+- LOG, API_CALL, TELEMETRY and JOB_EVENT use NoxChat's JSON shapes (`LogRecord`, `NoxRawApiCallRecord`, `NoxTelemetrySample`, `NoxJobProgressEvent`), so the probe reuses `bridge.Client` unchanged. Its dispatcher converts them into the `Sf*` messages below.
 - The method list is in SlideForge's `contracts.md` §13. The probe's allowlist is exactly that list. Unknown methods are refused in the probe, before they reach the bot.
 
 ## 2. Studio ⇄ probe (gRPC, TLS 1.3, Ed25519-signed metadata)
@@ -158,11 +159,15 @@ message SfCallResponse {
 
 `TransportCompressionStats`, `RangeQuery*` and `LogChunk*` come from the shared `query.proto` and `logs.proto`, so there is no dependency on `noxchat.proto`.
 
-## 3. Probe flags (`cmd/slideforge-probe`)
+## 3. Probe flags (`cmd/slideforge-probe`, as built)
 ```
--listen :50057 -bot 127.0.0.1:50058 -state /var/lib/slideforge-probe
--token <noxchat-ed25519-pub:...>   (or env SLIDEFORGE_CONTROL_KEY)
--authorized-keys /etc/slideforge-probe/authorized_keys
--mdns=true  -insecure-dev (refuses to start without a key unless given)
--spool-max 1GiB -store-raw-logs=false
+-node-id tp2 -listen :50057 -bot-host 127.0.0.1 -bot-port 50058
+-state-dir /var/lib/slideforge-probe      (TLS identity in tls/, WAL spool)
+-auth-key <key> | -auth-key-file <.env or key file>   (env SLIDEFORGE_CONTROL_KEY; default lookup ./SlideForge/.env)
+-authorized-keys <file>                   (one noxchat-ed25519-pub: or ssh-ed25519 key per line, # comments)
+-insecure-dev                             (required to start with no key at all)
+-mdns=true  -max-spool-bytes 1073741824  -store-raw-logs=false  -gen-key
 ```
+- `noxchat-probe` gained the same `-authorized-keys`, `-insecure-dev` and `-state-dir` (default `/var/lib/noxchat-probe`) flags. If the state dir is unwritable, it falls back to an ephemeral certificate with a warning.
+- Both probes log `TLS certificate SHA-256: <hex>` at startup. Compare it with the fingerprint that the Studio pins (TOFU).
+- `Call` errors: `method_not_allowed`, `payload_too_large` (> 1 MiB), `bad_payload` (invalid JSON or UTF-8), `bot_unavailable`, `timeout`, or the bot's error text.

@@ -1,20 +1,14 @@
 package main
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
-	"math/big"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/DarkDuck007/madtom/pkg/noxchat/auth"
 	"github.com/DarkDuck007/madtom/pkg/noxchat/config"
@@ -30,6 +24,9 @@ func main() {
 	bridgePort := flag.Int("bridge-port", 50056, "Local Python loopback port")
 	authKey := flag.String("auth-key", "", "SSH-style client authorization key")
 	authKeyFile := flag.String("auth-key-file", "", "Path to file containing auth key")
+	authorizedKeys := flag.String("authorized-keys", "", "Path to an Ed25519 public-key allowlist")
+	insecureDev := flag.Bool("insecure-dev", false, "Allow startup without authentication keys")
+	stateDir := flag.String("state-dir", "/var/lib/noxchat-probe", "Directory for the persisted TLS identity")
 	storeRawLogs := flag.Bool("store-raw-logs", false, "Store raw logs + API calls in WAL spool")
 	maxSpoolBytes := flag.Int64("max-spool-bytes", 1024*1024*1024, "Max WAL spool size on disk (default 1GB)")
 	genKey := flag.Bool("gen-key", false, "Generate a new client auth key and exit")
@@ -85,19 +82,25 @@ func main() {
 		log.Fatalf("[NoxChat_Probe] Config validation failed: %v", err)
 	}
 
-	keyPair, err := auth.LoadKey(*authKey, *authKeyFile, "NOXCHAT_CONTROL_KEY", "./NoxChat/.env")
+	verifier, err := auth.LoadProbeVerifier(*authKey, *authKeyFile, "NOXCHAT_CONTROL_KEY", "./NoxChat/.env", *authorizedKeys, *insecureDev)
 	if err != nil {
-		log.Printf("[NoxChat_Probe] Auth key warning: %v (running in token-less development mode if not set)", err)
-	} else {
-		log.Printf("[NoxChat_Probe] Authenticated control plane enabled with SSH-style token")
+		log.Fatalf("[NoxChat_Probe] Authentication setup failed: %v", err)
+	}
+	if verifier == nil {
+		log.Print("[NoxChat_Probe] WARNING: authentication disabled by -insecure-dev")
 	}
 
-	tlsCfg, err := generateSelfSignedTLS(cfg.NodeID)
-	if err != nil {
-		log.Fatalf("TLS certificate generation failed: %v", err)
+	tlsCfg, fingerprint, err := auth.LoadOrCreateTLS(*stateDir, cfg.NodeID)
+	if errors.Is(err, os.ErrPermission) || errors.Is(err, syscall.EROFS) {
+		log.Printf("[NoxChat_Probe] WARNING: TLS state is unwritable, using a temporary certificate: %v", err)
+		tlsCfg, fingerprint, err = auth.NewEphemeralTLS(cfg.NodeID)
 	}
+	if err != nil {
+		log.Fatalf("TLS setup failed: %v", err)
+	}
+	log.Printf("[NoxChat_Probe] TLS certificate SHA-256: %s", fingerprint)
 
-	srv, err := server.NewServer(cfg, keyPair, tlsCfg)
+	srv, err := server.NewServerWithVerifier(cfg, verifier, tlsCfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
@@ -121,52 +124,6 @@ func main() {
 
 	log.Println("[NoxChat_Probe] Shutting down gracefully...")
 	srv.Stop()
-}
-
-func generateSelfSignedTLS(nodeID string) (*tls.Config, error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, err
-	}
-
-	notBefore := time.Now()
-	notAfter := notBefore.Add(365 * 24 * time.Hour)
-
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return nil, err
-	}
-
-	template := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			Organization: []string{"MADTOM NoxChat Probe"},
-			CommonName:   nodeID + ".local",
-		},
-		NotBefore:             notBefore,
-		NotAfter:              notAfter,
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		DNSNames:              []string{nodeID, nodeID + ".local", "localhost"},
-		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
-	}
-
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
-	if err != nil {
-		return nil, err
-	}
-
-	cert := tls.Certificate{
-		Certificate: [][]byte{derBytes},
-		PrivateKey:  priv,
-	}
-
-	return &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS13,
-	}, nil
 }
 
 func startMdns(nodeID string, port int) {

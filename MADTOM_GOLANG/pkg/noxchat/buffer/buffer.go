@@ -10,6 +10,7 @@ type Chunk struct {
 	Timestamp int64
 	Payload   []byte
 	RawSize   uint32
+	Kind      string
 }
 
 // RingChunkBuffer is a thread-safe, byte-bounded FIFO chunk buffer.

@@ -66,6 +66,7 @@ PROJECT_SPECS=(
     "squeeze-server:squeeze:madtom-squeeze:bin/squeeze-server:squeeze-server.service:/opt/squeeze-server:systemd/squeeze-server.service"
     "madtom-tsdb-merge:merge:tsdb-merge:bin/madtom-tsdb-merge:madtom-tsdb-merge.service:/opt/madtom-tsdb-merge:systemd/madtom-tsdb-merge.service"
     "noxchat-probe:probe:noxchat:bin/noxchat-probe:noxchat-probe.service:/opt/noxchat-probe:systemd/noxchat-probe.service"
+    "slideforge-probe:slideforge:sf-probe:bin/slideforge-probe:slideforge-probe.service:/opt/slideforge-probe:systemd/slideforge-probe.service"
 )
 
 resolve_project_spec() {

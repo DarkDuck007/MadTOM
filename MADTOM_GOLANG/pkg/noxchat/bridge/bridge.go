@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -46,6 +47,16 @@ type RpcMessage struct {
 	Error   string          `json:"error,omitempty"`
 }
 
+var (
+	errDisconnected = errors.New("bridge not connected")
+	ErrTimeout      = errors.New("rpc timeout waiting for method")
+)
+
+// RPCError reports a rejected request from the Python bot.
+type RPCError struct{ Message string }
+
+func (e *RPCError) Error() string { return "python rpc error: " + e.Message }
+
 type Dispatcher interface {
 	OnLogRecord(rec *madtomv1.LogRecord)
 	OnApiCallRecord(rec *madtomv1.NoxRawApiCallRecord)
@@ -61,76 +72,101 @@ type Client struct {
 	host         string
 	port         int
 	conn         net.Conn
-	reader       *bufio.Reader
 	writer       *bufio.Writer
+	disconnected chan struct{}
 	dispatcher   Dispatcher
-	closed       bool
 	pendingRpcs  map[string]chan *RpcMessage
 	currentMode  ModeSync
-	reconnectSig chan struct{}
+	writeGate    chan struct{}
+	ctx          context.Context
+	cancel       context.CancelFunc
+	start        sync.Once
+	stopped      chan struct{}
 	reqSeq       uint64
 }
 
 func NewClient(host string, port int, dispatcher Dispatcher) *Client {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Client{
-		host:         host,
-		port:         port,
-		dispatcher:   dispatcher,
-		pendingRpcs:  make(map[string]chan *RpcMessage),
-		reconnectSig: make(chan struct{}, 1),
+		host:        host,
+		port:        port,
+		dispatcher:  dispatcher,
+		pendingRpcs: make(map[string]chan *RpcMessage),
+		writeGate:   make(chan struct{}, 1),
+		ctx:         ctx,
+		cancel:      cancel,
+		stopped:     make(chan struct{}),
 	}
 }
 
 // Start begins the auto-reconnecting background worker loop.
 func (c *Client) Start() {
-	go c.workerLoop()
+	c.start.Do(func() { go c.workerLoop() })
+}
+
+// Connected reports whether the bridge currently has a live transport.
+func (c *Client) Connected() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn != nil && c.ctx.Err() == nil
 }
 
 func (c *Client) workerLoop() {
-	for !c.closed {
-		addr := net.JoinHostPort(c.host, strconv.Itoa(c.port))
-		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	defer close(c.stopped)
+	addr := net.JoinHostPort(c.host, strconv.Itoa(c.port))
+	dialer := net.Dialer{Timeout: 2 * time.Second}
+	for c.ctx.Err() == nil {
+		conn, err := dialer.DialContext(c.ctx, "tcp", addr)
 		if err != nil {
-			time.Sleep(1 * time.Second)
+			timer := time.NewTimer(time.Second)
+			select {
+			case <-c.ctx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
 			continue
 		}
 
 		c.mu.Lock()
+		if c.ctx.Err() != nil {
+			c.mu.Unlock()
+			_ = conn.Close()
+			return
+		}
 		c.conn = conn
-		c.reader = bufio.NewReader(conn)
 		c.writer = bufio.NewWriter(conn)
-		// Re-sync current mode upon connect
-		_ = c.sendModeSyncLocked(c.currentMode)
+		c.disconnected = make(chan struct{})
 		c.mu.Unlock()
 
-		log.Printf("[NoxChat_Probe] Connected to Python bridge at %s", addr)
-		c.readLoop()
-		log.Printf("[NoxChat_Probe] Disconnected from Python bridge, reconnecting...")
+		c.sendModeSync(conn)
+		log.Printf("[ControlBridge] Connected to Python bridge at %s", addr)
+		c.readLoop(bufio.NewReader(conn))
+
+		c.mu.Lock()
+		_ = conn.Close()
+		c.conn, c.writer = nil, nil
+		close(c.disconnected)
+		c.mu.Unlock()
+		log.Print("[ControlBridge] Disconnected from Python bridge")
 	}
 }
 
-func (c *Client) readLoop() {
+func (c *Client) readLoop(reader *bufio.Reader) {
 	for {
 		var hdr [5]byte
-		if _, err := io.ReadFull(c.reader, hdr[:]); err != nil {
-			break
+		if _, err := io.ReadFull(reader, hdr[:]); err != nil {
+			return
 		}
 		kind := hdr[0]
 		length := binary.BigEndian.Uint32(hdr[1:5])
 		payload := make([]byte, length)
-		if _, err := io.ReadFull(c.reader, payload); err != nil {
-			break
+		if _, err := io.ReadFull(reader, payload); err != nil {
+			return
 		}
 
 		c.handleIncoming(kind, payload)
 	}
-
-	c.mu.Lock()
-	if c.conn != nil {
-		_ = c.conn.Close()
-		c.conn = nil
-	}
-	c.mu.Unlock()
 }
 
 func unmarshalBridgePayload(payload []byte, m proto.Message) error {
@@ -190,39 +226,91 @@ func (c *Client) handleIncoming(kind byte, payload []byte) {
 // SetCaptureMode updates the capture state on the Python side.
 func (c *Client) SetCaptureMode(stateEnabled, logsEnabled, storeEnabled bool) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.currentMode = ModeSync{
 		StateEnabled: stateEnabled,
 		LogsEnabled:  logsEnabled,
 		StoreEnabled: storeEnabled,
 	}
+	conn := c.conn
+	c.mu.Unlock()
 
-	if c.conn != nil {
-		_ = c.sendModeSyncLocked(c.currentMode)
+	if conn != nil {
+		c.sendModeSync(conn)
 	}
 }
 
-func (c *Client) sendModeSyncLocked(m ModeSync) error {
-	data, _ := json.Marshal(m)
-	return c.writeFrameLocked(FrameKindModeSync, data)
+func (c *Client) sendModeSync(conn net.Conn) {
+	ctx, cancel := context.WithTimeout(c.ctx, 2*time.Second)
+	defer cancel()
+	if c.acquireWriter(ctx) != nil {
+		return
+	}
+	defer c.releaseWriter()
+
+	c.mu.Lock()
+	mode := c.currentMode
+	c.mu.Unlock()
+	data, _ := json.Marshal(mode)
+	_ = c.writeFrame(ctx, conn, FrameKindModeSync, data)
 }
 
-func (c *Client) writeFrameLocked(kind byte, data []byte) error {
-	if c.conn == nil {
-		return fmt.Errorf("bridge not connected")
+func (c *Client) acquireWriter(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.ctx.Done():
+		return errDisconnected
+	case c.writeGate <- struct{}{}:
+		return nil
 	}
+}
+
+func (c *Client) releaseWriter() { <-c.writeGate }
+
+// writeFrame requires the caller to hold the write gate.
+func (c *Client) writeFrame(ctx context.Context, conn net.Conn, kind byte, data []byte) error {
+	c.mu.Lock()
+	writer := c.writer
+	sameConnection := c.conn == conn && conn != nil
+	c.mu.Unlock()
+	if !sameConnection || c.ctx.Err() != nil {
+		return errDisconnected
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	interrupted := make(chan struct{})
+	stopInterrupt := context.AfterFunc(ctx, func() {
+		_ = conn.SetWriteDeadline(time.Now())
+		close(interrupted)
+	})
+	defer func() {
+		if !stopInterrupt() {
+			<-interrupted
+		}
+		_ = conn.SetWriteDeadline(time.Time{})
+	}()
+
+	if err := writeBufferedFrame(writer, kind, data); err != nil {
+		// A partial frame cannot be retried on this connection.
+		_ = conn.Close()
+		return err
+	}
+	return nil
+}
+
+func writeBufferedFrame(writer *bufio.Writer, kind byte, data []byte) error {
 	var hdr [5]byte
 	hdr[0] = kind
 	binary.BigEndian.PutUint32(hdr[1:5], uint32(len(data)))
 
-	if _, err := c.writer.Write(hdr[:]); err != nil {
+	if _, err := writer.Write(hdr[:]); err != nil {
 		return err
 	}
-	if _, err := c.writer.Write(data); err != nil {
+	if _, err := writer.Write(data); err != nil {
 		return err
 	}
-	return c.writer.Flush()
+	return writer.Flush()
 }
 
 // CallRpc sends an RPC message to Python and waits for reply.
@@ -234,6 +322,14 @@ func (c *Client) CallRpc(method string, reqPayload interface{}, timeout time.Dur
 func (c *Client) CallRpcContext(ctx context.Context, method string, reqPayload interface{}, timeout time.Duration) (*RpcMessage, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	ctx, cancel := context.WithTimeoutCause(ctx, timeout, ErrTimeout)
+	defer cancel()
+	contextError := func() error {
+		if context.Cause(ctx) == ErrTimeout {
+			return fmt.Errorf("%w %s", ErrTimeout, method)
+		}
+		return ctx.Err()
 	}
 	reqID := fmt.Sprintf("%d-%d", time.Now().UnixNano(), atomic.AddUint64(&c.reqSeq, 1))
 	rawPayload, err := json.Marshal(reqPayload)
@@ -253,44 +349,58 @@ func (c *Client) CallRpcContext(ctx context.Context, method string, reqPayload i
 
 	ch := make(chan *RpcMessage, 1)
 	c.mu.Lock()
+	conn, disconnected := c.conn, c.disconnected
+	if conn == nil {
+		c.mu.Unlock()
+		return nil, errDisconnected
+	}
 	c.pendingRpcs[reqID] = ch
-	err = c.writeFrameLocked(FrameKindRpcRequest, frameData)
 	c.mu.Unlock()
-
-	if err != nil {
+	defer func() {
 		c.mu.Lock()
 		delete(c.pendingRpcs, reqID)
 		c.mu.Unlock()
+	}()
+
+	if err = c.acquireWriter(ctx); err == nil {
+		err = c.writeFrame(ctx, conn, FrameKindRpcRequest, frameData)
+		c.releaseWriter()
+	}
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, contextError()
+		}
 		return nil, err
 	}
 
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
+	var reply *RpcMessage
 	select {
-	case reply := <-ch:
-		if reply.Error != "" {
-			return nil, fmt.Errorf("python rpc error: %s", reply.Error)
+	case reply = <-ch:
+	case <-disconnected:
+		select {
+		case reply = <-ch:
+		default:
+			return nil, errDisconnected
 		}
-		return reply, nil
+	case <-c.ctx.Done():
+		return nil, errDisconnected
 	case <-ctx.Done():
-		c.mu.Lock()
-		delete(c.pendingRpcs, reqID)
-		c.mu.Unlock()
-		return nil, ctx.Err()
-	case <-timer.C:
-		c.mu.Lock()
-		delete(c.pendingRpcs, reqID)
-		c.mu.Unlock()
-		return nil, fmt.Errorf("rpc timeout waiting for method %s", method)
+		return nil, contextError()
 	}
+	if reply.Error != "" {
+		return nil, &RPCError{Message: reply.Error}
+	}
+	return reply, nil
 }
 
 // Close stops the bridge client.
 func (c *Client) Close() {
+	c.cancel()
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.closed = true
 	if c.conn != nil {
 		_ = c.conn.Close()
 	}
+	c.mu.Unlock()
+	c.start.Do(func() { close(c.stopped) })
+	<-c.stopped
 }

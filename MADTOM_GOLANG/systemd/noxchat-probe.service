@@ -8,6 +8,8 @@ Type=simple
 User=danial
 Group=danial
 WorkingDirectory=/opt/noxchat-probe
+StateDirectory=noxchat-probe
+StateDirectoryMode=0700
 ExecStart=/opt/noxchat-probe/bin/noxchat-probe \
     -node-id %H \
     -listen :50055 \

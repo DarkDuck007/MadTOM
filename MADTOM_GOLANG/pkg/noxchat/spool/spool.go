@@ -116,19 +116,20 @@ type SpoolEnvelope struct {
 // WalSpool manages segment files on disk, automatically evicting oldest segments
 // when total spool bytes exceed maxTotalSpool (default 1GB).
 type WalSpool struct {
-	mu              sync.Mutex
-	dir             string
-	maxSegmentSize  int64
-	maxTotalSpool   int64
-	currentFile     *os.File
-	currentSeq      int64
-	currentBytes    int64
-	segments        []segmentMeta
-	totalSpoolBytes int64
-	totalLogRecords uint64
-	totalApiCalls   uint64
-	maxLogSeq       uint64
-	maxApiSeq       uint64
+	mu               sync.Mutex
+	dir              string
+	maxSegmentSize   int64
+	maxTotalSpool    int64
+	strictQuota      bool
+	currentFile      *os.File
+	currentSeq       int64
+	currentBytes     int64
+	segments         []segmentMeta
+	totalSpoolBytes  int64
+	totalLogRecords  uint64
+	totalApiCalls    uint64
+	maxLogSeq        uint64
+	maxApiSeq        uint64
 	logChunkCounts   map[uint64]uint64
 	apiChunkCounts   map[uint64]uint64
 	logChunks        map[uint64]*madtomv1.LogChunk
@@ -315,6 +316,9 @@ func (w *WalSpool) writeFrame(kind byte, chunkID uint64, payload []byte, count u
 	}
 
 	frameLen := 1 + 4 + len(payload)
+	if w.strictQuota && int64(frameLen) > w.maxTotalSpool {
+		return fmt.Errorf("frame exceeds WAL spool limit")
+	}
 	if w.currentFile == nil || (w.currentBytes+int64(frameLen) > w.maxSegmentSize) {
 		if err := w.rotateLocked(); err != nil {
 			return err
@@ -396,10 +400,15 @@ func (w *WalSpool) rotateLocked() error {
 }
 
 func (w *WalSpool) enforceQuotaLocked() error {
-	for w.totalSpoolBytes > w.maxTotalSpool && len(w.segments) > 1 {
+	for w.totalSpoolBytes > w.maxTotalSpool && (len(w.segments) > 1 || w.strictQuota && len(w.segments) > 0) {
 		oldest := w.segments[0]
 		if err := os.Remove(oldest.path); err != nil && !os.IsNotExist(err) {
 			return err
+		}
+		if w.currentFile != nil && oldest.seq == w.currentSeq {
+			_ = w.currentFile.Close()
+			w.currentFile = nil
+			w.currentBytes = 0
 		}
 		w.evictSegmentLocked(oldest.seq)
 		w.totalSpoolBytes -= oldest.size
@@ -434,6 +443,78 @@ func (w *WalSpool) QueryLogChunks(startChunkID uint64, maxChunks uint32) ([]*mad
 	}
 	hasMore := len(order) > len(chunks)
 	return chunks, hasMore, nil
+}
+
+// QueryLogChunkPage supports timestamp seek and directional traversal. A zero
+// starting ID selects the first page when forward or the latest page otherwise.
+func (w *WalSpool) QueryLogChunkPage(req *madtomv1.LogChunkQuery) ([]*madtomv1.LogChunk, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	order := make([]uint64, 0, len(w.logChunks))
+	for id := range w.logChunks {
+		order = append(order, id)
+	}
+	if len(order) == 0 {
+		return nil, false
+	}
+	sort.Slice(order, func(i, j int) bool { return order[i] < order[j] })
+
+	startID := req.StartChunkId
+	if req.SeekTimestampUnixNano > 0 {
+		startID = w.closestLogChunk(order, req.SeekTimestampUnixNano)
+	}
+	limit := int(min(req.MaxChunks, 32))
+	if limit == 0 {
+		limit = 8
+	}
+	var first, last int
+	if req.Forward {
+		first = sort.Search(len(order), func(i int) bool { return order[i] >= startID })
+		last = min(first+limit, len(order))
+	} else {
+		last = len(order)
+		if req.SeekTimestampUnixNano > 0 {
+			last = sort.Search(len(order), func(i int) bool { return order[i] > startID })
+		} else if req.StartChunkId != 0 {
+			last = sort.Search(len(order), func(i int) bool { return order[i] >= startID })
+		}
+		first = max(0, last-limit)
+	}
+	chunks := make([]*madtomv1.LogChunk, 0, last-first)
+	for _, id := range order[first:last] {
+		c := w.logChunks[id]
+		if req.SummaryOnly {
+			c = &madtomv1.LogChunk{
+				NodeId: c.NodeId, ChunkId: c.ChunkId, RecordCount: c.RecordCount, Sealed: c.Sealed,
+				FirstSeq: c.FirstSeq, LastSeq: c.LastSeq, FirstTsUnixNano: c.FirstTsUnixNano,
+				LastTsUnixNano: c.LastTsUnixNano, RawSize: c.RawSize,
+			}
+		}
+		chunks = append(chunks, c)
+	}
+	return chunks, (req.Forward && last < len(order)) || (!req.Forward && first > 0)
+}
+
+func (w *WalSpool) closestLogChunk(order []uint64, ts int64) uint64 {
+	var closest uint64
+	bestDistance := ^uint64(0)
+	for _, id := range order {
+		chunk := w.logChunks[id]
+		var distance uint64
+		switch {
+		case ts < chunk.FirstTsUnixNano:
+			distance = uint64(chunk.FirstTsUnixNano) - uint64(ts)
+		case ts > chunk.LastTsUnixNano:
+			distance = uint64(ts) - uint64(chunk.LastTsUnixNano)
+		default:
+			return id
+		}
+		if distance < bestDistance {
+			closest, bestDistance = id, distance
+		}
+	}
+	return closest
 }
 
 // QueryApiCallChunks reads up to maxChunks matching NoxApiCallChunks from in-memory index / spool.
@@ -531,6 +612,31 @@ func (w *WalSpool) Stats() (uint64, uint64, uint64, uint64, int64, int64) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return uint64(w.totalSpoolBytes), uint64(w.maxTotalSpool), w.totalLogRecords, w.totalApiCalls, w.oldestTs, w.newestTs
+}
+
+// ChunkStats reports retention in chunks rather than individual records.
+func (w *WalSpool) ChunkStats() (current, limit, logs, api uint64, oldest int64) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return uint64(w.totalSpoolBytes), uint64(w.maxTotalSpool), uint64(len(w.logChunks)), uint64(len(w.apiChunks)), w.oldestTs
+}
+
+// SetMaxBytes applies a hard retention limit, including to the active segment.
+func (w *WalSpool) SetMaxBytes(limit int64) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if limit <= 0 {
+		return fmt.Errorf("WAL spool limit must be positive")
+	}
+	previous, previousSegment, previousStrict := w.maxTotalSpool, w.maxSegmentSize, w.strictQuota
+	w.maxTotalSpool = limit
+	w.maxSegmentSize = min(DefaultMaxSegmentSize, limit)
+	w.strictQuota = true
+	if err := w.enforceQuotaLocked(); err != nil {
+		w.maxTotalSpool, w.maxSegmentSize, w.strictQuota = previous, previousSegment, previousStrict
+		return err
+	}
+	return nil
 }
 
 // Close flushes and closes active WAL file handles.

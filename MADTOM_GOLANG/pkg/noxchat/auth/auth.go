@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -23,6 +24,8 @@ const (
 	PubKeyPrefix  = "noxchat-ed25519-pub:"
 	PrivKeyPrefix = "noxchat-ed25519-priv:"
 )
+
+var errNoKey = errors.New("no auth key provided")
 
 // KeyPair holds verification keys (Ed25519 public key and/or HMAC key).
 type KeyPair struct {
@@ -185,25 +188,23 @@ func LoadKey(cliKey, cliFile, envName, defaultEnvPath string) (*KeyPair, error) 
 				line = strings.TrimSpace(line)
 				if strings.HasPrefix(line, envName+"=") {
 					val := strings.Trim(strings.TrimPrefix(line, envName+"="), "\"' \r\n\t")
+					if val == "" {
+						break
+					}
 					return ParseKey(val)
 				}
 			}
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to read default key file %q: %w", defaultEnvPath, err)
 		}
 	}
 
-	return nil, fmt.Errorf("no auth key provided (set -auth-key, -auth-key-file, or %s in environment/.env)", envName)
+	return nil, fmt.Errorf("%w (set -auth-key, -auth-key-file, or %s in environment/.env)", errNoKey, envName)
 }
 
 // VerifySignature verifies a request signature given timestamp, nonce, and signature.
 func (k *KeyPair) VerifySignature(tsStr, nonceStr, signatureStr string) bool {
-	ts, err := strconv.ParseInt(tsStr, 10, 64)
-	if err != nil {
-		return false
-	}
-
-	// Signature valid within 5 minutes skew
-	now := time.Now().Unix()
-	if ts < now-300 || ts > now+300 {
+	if _, err := verifyTimestamp(tsStr, time.Now()); err != nil {
 		return false
 	}
 
@@ -212,8 +213,18 @@ func (k *KeyPair) VerifySignature(tsStr, nonceStr, signatureStr string) bool {
 		return false
 	}
 
-	signedData := []byte(tsStr + ":" + nonceStr)
+	return k.verifySignature([]byte(tsStr+":"+nonceStr), sig)
+}
 
+func verifyTimestamp(tsStr string, now time.Time) (int64, error) {
+	ts, err := strconv.ParseInt(tsStr, 10, 64)
+	if err != nil || ts < now.Unix()-300 || ts > now.Unix()+300 {
+		return 0, errors.New("invalid or out-of-window authentication timestamp")
+	}
+	return ts, nil
+}
+
+func (k *KeyPair) verifySignature(signedData, sig []byte) bool {
 	// 1. If Ed25519 Public Key is present, try asymmetric Ed25519 verification
 	if len(k.Ed25519PublicKey) == ed25519.PublicKeySize && len(sig) == ed25519.SignatureSize {
 		if ed25519.Verify(k.Ed25519PublicKey, signedData, sig) {

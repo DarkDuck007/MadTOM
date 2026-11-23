@@ -34,7 +34,7 @@ type Server struct {
 	madtomv1.UnimplementedNoxChatControlServiceServer
 
 	cfg          *config.ProbeConfig
-	keyPair      *auth.KeyPair
+	verifier     *auth.Verifier
 	tlsConfig    *tls.Config
 	grpcServer   *grpc.Server
 	bridgeClient *bridge.Client
@@ -81,6 +81,14 @@ type historyPoint struct {
 type double = float64
 
 func NewServer(cfg *config.ProbeConfig, keyPair *auth.KeyPair, tlsConfig *tls.Config) (*Server, error) {
+	var verifier *auth.Verifier
+	if keyPair != nil {
+		verifier = auth.NewVerifier([]*auth.KeyPair{keyPair}, nil)
+	}
+	return NewServerWithVerifier(cfg, verifier, tlsConfig)
+}
+
+func NewServerWithVerifier(cfg *config.ProbeConfig, verifier *auth.Verifier, tlsConfig *tls.Config) (*Server, error) {
 	stateBuf := buffer.NewRingChunkBuffer(cfg.StateBufferBytes)
 	logBuf := buffer.NewRingChunkBuffer(cfg.LogBufferBytes)
 
@@ -116,7 +124,7 @@ func NewServer(cfg *config.ProbeConfig, keyPair *auth.KeyPair, tlsConfig *tls.Co
 
 	s := &Server{
 		cfg:              cfg,
-		keyPair:          keyPair,
+		verifier:         verifier,
 		tlsConfig:        tlsConfig,
 		stateBuffer:      stateBuf,
 		logBuffer:        logBuf,
@@ -411,39 +419,7 @@ func (s *Server) syncBridgeMode() {
 
 // Authentication interceptors
 func (s *Server) verifyAuth(ctx context.Context) error {
-	if s.keyPair == nil {
-		return nil
-	}
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return status.Errorf(codes.Unauthenticated, "missing metadata")
-	}
-
-	ts := firstMd(md, "x-nox-auth-ts")
-	nonce := firstMd(md, "x-nox-auth-nonce")
-	sig := firstMd(md, "x-nox-auth-sig")
-
-	if ts == "" || nonce == "" || sig == "" {
-		// Fallback to bearer token check
-		bearer := firstMd(md, "authorization")
-		if bearer != "" && s.keyPair.VerifySignature(ts, nonce, bearer) {
-			return nil
-		}
-		return status.Errorf(codes.Unauthenticated, "invalid or missing authentication signature")
-	}
-
-	if !s.keyPair.VerifySignature(ts, nonce, sig) {
-		return status.Errorf(codes.Unauthenticated, "cryptographic signature verification failed")
-	}
-	return nil
-}
-
-func firstMd(md metadata.MD, key string) string {
-	vals := md.Get(key)
-	if len(vals) > 0 {
-		return vals[0]
-	}
-	return ""
+	return s.verifier.VerifyIncoming(ctx)
 }
 
 func (s *Server) unaryAuthInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {

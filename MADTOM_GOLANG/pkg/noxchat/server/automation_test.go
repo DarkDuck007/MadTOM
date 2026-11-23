@@ -57,7 +57,7 @@ func TestAutomationRepliesDecodeFromPythonShapes(t *testing.T) {
 	var one madtomv1.NoxGetPreprocessorResponse
 	decodeInto(t, `{"preprocessor":{"id":1,"name":"g"},"code":"def handle(e,s): pass","static_actions_json":"[]","state_json":"{\"n\":3}"}`, &one)
 	if one.Preprocessor.GetName() != "g" || one.Code == "" || one.StateJson != `{"n":3}` {
-		t.Fatalf("get decode: %+v", one)
+		t.Fatalf("get decode: %+v", &one)
 	}
 
 	var lg madtomv1.NoxListPreprocessorLogsResponse
@@ -79,6 +79,6 @@ func TestAutomationRepliesDecodeFromPythonShapes(t *testing.T) {
 	var ok madtomv1.NoxAutomationActionResponse
 	decodeInto(t, `{"ok":false,"error":"unknown action"}`, &ok)
 	if ok.Ok || ok.Error != "unknown action" {
-		t.Fatalf("action decode: %+v", ok)
+		t.Fatalf("action decode: %+v", &ok)
 	}
 }

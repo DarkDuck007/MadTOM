@@ -91,6 +91,13 @@ func (c *LogChunker) FlushUnsealed(maxAge time.Duration) (*madtomv1.LogChunk, er
 	return nil, nil
 }
 
+// Flush seals any pending log records.
+func (c *LogChunker) Flush() (*madtomv1.LogChunk, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.sealLocked(true)
+}
+
 func (c *LogChunker) sealLocked(isSealed bool) (*madtomv1.LogChunk, error) {
 	if len(c.records) == 0 {
 		return nil, nil
@@ -109,16 +116,16 @@ func (c *LogChunker) sealLocked(isSealed bool) (*madtomv1.LogChunk, error) {
 	chunkID := c.chunkCounter
 
 	chunk := &madtomv1.LogChunk{
-		NodeId:            c.nodeID,
-		ChunkId:           chunkID,
-		FirstSeq:          first.Seq,
-		LastSeq:           last.Seq,
-		FirstTsUnixNano:   first.TimestampUnixNano,
-		LastTsUnixNano:    last.TimestampUnixNano,
-		RecordCount:       uint32(len(c.records)),
-		Sealed:            isSealed,
-		ZstdRecords:       compressed,
-		RawSize:           uint32(len(raw)),
+		NodeId:          c.nodeID,
+		ChunkId:         chunkID,
+		FirstSeq:        first.Seq,
+		LastSeq:         last.Seq,
+		FirstTsUnixNano: first.TimestampUnixNano,
+		LastTsUnixNano:  last.TimestampUnixNano,
+		RecordCount:     uint32(len(c.records)),
+		Sealed:          isSealed,
+		ZstdRecords:     compressed,
+		RawSize:         uint32(len(raw)),
 	}
 
 	c.lastFlush = time.Now()
@@ -233,16 +240,16 @@ func (c *ApiCallChunker) sealLocked(isSealed bool) (*madtomv1.NoxApiCallChunk, e
 	chunkID := c.chunkCounter
 
 	chunk := &madtomv1.NoxApiCallChunk{
-		NodeId:            c.nodeID,
-		ChunkId:           chunkID,
-		FirstSeq:          firstSeq,
-		LastSeq:           c.currentSeq,
-		FirstTsUnixNano:   first.TimestampUnixNano,
-		LastTsUnixNano:    last.TimestampUnixNano,
-		RecordCount:       uint32(len(c.records)),
-		Sealed:            isSealed,
-		ZstdRecords:       compressed,
-		RawSize:           uint32(len(raw)),
+		NodeId:          c.nodeID,
+		ChunkId:         chunkID,
+		FirstSeq:        firstSeq,
+		LastSeq:         c.currentSeq,
+		FirstTsUnixNano: first.TimestampUnixNano,
+		LastTsUnixNano:  last.TimestampUnixNano,
+		RecordCount:     uint32(len(c.records)),
+		Sealed:          isSealed,
+		ZstdRecords:     compressed,
+		RawSize:         uint32(len(raw)),
 	}
 
 	c.lastFlush = time.Now()
@@ -277,6 +284,11 @@ func NewStateChunker(nodeID string) (*StateChunker, error) {
 }
 
 func (s *StateChunker) CompressStatePayload(payload *madtomv1.NoxStateChunkPayload) ([]byte, uint32, error) {
+	return s.CompressPayload(payload)
+}
+
+// CompressPayload encodes a protobuf batch as a zstd frame.
+func (s *StateChunker) CompressPayload(payload proto.Message) ([]byte, uint32, error) {
 	raw, err := proto.Marshal(payload)
 	if err != nil {
 		return nil, 0, err
