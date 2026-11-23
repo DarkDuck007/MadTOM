@@ -19,12 +19,19 @@ namespace MADTOM.Plugins.NoxAI.ViewModels;
 /// <summary>One row of the Chats list: a Telegram chat/DM (or a bucket of calls without a chat).</summary>
 public sealed partial class ChatGroupModel : ObservableObject
 {
+    public const long GuestChatIdMin = -9_000_000_000_000_000L;
+    public const long GuestChatIdMax = -8_000_000_000_000_000L;
+
     public string Key { get; init; } = string.Empty;
     public long? ChatId { get; init; }
     [ObservableProperty][NotifyPropertyChangedFor(nameof(MetaLine))] private string _title = string.Empty;
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(MetaLine))] private string _chatType = string.Empty;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(MetaLine), nameof(IsGuest))] private string _chatType = string.Empty;
     [ObservableProperty][NotifyPropertyChangedFor(nameof(CountText))] private int _callCount;
     [ObservableProperty][NotifyPropertyChangedFor(nameof(LastActiveText))] private long _lastActiveUnixNano;
+
+    public bool IsGuest =>
+        ChatType.StartsWith("guest", StringComparison.OrdinalIgnoreCase) ||
+        (ChatId.HasValue && ChatId.Value >= GuestChatIdMin && ChatId.Value <= GuestChatIdMax);
 
     public string CountText => CallCount.ToString("N0", CultureInfo.InvariantCulture);
     public string MetaLine
@@ -33,10 +40,19 @@ public sealed partial class ChatGroupModel : ObservableObject
         {
             string id = ChatId.HasValue ? ChatId.Value.ToString(CultureInfo.InvariantCulture)
                 : Key == RawLogsApiTabViewModel.NoChatKey ? "no chat id" : "name match only";
-            string type = string.IsNullOrEmpty(ChatType) ? "?" : ChatType;
+            string type = FormatChatType(ChatType, IsGuest);
             return $"{type} · {id}";
         }
     }
+
+    private static string FormatChatType(string chatType, bool isGuest)
+    {
+        if (string.IsNullOrEmpty(chatType)) return isGuest ? "guest" : "?";
+        if (chatType.Equals("guest_private", StringComparison.OrdinalIgnoreCase)) return "guest · dm";
+        if (chatType.Equals("guest_group", StringComparison.OrdinalIgnoreCase)) return "guest · group";
+        return chatType;
+    }
+
     public string LastActiveText => LastActiveUnixNano > 0
         ? DateTimeOffset.FromUnixTimeMilliseconds(LastActiveUnixNano / 1_000_000).ToLocalTime().ToString("MM-dd HH:mm", CultureInfo.InvariantCulture)
         : "—";

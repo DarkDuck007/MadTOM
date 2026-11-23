@@ -30,6 +30,9 @@ public class ChatsGroupingTests
                     new NoxChatItem { ChatId = 7, ChatType = "private", Title = "Twin" },
                     new NoxChatItem { ChatId = 8, ChatType = "private", Title = "Twin" },
                     new NoxChatItem { ChatId = 999, ChatType = "private", Title = "Quiet" },
+                    new NoxChatItem { ChatId = -8_123_456_789_012_345L, ChatType = "guest_private", Title = "Alice and Bob - GUEST" },
+                    new NoxChatItem { ChatId = -8_987_654_321_098_765L, ChatType = "guest_private", Title = "Alice and Charlie - GUEST" },
+                    new NoxChatItem { ChatId = -8_555_555_555_555_555L, ChatType = "guest_group", Title = "Strategy Room - GUEST" },
                 }
             }));
         public override AsyncUnaryCall<NoxChatTraceResponse> QueryChatTraceAsync(NoxChatTraceRequest request, Metadata? headers = null, DateTime? deadline = null, CancellationToken cancellationToken = default)
@@ -89,6 +92,50 @@ public class ChatsGroupingTests
         Assert.Same(nest, vm.SelectedChatGroup);
         Assert.Single(vm.ChatGroups);
         Assert.Equal(2, vm.ChatHistory.Count);
+    }
+
+    [Fact]
+    public async Task GuestSessionsAreSeparatedLabeledAndMarkedAsGuest()
+    {
+        await using var manager = new NoxNodeManager(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json"), _ => new Client());
+        using var vm = new RawLogsApiTabViewModel(manager, new LogChunkCache(), new NoxApiCallChunkCache())
+        { SelectedNode = new NoxNodeModel("n", "unused", "", "n", LogMode: TelemetryOptInMode.OptInOff) };
+
+        const long guestAB = -8_123_456_789_012_345L;
+        const long guestAC = -8_987_654_321_098_765L;
+        const long guestGrp = -8_555_555_555_555_555L;
+
+        var c1 = Call("g1", 500, name: "Alice and Bob - GUEST", chatId: guestAB);
+        var c2 = Call("g2", 600, name: "Alice and Charlie - GUEST", chatId: guestAC);
+        var c3 = Call("g3", 400, name: "Strategy Room - GUEST", chatId: guestGrp);
+        foreach (var c in new[] { c1, c2, c3 }) vm.RecentApiCalls.Add(c);
+
+        await vm.RefreshChatsAsync();
+
+        var groupAB = vm.ChatGroups.Single(g => g.ChatId == guestAB);
+        var groupAC = vm.ChatGroups.Single(g => g.ChatId == guestAC);
+        var groupStrat = vm.ChatGroups.Single(g => g.ChatId == guestGrp);
+        var regularDm = vm.ChatGroups.Single(g => g.ChatId == 188);
+
+        Assert.True(groupAB.IsGuest);
+        Assert.True(groupAC.IsGuest);
+        Assert.True(groupStrat.IsGuest);
+        Assert.False(regularDm.IsGuest);
+
+        Assert.Equal("Alice and Bob - GUEST", groupAB.Title);
+        Assert.Equal($"guest · dm · {guestAB}", groupAB.MetaLine);
+        Assert.Equal("Alice and Charlie - GUEST", groupAC.Title);
+        Assert.Equal($"guest · group · {guestGrp}", groupStrat.MetaLine);
+
+        // Selecting guestAB shows only its own calls, isolated from guestAC
+        vm.SelectedChatGroup = groupAB;
+        Assert.Single(vm.ChatHistory);
+        Assert.Same(c1, vm.ChatHistory[0]);
+
+        // Filtering by "guest" surfaces all three guest sessions and excludes normal chats
+        vm.ChatFilter = "guest";
+        Assert.Equal(3, vm.ChatGroups.Count);
+        Assert.All(vm.ChatGroups, g => Assert.True(g.IsGuest));
     }
 }
 

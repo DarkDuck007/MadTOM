@@ -360,8 +360,14 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ChatGroupModel">
                                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="6">
-                                            <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                                                <Border IsVisible="{Binding IsGuest}" Background="#33F59E0B" BorderBrush="#99F59E0B"
+                                                        BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="GUEST" FontSize="8" FontWeight="Bold" Foreground="#FBBF24"/>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                            </Grid>
                                             <TextBlock Grid.Column="1" Text="{Binding CountText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"
                                                        Foreground="{DynamicResource AccentTextBrush}" ToolTip.Tip="Loaded API calls"/>
                                             <TextBlock Grid.Row="1" Text="{Binding MetaLine}" FontSize="9" FontFamily="{StaticResource MonoFontFamily}"
@@ -389,8 +395,14 @@
                                 <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}"
                                         BorderThickness="1" CornerRadius="6" Padding="10,6">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                        <TextBlock Text="{Binding SelectedChatGroup.Title, FallbackValue=''}" FontSize="13" FontWeight="Bold"
-                                                   Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <Border IsVisible="{Binding SelectedChatGroup.IsGuest, FallbackValue=False}" Background="#33F59E0B" BorderBrush="#99F59E0B"
+                                                    BorderThickness="1" CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
+                                                <TextBlock Text="GUEST" FontSize="9" FontWeight="Bold" Foreground="#FBBF24"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding SelectedChatGroup.Title, FallbackValue=''}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                                             <TextBlock Text="{Binding SelectedChatGroup.MetaLine, FallbackValue=''}" FontSize="10"
                                                        FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
