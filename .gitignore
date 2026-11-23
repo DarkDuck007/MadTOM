@@ -80,3 +80,7 @@ go.work.sum
 
 
 /Devices/
+
+# Delegate worker byproducts (e.g. Go caches created inside the repo)
+.nox-build-cache/
+.sf-build-cache/
