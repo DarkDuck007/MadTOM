@@ -1,3 +1,6 @@
 [submodule "NoxChat"]
 	path = NoxChat
 	url = https://github.com/DarkDuck007/NoxChat
+[submodule "SlideForge"]
+	path = SlideForge
+	url = git@github.com:DarkDuck007/SlideForge.git
