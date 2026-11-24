@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!-- Advertises slideforge-probe through avahi (the probe runs with -mdns=false).
+     Install: sudo install -m 0644 slideforge-probe.service /etc/avahi/services/ ; set node_id to the probe's -node-id. -->
+<service-group>
+  <name replace-wildcards="yes">%h</name>
+  <service>
+    <type>_slideforge-probe._tcp</type>
+    <port>50057</port>
+    <txt-record>node_id=slideforge</txt-record>
+    <txt-record>auth=ssh-key</txt-record>
+    <txt-record>service=slideforge-probe</txt-record>
+  </service>
+</service-group>

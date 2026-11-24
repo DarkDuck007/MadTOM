@@ -1,9 +1,13 @@
 [Unit]
 Description=MADTOM SlideForge Probe Daemon
 After=network.target slideforge.service
-Wants=slideforge.service
+# No Wants=slideforge.service: starting the probe must never start (or crash-loop) the bot. It retries
+# the loopback control bridge until the bot is up.
 
 [Service]
+# -mdns=false: the built-in zeroconf responder also answers for <hostname>.local (every interface,
+# docker0 included) and fights avahi-daemon. On avahi hosts, advertise with
+# systemd/avahi/slideforge-probe.service in /etc/avahi/services/ instead.
 Type=simple
 User=danial
 Group=danial
@@ -16,7 +20,8 @@ ExecStart=/opt/slideforge-probe/bin/slideforge-probe \
     -listen :50057 \
     -bot-host 127.0.0.1 \
     -bot-port 50058 \
-    -auth-key-file /home/danial/SlideForge/.env
+    -auth-key-file /home/danial/SlideForge/.env \
+    -mdns=false
 Restart=always
 RestartSec=3s
 LimitNOFILE=65536

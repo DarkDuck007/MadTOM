@@ -55,6 +55,12 @@ This guide provides an exhaustive reference for all executables, build scripts, 
       - [Execution Examples](#execution-examples-4)
     - [11. `MADTOM.Plugins.NoxAI.App` — Standalone NOX AI Control Center](#11-madtompluginsnoxaiapp--standalone-nox-ai-control-center)
       - [Running](#running-5)
+    - [12. `slideforge-probe` — SlideForge Control Daemon](#12-slideforge-probe--slideforge-control-daemon)
+      - [Command Arguments](#command-arguments-5)
+      - [Security & Transport Model](#security--transport-model)
+      - [Execution Examples](#execution-examples-5)
+    - [13. `MADTOM.Plugins.SlideForge.App` — Standalone SlideForge Control Center](#13-madtompluginsslideforgeapp--standalone-slideforge-control-center)
+      - [Running](#running-6)
 
 ---
 
@@ -76,7 +82,7 @@ Located at the repository root. Compiles the Go backend daemons (`madtom-collect
 | `--release` | *(none)* | Build Go and .NET with release optimizations (strips Go debug symbols) |
 | `--debug` | *(none)* | Build projects in Debug configuration (default) |
 | `--test` | *(none)* | Run full Go test suite (`go test ./...`) and all decoupled .NET test projects |
-| `--test-plugin` | `NAME` | Run targeted tests for a plugin (`telemetry`, `squeeze`, `videofeedcenter`, `ipcam`, `android`, `mediacenter`, `noxai`, `audiosync`, `vna`, `connection`, `studio`) |
+| `--test-plugin` | `NAME` | Run targeted tests for a plugin (`telemetry`, `squeeze`, `videofeedcenter`, `ipcam`, `android`, `mediacenter`, `noxai`, `slideforge`, `audiosync`, `vna`, `connection`, `studio`) |
 | `--clean` | *(none)* | Remove previous build artifacts prior to compiling |
 | `-h`, `--help` | *(none)* | Display help message and exit |
 
@@ -121,7 +127,7 @@ Located at `MADTOM_DOTNET/publish.sh` and symlinked to root `./publish.sh`. Prod
 | Option | Argument | Description |
 |---|---|---|
 | `-a`, `--arch`, `-r`, `--rid` | `linux-x64` \| `linux-arm64` \| `linux-arm` \| `all` | Target Linux RID/architecture (default: host RID). Aliases: `x64`, `amd64`, `arm64`, `aarch64`, `arm`, `armv7` |
-| `-p`, `--project` | `studio` \| `telemetry-app` \| `squeeze-app` \| `videofeedcenter-app` \| `ipcam-app` \| `feedd` \| `android-app` \| `mediacenter-app` \| `noxai-app` \| `audiosync-app` \| `vna-app` \| `connection-app` \| `all` | Project to publish (default: `all`). `console` accepted as legacy alias for `studio`. |
+| `-p`, `--project` | `studio` \| `telemetry-app` \| `squeeze-app` \| `videofeedcenter-app` \| `ipcam-app` \| `feedd` \| `android-app` \| `mediacenter-app` \| `noxai-app` \| `slideforge-app` \| `audiosync-app` \| `vna-app` \| `connection-app` \| `all` | Project to publish (default: `all`). `console` accepted as legacy alias for `studio`. |
 | `-c`, `--config` | `Release` \| `Debug` | Build configuration (default: `Release`) |
 | `--single-file` | *(none)* | Package into single-file executable (default: enabled) |
 | `--no-single-file` | *(none)* | Output loose directory of assemblies and native shared libraries |
@@ -156,7 +162,7 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 - **Multi-Host YAML Deployment**: Deploy to multiple servers sequentially with a single command via `-c / --config deploy.yaml`.
 - **SSH Config & Host Aliases**: Seamlessly resolves short names / aliases defined in `~/.ssh/config` (via `ssh -G <host>`), automatically loading configured users, hostnames, and ports.
 - **SSH Key & Passwordless Sudo Auto-Detection**: Probes for public key authentication and passwordless sudo (`sudo -n`) on the remote host, skipping password prompts entirely when key-based auth and sudo privileges are configured.
-- **Project Selection & Aliases**: Supports building and deploying any backend project via `-P / --project / --app` (e.g. `madtom-daemon`, `madtom-collector`, `squeeze-server`, `noxchat-probe`, `madtom-tsdb-merge`), automatically resolving matching binary paths, systemd service units, and destination paths.
+- **Project Selection & Aliases**: Supports building and deploying any backend project via `-P / --project / --app` (e.g. `madtom-daemon`, `madtom-collector`, `squeeze-server`, `noxchat-probe`, `slideforge-probe`, `madtom-tsdb-merge`), automatically resolving matching binary paths, systemd service units, and destination paths.
 - **Automatic Service Installation**: Detects when a remote systemd service is nonexistent and automatically uploads and installs the matching unit file from `MADTOM_GOLANG/systemd/`, creates companion working directories, stages initial configuration (e.g. `/etc/squeeze/squeeze.yaml`), and enables the service.
 - **Custom Service Overrides & Manual Installation**: Override systemd service unit name per server or globally via `-s / --service`, or force unit file installation/updates using `-i / --install-service` or `--service-file PATH`.
 - **Architecture Auto-Detection & Build Caching**: When `--arch auto` (default) is used, queries `uname -m` over SSH and compiles for the remote architecture automatically, caching builds across identical target architectures.
@@ -174,7 +180,7 @@ Located at `MADTOM_GOLANG/deploy.sh` and symlinked to root `./deploy.sh`. Deploy
 | Option | Argument | Default | Description |
 |---|---|---|---|
 | `-c`, `--config` | `PATH` | *(none)* | Path to YAML configuration file for multi-host deployment |
-| `-P`, `--project`, `--app` | `NAME` | `madtom-daemon` | Project to build and deploy (`daemon`, `collector`, `squeeze`, `probe` / `noxchat-probe` / `noxchat`, `merge`, or custom `cmd/<name>`) |
+| `-P`, `--project`, `--app` | `NAME` | `madtom-daemon` | Project to build and deploy (`daemon`, `collector`, `squeeze`, `probe` / `noxchat-probe` / `noxchat`, `slideforge-probe` / `slideforge` / `sf-probe`, `merge`, or custom `cmd/<name>`) |
 | `--list-projects` | *(none)* | *(none)* | Display available MADTOM Go projects and their default mappings |
 | `-i`, `--install-service` | *(none)* | Auto | Force installation/overwrite of remote systemd service unit file (auto-installs if missing) |
 | `--service-file` | `PATH` | Project default | Explicit local path to systemd service unit file to install |
@@ -241,7 +247,7 @@ Dedicated compilation script for Go backend binaries (`madtom-daemon`, `madtom-c
 | Option | Argument | Default | Description |
 |---|---|---|---|
 | `-a`, `--arch` | `amd64` \| `arm64` \| `arm` \| `all` | Host arch | Architecture to compile for |
-| `-p`, `--package` | `daemon` \| `collector` \| `squeeze` \| `telemetry` \| `all` | `all` | Package(s) to compile |
+| `-p`, `--package` | `daemon` \| `collector` \| `squeeze` \| `telemetry` \| `noxchat-probe` \| `slideforge-probe` \| `all` | `all` | Package(s) to compile (`all` includes `madtom-collector`, `madtom-daemon`, `squeeze-server`, `noxchat-probe`, and `slideforge-probe`) |
 | `-c`, `--clean` | *(none)* | Disabled | Clean `bin/` directory prior to compiling |
 | `--release` | *(none)* | Enabled | Strip debug symbols (`-ldflags="-s -w"`) |
 | `--debug` | *(none)* | Disabled | Retain debug symbols |
@@ -454,7 +460,7 @@ Both desktop clients also accept `MADTOM_UI_TIMING=1` (for full UI performance i
 
 Both desktop clients accept the environment variable `MADTOM_HISTORY_TIMING=1` for opt-in scope-load timing logs on stderr. See [capture commands and timing fields](Plugins/Telemetry/ui-and-visualization.md#history-timing-diagnostics). Omit it to disable.
 
-The primary desktop user interface hosting plugins (Telemetry, SQUEEZE, Android Toolkit, AudioSync, MediaCenter, Nox AI, VNA, Connection Toolkit), fleet topology, downsampled graphs, and process lists.
+The primary desktop user interface hosting plugins (Telemetry, SQUEEZE, Android Toolkit, AudioSync, MediaCenter, Nox AI, SlideForge, VNA, Connection Toolkit), fleet topology, downsampled graphs, and process lists.
 
 - **Technology**: Avalonia UI (.NET 10)
 - **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Studio/MADTOM.Studio`
@@ -660,6 +666,93 @@ A standalone, focused desktop control center packaging the NOX AI plugin directl
 
 # Or running from source via dotnet CLI
 dotnet run --project MADTOM_DOTNET/src/Plugins/NoxAI/MADTOM.Plugins.NoxAI.App/MADTOM.Plugins.NoxAI.App.csproj
+```
+
+---
+
+### 12. `slideforge-probe` — SlideForge Control Daemon
+
+The dedicated Go control daemon bridging MADTOM Studio to the **SlideForge** Python document-generation bot. Exposes a TLS-encrypted, Ed25519-authenticated gRPC service for allowlisted control RPCs, live job/state streaming, WAL log spooling, and mDNS discovery.
+
+- **Technology**: Go daemon (`MADTOM_GOLANG/cmd/slideforge-probe/main.go`)
+- **Executable**: `MADTOM_GOLANG/bin/slideforge-probe` or `/opt/slideforge-probe/bin/slideforge-probe`
+- **Default Listen Address**: `:50057` (gRPC over TLS)
+- **Default Local Bridge**: `127.0.0.1:50058` (bot loopback control channel via `-bot-host` / `-bot-port`)
+- **mDNS Service**: `_slideforge-probe._tcp.local`
+- **Build & Deploy**:
+  - Included in `MADTOM_GOLANG/build.sh` under `-p slideforge-probe` and `-p all` (`./MADTOM_GOLANG/build.sh -p slideforge-probe`).
+  - Included in `deploy.sh` under project `slideforge-probe` (aliases `slideforge`, `sf-probe`), deploying `bin/slideforge-probe` to `/opt/slideforge-probe` with `systemd/slideforge-probe.service` (`slideforge-probe.service`).
+
+#### Command Arguments
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `-node-id` | `string` | System hostname (fallback `"slideforge-node"`) | Unique node ID |
+| `-listen` | `string` | `":50057"` | gRPC listen address (over TLS) |
+| `-bot-host` | `string` | `"127.0.0.1"` | Bot control-channel loopback host |
+| `-bot-port` | `int` | `50058` | Bot control-channel port |
+| `-state-dir` | `string` | `"/var/lib/slideforge-probe"` | Directory for persistent TLS identity and WAL spool |
+| `-mdns` | `bool` | `true` | Advertise via mDNS (`_slideforge-probe._tcp.local`). The shipped unit passes `-mdns=false` (see note below) |
+| `-store-raw-logs` | `bool` | `false` | Store logs and API calls in the WAL spool |
+| `-max-spool-bytes` | `int64` | `1073741824` | WAL retention quota in bytes (1 GiB) |
+| `-auth-key` | `string` | `""` | Client authorization key (or `SLIDEFORGE_CONTROL_KEY` environment variable) |
+| `-auth-key-file` | `string` | `""` | Key file or `.env` file (default lookup `./SlideForge/.env`) |
+| `-authorized-keys` | `string` | `""` | Path to an Ed25519 public-key allowlist |
+| `-insecure-dev` | `bool` | `false` | Allow startup without authentication keys (logs a warning; disabled by default) |
+| `-gen-key` | `bool` | `false` | Generate a new client authorization key (`SLIDEFORGE_CONTROL_KEY=...`) and exit |
+
+> **mDNS on avahi hosts.** The built-in responder (grandcat/zeroconf) also answers for `<hostname>.local` on every interface, docker0 included, and conflicts with `avahi-daemon`: the host is renamed `<hostname>-2.local` and its name can resolve to a bridge address. For that reason `MADTOM_GOLANG/systemd/slideforge-probe.service` runs with `-mdns=false`. Advertise through avahi instead with `sudo install -m 0644 MADTOM_GOLANG/systemd/avahi/slideforge-probe.service /etc/avahi/services/` (set its `node_id` TXT record to the probe's `-node-id`).
+
+#### Security & Transport Model
+
+- **Persistent TLS Identity**: On startup, `slideforge-probe` loads or creates a self-signed TLS certificate under `-state-dir` and logs its SHA-256 fingerprint as `TLS certificate SHA-256: <hex>` for operator TOFU pinning in MADTOM Studio.
+- **Ed25519 Authentication**: Clients authenticate via Ed25519 signatures configured with `-auth-key` (or `SLIDEFORGE_CONTROL_KEY`), `-auth-key-file` (default lookup `./SlideForge/.env`), or `-authorized-keys`. The daemon refuses to start without a configured key unless `-insecure-dev` is explicitly passed.
+- **Replay Protection**: Verified requests are checked against an in-memory bounded nonce replay cache that rejects duplicate `(timestamp, nonce)` pairs within the validity window.
+- **Loopback Bot Bridge**: Connects to the SlideForge bot's local control bridge on `-bot-host` / `-bot-port` (`127.0.0.1:50058` by default).
+
+#### Execution Examples
+```bash
+# Build via MADTOM_GOLANG/build.sh
+./MADTOM_GOLANG/build.sh -p slideforge-probe
+
+# Deploy to a remote host via deploy.sh (aliases: slideforge-probe, slideforge, sf-probe)
+./deploy.sh -P slideforge-probe user@node.example.com
+
+# Generate a new Ed25519 client authorization key
+./MADTOM_GOLANG/bin/slideforge-probe -gen-key
+
+# Run probe daemon with a public-key allowlist and persistent state directory
+./MADTOM_GOLANG/bin/slideforge-probe \
+    -node-id sf-node-01 \
+    -listen :50057 \
+    -bot-host 127.0.0.1 \
+    -bot-port 50058 \
+    -state-dir /var/lib/slideforge-probe \
+    -authorized-keys /etc/slideforge-probe/authorized_keys
+
+# Run from source via Go toolchain (local development only, auth disabled)
+cd MADTOM_GOLANG && go run ./cmd/slideforge-probe -state-dir /tmp/sf-probe -insecure-dev
+```
+
+---
+
+### 13. `MADTOM.Plugins.SlideForge.App` — Standalone SlideForge Control Center
+
+A standalone, focused desktop control center packaging the SlideForge plugin directly without the full MADTOM Studio shell. Provides dedicated access to all 7 workspaces: Overview & Telemetry, Jobs, Users & Quota, Guides & Tips, Sandbox, Config, and Raw Logs & API.
+
+- **Technology**: Avalonia UI (.NET 10)
+- **Executable**: `MADTOM_DOTNET/publish/{OS_arch}/MADTOM.Plugins.SlideForge.App/MADTOM.Plugins.SlideForge.App`
+- **Publish Project Key**: `slideforge-app` (`./MADTOM_DOTNET/publish.sh -p slideforge-app`)
+
+#### Running
+```bash
+# Publish self-contained executable
+./MADTOM_DOTNET/publish.sh -p slideforge-app
+
+# Direct execution (self-contained executable)
+./MADTOM_DOTNET/publish/linux-x64/MADTOM.Plugins.SlideForge.App/MADTOM.Plugins.SlideForge.App
+
+# Or running from source via dotnet CLI
+dotnet run --project MADTOM_DOTNET/src/Plugins/SlideForge/MADTOM.Plugins.SlideForge.App/MADTOM.Plugins.SlideForge.App.csproj
 ```
 
 

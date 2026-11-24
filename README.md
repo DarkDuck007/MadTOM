@@ -53,6 +53,7 @@ Comprehensive guides, manuals, and technical deep-dives are organized into modul
 - 📱 **[MADTOM: Android Toolkit](Documentation/Plugins/AndroidToolkit/README.md)**: Device backup, ADB command dispatching, package deployment, and battery/storage health telemetry.
 - 📺 **[MADTOM: MediaCenter](Documentation/Plugins/MediaCenter/README.md)**: Local & network NAS streaming, direct play library indexer, and DLNA/UPnP playback control.
 - 🧠 **[MADTOM: NOX AI Control Center](Documentation/Plugins/NoxAI/README.md)**: Real-time control plane, RAG/memory explorer, WAL spool manager, raw LLM API call inspector, direct operator chat, and Python runtime telemetry for NoxChat.
+- 🎞️ **[MADTOM: SlideForge Control Center](Documentation/Plugins/SlideForge/README.md)**: Real-time operations console for the SlideForge document-generation bot, featuring job monitoring, user quota management, guides/tips editing, Firecracker sandbox control, and TLS-pinned Ed25519 gRPC telemetry.
 - 🔊 **[MADTOM: AUDIOSYNC](Documentation/Plugins/AudioSync/README.md)**: Precision multi-room audio synchronization, PTP master clock disciplining, and latency buffer calibration.
 - 🌐 **[MADTOM: VNA](Documentation/Plugins/VNA/README.md)**: Visual Network Analyzer for real-time topology mapping, latency graphs, interface load metrics, and packet flow diagnostics.
 - 🔌 **[MADTOM: Connection Toolkit](Documentation/Plugins/ConnectionToolkit/README.md)**: Unified connection manager and proxy utility for tunneling, SSH key management, port forwarding, and protocol bridges.
@@ -114,12 +115,14 @@ For UI baselines, launch with `MADTOM_UI_TIMING=1` and summarize the captured st
 | `madtom-daemon` | Lightweight endpoint agent (CPU, memory, disk, network, TWAMP) | [Documentation](Documentation/cli-and-scripts.md#1-madtom-daemon--node-telemetry-agent) |
 | `madtom-collector` | Central gRPC telemetry hub, Pebble TSDB storage, LTTB queries | [Documentation](Documentation/cli-and-scripts.md#2-madtom-collector--central-telemetry-hub) |
 | `noxchat-probe` | NoxChat daemon bridge, WAL spooling, log search & telemetry | [Documentation](Documentation/cli-and-scripts.md#10-noxchat-probe--noxchat-bridge--control-daemon) |
+| `slideforge-probe` | SlideForge control daemon, TLS pinning, Ed25519 auth & WAL spooling | [Documentation](Documentation/cli-and-scripts.md#12-slideforge-probe--slideforge-control-daemon) |
 | `MADTOM.Studio` | Modular desktop operator workspace & plugin host shell | [Documentation](Documentation/Studio/overview-and-ui.md) |
 | `MADTOM.Plugins.Telemetry.App` | Standalone telemetry client without studio shell | [Documentation](Documentation/Plugins/Telemetry/ui-and-visualization.md#overview--standalone-mode) |
 | `MADTOM.Plugins.Squeeze.App` | Standalone SQUEEZE media transcode client | [Documentation](Documentation/Plugins/Squeeze/README.md) |
 | `MADTOM.Plugins.AndroidToolkit.App` | Standalone Android toolkit runner | [Documentation](Documentation/Plugins/AndroidToolkit/README.md) |
 | `MADTOM.Plugins.MediaCenter.App` | Standalone MediaCenter runner | [Documentation](Documentation/Plugins/MediaCenter/README.md) |
 | `MADTOM.Plugins.NoxAI.App` | Standalone NOX AI control center runner | [Documentation](Documentation/cli-and-scripts.md#11-madtompluginsnoxaiapp--standalone-nox-ai-control-center) |
+| `MADTOM.Plugins.SlideForge.App` | Standalone SlideForge control center runner | [Documentation](Documentation/cli-and-scripts.md#13-madtompluginsslideforgeapp--standalone-slideforge-control-center) |
 | `MADTOM.Plugins.AudioSync.App` | Standalone AUDIOSYNC runner | [Documentation](Documentation/Plugins/AudioSync/README.md) |
 | `MADTOM.Plugins.VNA.App` | Standalone Visual Network Analyzer runner | [Documentation](Documentation/Plugins/VNA/README.md) |
 | `MADTOM.Plugins.ConnectionToolkit.App` | Standalone Connection Toolkit runner | [Documentation](Documentation/Plugins/ConnectionToolkit/README.md) |
@@ -163,6 +166,7 @@ MADTOM/
 │       ├── AndroidToolkit/       # Android Toolkit guide
 │       ├── MediaCenter/          # MediaCenter guide
 │       ├── NoxAI/                # NOX AI Control Center guide
+│       ├── SlideForge/           # SlideForge Control Center guide
 │       ├── AudioSync/            # AUDIOSYNC guide
 │       ├── VNA/                  # Visual Network Analyzer guide
 │       └── ConnectionToolkit/    # Connection Toolkit guide
@@ -188,6 +192,7 @@ MADTOM/
     │       ├── AndroidToolkit/   # Android toolkit views and standalone app
     │       ├── MediaCenter/      # MediaCenter views and standalone app
     │       ├── NoxAI/            # NOX AI control center views and standalone app
+    │       ├── SlideForge/       # SlideForge control center views and standalone app
     │       ├── AudioSync/        # AUDIOSYNC views and standalone app
     │       ├── VNA/              # Visual Network Analyzer views and standalone app
     │       └── ConnectionToolkit/# Connection Toolkit views and standalone app
@@ -202,6 +207,7 @@ MADTOM/
             ├── AndroidToolkit/   # Lifecycle & ADB model tests
             ├── MediaCenter/      # Lifecycle & streaming model tests
             ├── NoxAI/            # Lifecycle & LLM inference model tests
+            ├── SlideForge/       # Lifecycle, RPC, auth & TLS pinning tests
             ├── AudioSync/        # Lifecycle & PTP clock sync tests
             ├── VNA/              # Lifecycle & network model tests
             └── ConnectionToolkit/# Lifecycle & proxy model tests

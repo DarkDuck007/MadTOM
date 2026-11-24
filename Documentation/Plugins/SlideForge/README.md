@@ -64,3 +64,40 @@ The **SlideForge** plugin (`MADTOM.Plugins.SlideForge`) monitors and administers
 - **Mismatch Protection**: If a previously pinned endpoint presents a different certificate, the connection is blocked and both fingerprints are displayed until the operator explicitly clicks **Forget Pin**.
 - **Fail-Closed Store**: Pins are stored atomically as JSON in `%LocalAppData%/MADTOM/slideforge-pins.json`. A corrupt pin file fails closed on every evaluation.
 - **Ed25519 Signing (`SfAuthTokenGenerator`)**: Every gRPC call is signed with a fresh GUID nonce and UTC timestamp (`x-nox-auth-ts`, `x-nox-auth-nonce`, `x-nox-auth-sig`).
+
+---
+
+## Setup
+
+1. **Generate an Ed25519 client key**:
+   ```bash
+   ./MADTOM_GOLANG/bin/slideforge-probe -gen-key
+   ```
+   Save the emitted `SLIDEFORGE_CONTROL_KEY=<key>` token for MADTOM Studio, and place the corresponding public key in an allowlist file on the probe host (for example `/etc/slideforge-probe/authorized_keys`).
+
+2. **Start `slideforge-probe` with `-authorized-keys`**:
+   ```bash
+   ./MADTOM_GOLANG/bin/slideforge-probe \
+     -listen :50057 \
+     -bot-host 127.0.0.1 \
+     -bot-port 50058 \
+     -state-dir /var/lib/slideforge-probe \
+     -authorized-keys /etc/slideforge-probe/authorized_keys
+   ```
+   Note the certificate fingerprint printed in the probe log or systemd journal:
+   ```text
+   [SlideForge_Probe] TLS certificate SHA-256: <hex>
+   ```
+
+3. **Connect from MADTOM Studio (or `MADTOM.Plugins.SlideForge.App`)**:
+   - Open the SlideForge plugin **Settings** modal and add a node.
+   - Enter endpoint `127.0.0.1:50057` when forwarding the port over an SSH `LocalForward` (e.g. `ssh -L 50057:127.0.0.1:50057 user@node.example.com`), or enter the probe host's LAN address and port (`<host>:50057`).
+   - Paste the client authorization key generated in step 1.
+   - On first connection, compare the SHA-256 fingerprint shown in the trust prompt against the `TLS certificate SHA-256: <hex>` line from the probe logs, then click **Trust & Pin**.
+
+---
+
+## See Also
+
+- [`slideforge-probe` — SlideForge Control Daemon](../../cli-and-scripts.md#12-slideforge-probe--slideforge-control-daemon)
+- [`MADTOM.Plugins.SlideForge.App` — Standalone SlideForge Control Center](../../cli-and-scripts.md#13-madtompluginsslideforgeapp--standalone-slideforge-control-center)
