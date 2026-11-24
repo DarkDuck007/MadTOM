@@ -13,7 +13,7 @@ The **SlideForge** plugin (`MADTOM.Plugins.SlideForge`) monitors and administers
 │    Sandbox, Config, Raw Logs & API                     │
 │  - TOFU TLS Certificate Pinning (SfCertificatePins)    │
 │  - Ed25519 Request Signing (fresh nonce per RPC)       │
-│  - Allowlisted JSON-over-gRPC Client (SfRpc, 31 RPCs)  │
+│  - Allowlisted JSON-over-gRPC Client (SfRpc, 33 RPCs)  │
 └───────────────────────────┬────────────────────────────┘
                             │ gRPC over TLS 1.3 (port 50057 / mDNS _slideforge-probe._tcp)
                             │ Headers: x-nox-auth-ts / x-nox-auth-nonce / x-nox-auth-sig
@@ -49,10 +49,10 @@ The **SlideForge** plugin (`MADTOM.Plugins.SlideForge`) monitors and administers
 ## Workspaces
 
 1. **Overview & Telemetry (`SfOverviewTabView`)**: Live active/queued/waiting job counters, 7-day job totals, failure rate, average duration, weekly quota burn, subsystem health (`bridge_ok`, `sandbox_ok`, `agy_ok`), top users, and a live `MetricHistoryChartControl` of active and queued jobs.
-2. **Jobs (`SfJobsTabView`)**: Filterable, paginated job list (`list_jobs`) with live `SfJobEvent` updates, detail timeline, studio Q&A, Spec JSON viewer, job file download (`get_job_file` mode `"bytes"`), and Cancel / More Time actions.
+2. **Jobs (`SfJobsTabView`)**: Filterable, paginated job list (`list_jobs`) with live `SfJobEvent` updates, detail timeline, studio Q&A, **Files** sub-tab (`list_job_files` merging `job_files`/spec inputs and `data/jobs/<id>/output` outputs, inline image/PDF previews and bounded text viewer via `get_job_file` modes `"preview"` / `"text"`, and **Save as…** download via `"bytes"`), Spec JSON viewer, and Cancel / More Time actions.
 3. **Users & Quota (`SfUsersTabView`)**: Searchable user list showing 7-day quota usage (`used / limit`), weekly limit override or reset-to-default (`set_user_quota`), and ban/unban (`set_user_banned`).
 4. **Guides & Tips (`SfGuidesTabView`)**: Markdown file browser and monospace editor for `guides/*.md` (dirty-tracked Save), structured CRUD editor for `tips.yaml` (with JSON object validation for `when`), and an assembled prompt previewer (`preview_prompt`).
-5. **Sandbox (`SfSandboxTabView`)**: Firecracker VM list (`sandbox_list_vms`), confirmed VM actions (`reset_session`, `hibernate`, `restart`, `kill`, `wipe`), and sandbox image status / rebuild (`sandbox_image_status`, `sandbox_rebuild_image`).
+5. **Sandbox (`SfSandboxTabView`)**: Host summary bar with progress bars for running VMs / max and guest RAM / cap (`sandbox_stats`), auto-refresh on the status poll cadence, Firecracker VM table (user/chat ID, hot/cold state badge, uptime, memory/vCPUs, daily CPU-s vs cap, disk used of quota, last run), confirmed VM lifecycle actions (`reset_session`, `hibernate`, `restart`, `kill`, `wipe`), a **VM Files** browser (`sandbox_list_files`, `sandbox_read_text`, `sandbox_preview`) with inline text/image/PDF preview, and sandbox image status / rebuild (`sandbox_image_status`, `sandbox_rebuild_image`).
 6. **Config (`SfConfigTabView`)**: Read-only pretty-printed view of the effective bot configuration (`get_config`, secrets already redacted by the bot).
 7. **Raw Logs & API (`SfLogsTabView`)**: Bounded live log stream (5,000 entries) with level and text filtering, plus a live API/tool calls feed from `SubscribeLogsAndApi`.
 

@@ -25,7 +25,7 @@
         </Border>
 
         <!-- Split: Jobs List | Job Detail -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,1.2*" ColumnSpacing="12">
+        <Grid Grid.Row="1" ColumnDefinitions="*,1.35*" ColumnSpacing="12">
             <!-- Jobs List -->
             <Border Grid.Column="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                 <Grid RowDefinitions="Auto,*">
@@ -103,19 +103,82 @@
                             </ListBox>
                         </TabItem>
 
-                        <TabItem Header="Files" FontSize="11">
-                            <ListBox ItemsSource="{Binding Detail.Files}" Background="Transparent" BorderThickness="0">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:SfJobFileItem">
-                                        <Grid ColumnDefinitions="*,70,75,Auto" ColumnSpacing="8" Margin="0,3">
-                                            <TextBlock Text="{Binding Name}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Role}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding SizeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="3" Content="Download" Padding="8,2" FontSize="10" Click="OnDownloadFileClick" Tag="{Binding .}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                        <TabItem Header="📂 Files" FontSize="11">
+                            <Grid RowDefinitions="Auto,*,1.2*" RowSpacing="8" Margin="0,6,0,0">
+                                <!-- Files Toolbar -->
+                                <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="8" LineSpacing="4" VerticalAlignment="Center">
+                                    <Button Command="{Binding LoadJobFilesCommand}" Content="🔄 Refresh Files" Padding="8,3" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                                    <Button Command="{Binding InspectFileCommand}" Content="👁 Preview / Read" Padding="8,3" FontSize="11" IsEnabled="{Binding HasSelectedFile}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding HasMultipleFilePages}">
+                                        <Button Command="{Binding PrevFilePageCommand}" Content="◀" Padding="6,2" FontSize="10" IsEnabled="{Binding !IsBusy}"/>
+                                        <TextBlock Text="{Binding FilePageStatusText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                        <Button Command="{Binding NextFilePageCommand}" Content="▶" Padding="6,2" FontSize="10" IsEnabled="{Binding !IsBusy}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding FileViewerNotice}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" IsVisible="{Binding FileViewerNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                </WrapPanel>
+
+                                <!-- Inputs & Outputs List -->
+                                <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+                                    <Grid RowDefinitions="Auto,*">
+                                        <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,5">
+                                            <Grid ColumnDefinitions="*,75,65,75,120,Auto" ColumnSpacing="6">
+                                                <TextBlock Text="FILE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="1" Text="ROLE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="2" Text="KIND" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="3" Text="SIZE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="4" Text="MODIFIED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                <TextBlock Grid.Column="5" Text="" FontSize="10"/>
+                                            </Grid>
+                                        </Border>
+                                        <ListBox Grid.Row="1"
+                                                 ItemsSource="{Binding Detail.Files}"
+                                                 SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
+                                                 SelectionChanged="OnJobFileSelectionChanged"
+                                                 Background="Transparent"
+                                                 BorderThickness="0">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:SfJobFileItem">
+                                                    <Grid ColumnDefinitions="*,75,65,75,120,Auto" ColumnSpacing="6" Margin="0,2">
+                                                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Icon}" FontSize="11"/>
+                                                            <TextBlock Text="{Binding Name}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Text="{Binding RoleBadge}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Kind}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="3" Text="{Binding SizeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding MtimeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                        <Button Grid.Column="5" Content="Save as…" Padding="8,2" FontSize="10" Click="OnDownloadFileClick" Tag="{Binding .}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Inline Preview Pane -->
+                                <Border Grid.Row="2" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8">
+                                    <Panel>
+                                        <ScrollViewer IsVisible="{Binding IsFileImageVisible}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                            <Image Source="{Binding FilePreviewImage}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </ScrollViewer>
+                                        <TextBox IsVisible="{Binding IsFileTextVisible}"
+                                                 Text="{Binding FileViewerText, Mode=OneWay}"
+                                                 IsReadOnly="True"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="NoWrap"
+                                                 FontFamily="{StaticResource MonoFontFamily}"
+                                                 FontSize="11"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"/>
+                                        <TextBlock Text="Select a file to preview images, PDFs, or bounded text."
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding !HasSelectedFile}"/>
+                                    </Panel>
+                                </Border>
+                            </Grid>
                         </TabItem>
 
                         <TabItem Header="Spec JSON" FontSize="11">

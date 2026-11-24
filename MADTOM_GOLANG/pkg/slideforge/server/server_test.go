@@ -144,11 +144,11 @@ func waitConnected(t *testing.T, s *Server) {
 
 func TestDefaultAllowlistMatchesContract(t *testing.T) {
 	want := []string{
-		"get_overview", "list_jobs", "get_job", "cancel_job", "extend_job", "get_job_file", "get_job_transcript",
+		"get_overview", "list_jobs", "get_job", "list_job_files", "cancel_job", "extend_job", "get_job_file", "get_job_transcript",
 		"list_users", "get_user", "set_user_quota", "set_user_banned",
 		"list_guides", "get_guide", "put_guide", "list_tips", "upsert_tip", "delete_tip", "preview_prompt",
 		"get_config",
-		"sandbox_list_vms", "sandbox_vm_action", "sandbox_list_files", "sandbox_read_text", "sandbox_preview",
+		"sandbox_list_vms", "sandbox_stats", "sandbox_vm_action", "sandbox_list_files", "sandbox_read_text", "sandbox_preview",
 		"sandbox_backups", "sandbox_restore_backup", "sandbox_library_requests", "sandbox_decide_library",
 		"sandbox_image_status", "sandbox_rebuild_image", "sandbox_runs",
 	}

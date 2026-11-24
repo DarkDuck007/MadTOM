@@ -3,23 +3,44 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MADTOM.Plugins.SlideForge.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="700"
+             mc:Ignorable="d" d:DesignWidth="1240" d:DesignHeight="760"
              x:Class="MADTOM.Plugins.SlideForge.Views.Tabs.SfSandboxTabView"
              x:DataType="vm:SfSandboxViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16" RowSpacing="10">
-        <!-- Toolbar -->
+    <Grid RowDefinitions="Auto,*,1.15*,Auto" Margin="16" RowSpacing="10">
+        <!-- Host Summary Bar + VM Actions -->
         <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6" VerticalAlignment="Center">
-                    <Button Command="{Binding RefreshAllCommand}" Content="Refresh" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
-                    <TextBlock Text="{Binding TotalsSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding HostSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <WrapPanel Orientation="Horizontal" ItemSpacing="14" LineSpacing="6" VerticalAlignment="Center">
+                    <Button Command="{Binding RefreshAllCommand}" Content="🔄 Refresh" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}" VerticalAlignment="Center"/>
+                    <CheckBox IsChecked="{Binding AutoRefresh, Mode=TwoWay}" Content="Auto-refresh" FontSize="11" VerticalAlignment="Center"/>
+
+                    <!-- Running VMs / Max with ProgressBar -->
+                    <StackPanel Spacing="2" Width="140" VerticalAlignment="Center">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="RUNNING VMs" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding RunningVmsText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </Grid>
+                        <ProgressBar Value="{Binding RunningVmsFraction}" Minimum="0" Maximum="1" Height="5"/>
+                    </StackPanel>
+
+                    <!-- Guest RAM / Cap with ProgressBar -->
+                    <StackPanel Spacing="2" Width="175" VerticalAlignment="Center">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="GUEST RAM" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding GuestMemText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </Grid>
+                        <ProgressBar Value="{Binding GuestMemFraction}" Minimum="0" Maximum="1" Height="5"/>
+                    </StackPanel>
+
+                    <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="5" Padding="8,3" VerticalAlignment="Center" IsVisible="{Binding HostSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="{Binding HostSummary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
                 </WrapPanel>
 
                 <!-- VM Actions with Confirmations -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsEnabled="{Binding HasSelectedVm}">
-                    <TextBox Text="{Binding SessionName, Mode=TwoWay}" PlaceholderText="session" Width="80" FontSize="11"/>
+                    <TextBox Text="{Binding SessionName, Mode=TwoWay}" PlaceholderText="session" Width="76" FontSize="11"/>
 
                     <Button Content="Reset Session" Padding="8,4" FontSize="11">
                         <Button.Flyout>
@@ -83,27 +104,73 @@
         <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
             <Grid RowDefinitions="Auto,*">
                 <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
-                    <Grid ColumnDefinitions="200,70,90,110,130,150,*" ColumnSpacing="8">
+                    <Grid ColumnDefinitions="190,85,80,125,145,165,*" ColumnSpacing="8">
                         <TextBlock Text="USER / CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="1" Text="KIND" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="2" Text="STATE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="3" Text="IMAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="4" Text="RESOURCES" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="5" Text="DISK" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="6" Text="LAST USED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="1" Text="STATE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="2" Text="UPTIME" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="3" Text="MEMORY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="4" Text="CPU TODAY / CAP" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="5" Text="DISK / QUOTA" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="6" Text="LAST RUN" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
                     </Grid>
                 </Border>
-                <ListBox Grid.Row="1" ItemsSource="{Binding Vms}" SelectedItem="{Binding SelectedVm, Mode=TwoWay}" Background="Transparent" BorderThickness="0">
+                <ListBox Grid.Row="1"
+                         ItemsSource="{Binding Vms}"
+                         SelectedItem="{Binding SelectedVm, Mode=TwoWay}"
+                         SelectionChanged="OnVmSelectionChanged"
+                         Background="Transparent"
+                         BorderThickness="0">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:SfSandboxVmRow">
-                            <Grid ColumnDefinitions="200,70,90,110,130,150,*" ColumnSpacing="8" Margin="2,3">
-                                <TextBlock Text="{Binding DisplayLabel}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBlock Grid.Column="2" Text="{Binding State}" FontSize="11" Foreground="{DynamicResource AccentTextBrush}"/>
-                                <TextBlock Grid.Column="3" Text="{Binding ImageVersion}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
-                                <TextBlock Grid.Column="4" Text="{Binding ResourcesDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
-                                <TextBlock Grid.Column="5" Text="{Binding DiskDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
-                                <TextBlock Grid.Column="6" Text="{Binding LastUsed}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <Grid ColumnDefinitions="190,85,80,125,145,165,*" ColumnSpacing="8" Margin="2,3" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DisplayLabel}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayLabel}" VerticalAlignment="Center"/>
+
+                                <!-- Hot / Cold State Badge -->
+                                <Border Grid.Column="1"
+                                        Classes.hot="{Binding IsHot}"
+                                        Classes.cold="{Binding IsCold}"
+                                        Background="{DynamicResource DarkBaseBrush}"
+                                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="5,2"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center">
+                                    <Border.Styles>
+                                        <Style Selector="Border.hot">
+                                            <Setter Property="Background" Value="{DynamicResource HealthySubtleBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource HealthyBrush}"/>
+                                        </Style>
+                                        <Style Selector="Border.hot TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource HealthyBrush}"/>
+                                        </Style>
+                                        <Style Selector="Border.cold">
+                                            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                        </Style>
+                                        <Style Selector="Border.cold TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+                                        </Style>
+                                    </Border.Styles>
+                                    <TextBlock Text="{Binding StateBadge}" FontSize="9" FontWeight="Bold"/>
+                                </Border>
+
+                                <TextBlock Grid.Column="2" Text="{Binding UptimeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="{Binding MemoryDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+
+                                <!-- CPU Today vs Daily Cap -->
+                                <StackPanel Grid.Column="4" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding CpuDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    <ProgressBar Value="{Binding CpuFraction}" Minimum="0" Maximum="1" Height="4"/>
+                                </StackPanel>
+
+                                <!-- Disk Used of Quota -->
+                                <StackPanel Grid.Column="5" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DiskDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    <ProgressBar Value="{Binding DiskUsageFraction}" Minimum="0" Maximum="1" Height="4"/>
+                                </StackPanel>
+
+                                <TextBlock Grid.Column="6" Text="{Binding LastRunDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -111,29 +178,120 @@
             </Grid>
         </Border>
 
-        <!-- Sandbox Image Status -->
-        <Border Grid.Row="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <TextBlock Text="SANDBOX IMAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding ImageStatusSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                        <Button Command="{Binding LoadImageStatusCommand}" Content="Check Image" Padding="8,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
-                        <Button Command="{Binding RebuildImageCommand}" Content="Rebuild Image" Background="{DynamicResource WarningBrush}" Foreground="White" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
-                    </StackPanel>
+        <!-- Bottom Sub-Tabs: Selected VM File Browser | Sandbox Image -->
+        <TabControl Grid.Row="2" Padding="0">
+            <TabItem Header="📂 VM Files" FontSize="11">
+                <Grid RowDefinitions="Auto,*" RowSpacing="8" Margin="0,6,0,0">
+                    <!-- File Browser Toolbar -->
+                    <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6">
+                        <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="Path:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            <TextBox Text="{Binding FilesPath, Mode=TwoWay}" PlaceholderText="/data" Width="210" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" IsEnabled="{Binding HasSelectedVm}"/>
+                            <Button Command="{Binding RefreshFilesCommand}" Content="🔄 List" Padding="8,3" FontSize="11" IsEnabled="{Binding HasSelectedVm}"/>
+                            <Button Command="{Binding NavigateUpCommand}" Content="⬆ Up" Padding="8,3" FontSize="11" IsEnabled="{Binding HasSelectedVm}"/>
+                            <Button Command="{Binding OpenFileCommand}" Content="📖 Open" Padding="8,3" FontSize="11" IsEnabled="{Binding HasSelectedVm}"/>
+                            <Button Command="{Binding PreviewFileCommand}" Content="🖼 Preview" Padding="8,3" FontSize="11" IsEnabled="{Binding CanPreviewSelectedFile}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding HasMultiplePages}">
+                                <Button Command="{Binding PrevPageCommand}" Content="◀" Padding="6,2" FontSize="10" IsEnabled="{Binding !IsBusy}"/>
+                                <TextBlock Text="{Binding PageStatusText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                <Button Command="{Binding NextPageCommand}" Content="▶" Padding="6,2" FontSize="10" IsEnabled="{Binding !IsBusy}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding FilesAsOf, StringFormat='as of {0}'}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" IsVisible="{Binding FilesAsOf, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            <Border Background="{DynamicResource WarningSubtleBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="4" Padding="5,1" VerticalAlignment="Center" IsVisible="{Binding FilesFromCache}">
+                                <TextBlock Text="cached" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                            </Border>
+                        </WrapPanel>
+                    </Border>
+
+                    <!-- Split: Left (Files List), Right (Text / Image Preview) -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Border Grid.Column="0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+                            <Grid RowDefinitions="Auto,*">
+                                <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
+                                    <Grid ColumnDefinitions="*,55,75,130" ColumnSpacing="6">
+                                        <TextBlock Text="PATH" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="TYPE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="2" Text="SIZE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Grid.Column="3" Text="MODIFIED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    </Grid>
+                                </Border>
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding Files}"
+                                         SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
+                                         DoubleTapped="OnFileDoubleTapped"
+                                         Background="Transparent"
+                                         BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SfSandboxFileRow">
+                                            <Grid ColumnDefinitions="*,55,75,130" ColumnSpacing="6" Margin="0,2">
+                                                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Icon}" FontSize="11"/>
+                                                    <TextBlock Text="{Binding Path}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Text="{Binding Type}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding SizeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding MtimeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Preview Pane -->
+                        <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8">
+                            <Grid RowDefinitions="Auto,*">
+                                <TextBlock Grid.Row="0" Text="{Binding ViewerNotice}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,4" IsVisible="{Binding ViewerNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <Panel Grid.Row="1">
+                                    <ScrollViewer IsVisible="{Binding IsImageViewerVisible}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                        <Image Source="{Binding PreviewImage}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </ScrollViewer>
+                                    <TextBox IsVisible="{Binding IsTextViewerVisible}"
+                                             Text="{Binding ViewerText, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             AcceptsReturn="True"
+                                             TextWrapping="NoWrap"
+                                             FontFamily="{StaticResource MonoFontFamily}"
+                                             FontSize="11"
+                                             Background="Transparent"
+                                             BorderThickness="0"/>
+                                    <TextBlock Text="Select a VM above and double-click a file to preview."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding !HasSelectedVm}"/>
+                                </Panel>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Grid>
-                <TextBox Grid.Row="1"
-                         Text="{Binding ImageLastBuildLog, Mode=OneWay}"
-                         IsReadOnly="True"
-                         AcceptsReturn="True"
-                         TextWrapping="Wrap"
-                         Height="90"
-                         FontFamily="{StaticResource MonoFontFamily}"
-                         FontSize="10"/>
-            </Grid>
-        </Border>
+            </TabItem>
+
+            <TabItem Header="🧱 Sandbox Image" FontSize="11">
+                <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,6,0,0">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <TextBlock Text="SANDBOX IMAGE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ImageStatusSummary}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                                <Button Command="{Binding LoadImageStatusCommand}" Content="Check Image" Padding="8,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                                <Button Command="{Binding RebuildImageCommand}" Content="Rebuild Image" Background="{DynamicResource WarningBrush}" Foreground="White" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBox Grid.Row="1"
+                                 Text="{Binding ImageLastBuildLog, Mode=OneWay}"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="{StaticResource MonoFontFamily}"
+                                 FontSize="10"/>
+                    </Grid>
+                </Border>
+            </TabItem>
+        </TabControl>
 
         <!-- Status / Error Footer -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">

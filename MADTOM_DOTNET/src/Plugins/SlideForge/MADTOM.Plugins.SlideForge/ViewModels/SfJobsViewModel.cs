@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MADTOM.Plugins.SlideForge.Proto.V1;
@@ -42,9 +43,31 @@ public sealed record SfJobQuestionItem(string Text, IReadOnlyList<string> Option
         : (string.IsNullOrWhiteSpace(AnswerSource) ? Answer : $"{Answer} ({AnswerSource})");
 }
 
-public sealed record SfJobFileItem(long Id, string Name, string Kind, long Bytes, string Role)
+public sealed record SfJobFileItem(
+    long? Id,
+    string Path,
+    string Name,
+    string Kind,
+    long Bytes,
+    string Role,
+    long Mtime = 0)
 {
     public string SizeDisplay => SfJsonHelpers.FormatBytes(Bytes);
+    public string MtimeDisplay => SfJsonHelpers.FormatEpoch(Mtime);
+    public string RoleBadge => string.IsNullOrWhiteSpace(Role) ? "FILE" : Role.ToUpperInvariant();
+    public bool IsPreviewable => SfJsonHelpers.IsJobPreviewExt(string.IsNullOrWhiteSpace(Path) ? Name : Path, Kind);
+    public bool IsText => !IsPreviewable && (
+        string.Equals(Kind, "text", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Kind, "md", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Kind, "json", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Kind, "csv", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Kind, "tsv", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Kind, "html", StringComparison.OrdinalIgnoreCase) ||
+        SfJsonHelpers.IsTextExt(string.IsNullOrWhiteSpace(Path) ? Name : Path));
+
+    public string Icon => IsPreviewable
+        ? (string.Equals(Kind, "pdf", StringComparison.OrdinalIgnoreCase) || Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? "📕" : "🖼")
+        : IsText ? "📄" : "📦";
 }
 
 public sealed class SfJobDetail
@@ -72,6 +95,31 @@ public sealed partial class SfJobsViewModel : ObservableObject
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _errorMessage;
 
+    // Inline file viewer state
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedFile))]
+    [NotifyPropertyChangedFor(nameof(CanPreviewSelectedFile))]
+    private SfJobFileItem? _selectedFile;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFileTextVisible))]
+    private string? _fileViewerText;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFileImageVisible))]
+    private Bitmap? _filePreviewImage;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilePageStatusText))]
+    private int _filePreviewPage = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilePageStatusText))]
+    [NotifyPropertyChangedFor(nameof(HasMultipleFilePages))]
+    private int _filePreviewPages;
+
+    [ObservableProperty] private string _fileViewerNotice = string.Empty;
+
     public ObservableCollection<SfJobRow> Jobs { get; } = new();
 
     public IReadOnlyList<string> StatusOptions { get; } = new[]
@@ -80,15 +128,39 @@ public sealed partial class SfJobsViewModel : ObservableObject
     };
 
     public bool HasDetail => Detail is not null;
+    public bool HasSelectedFile => SelectedFile is not null;
+    public bool CanPreviewSelectedFile => SelectedFile is not null && SelectedFile.IsPreviewable;
+    public bool IsFileTextVisible => FileViewerText is not null;
+    public bool IsFileImageVisible => FilePreviewImage is not null;
+    public bool HasMultipleFilePages => FilePreviewPages > 1;
+    public string FilePageStatusText => FilePreviewPages > 0
+        ? $"Page {FilePreviewPage} / {FilePreviewPages}"
+        : $"Page {FilePreviewPage}";
+
     public string PageSummary => TotalCount == 0
         ? "0 jobs"
         : $"{Offset + 1}–{Math.Min(Offset + Jobs.Count, TotalCount)} of {TotalCount}";
 
     partial void OnStatusFilterChanged(string value) => Offset = 0;
     partial void OnSearchTextChanged(string value) => Offset = 0;
-    partial void OnDetailChanged(SfJobDetail? value) => OnPropertyChanged(nameof(HasDetail));
+    partial void OnDetailChanged(SfJobDetail? value)
+    {
+        OnPropertyChanged(nameof(HasDetail));
+        ClearFileViewer();
+    }
     partial void OnTotalCountChanged(int value) => OnPropertyChanged(nameof(PageSummary));
     partial void OnOffsetChanged(int value) => OnPropertyChanged(nameof(PageSummary));
+
+    partial void OnSelectedFileChanged(SfJobFileItem? value)
+    {
+        FileViewerText = null;
+        FilePreviewImage = null;
+        FilePreviewPage = 1;
+        FilePreviewPages = 0;
+        FileViewerNotice = value is null
+            ? string.Empty
+            : (!value.IsPreviewable && !value.IsText ? "Binary file — use Save as… to download." : string.Empty);
+    }
 
     public SfJobsViewModel(SfRpc? rpc)
     {
@@ -98,6 +170,16 @@ public sealed partial class SfJobsViewModel : ObservableObject
     public void SetRpc(SfRpc? rpc)
     {
         _rpc = rpc;
+    }
+
+    private void ClearFileViewer()
+    {
+        SelectedFile = null;
+        FileViewerText = null;
+        FilePreviewImage = null;
+        FilePreviewPage = 1;
+        FilePreviewPages = 0;
+        FileViewerNotice = string.Empty;
     }
 
     [RelayCommand]
@@ -197,7 +279,9 @@ public sealed partial class SfJobsViewModel : ObservableObject
         try
         {
             var root = await _rpc.CallAsync("get_job", new { job_id = row.JobId }, ct);
-            Detail = ParseJobDetail(row.JobId, root);
+            var detail = ParseJobDetail(row.JobId, root);
+            Detail = detail;
+            await TryPopulateFilesFromListRpcAsync(detail, ct);
             ErrorMessage = null;
         }
         catch (SfRpcException ex)
@@ -206,6 +290,221 @@ public sealed partial class SfJobsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task LoadJobFilesAsync(CancellationToken ct = default)
+    {
+        if (Detail is null || _rpc is null) return;
+        IsBusy = true;
+        try
+        {
+            var root = await _rpc.CallAsync("list_job_files", new { job_id = Detail.JobId }, ct);
+            ApplyListedFiles(Detail, root);
+            ErrorMessage = null;
+        }
+        catch (SfRpcException ex)
+        {
+            ErrorMessage = ex.Code;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task TryPopulateFilesFromListRpcAsync(SfJobDetail detail, CancellationToken ct)
+    {
+        if (_rpc is null) return;
+        try
+        {
+            var root = await _rpc.CallAsync("list_job_files", new { job_id = detail.JobId }, ct);
+            if (root.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+            {
+                ApplyListedFiles(detail, root);
+            }
+        }
+        catch (SfRpcException)
+        {
+            // Keep files from get_job if older probe/fake does not implement list_job_files.
+        }
+    }
+
+    private static void ApplyListedFiles(SfJobDetail detail, JsonElement root)
+    {
+        if (!root.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array)
+            return;
+        detail.Files.Clear();
+        foreach (var f in items.EnumerateArray())
+        {
+            detail.Files.Add(ParseJobFileItem(f));
+        }
+    }
+
+    [RelayCommand]
+    public async Task InspectFileAsync(SfJobFileItem? file = null, CancellationToken ct = default)
+    {
+        var target = file ?? SelectedFile;
+        if (target is null || Detail is null || _rpc is null) return;
+        if (!ReferenceEquals(SelectedFile, target))
+        {
+            SelectedFile = target;
+        }
+
+        if (target.IsPreviewable)
+        {
+            await LoadFilePreviewAsync(target, FilePreviewPage > 0 ? FilePreviewPage : 1, ct);
+        }
+        else if (target.IsText)
+        {
+            await LoadFileTextAsync(target, ct);
+        }
+        else
+        {
+            FileViewerText = null;
+            FilePreviewImage = null;
+            FileViewerNotice = "Binary file — use Save as… to download.";
+        }
+    }
+
+    [RelayCommand]
+    public async Task NextFilePageAsync(CancellationToken ct = default)
+    {
+        if (SelectedFile is null || !SelectedFile.IsPreviewable) return;
+        if (FilePreviewPages > 0 && FilePreviewPage >= FilePreviewPages) return;
+        FilePreviewPage = Math.Max(1, FilePreviewPage) + 1;
+        await LoadFilePreviewAsync(SelectedFile, FilePreviewPage, ct);
+    }
+
+    [RelayCommand]
+    public async Task PrevFilePageAsync(CancellationToken ct = default)
+    {
+        if (SelectedFile is null || !SelectedFile.IsPreviewable || FilePreviewPage <= 1) return;
+        FilePreviewPage--;
+        await LoadFilePreviewAsync(SelectedFile, FilePreviewPage, ct);
+    }
+
+    private Dictionary<string, object?> BuildJobFilePayload(SfJobFileItem file, string mode, int? page = null, int? maxBytes = null)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["job_id"] = Detail!.JobId,
+            ["mode"] = mode,
+        };
+        if (!string.IsNullOrWhiteSpace(file.Path))
+        {
+            payload["path"] = file.Path;
+        }
+        else if (file.Id.HasValue)
+        {
+            payload["file_id"] = file.Id.Value;
+        }
+        if (page.HasValue)
+        {
+            payload["page"] = page.Value;
+        }
+        if (maxBytes.HasValue)
+        {
+            payload["max_bytes"] = maxBytes.Value;
+        }
+        return payload;
+    }
+
+    private async Task LoadFileTextAsync(SfJobFileItem file, CancellationToken ct)
+    {
+        if (Detail is null || _rpc is null) return;
+        IsBusy = true;
+        try
+        {
+            var payload = BuildJobFilePayload(file, "text");
+            var root = await _rpc.CallAsync("get_job_file", payload, ct, timeoutMs: 30000);
+            FilePreviewImage = null;
+            bool isBinary = SfJsonHelpers.GetBool(root, "binary");
+            bool truncated = SfJsonHelpers.GetBool(root, "truncated");
+            long size = SfJsonHelpers.GetLong(root, "size", file.Bytes);
+            if (isBinary)
+            {
+                FileViewerText = string.Empty;
+                FileViewerNotice = $"Binary file ({SfJsonHelpers.FormatBytes(size)}) — use Save as… to download.";
+            }
+            else
+            {
+                FileViewerText = SfJsonHelpers.GetString(root, "text");
+                FileViewerNotice = truncated
+                    ? $"Showing bounded text preview (truncated, total {SfJsonHelpers.FormatBytes(size)})."
+                    : $"{SfJsonHelpers.FormatBytes(size)}";
+            }
+            ErrorMessage = null;
+        }
+        catch (SfRpcException ex)
+        {
+            FileViewerText = null;
+            FileViewerNotice = ex.Code;
+            ErrorMessage = ex.Code;
+        }
+        catch (Exception ex)
+        {
+            FileViewerText = null;
+            FileViewerNotice = ex.Message;
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task LoadFilePreviewAsync(SfJobFileItem file, int page, CancellationToken ct)
+    {
+        if (Detail is null || _rpc is null) return;
+        IsBusy = true;
+        try
+        {
+            var payload = BuildJobFilePayload(file, "preview", page: page);
+            var root = await _rpc.CallAsync("get_job_file", payload, ct, timeoutMs: 30000);
+            string b64 = SfJsonHelpers.GetString(root, "png_b64");
+            var bitmap = SfJsonHelpers.DecodePreviewBitmap(b64, out string? decodeError);
+            if (decodeError is not null)
+            {
+                FilePreviewImage = null;
+                FileViewerNotice = decodeError;
+                ErrorMessage = decodeError;
+                return;
+            }
+
+            int width = SfJsonHelpers.GetInt(root, "width");
+            int height = SfJsonHelpers.GetInt(root, "height");
+            int pages = SfJsonHelpers.GetInt(root, "pages", 1);
+
+            FileViewerText = null;
+            FilePreviewImage = bitmap;
+            FilePreviewPage = page;
+            FilePreviewPages = Math.Max(1, pages);
+            FileViewerNotice = FilePreviewPages > 1
+                ? $"Page {FilePreviewPage} of {FilePreviewPages} ({width}×{height})"
+                : (width > 0 && height > 0 ? $"{width}×{height}" : string.Empty);
+            ErrorMessage = null;
+        }
+        catch (SfRpcException ex)
+        {
+            FilePreviewImage = null;
+            FileViewerNotice = ex.Code;
+            ErrorMessage = ex.Code;
+        }
+        catch (Exception ex)
+        {
+            FilePreviewImage = null;
+            FileViewerNotice = ex.Message;
             ErrorMessage = ex.Message;
         }
         finally
@@ -272,12 +571,8 @@ public sealed partial class SfJobsViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var root = await _rpc.CallAsync("get_job_file", new
-            {
-                job_id = Detail.JobId,
-                file_id = file.Id,
-                mode = "bytes",
-            }, ct, timeoutMs: 60000);
+            var payload = BuildJobFilePayload(file, "bytes");
+            var root = await _rpc.CallAsync("get_job_file", payload, ct, timeoutMs: 60000);
 
             string? b64 = SfJsonHelpers.GetStringOrNull(root, "bytes_b64")
                 ?? SfJsonHelpers.GetStringOrNull(root, "data_b64")
@@ -379,6 +674,22 @@ public sealed partial class SfJobsViewModel : ObservableObject
         Charged = SfJsonHelpers.GetInt(el, "charged"),
     };
 
+    private static SfJobFileItem ParseJobFileItem(JsonElement f)
+    {
+        long? id = SfJsonHelpers.GetNullableLong(f, "id");
+        string path = SfJsonHelpers.GetStringOrNull(f, "path")
+            ?? SfJsonHelpers.GetStringOrNull(f, "rel_path")
+            ?? string.Empty;
+        string name = SfJsonHelpers.GetString(f, "name");
+        string kind = SfJsonHelpers.GetString(f, "kind");
+        long bytes = f.TryGetProperty("size", out _)
+            ? SfJsonHelpers.GetLong(f, "size")
+            : SfJsonHelpers.GetLong(f, "bytes");
+        string role = SfJsonHelpers.GetString(f, "role");
+        long mtime = SfJsonHelpers.GetLong(f, "mtime");
+        return new SfJobFileItem(id, path, name, kind, bytes, role, mtime);
+    }
+
     private static SfJobDetail ParseJobDetail(string fallbackJobId, JsonElement root)
     {
         string jobId = fallbackJobId;
@@ -428,12 +739,7 @@ public sealed partial class SfJobsViewModel : ObservableObject
         {
             foreach (var f in fEl.EnumerateArray())
             {
-                detail.Files.Add(new SfJobFileItem(
-                    Id: SfJsonHelpers.GetLong(f, "id"),
-                    Name: SfJsonHelpers.GetString(f, "name"),
-                    Kind: SfJsonHelpers.GetString(f, "kind"),
-                    Bytes: SfJsonHelpers.GetLong(f, "bytes"),
-                    Role: SfJsonHelpers.GetString(f, "role")));
+                detail.Files.Add(ParseJobFileItem(f));
             }
         }
 

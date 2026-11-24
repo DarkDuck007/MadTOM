@@ -98,6 +98,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SelectedNode ??= ActiveNodes.FirstOrDefault();
     }
 
+    partial void OnSelectedWorkspaceTabIndexChanged(int value)
+    {
+        if (value == 4 && IsConnected)
+        {
+            var ct = _connectionCts?.Token ?? CancellationToken.None;
+            _ = SandboxTab.RefreshAllAsync(ct);
+        }
+    }
+
     partial void OnSelectedNodeChanged(SfNodeModel? value)
     {
         Disconnect();
@@ -244,6 +253,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         VersionsSummary = $"SlideForge: {OrDash(status.SlideforgeVersion)} · Probe: {OrDash(status.ProbeVersion)} · Python: {OrDash(status.PythonVersion)}";
                         UptimeSummary = $"Uptime: {FormatUptime(status.UptimeSeconds)}";
                         SpoolSummary = $"Spool: {SfJsonHelpers.FormatBytes((long)status.CurrentSpoolBytes)} / {SfJsonHelpers.FormatBytes((long)status.MaxSpoolBytes)}";
+                        if (SelectedWorkspaceTabIndex == 4 && status.BotRunning)
+                        {
+                            _ = SandboxTab.RefreshSilentAsync(ct);
+                        }
                     });
 
                     await Task.Delay(5000, ct);

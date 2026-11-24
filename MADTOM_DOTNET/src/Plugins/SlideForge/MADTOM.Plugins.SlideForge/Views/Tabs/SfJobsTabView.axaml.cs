@@ -21,6 +21,14 @@ public partial class SfJobsTabView : UserControl
         }
     }
 
+    private async void OnJobFileSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is SfJobsViewModel vm && vm.SelectedFile is not null)
+        {
+            await vm.InspectFileAsync(vm.SelectedFile);
+        }
+    }
+
     private async void OnDownloadFileClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not SfJobsViewModel vm) return;

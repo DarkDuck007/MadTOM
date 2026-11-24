@@ -36,7 +36,7 @@ public class SfJobsViewModelTests
         };
         fake.Handlers["cancel_job"] = _ => new { ok = true };
         fake.Handlers["extend_job"] = _ => new { ok = true };
-        return (fake, new SfJobsViewModel(new SfRpc(fake, "tp2")));
+        return (fake, new SfJobsViewModel(new SfRpc(fake, "node-a")));
     }
 
     [Fact]
@@ -145,6 +145,151 @@ public class SfJobsViewModelTests
         vm.ApplyJobEvent(new SfJobEvent { JobId = "J-00000002", Kind = "note", Status = "running", Json = "{\"text\":\"x\"}" });
         Assert.Equal(2, vm.Detail.Events.Count);
     }
+
+    [Fact]
+    public async Task Select_merges_list_job_files_and_inspects_text_and_downloads_bytes()
+    {
+        var (fake, vm) = Make();
+        fake.Handlers["list_job_files"] = _ => new
+        {
+            job_id = "J-00000001",
+            items = new object[]
+            {
+                new { id = (long?)1, path = "inputs/brief.txt", name = "brief.txt", role = "input", size = 12, kind = "text", mtime = 1700000000L },
+                new { id = (long?)null, path = "output/deck.pptx", name = "deck.pptx", role = "output", size = 4096, kind = "pptx", mtime = 1700000100L },
+            },
+        };
+        fake.Handlers["get_job_file"] = p =>
+        {
+            var mode = (string)p!["mode"]!;
+            if (mode == "text")
+                return new { name = "brief.txt", path = "inputs/brief.txt", kind = "text", text = "Hello brief!", truncated = false, binary = false, size = 12 };
+            return new { name = "deck.pptx", path = "output/deck.pptx", kind = "pptx", bytes_b64 = Convert.ToBase64String(new byte[] { 1, 2, 3 }) };
+        };
+
+        await vm.LoadAsync();
+        await vm.SelectAsync(vm.Jobs[0]);
+        Assert.Equal(2, vm.Detail!.Files.Count);
+        Assert.Equal("inputs/brief.txt", vm.Detail.Files[0].Path);
+        Assert.Equal("output/deck.pptx", vm.Detail.Files[1].Path);
+
+        await vm.InspectFileAsync(vm.Detail.Files[0]);
+        Assert.True(vm.IsFileTextVisible);
+        Assert.Equal("Hello brief!", vm.FileViewerText);
+        Assert.Equal("inputs/brief.txt", (string)fake.LastPayload("get_job_file")!["path"]!);
+
+        var dl = await vm.FetchJobFileBytesAsync(vm.Detail.Files[1]);
+        Assert.NotNull(dl);
+        Assert.Equal("deck.pptx", dl.Value.FileName);
+        Assert.Equal(new byte[] { 1, 2, 3 }, dl.Value.Bytes);
+    }
+}
+
+public class SfSandboxViewModelTests
+{
+    [Fact]
+    public async Task LoadVms_parses_sandbox_stats_totals_caps_and_vm_metrics()
+    {
+        var fake = new FakeSlideForgeClient();
+        fake.Handlers["sandbox_stats"] = _ => new
+        {
+            vms = new[]
+            {
+                new
+                {
+                    chat_id = 42L,
+                    user_label = "alice",
+                    kind = "chat",
+                    state = "warm",
+                    image_version = "v3",
+                    mem_mb = 1536,
+                    vcpus = 2,
+                    uptime_seconds = 3660,
+                    cpu_seconds_today = 900.0,
+                    cpu_budget_seconds = 3600.0,
+                    disk_used_bytes = 536870912L,
+                    disk_quota_bytes = 2147483648L,
+                    last_used = "2026-11-24T11:50:00+00:00",
+                },
+            },
+            totals = new
+            {
+                running = 1,
+                max_vms = 8,
+                guest_mem_mb = 1536,
+                max_guest_mem_mb = 8192,
+                total_disk_used_bytes = 536870912L,
+                total_cpu_seconds_today = 900.0,
+            },
+            host = new { state_dir_used_percent = 18.5 },
+        };
+
+        var vm = new SfSandboxViewModel(new SfRpc(fake, "node-a"));
+        await vm.LoadVmsAsync();
+
+        Assert.Single(vm.Vms);
+        var row = vm.Vms[0];
+        Assert.Equal("alice (42)", row.DisplayLabel);
+        Assert.True(row.IsHot);
+        Assert.Equal("1h 1m", row.UptimeDisplay);
+        Assert.Equal(0.25, row.CpuFraction, 3);
+        Assert.Equal(0.25, row.DiskUsageFraction, 3);
+        Assert.Equal(1, vm.RunningVms);
+        Assert.Equal(8, vm.MaxVms);
+        Assert.Equal(1536, vm.GuestMemMb);
+        Assert.Equal(8192, vm.MaxGuestMemMb);
+        Assert.Equal(0.125, vm.RunningVmsFraction, 3);
+        Assert.Equal(1536.0 / 8192.0, vm.GuestMemFraction, 3);
+        Assert.Null(vm.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task File_browser_lists_navigates_and_reads_text()
+    {
+        var fake = new FakeSlideForgeClient();
+        fake.Handlers["sandbox_stats"] = _ => new
+        {
+            vms = new[] { new { chat_id = 7L, user_label = "u7", kind = "chat", state = "warm", mem_mb = 1536, vcpus = 2 } },
+            totals = new { running = 1, max_vms = 8, guest_mem_mb = 1536, max_guest_mem_mb = 8192 },
+        };
+        fake.Handlers["sandbox_list_files"] = p =>
+        {
+            var path = (string)p!["path"]!;
+            if (path == "/data")
+            {
+                return new
+                {
+                    entries = new[]
+                    {
+                        new { path = "/data/studio", type = "dir", size = 0L, mtime = 1700000000L },
+                        new { path = "/data/notes.md", type = "file", size = 14L, mtime = 1700000005L },
+                    },
+                    as_of = "2026-11-24T12:00:00Z",
+                    from_cache = false,
+                };
+            }
+            return new { entries = new[] { new { path = "/data/studio/out.txt", type = "file", size = 5L, mtime = 1700000010L } }, from_cache = false };
+        };
+        fake.Handlers["sandbox_read_text"] = _ => new { text = "# Slide notes", binary = false, truncated = false, size = 13L };
+
+        var vm = new SfSandboxViewModel(new SfRpc(fake, "node-a"));
+        await vm.LoadVmsAsync();
+        vm.SelectedVm = vm.Vms[0];
+        await vm.RefreshFilesAsync();
+        Assert.Equal(2, vm.Files.Count);
+
+        await vm.OpenFileAsync(vm.Files[1]);
+        Assert.True(vm.IsTextViewerVisible);
+        Assert.Equal("# Slide notes", vm.ViewerText);
+
+        await vm.OpenFileAsync(vm.Files[0]);
+        Assert.Equal("/data/studio", vm.FilesPath);
+        Assert.Single(vm.Files);
+        Assert.Equal("/data/studio/out.txt", vm.Files[0].Path);
+
+        await vm.NavigateUpAsync();
+        Assert.Equal("/data", vm.FilesPath);
+    }
 }
 
 public class SfUsersViewModelTests
@@ -163,7 +308,7 @@ public class SfUsersViewModelTests
         };
         fake.Handlers["set_user_quota"] = _ => new { ok = true };
         fake.Handlers["set_user_banned"] = _ => new { ok = true };
-        return (fake, new SfUsersViewModel(new SfRpc(fake, "tp2")));
+        return (fake, new SfUsersViewModel(new SfRpc(fake, "node-a")));
     }
 
     [Fact]
@@ -231,7 +376,7 @@ public class SfGuidesViewModelTests
         fake.Handlers["upsert_tip"] = p => { var t = p!["tip"]!.AsObject(); tips.RemoveAll(x => (string)x["id"]! == (string)t["id"]!); tips.Add((JsonObject)t.DeepClone()); return new { ok = true }; };
         fake.Handlers["delete_tip"] = p => { tips.RemoveAll(x => (string)x["id"]! == (string)p!["id"]!); return new { ok = true }; };
         fake.Handlers["preview_prompt"] = p => new { prompt = "BRIEF for " + p!["spec"]!["title"] };
-        return (fake, new SfGuidesViewModel(new SfRpc(fake, "tp2")));
+        return (fake, new SfGuidesViewModel(new SfRpc(fake, "node-a")));
     }
 
     [Fact]
@@ -316,7 +461,7 @@ public class SfOverviewViewModelTests
             jobs_7d = 4, failure_rate_7d = 0.25, avg_duration_s_7d = 200.0, active = 1, users_total = 2,
             top_users_7d = new[] { new { user_id = 7L, username = "u7", jobs = 3 } },
         };
-        var vm = new SfOverviewViewModel(new SfRpc(fake, "tp2"));
+        var vm = new SfOverviewViewModel(new SfRpc(fake, "node-a"));
         await vm.LoadAsync();
         Assert.Equal(4, vm.Jobs7d);
         Assert.Equal(0.25, vm.FailureRate7d, 3);

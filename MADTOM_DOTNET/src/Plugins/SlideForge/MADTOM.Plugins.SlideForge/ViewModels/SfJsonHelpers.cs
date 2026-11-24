@@ -1,11 +1,37 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Text.Json;
+using Avalonia;
+using Avalonia.Media.Imaging;
 
 namespace MADTOM.Plugins.SlideForge.ViewModels;
 
 internal static class SfJsonHelpers
 {
+    public const int MaxPreviewBase64Bytes = 16 * 1024 * 1024;
+
+    private static bool _avaloniaSkiaInitialized;
+
+    private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "txt", "md", "csv", "tsv", "json", "yaml", "yml", "xml", "html", "htm",
+        "css", "js", "py", "log", "ini", "toml", "sh", "sql"
+    };
+
+    private static readonly HashSet<string> SandboxPreviewExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "png", "jpg", "jpeg", "webp", "gif", "bmp", "pdf",
+        "docx", "xlsx", "pptx", "odt", "ods", "odp", "svg"
+    };
+
+    private static readonly HashSet<string> JobPreviewExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "png", "jpg", "jpeg", "webp", "gif", "pdf"
+    };
+
     public static readonly JsonSerializerOptions PrettyOptions = new()
     {
         WriteIndented = true,
@@ -63,6 +89,19 @@ internal static class SfJsonHelpers
         return fallback;
     }
 
+    public static long? GetNullableLong(JsonElement obj, string prop)
+    {
+        if (obj.ValueKind != JsonValueKind.Object || !obj.TryGetProperty(prop, out var el))
+            return null;
+        if (el.ValueKind == JsonValueKind.Null || el.ValueKind == JsonValueKind.Undefined)
+            return null;
+        if (el.ValueKind == JsonValueKind.Number && el.TryGetInt64(out long v))
+            return v;
+        if (el.ValueKind == JsonValueKind.String && long.TryParse(el.GetString(), out long s))
+            return s;
+        return null;
+    }
+
     public static double GetDouble(JsonElement obj, string prop, double fallback = 0.0)
     {
         if (obj.ValueKind != JsonValueKind.Object || !obj.TryGetProperty(prop, out var el))
@@ -114,5 +153,144 @@ internal static class SfJsonHelpers
         if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KiB";
         if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MiB";
         return $"{bytes / (1024.0 * 1024 * 1024):F2} GiB";
+    }
+
+    public static string FormatDuration(long seconds)
+    {
+        if (seconds <= 0) return "—";
+        var ts = TimeSpan.FromSeconds(seconds);
+        if (ts.TotalDays >= 1) return $"{(int)ts.TotalDays}d {ts.Hours}h {ts.Minutes}m";
+        if (ts.TotalHours >= 1) return $"{ts.Hours}h {ts.Minutes}m";
+        if (ts.TotalMinutes >= 1) return $"{ts.Minutes}m {ts.Seconds}s";
+        return $"{ts.Seconds}s";
+    }
+
+    public static string FormatEpoch(long epochSeconds)
+    {
+        if (epochSeconds <= 0) return "—";
+        return DateTimeOffset.FromUnixTimeSeconds(epochSeconds)
+            .ToLocalTime()
+            .ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+    }
+
+    public static string FormatTimestamp(string? iso)
+    {
+        if (string.IsNullOrWhiteSpace(iso)) return "—";
+        if (DateTimeOffset.TryParse(iso, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
+        {
+            if (dto.Year <= 1) return "—";
+            return dto.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+        }
+        return iso;
+    }
+
+    public static bool IsTextExt(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        string ext = Path.GetExtension(path.Trim()).TrimStart('.');
+        return !string.IsNullOrEmpty(ext) && TextExtensions.Contains(ext);
+    }
+
+    public static bool IsSandboxPreviewExt(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        string ext = Path.GetExtension(path.Trim()).TrimStart('.');
+        return !string.IsNullOrEmpty(ext) && SandboxPreviewExtensions.Contains(ext);
+    }
+
+    public static bool IsJobPreviewExt(string path, string? kind = null)
+    {
+        if (string.Equals(kind, "image", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(kind, "pdf", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        string ext = Path.GetExtension(path.Trim()).TrimStart('.');
+        return !string.IsNullOrEmpty(ext) && JobPreviewExtensions.Contains(ext);
+    }
+
+    public static Bitmap? DecodePreviewBitmap(string b64, out string? error)
+    {
+        error = null;
+        if (string.IsNullOrWhiteSpace(b64))
+            return null;
+
+        if (b64.Length > MaxPreviewBase64Bytes)
+        {
+            error = "Preview refused: png_b64 exceeds 16 MB limit.";
+            return null;
+        }
+
+        byte[] rawBytes = Convert.FromBase64String(b64);
+        if (rawBytes.Length > MaxPreviewBase64Bytes)
+        {
+            error = "Preview refused: decoded PNG exceeds 16 MB limit.";
+            return null;
+        }
+
+        EnsureAvaloniaSkiaInitialized();
+        return new Bitmap(new MemoryStream(rawBytes));
+    }
+
+    private static void EnsureAvaloniaSkiaInitialized()
+    {
+        if (_avaloniaSkiaInitialized || Application.Current != null) return;
+        _avaloniaSkiaInitialized = true;
+        try
+        {
+            string[] nativeCandidates =
+            {
+                Path.Combine(AppContext.BaseDirectory, "../../../../../../src/Host/MADTOM.Studio/bin/Debug/net10.0/runtimes/linux-x64/native/libSkiaSharp.so"),
+                Path.Combine(AppContext.BaseDirectory, "runtimes/linux-x64/native/libSkiaSharp.so")
+            };
+            string nativePath = string.Empty;
+            foreach (var np in nativeCandidates)
+            {
+                if (File.Exists(np))
+                {
+                    nativePath = Path.GetFullPath(np);
+                    break;
+                }
+            }
+
+            string[] candidates =
+            {
+                Path.Combine(AppContext.BaseDirectory, "../../../../../../src/Host/MADTOM.Studio/bin/Debug/net10.0/Avalonia.Skia.dll"),
+                Path.Combine(AppContext.BaseDirectory, "../../../../../src/Host/MADTOM.Studio/bin/Debug/net10.0/Avalonia.Skia.dll"),
+                Path.Combine(AppContext.BaseDirectory, "../../../../src/Host/MADTOM.Studio/bin/Debug/net10.0/Avalonia.Skia.dll"),
+                Path.Combine(AppContext.BaseDirectory, "Avalonia.Skia.dll")
+            };
+            foreach (var path in candidates)
+            {
+                if (File.Exists(path))
+                {
+                    var asm = System.Reflection.Assembly.LoadFrom(Path.GetFullPath(path));
+                    var skiaSharpAsm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "SkiaSharp")
+                        ?? System.Reflection.Assembly.LoadFrom(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path))!, "SkiaSharp.dll"));
+
+                    if (skiaSharpAsm != null && !string.IsNullOrEmpty(nativePath))
+                    {
+                        try
+                        {
+                            System.Runtime.InteropServices.NativeLibrary.SetDllImportResolver(skiaSharpAsm, (name, _, _) =>
+                                name.Contains("SkiaSharp")
+                                    ? System.Runtime.InteropServices.NativeLibrary.Load(nativePath)
+                                    : IntPtr.Zero);
+                        }
+                        catch
+                        {
+                            // Resolver may already be registered
+                        }
+                    }
+
+                    var skiaPlatform = asm.GetType("Avalonia.Skia.SkiaPlatform");
+                    skiaPlatform?.GetMethod("Initialize", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, null, Type.EmptyTypes, null)?.Invoke(null, null);
+                    break;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore in headless environments without Skia binaries
+        }
     }
 }
