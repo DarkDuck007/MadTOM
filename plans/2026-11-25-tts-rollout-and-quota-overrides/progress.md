@@ -36,8 +36,8 @@
 - [x] Design + schema (README). llm_call_log.user_id (+ index), table user_quota_overrides, rate_limit.user_limit_* / user_global_limit_* (default 0)
 - [x] Python (me): src/quota/overrides.py; QuotaService user tiers (user_5h/24h, global_5h/24h windows), notices keyed (chat,user), personal messages; runtime/guest pass requester; /changequota -user/-user-id [-current|-global] [n n|reset|show] (forum-topic pseudo-reply + bot/channel guarded); /usage personal section; RPCs quota_list_users/quota_get_user/quota_set_user; docs (configuration.md 2.19, README, architecture)
 - [x] Tests (me): tests/test_quota_users.py (50 cases incl. real-DB migration), test_quota.py updated -> 59 passed
-- [~] proto + Go probe + NoxAI "User Quotas" tab: agy Neon delegate job 65c6209a
-- [ ] Review delegate, full suites, commit
-- [ ] Deploy + live check
+- [x] proto + Go probe + NoxAI "User Quotas" tab: agy Neon delegate job 65c6209a, reviewed. Found: Go omitempty drops zero limits -> Python quota_set_user now treats missing limits as 0 (+test)
+- [x] Suites: NoxChat 769 passed/2 skipped (local + tp1), Go noxchat ok, NoxAI .NET 151 passed. Commits NoxChat 63e6d36, MADTOM 6a99c29
+- [x] Deploy tp1 18:29 (noxchat + noxchat-probe), live RPC round trip OK. Telegram command not yet exercised by an admin
 
 ## Log

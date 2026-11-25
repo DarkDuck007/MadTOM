@@ -29,5 +29,10 @@
 - ~/NoxChat at 0e4bdc0; stash `tp1-local-before-d7c48e3` holds the old local edits (identical to the adopted ones, droppable)
 - /tmp/nox-verify worktree (detached), /tmp/tts_engine_check.py, /tmp/vmtts.py, /tmp/ref.wav (test leftovers)
 
+- deploy 2: ~/NoxChat 63e6d36; /usr/local/bin/noxchat-probe replaced (.prev kept); DB: llm_call_log.user_id + user_quota_overrides
+
+## dev (deploy 2)
+- MADTOM Studio NoxAI plugin has the User Quotas tab (rebuild Studio to use it)
+
 ## tp2
 (not involved)
