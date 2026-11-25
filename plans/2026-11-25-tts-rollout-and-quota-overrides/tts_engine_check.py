@@ -99,7 +99,7 @@ def via_socket(clone_wav: str | None) -> int:
             continue
         dur, peak = _peak(base64.b64decode(res["audio_b64"]))
         print(f"OK  {vid:18} used={res['segments'][0].get('voice'):20} dur={dur:5.2f}s wall={time.monotonic() - t0:5.2f}s "
-              f"peak={peak:.2f} cpu_ms={res.get('cpu_ms')} srt={'yes' if res.get('subtitles') else 'no'}")
+              f"peak={peak:.2f} cpu_ms={res.get('cpu_ms')} srt={'yes' if res.get('subtitles_text') else 'no'}")
     if clone_wav:
         ref = base64.b64encode(open(clone_wav, "rb").read()).decode()
         t0 = time.monotonic()

@@ -19,9 +19,15 @@
 ## tp1 — changes made
 - apt: espeak-ng, flite, python3-venv
 - user `nox-tts` (system, uid 999, primary group nox-sandbox, no home, nologin)
-- /opt/nox-tts (root 0755) + /opt/nox-tts/venv: torch 2.15.0+cpu, sherpa-onnx 2.0.3, pocket-tts 4.0.1, numpy 2.5.5, PyYAML 6.0.4, huggingface_hub
+- /opt/nox-tts (root 0755) + /opt/nox-tts/venv: torch 2.15.0+cpu, sherpa-onnx 1.13.8 (2.0.3 replaced), pocket-tts 4.0.1, numpy 2.5.5, PyYAML 6.0.4, huggingface_hub
 - /var/lib/nox-tts/models (root 0755): sherpa models via fetch_models.py; HF cache for pocket-tts in models/hf
 - /tmp/fetch-models.log, /tmp/apt-tts.log (logs)
+- /etc/systemd/system/nox-tts.service enabled+running; /run/nox-tts/api.sock 0660 nox-tts:nox-sandbox
+- /usr/local/bin/nox-sandbox replaced (.prev kept); /etc/nox-sandbox/host.yaml += tts_socket_path, tts_vsock_port 53 (.pre-tts backup)
+- /opt/nox-sandbox/image/{agent.py,build.sh} updated (.prev kept); noxdoc rsynced; NEW /opt/nox-sandbox/nox-tts/client/noxtts.py
+- sandbox image 2026.11.25-1, then 2026.11.25-2 (current); all non-cold VMs restarted onto it
+- ~/NoxChat at 0e4bdc0; stash `tp1-local-before-d7c48e3` holds the old local edits (identical to the adopted ones, droppable)
+- /tmp/nox-verify worktree (detached), /tmp/tts_engine_check.py, /tmp/vmtts.py, /tmp/ref.wav (test leftovers)
 
 ## tp2
 (not involved)
