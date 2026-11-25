@@ -59,7 +59,7 @@ type Server struct {
 	pendingTelemetry    []*madtomv1.NoxTelemetrySample
 	pendingJobEvents    []*madtomv1.NoxJobProgressEvent
 	pendingTurnEvents   []*madtomv1.NoxTurnTagEvent
-	telemetryHistory    map[string][]historyPoint // metric -> list of points for LTTB query
+	telemetryHistory    *telemetryStore // metric -> raw + rollup points for QueryTelemetryRange
 	stateChunkIDCounter uint64
 
 	// Transport compression counters
@@ -71,11 +71,6 @@ type Server struct {
 
 	zstdEncMu sync.Mutex
 	zstdEnc   *zstd.Encoder
-}
-
-type historyPoint struct {
-	ts  int64
-	val double
 }
 
 type double = float64
@@ -134,7 +129,7 @@ func NewServerWithVerifier(cfg *config.ProbeConfig, verifier *auth.Verifier, tls
 		apiChunker:       aChunker,
 		stateChunker:     sChunker,
 		zstdEnc:          zEnc,
-		telemetryHistory: make(map[string][]historyPoint),
+		telemetryHistory: newTelemetryStore(cfg.TelemetryRawPoints, cfg.TelemetryRollupSeconds, cfg.TelemetryRollupPoints),
 		stateSubs:        make(map[uint64]chan *madtomv1.NoxStateChunk),
 		logSubs:          make(map[uint64]chan *madtomv1.NoxLogApiChunk),
 	}
@@ -206,14 +201,9 @@ func (s *Server) OnTelemetrySample(sample *madtomv1.NoxTelemetrySample) {
 	defer s.mu.Unlock()
 
 	s.pendingTelemetry = append(s.pendingTelemetry, sample)
-	// Retain in history for LTTB queries (up to 3600 points per series)
+	// Retain in history for range queries (raw tier + rollup tier, sizes from config)
 	for k, v := range sample.Metrics {
-		pts := s.telemetryHistory[k]
-		pts = append(pts, historyPoint{ts: sample.TimestampUnixNano, val: v})
-		if len(pts) > 3600 {
-			pts = pts[len(pts)-3600:]
-		}
-		s.telemetryHistory[k] = pts
+		s.telemetryHistory.add(k, sample.TimestampUnixNano, v)
 	}
 }
 
@@ -556,13 +546,7 @@ func (s *Server) SubscribeLogsAndApi(req *madtomv1.NoxLogApiSubscriptionRequest,
 // Telemetry & LTTB Historical Queries
 func (s *Server) QueryTelemetryRange(ctx context.Context, req *madtomv1.RangeQueryRequest) (*madtomv1.RangeQueryResponse, error) {
 	s.mu.Lock()
-	pts := s.telemetryHistory[req.MetricName]
-	var filtered []historyPoint
-	for _, p := range pts {
-		if p.ts >= req.StartTimeUnixNano && p.ts <= req.EndTimeUnixNano {
-			filtered = append(filtered, p)
-		}
-	}
+	filtered := s.telemetryHistory.rangePoints(req.MetricName, req.StartTimeUnixNano, req.EndTimeUnixNano)
 	s.mu.Unlock()
 
 	var points []*madtomv1.TimeSeriesPoint
@@ -572,8 +556,8 @@ func (s *Server) QueryTelemetryRange(ctx context.Context, req *madtomv1.RangeQue
 			points = append(points, &madtomv1.TimeSeriesPoint{
 				TimestampUnixNano: p.ts,
 				Value:             p.val,
-				MinValue:          p.val,
-				MaxValue:          p.val,
+				MinValue:          p.min,
+				MaxValue:          p.max,
 			})
 		}
 	} else {
@@ -587,8 +571,8 @@ func (s *Server) QueryTelemetryRange(ctx context.Context, req *madtomv1.RangeQue
 			points = append(points, &madtomv1.TimeSeriesPoint{
 				TimestampUnixNano: p.ts,
 				Value:             p.val,
-				MinValue:          p.val,
-				MaxValue:          p.val,
+				MinValue:          p.min,
+				MaxValue:          p.max,
 			})
 		}
 	}
@@ -1132,6 +1116,18 @@ func (s *Server) GetUserQuota(ctx context.Context, req *madtomv1.NoxGetUserQuota
 	}
 	var resp madtomv1.NoxGetUserQuotaResponse
 	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) GetAgySessions(ctx context.Context, req *madtomv1.NoxAgySessionsRequest) (*madtomv1.NoxAgySessionsResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("agy_sessions", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxAgySessionsResponse
+	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
+		return &madtomv1.NoxAgySessionsResponse{Error: "decode agy_sessions reply: " + err.Error()}, nil
+	}
 	return &resp, nil
 }
 

@@ -89,6 +89,7 @@ const (
 	NoxChatControlService_ListUserQuotas_FullMethodName             = "/madtom.v1.NoxChatControlService/ListUserQuotas"
 	NoxChatControlService_GetUserQuota_FullMethodName               = "/madtom.v1.NoxChatControlService/GetUserQuota"
 	NoxChatControlService_SetUserQuota_FullMethodName               = "/madtom.v1.NoxChatControlService/SetUserQuota"
+	NoxChatControlService_GetAgySessions_FullMethodName             = "/madtom.v1.NoxChatControlService/GetAgySessions"
 )
 
 // NoxChatControlServiceClient is the client API for NoxChatControlService service.
@@ -186,6 +187,8 @@ type NoxChatControlServiceClient interface {
 	ListUserQuotas(ctx context.Context, in *NoxListUserQuotasRequest, opts ...grpc.CallOption) (*NoxListUserQuotasResponse, error)
 	GetUserQuota(ctx context.Context, in *NoxGetUserQuotaRequest, opts ...grpc.CallOption) (*NoxGetUserQuotaResponse, error)
 	SetUserQuota(ctx context.Context, in *NoxSetUserQuotaRequest, opts ...grpc.CallOption) (*NoxSetUserQuotaResponse, error)
+	// Stateful ("agy") LLM sessions: live sessions per chat, bootstraps by reason (Python agy_sessions)
+	GetAgySessions(ctx context.Context, in *NoxAgySessionsRequest, opts ...grpc.CallOption) (*NoxAgySessionsResponse, error)
 }
 
 type noxChatControlServiceClient struct {
@@ -923,6 +926,16 @@ func (c *noxChatControlServiceClient) SetUserQuota(ctx context.Context, in *NoxS
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) GetAgySessions(ctx context.Context, in *NoxAgySessionsRequest, opts ...grpc.CallOption) (*NoxAgySessionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxAgySessionsResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetAgySessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NoxChatControlServiceServer is the server API for NoxChatControlService service.
 // All implementations must embed UnimplementedNoxChatControlServiceServer
 // for forward compatibility.
@@ -1018,6 +1031,8 @@ type NoxChatControlServiceServer interface {
 	ListUserQuotas(context.Context, *NoxListUserQuotasRequest) (*NoxListUserQuotasResponse, error)
 	GetUserQuota(context.Context, *NoxGetUserQuotaRequest) (*NoxGetUserQuotaResponse, error)
 	SetUserQuota(context.Context, *NoxSetUserQuotaRequest) (*NoxSetUserQuotaResponse, error)
+	// Stateful ("agy") LLM sessions: live sessions per chat, bootstraps by reason (Python agy_sessions)
+	GetAgySessions(context.Context, *NoxAgySessionsRequest) (*NoxAgySessionsResponse, error)
 	mustEmbedUnimplementedNoxChatControlServiceServer()
 }
 
@@ -1237,6 +1252,9 @@ func (UnimplementedNoxChatControlServiceServer) GetUserQuota(context.Context, *N
 }
 func (UnimplementedNoxChatControlServiceServer) SetUserQuota(context.Context, *NoxSetUserQuotaRequest) (*NoxSetUserQuotaResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetUserQuota not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetAgySessions(context.Context, *NoxAgySessionsRequest) (*NoxAgySessionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgySessions not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) mustEmbedUnimplementedNoxChatControlServiceServer() {}
 func (UnimplementedNoxChatControlServiceServer) testEmbeddedByValue()                               {}
@@ -2498,6 +2516,24 @@ func _NoxChatControlService_SetUserQuota_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_GetAgySessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxAgySessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetAgySessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetAgySessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetAgySessions(ctx, req.(*NoxAgySessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NoxChatControlService_ServiceDesc is the grpc.ServiceDesc for NoxChatControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2772,6 +2808,10 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetUserQuota",
 			Handler:    _NoxChatControlService_SetUserQuota_Handler,
+		},
+		{
+			MethodName: "GetAgySessions",
+			Handler:    _NoxChatControlService_GetAgySessions_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

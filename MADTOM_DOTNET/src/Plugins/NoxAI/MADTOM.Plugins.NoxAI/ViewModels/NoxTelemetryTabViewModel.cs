@@ -39,7 +39,8 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
         }
         else
         {
-            TokenThroughputSummary = "0 in / 0 out";
+            TokenThroughputSummary = "No data";
+            TokenWindowSummary = "";
             ProcessMemorySummary = "RSS: 0 MB · VMS: 0 MB";
             CpuSummary = "CPU: 0.0%";
             RuntimeSummary = "Loop Lag: 0.0ms · Tasks: 0";
@@ -54,6 +55,11 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
             s.Timestamps = Array.Empty<long>();
             s.Values = Array.Empty<double>();
             s.LatestValue = 0;
+        }
+        foreach (var c in _tokenCounters.Values)
+        {
+            c.Timestamps.Clear();
+            c.Values.Clear();
         }
     }
 
@@ -72,17 +78,14 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
     {
         long spanSec = GetSelectedSpanSeconds();
         long nowNano = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000L;
-        if (_tokensInSeries.Timestamps.Length > 0)
+        if (_latestSampleNano > 0 && _latestSampleNano > nowNano - 86400_000_000_000L)
         {
-            long latestTs = _tokensInSeries.Timestamps[^1];
-            if (latestTs > nowNano - 86400_000_000_000L)
-            {
-                nowNano = Math.Max(nowNano, latestTs);
-            }
+            nowNano = Math.Max(nowNano, _latestSampleNano);
         }
 
         WindowEnd = nowNano;
         WindowStart = Math.Max(0, nowNano - (spanSec * 1_000_000_000L));
+        RebuildTokenSeries();
 
         if (SelectedNode != null)
         {
@@ -97,9 +100,9 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
             var client = _nodeManager.GetClient(node);
             var metrics = new[]
             {
-                "llm.tokens.in",
-                "llm.tokens.out",
+                "llm.tokens.uncached",
                 "llm.tokens.cached",
+                "llm.tokens.out",
                 "py.cpu.total_pct",
                 "py.mem.rss_bytes",
                 "py.runtime.event_loop_lag_ms"
@@ -111,7 +114,8 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
                 MetricName = m,
                 StartTimeUnixNano = startNano,
                 EndTimeUnixNano = endNano,
-                TargetPoints = 1200
+                // Token counters are differenced per bucket, so they need every point the probe has.
+                TargetPoints = m.StartsWith("llm.tokens.", StringComparison.Ordinal) ? 0u : 1200u
             }).ResponseAsync).ToList();
 
             var responses = await Task.WhenAll(tasks);
@@ -121,11 +125,33 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
                 foreach (var resp in responses)
                 {
                     if (resp == null || resp.Points == null) continue;
+                    if (_tokenCounters.TryGetValue(resp.MetricName, out var counter))
+                    {
+                        // Keep live samples newer than the history reply
+                        long lastHist = resp.Points.Count > 0 ? resp.Points[^1].TimestampUnixNano : long.MinValue;
+                        var liveTs = new List<long>();
+                        var liveVals = new List<double>();
+                        for (int i = 0; i < counter.Timestamps.Count; i++)
+                        {
+                            if (counter.Timestamps[i] > lastHist)
+                            {
+                                liveTs.Add(counter.Timestamps[i]);
+                                liveVals.Add(counter.Values[i]);
+                            }
+                        }
+                        counter.Timestamps.Clear();
+                        counter.Values.Clear();
+                        foreach (var p in resp.Points)
+                        {
+                            counter.Timestamps.Add(p.TimestampUnixNano);
+                            counter.Values.Add(p.Value);
+                        }
+                        counter.Timestamps.AddRange(liveTs);
+                        counter.Values.AddRange(liveVals);
+                        continue;
+                    }
                     var (series, isRss) = resp.MetricName switch
                     {
-                        "llm.tokens.in" => (_tokensInSeries, false),
-                        "llm.tokens.out" => (_tokensOutSeries, false),
-                        "llm.tokens.cached" => (_tokensCachedSeries, false),
                         "py.cpu.total_pct" => (_cpuSeries, false),
                         "py.mem.rss_bytes" => (_rssSeries, true),
                         "py.runtime.event_loop_lag_ms" => (_lagSeries, false),
@@ -147,11 +173,14 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
                         series.LatestValue = vals[^1];
                     }
                 }
+                RebuildTokenSeries();
             });
         }
         catch { }
     }
-    [ObservableProperty] private string _tokenThroughputSummary = "0 in / 0 out";
+    [ObservableProperty] private string _tokenThroughputSummary = "No data";
+    [ObservableProperty] private string _tokenWindowSummary = "";
+    [ObservableProperty] private string _tokenChartTitle = "LLM tokens per 30 s (uncached input / cached input / output)";
     [ObservableProperty] private string _processMemorySummary = "RSS: 0 MB · VMS: 0 MB";
     [ObservableProperty] private string _cpuSummary = "CPU: 0.0%";
     [ObservableProperty] private string _runtimeSummary = "Loop Lag: 0.0ms · Tasks: 0";
@@ -167,9 +196,25 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
     public ObservableCollection<ChartSeriesModel> TokenSeries { get; } = new();
     public ObservableCollection<ChartSeriesModel> RuntimeSeries { get; } = new();
 
-    private readonly ChartSeriesModel _tokensInSeries = new("llm.tokens.in", "Prompt Tokens", "#06B6D4");
-    private readonly ChartSeriesModel _tokensOutSeries = new("llm.tokens.out", "Completion Tokens", "#10B981");
-    private readonly ChartSeriesModel _tokensCachedSeries = new("llm.tokens.cached", "Cached Tokens", "#A855F7");
+    // Charted per bucket from NoxChat's cumulative counters (see TokenBuckets).
+    private readonly ChartSeriesModel _tokensUncachedSeries = new("llm.tokens.uncached", "Uncached input", "#06B6D4");
+    private readonly ChartSeriesModel _tokensCachedSeries = new("llm.tokens.cached", "Cached input", "#A855F7");
+    private readonly ChartSeriesModel _tokensOutSeries = new("llm.tokens.out", "Output", "#10B981");
+
+    private sealed class CounterHistory
+    {
+        public List<long> Timestamps { get; } = new();
+        public List<double> Values { get; } = new();
+    }
+
+    private const int MaxCounterPoints = 20000;
+    private readonly Dictionary<string, CounterHistory> _tokenCounters = new()
+    {
+        ["llm.tokens.uncached"] = new CounterHistory(),
+        ["llm.tokens.cached"] = new CounterHistory(),
+        ["llm.tokens.out"] = new CounterHistory(),
+    };
+    private long _latestSampleNano;
 
     private readonly ChartSeriesModel _cpuSeries = new("py.cpu.total_pct", "Process CPU %", "#F59E0B");
     private readonly ChartSeriesModel _rssSeries = new("py.mem.rss_bytes", "RSS Memory (MiB)", "#3B82F6");
@@ -181,9 +226,9 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
         _historyCache = historyCache;
         SelectedNode = _nodeManager.Nodes.FirstOrDefault();
 
-        TokenSeries.Add(_tokensInSeries);
-        TokenSeries.Add(_tokensOutSeries);
+        TokenSeries.Add(_tokensUncachedSeries);
         TokenSeries.Add(_tokensCachedSeries);
+        TokenSeries.Add(_tokensOutSeries);
 
         RuntimeSeries.Add(_cpuSeries);
         RuntimeSeries.Add(_rssSeries);
@@ -199,13 +244,19 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
 
         long spanSec = GetSelectedSpanSeconds();
         long sampleNano = sample.TimestampUnixNano;
+        _latestSampleNano = Math.Max(_latestSampleNano, sampleNano);
         WindowStart = Math.Max(0, sampleNano - (spanSec * 1_000_000_000L));
         WindowEnd = sampleNano;
 
         // Update live status summaries
-        if (dict.TryGetValue("llm.tokens.in", out double tIn) && dict.TryGetValue("llm.tokens.out", out double tOut))
+        if (dict.TryGetValue("llm.tokens.out", out double tOut))
         {
-            TokenThroughputSummary = $"Tokens: {tIn:N0} in · {tOut:N0} out";
+            double cached = dict.GetValueOrDefault("llm.tokens.cached", 0);
+            // NoxChat before 2026-11-26 had no uncached counter (and llm.tokens.in was the uncached part)
+            double uncached = dict.TryGetValue("llm.tokens.uncached", out double u)
+                ? u
+                : Math.Max(0, dict.GetValueOrDefault("llm.tokens.in", 0) - cached);
+            TokenThroughputSummary = FormatTokenSummary("Since NoxChat start", uncached, cached, tOut);
         }
         if (dict.TryGetValue("py.mem.rss_bytes", out double rss) && dict.TryGetValue("py.mem.vms_bytes", out double vms))
         {
@@ -220,14 +271,59 @@ public sealed partial class NoxTelemetryTabViewModel : ObservableObject
             RuntimeSummary = $"Loop Lag: {lag:F1}ms · Tasks: {tasks:N0}";
         }
 
+        // Token counters: keep the cumulative samples, chart them per bucket
+        foreach (var (metric, counter) in _tokenCounters)
+        {
+            if (!dict.TryGetValue(metric, out double v)) continue;
+            counter.Timestamps.Add(sample.TimestampUnixNano);
+            counter.Values.Add(v);
+            if (counter.Timestamps.Count > MaxCounterPoints)
+            {
+                int drop = counter.Timestamps.Count - MaxCounterPoints;
+                counter.Timestamps.RemoveRange(0, drop);
+                counter.Values.RemoveRange(0, drop);
+            }
+        }
+        RebuildTokenSeries();
+
         // Append to series buffers (timestamps in nanoseconds)
-        AppendSampleToSeries(_tokensInSeries, sample.TimestampUnixNano, dict.GetValueOrDefault("llm.tokens.in", 0));
-        AppendSampleToSeries(_tokensOutSeries, sample.TimestampUnixNano, dict.GetValueOrDefault("llm.tokens.out", 0));
-        AppendSampleToSeries(_tokensCachedSeries, sample.TimestampUnixNano, dict.GetValueOrDefault("llm.tokens.cached", 0));
 
         AppendSampleToSeries(_cpuSeries, sample.TimestampUnixNano, dict.GetValueOrDefault("py.cpu.total_pct", 0));
         AppendSampleToSeries(_rssSeries, sample.TimestampUnixNano, dict.GetValueOrDefault("py.mem.rss_bytes", 0) / 1048576.0);
         AppendSampleToSeries(_lagSeries, sample.TimestampUnixNano, dict.GetValueOrDefault("py.runtime.event_loop_lag_ms", 0));
+    }
+
+    private static string FormatTokenSummary(string prefix, double uncached, double cached, double output)
+    {
+        double input = uncached + cached;
+        string hit = input > 0 ? $" ({cached / input:P0} cached)" : "";
+        return $"{prefix}: {TokenBuckets.Format(uncached)} uncached · {TokenBuckets.Format(cached)} cached{hit} · {TokenBuckets.Format(output)} out";
+    }
+
+    /// <summary>Re-derives the per-bucket token series and the window totals from the cumulative counters.</summary>
+    private void RebuildTokenSeries()
+    {
+        if (WindowEnd <= WindowStart) return;
+        long bucketSec = TokenBuckets.BucketSecondsFor(GetSelectedSpanSeconds());
+        long bucketNanos = bucketSec * 1_000_000_000L;
+        TokenChartTitle = $"LLM tokens per {TokenBuckets.BucketLabel(bucketSec)} (uncached input / cached input / output)";
+        var totals = new Dictionary<string, double>();
+        foreach (var (series, metric) in new[]
+                 {
+                     (_tokensUncachedSeries, "llm.tokens.uncached"),
+                     (_tokensCachedSeries, "llm.tokens.cached"),
+                     (_tokensOutSeries, "llm.tokens.out"),
+                 })
+        {
+            var c = _tokenCounters[metric];
+            var (ts, vals) = TokenBuckets.FromCumulative(c.Timestamps, c.Values, WindowStart, WindowEnd, bucketNanos);
+            series.Timestamps = ts;
+            series.Values = vals;
+            series.LatestValue = vals.Length > 0 ? vals[^1] : 0;
+            totals[metric] = TokenBuckets.Increase(c.Timestamps, c.Values, WindowStart, WindowEnd);
+        }
+        TokenWindowSummary = FormatTokenSummary($"Last {SelectedTimeRange}",
+            totals["llm.tokens.uncached"], totals["llm.tokens.cached"], totals["llm.tokens.out"]);
     }
 
     private static void AppendSampleToSeries(ChartSeriesModel series, long timestampNano, double value)

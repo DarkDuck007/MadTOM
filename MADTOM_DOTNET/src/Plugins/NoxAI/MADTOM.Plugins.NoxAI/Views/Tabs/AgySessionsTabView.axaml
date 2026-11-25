@@ -1,0 +1,337 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="780"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.AgySessionsTabView"
+             x:DataType="vm:AgySessionsTabViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="16" RowSpacing="10">
+
+        <!-- Header Bar -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="LLM SESSIONS"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource AccentTextBrush}"
+                               VerticalAlignment="Center"/>
+                    <Border IsVisible="{Binding HasHistoryMode}"
+                            Background="{DynamicResource AccentSubtleBrush}"
+                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="{Binding HistoryMode}"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   FontFamily="{StaticResource MonoFontFamily}"
+                                   Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Command="{Binding RefreshCommand}"
+                        Content="🔄 Refresh"
+                        Padding="10,4"
+                        FontSize="11"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding !IsLoading}"/>
+            </Grid>
+        </Border>
+
+        <!-- Error Banner -->
+        <Border Grid.Row="1"
+                IsVisible="{Binding HasError}"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource CriticalBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,8">
+            <TextBlock Text="{Binding ErrorText}"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource CriticalBrush}"
+                       TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- Top Summary Cards -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+            <!-- Rebuilds Card -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="REBUILDS"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock Text="{Binding RebuildSummary}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Input Tokens Card -->
+            <Border Grid.Column="1"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="INPUT TOKENS"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock Text="{Binding TokenSummary}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Settings Card -->
+            <Border Grid.Column="2"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,10">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="SETTINGS"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock Text="{Binding SettingsSummary}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Rebuilds by Reason -->
+        <Border Grid.Row="3"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,8">
+            <StackPanel Spacing="6">
+                <TextBlock Text="REBUILDS BY REASON"
+                           FontSize="10"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextMutedBrush}"/>
+                <ItemsControl ItemsSource="{Binding RebuildReasons}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AgyRebuildReasonRow">
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,4">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Label}"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Count}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               FontFamily="{StaticResource MonoFontFamily}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- Active Sessions Table -->
+        <Border Grid.Row="4"
+                Background="{DynamicResource DarkBaseBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                ClipToBounds="True">
+            <Grid RowDefinitions="Auto,Auto,*">
+                <Border Grid.Row="0"
+                        Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="12,6">
+                    <TextBlock Text="ACTIVE SESSIONS"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource AccentTextBrush}"/>
+                </Border>
+
+                <Border Grid.Row="1"
+                        Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="12,6">
+                    <Grid ColumnDefinitions="1.4*,55,55,1.2*,70,90,65,1.1*,1.1*" ColumnSpacing="8">
+                        <TextBlock Grid.Column="0" Text="CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="1" Text="EPOCH" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="2" Text="TURNS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="3" Text="SIZE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="4" Text="CACHE HIT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="5" Text="GROWTH" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="6" Text="IDLE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="7" Text="STARTED BY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Grid.Column="8" Text="NEXT TURN" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </Grid>
+                </Border>
+
+                <Panel Grid.Row="2">
+                    <TextBlock Text="No active LLM sessions."
+                               IsVisible="{Binding !HasSessions}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+
+                    <ScrollViewer IsVisible="{Binding HasSessions}" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Sessions}" Margin="4,4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AgySessionRow">
+                                    <Border Background="{DynamicResource CardBgBrush}"
+                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="8,6"
+                                            Margin="0,2">
+                                        <Grid ColumnDefinitions="1.4*,55,55,1.2*,70,90,65,1.1*,1.1*" ColumnSpacing="8" VerticalAlignment="Center">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding ChatTitle}"
+                                                       ToolTip.Tip="{Binding ChatId}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Epoch}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding Turns}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="3" Spacing="3" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding SizeText}"
+                                                           FontSize="10"
+                                                           FontFamily="{StaticResource MonoFontFamily}"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <ProgressBar Minimum="0"
+                                                             Maximum="1"
+                                                             Value="{Binding FillFraction}"
+                                                             Height="4"
+                                                             MinHeight="4"
+                                                             Foreground="{DynamicResource AccentTextBrush}"
+                                                             Background="{DynamicResource DarkBaseBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="4"
+                                                       Text="{Binding CacheHitText}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource HealthyBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="5"
+                                                       Text="{Binding GrowthText}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="6"
+                                                       Text="{Binding IdleText}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="7"
+                                                       Text="{Binding StartedReasonText}"
+                                                       ToolTip.Tip="{Binding StartedReasonText}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="8"
+                                                       Classes.will-rebuild="{Binding WillRebuild}"
+                                                       Text="{Binding NextTurnText}"
+                                                       ToolTip.Tip="{Binding NextTurnText}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Styles>
+                                                    <Style Selector="TextBlock.will-rebuild">
+                                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                    </Style>
+                                                </TextBlock.Styles>
+                                            </TextBlock>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Panel>
+            </Grid>
+        </Border>
+
+        <!-- Bottom Status Line -->
+        <Border Grid.Row="5"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,6">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Text="{Binding StatusText}"
+                           FontSize="11"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding StatusText}"
+                           IsVisible="{Binding !HasError}"/>
+                <TextBlock Text="{Binding ErrorText}"
+                           FontSize="11"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource CriticalBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding ErrorText}"
+                           IsVisible="{Binding HasError}"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

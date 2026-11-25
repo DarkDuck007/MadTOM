@@ -31,6 +31,11 @@ type ProbeConfig struct {
 	AuthKey                string `yaml:"auth_key"`
 	AuthKeyFile            string `yaml:"auth_key_file"`
 	MdnsEnabled            bool   `yaml:"mdns_enabled"`
+	// Telemetry history kept in memory for the Studio graphs: raw 1 Hz samples per metric, plus a rollup
+	// tier of TelemetryRollupSeconds buckets (default 60 s x 10080 = 7 days).
+	TelemetryRawPoints     int
+	TelemetryRollupSeconds int
+	TelemetryRollupPoints  int
 }
 
 // DefaultConfig returns safe fallback defaults.
@@ -39,16 +44,17 @@ func DefaultConfig() *ProbeConfig {
 		LogSearchEnabled: true, LogSearchConcurrency: 1, LogSearchMaxResults: 200,
 		LogSearchMaxQueryBytes: 4096, LogSearchChunkBytes: 16 << 20, LogSearchPageBytes: 64 << 20,
 		LogSearchPageMs: 2000, LogSearchCursorSeconds: 300,
-		NodeID:           "noxchat-node",
-		ListenAddr:       ":50055",
-		PythonBridgeHost: "127.0.0.1",
-		PythonBridgePort: 50056,
-		StoreRawLogs:     false,
-		MaxSpoolBytes:    1024 * 1024 * 1024,
-		StateBufferBytes: 1024 * 1024,
-		LogBufferBytes:   8 * 1024 * 1024,
-		SpoolDir:         "./data/noxchat_spool",
-		MdnsEnabled:      true,
+		NodeID:             "noxchat-node",
+		ListenAddr:         ":50055",
+		PythonBridgeHost:   "127.0.0.1",
+		PythonBridgePort:   50056,
+		StoreRawLogs:       false,
+		MaxSpoolBytes:      1024 * 1024 * 1024,
+		StateBufferBytes:   1024 * 1024,
+		LogBufferBytes:     8 * 1024 * 1024,
+		SpoolDir:           "./data/noxchat_spool",
+		MdnsEnabled:        true,
+		TelemetryRawPoints: 3600, TelemetryRollupSeconds: 60, TelemetryRollupPoints: 10080,
 	}
 }
 
@@ -65,13 +71,16 @@ func (c *ProbeConfig) LoadFromNoxChatYaml(path string) error {
 			DataDir string `yaml:"data_dir"`
 		} `yaml:"app"`
 		ControlCenter struct {
-			Enabled          bool   `yaml:"enabled"`
-			ListenHost       string `yaml:"listen_host"`
-			ListenPort       int    `yaml:"listen_port"`
-			StoreRawLogs     bool   `yaml:"store_raw_logs"`
-			MaxSpoolBytes    int64  `yaml:"max_spool_bytes"`
-			StateBufferBytes int64  `yaml:"state_buffer_bytes"`
-			LogBufferBytes   int64  `yaml:"log_buffer_bytes"`
+			Enabled                bool   `yaml:"enabled"`
+			ListenHost             string `yaml:"listen_host"`
+			ListenPort             int    `yaml:"listen_port"`
+			StoreRawLogs           bool   `yaml:"store_raw_logs"`
+			MaxSpoolBytes          int64  `yaml:"max_spool_bytes"`
+			StateBufferBytes       int64  `yaml:"state_buffer_bytes"`
+			LogBufferBytes         int64  `yaml:"log_buffer_bytes"`
+			TelemetryRawPoints     *int   `yaml:"telemetry_raw_points"`
+			TelemetryRollupSeconds *int   `yaml:"telemetry_rollup_seconds"`
+			TelemetryRollupPoints  *int   `yaml:"telemetry_rollup_points"`
 		} `yaml:"control_center"`
 	}
 
@@ -95,6 +104,15 @@ func (c *ProbeConfig) LoadFromNoxChatYaml(path string) error {
 	if raw.ControlCenter.LogBufferBytes > 0 {
 		c.LogBufferBytes = raw.ControlCenter.LogBufferBytes
 	}
+	if v := raw.ControlCenter.TelemetryRawPoints; v != nil {
+		c.TelemetryRawPoints = *v
+	}
+	if v := raw.ControlCenter.TelemetryRollupSeconds; v != nil {
+		c.TelemetryRollupSeconds = *v
+	}
+	if v := raw.ControlCenter.TelemetryRollupPoints; v != nil {
+		c.TelemetryRollupPoints = *v
+	}
 	if raw.App.DataDir != "" {
 		c.SpoolDir = raw.App.DataDir + "/noxchat_spool"
 	}
@@ -106,6 +124,10 @@ func (c *ProbeConfig) LoadFromNoxChatYaml(path string) error {
 func (c *ProbeConfig) Validate() error {
 	if c.LogSearchConcurrency < 1 || c.LogSearchConcurrency > 8 || c.LogSearchMaxResults < 1 || c.LogSearchMaxResults > 1000 || c.LogSearchMaxQueryBytes < 1 || c.LogSearchMaxQueryBytes > 16384 || c.LogSearchChunkBytes < 1024 || c.LogSearchChunkBytes > 64<<20 || c.LogSearchPageBytes < c.LogSearchChunkBytes || c.LogSearchPageMs < 1 || c.LogSearchCursorSeconds < 1 {
 		return fmt.Errorf("invalid log search resource limits")
+	}
+	if c.TelemetryRawPoints < 1 || c.TelemetryRawPoints > 86400 || c.TelemetryRollupSeconds < 1 ||
+		c.TelemetryRollupSeconds > 86400 || c.TelemetryRollupPoints < 0 || c.TelemetryRollupPoints > 100000 {
+		return fmt.Errorf("invalid telemetry history limits")
 	}
 	host := strings.TrimSpace(strings.ToLower(c.PythonBridgeHost))
 	if host != "127.0.0.1" && host != "localhost" && host != "::1" {

@@ -113,6 +113,9 @@ service NoxChatControlService {
   rpc ListUserQuotas(NoxListUserQuotasRequest) returns (NoxListUserQuotasResponse);
   rpc GetUserQuota(NoxGetUserQuotaRequest) returns (NoxGetUserQuotaResponse);
   rpc SetUserQuota(NoxSetUserQuotaRequest) returns (NoxSetUserQuotaResponse);
+
+  // Stateful ("agy") LLM sessions: live sessions per chat, bootstraps by reason (Python agy_sessions)
+  rpc GetAgySessions(NoxAgySessionsRequest) returns (NoxAgySessionsResponse);
 }
 
 // ------------------------------------------------------------------------------
@@ -1650,4 +1653,67 @@ message NoxSetUserQuotaResponse {
   bool ok = 1;
   bool removed = 2;
   string error = 3;
+}
+
+// ---------------------------------------------------------------- agy sessions (Python agy_sessions)
+
+message NoxAgySessionsRequest {}
+
+message NoxAgySessionSettings {
+  string rebase_growth_tokens = 1;        // "auto" or a fixed number
+  int64 rebase_growth_min_tokens = 2;
+  int64 rebase_growth_max_tokens = 3;
+  int64 cold_rebuild_after_seconds = 4;   // 0 = off
+  int64 max_session_turns = 5;            // 0 = off
+  int64 max_context_tokens = 6;
+  int64 working_dialogue_turns = 7;
+}
+
+message NoxAgyRebuildCounts {
+  int64 new = 1;        // first turn of a chat since NoxChat started (includes restarts)
+  int64 growth = 2;     // token ceiling
+  int64 cold = 3;       // idle past cold_rebuild_after_seconds
+  int64 max_turns = 4;
+  int64 expired = 5;    // bridge lost the session
+  int64 reset = 6;      // /clear and the like
+}
+
+message NoxAgyInputTokens {
+  int64 uncached = 1;
+  int64 cached = 2;
+  int64 calls = 3;
+}
+
+message NoxAgyInputTokensByKind {
+  NoxAgyInputTokens bootstrap = 1;
+  NoxAgyInputTokens warm = 2;
+}
+
+message NoxAgySession {
+  int64 chat_id = 1;
+  string chat_title = 2;
+  int64 epoch = 3;
+  int64 turns = 4;
+  int64 tokens = 5;                 // session size after the last turn
+  int64 bootstrap_tokens = 6;
+  int64 rebuild_at_tokens = 7;
+  int64 growth_budget_tokens = 8;
+  string growth_mode = 9;           // "auto" | "fixed"
+  double growth_per_turn = 10;
+  double cache_hit = 11;            // 0..1, warm calls of this chat
+  int64 idle_seconds = 12;
+  int64 age_seconds = 13;
+  string started_reason = 14;       // why this epoch was bootstrapped
+  string next_turn_rebuilds = 15;   // non-empty: the next turn bootstraps, and why
+}
+
+message NoxAgySessionsResponse {
+  string history_mode = 1;
+  int64 since_unix = 2;             // counters below count from this time (NoxChat start)
+  NoxAgySessionSettings settings = 3;
+  NoxAgyRebuildCounts rebuilds = 4;
+  NoxAgyInputTokensByKind input_tokens = 5;
+  double warm_cache_hit = 6;
+  repeated NoxAgySession sessions = 7;
+  string error = 8;
 }

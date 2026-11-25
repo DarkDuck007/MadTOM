@@ -150,6 +150,11 @@
                 <TabItem Header="🚦 User Quotas" FontSize="12">
                     <tabs:UserQuotasTabView DataContext="{Binding UserQuotasTab}"/>
                 </TabItem>
+
+                <!-- Tab 12: LLM Sessions -->
+                <TabItem Header="🔁 LLM Sessions" FontSize="12">
+                    <tabs:AgySessionsTabView DataContext="{Binding AgySessionsTab}"/>
+                </TabItem>
             </TabControl>
         </Grid>
 

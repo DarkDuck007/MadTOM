@@ -13904,6 +13904,586 @@ func (x *NoxSetUserQuotaResponse) GetError() string {
 	return ""
 }
 
+type NoxAgySessionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxAgySessionsRequest) Reset() {
+	*x = NoxAgySessionsRequest{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[178]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxAgySessionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxAgySessionsRequest) ProtoMessage() {}
+
+func (x *NoxAgySessionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[178]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxAgySessionsRequest.ProtoReflect.Descriptor instead.
+func (*NoxAgySessionsRequest) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{178}
+}
+
+type NoxAgySessionSettings struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	RebaseGrowthTokens      string                 `protobuf:"bytes,1,opt,name=rebase_growth_tokens,json=rebaseGrowthTokens,proto3" json:"rebase_growth_tokens,omitempty"` // "auto" or a fixed number
+	RebaseGrowthMinTokens   int64                  `protobuf:"varint,2,opt,name=rebase_growth_min_tokens,json=rebaseGrowthMinTokens,proto3" json:"rebase_growth_min_tokens,omitempty"`
+	RebaseGrowthMaxTokens   int64                  `protobuf:"varint,3,opt,name=rebase_growth_max_tokens,json=rebaseGrowthMaxTokens,proto3" json:"rebase_growth_max_tokens,omitempty"`
+	ColdRebuildAfterSeconds int64                  `protobuf:"varint,4,opt,name=cold_rebuild_after_seconds,json=coldRebuildAfterSeconds,proto3" json:"cold_rebuild_after_seconds,omitempty"` // 0 = off
+	MaxSessionTurns         int64                  `protobuf:"varint,5,opt,name=max_session_turns,json=maxSessionTurns,proto3" json:"max_session_turns,omitempty"`                           // 0 = off
+	MaxContextTokens        int64                  `protobuf:"varint,6,opt,name=max_context_tokens,json=maxContextTokens,proto3" json:"max_context_tokens,omitempty"`
+	WorkingDialogueTurns    int64                  `protobuf:"varint,7,opt,name=working_dialogue_turns,json=workingDialogueTurns,proto3" json:"working_dialogue_turns,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *NoxAgySessionSettings) Reset() {
+	*x = NoxAgySessionSettings{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[179]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxAgySessionSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxAgySessionSettings) ProtoMessage() {}
+
+func (x *NoxAgySessionSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[179]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxAgySessionSettings.ProtoReflect.Descriptor instead.
+func (*NoxAgySessionSettings) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{179}
+}
+
+func (x *NoxAgySessionSettings) GetRebaseGrowthTokens() string {
+	if x != nil {
+		return x.RebaseGrowthTokens
+	}
+	return ""
+}
+
+func (x *NoxAgySessionSettings) GetRebaseGrowthMinTokens() int64 {
+	if x != nil {
+		return x.RebaseGrowthMinTokens
+	}
+	return 0
+}
+
+func (x *NoxAgySessionSettings) GetRebaseGrowthMaxTokens() int64 {
+	if x != nil {
+		return x.RebaseGrowthMaxTokens
+	}
+	return 0
+}
+
+func (x *NoxAgySessionSettings) GetColdRebuildAfterSeconds() int64 {
+	if x != nil {
+		return x.ColdRebuildAfterSeconds
+	}
+	return 0
+}
+
+func (x *NoxAgySessionSettings) GetMaxSessionTurns() int64 {
+	if x != nil {
+		return x.MaxSessionTurns
+	}
+	return 0
+}
+
+func (x *NoxAgySessionSettings) GetMaxContextTokens() int64 {
+	if x != nil {
+		return x.MaxContextTokens
+	}
+	return 0
+}
+
+func (x *NoxAgySessionSettings) GetWorkingDialogueTurns() int64 {
+	if x != nil {
+		return x.WorkingDialogueTurns
+	}
+	return 0
+}
+
+type NoxAgyRebuildCounts struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	New           int64                  `protobuf:"varint,1,opt,name=new,proto3" json:"new,omitempty"`       // first turn of a chat since NoxChat started (includes restarts)
+	Growth        int64                  `protobuf:"varint,2,opt,name=growth,proto3" json:"growth,omitempty"` // token ceiling
+	Cold          int64                  `protobuf:"varint,3,opt,name=cold,proto3" json:"cold,omitempty"`     // idle past cold_rebuild_after_seconds
+	MaxTurns      int64                  `protobuf:"varint,4,opt,name=max_turns,json=maxTurns,proto3" json:"max_turns,omitempty"`
+	Expired       int64                  `protobuf:"varint,5,opt,name=expired,proto3" json:"expired,omitempty"` // bridge lost the session
+	Reset_        int64                  `protobuf:"varint,6,opt,name=reset,proto3" json:"reset,omitempty"`     // /clear and the like
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxAgyRebuildCounts) Reset() {
+	*x = NoxAgyRebuildCounts{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[180]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxAgyRebuildCounts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxAgyRebuildCounts) ProtoMessage() {}
+
+func (x *NoxAgyRebuildCounts) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[180]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxAgyRebuildCounts.ProtoReflect.Descriptor instead.
+func (*NoxAgyRebuildCounts) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{180}
+}
+
+func (x *NoxAgyRebuildCounts) GetNew() int64 {
+	if x != nil {
+		return x.New
+	}
+	return 0
+}
+
+func (x *NoxAgyRebuildCounts) GetGrowth() int64 {
+	if x != nil {
+		return x.Growth
+	}
+	return 0
+}
+
+func (x *NoxAgyRebuildCounts) GetCold() int64 {
+	if x != nil {
+		return x.Cold
+	}
+	return 0
+}
+
+func (x *NoxAgyRebuildCounts) GetMaxTurns() int64 {
+	if x != nil {
+		return x.MaxTurns
+	}
+	return 0
+}
+
+func (x *NoxAgyRebuildCounts) GetExpired() int64 {
+	if x != nil {
+		return x.Expired
+	}
+	return 0
+}
+
+func (x *NoxAgyRebuildCounts) GetReset_() int64 {
+	if x != nil {
+		return x.Reset_
+	}
+	return 0
+}
+
+type NoxAgyInputTokens struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Uncached      int64                  `protobuf:"varint,1,opt,name=uncached,proto3" json:"uncached,omitempty"`
+	Cached        int64                  `protobuf:"varint,2,opt,name=cached,proto3" json:"cached,omitempty"`
+	Calls         int64                  `protobuf:"varint,3,opt,name=calls,proto3" json:"calls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxAgyInputTokens) Reset() {
+	*x = NoxAgyInputTokens{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[181]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxAgyInputTokens) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxAgyInputTokens) ProtoMessage() {}
+
+func (x *NoxAgyInputTokens) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[181]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxAgyInputTokens.ProtoReflect.Descriptor instead.
+func (*NoxAgyInputTokens) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{181}
+}
+
+func (x *NoxAgyInputTokens) GetUncached() int64 {
+	if x != nil {
+		return x.Uncached
+	}
+	return 0
+}
+
+func (x *NoxAgyInputTokens) GetCached() int64 {
+	if x != nil {
+		return x.Cached
+	}
+	return 0
+}
+
+func (x *NoxAgyInputTokens) GetCalls() int64 {
+	if x != nil {
+		return x.Calls
+	}
+	return 0
+}
+
+type NoxAgyInputTokensByKind struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bootstrap     *NoxAgyInputTokens     `protobuf:"bytes,1,opt,name=bootstrap,proto3" json:"bootstrap,omitempty"`
+	Warm          *NoxAgyInputTokens     `protobuf:"bytes,2,opt,name=warm,proto3" json:"warm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxAgyInputTokensByKind) Reset() {
+	*x = NoxAgyInputTokensByKind{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[182]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxAgyInputTokensByKind) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxAgyInputTokensByKind) ProtoMessage() {}
+
+func (x *NoxAgyInputTokensByKind) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[182]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxAgyInputTokensByKind.ProtoReflect.Descriptor instead.
+func (*NoxAgyInputTokensByKind) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{182}
+}
+
+func (x *NoxAgyInputTokensByKind) GetBootstrap() *NoxAgyInputTokens {
+	if x != nil {
+		return x.Bootstrap
+	}
+	return nil
+}
+
+func (x *NoxAgyInputTokensByKind) GetWarm() *NoxAgyInputTokens {
+	if x != nil {
+		return x.Warm
+	}
+	return nil
+}
+
+type NoxAgySession struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	ChatId             int64                  `protobuf:"varint,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	ChatTitle          string                 `protobuf:"bytes,2,opt,name=chat_title,json=chatTitle,proto3" json:"chat_title,omitempty"`
+	Epoch              int64                  `protobuf:"varint,3,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Turns              int64                  `protobuf:"varint,4,opt,name=turns,proto3" json:"turns,omitempty"`
+	Tokens             int64                  `protobuf:"varint,5,opt,name=tokens,proto3" json:"tokens,omitempty"` // session size after the last turn
+	BootstrapTokens    int64                  `protobuf:"varint,6,opt,name=bootstrap_tokens,json=bootstrapTokens,proto3" json:"bootstrap_tokens,omitempty"`
+	RebuildAtTokens    int64                  `protobuf:"varint,7,opt,name=rebuild_at_tokens,json=rebuildAtTokens,proto3" json:"rebuild_at_tokens,omitempty"`
+	GrowthBudgetTokens int64                  `protobuf:"varint,8,opt,name=growth_budget_tokens,json=growthBudgetTokens,proto3" json:"growth_budget_tokens,omitempty"`
+	GrowthMode         string                 `protobuf:"bytes,9,opt,name=growth_mode,json=growthMode,proto3" json:"growth_mode,omitempty"` // "auto" | "fixed"
+	GrowthPerTurn      float64                `protobuf:"fixed64,10,opt,name=growth_per_turn,json=growthPerTurn,proto3" json:"growth_per_turn,omitempty"`
+	CacheHit           float64                `protobuf:"fixed64,11,opt,name=cache_hit,json=cacheHit,proto3" json:"cache_hit,omitempty"` // 0..1, warm calls of this chat
+	IdleSeconds        int64                  `protobuf:"varint,12,opt,name=idle_seconds,json=idleSeconds,proto3" json:"idle_seconds,omitempty"`
+	AgeSeconds         int64                  `protobuf:"varint,13,opt,name=age_seconds,json=ageSeconds,proto3" json:"age_seconds,omitempty"`
+	StartedReason      string                 `protobuf:"bytes,14,opt,name=started_reason,json=startedReason,proto3" json:"started_reason,omitempty"`            // why this epoch was bootstrapped
+	NextTurnRebuilds   string                 `protobuf:"bytes,15,opt,name=next_turn_rebuilds,json=nextTurnRebuilds,proto3" json:"next_turn_rebuilds,omitempty"` // non-empty: the next turn bootstraps, and why
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *NoxAgySession) Reset() {
+	*x = NoxAgySession{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[183]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxAgySession) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxAgySession) ProtoMessage() {}
+
+func (x *NoxAgySession) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[183]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxAgySession.ProtoReflect.Descriptor instead.
+func (*NoxAgySession) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{183}
+}
+
+func (x *NoxAgySession) GetChatId() int64 {
+	if x != nil {
+		return x.ChatId
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetChatTitle() string {
+	if x != nil {
+		return x.ChatTitle
+	}
+	return ""
+}
+
+func (x *NoxAgySession) GetEpoch() int64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetTurns() int64 {
+	if x != nil {
+		return x.Turns
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetTokens() int64 {
+	if x != nil {
+		return x.Tokens
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetBootstrapTokens() int64 {
+	if x != nil {
+		return x.BootstrapTokens
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetRebuildAtTokens() int64 {
+	if x != nil {
+		return x.RebuildAtTokens
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetGrowthBudgetTokens() int64 {
+	if x != nil {
+		return x.GrowthBudgetTokens
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetGrowthMode() string {
+	if x != nil {
+		return x.GrowthMode
+	}
+	return ""
+}
+
+func (x *NoxAgySession) GetGrowthPerTurn() float64 {
+	if x != nil {
+		return x.GrowthPerTurn
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetCacheHit() float64 {
+	if x != nil {
+		return x.CacheHit
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetIdleSeconds() int64 {
+	if x != nil {
+		return x.IdleSeconds
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetAgeSeconds() int64 {
+	if x != nil {
+		return x.AgeSeconds
+	}
+	return 0
+}
+
+func (x *NoxAgySession) GetStartedReason() string {
+	if x != nil {
+		return x.StartedReason
+	}
+	return ""
+}
+
+func (x *NoxAgySession) GetNextTurnRebuilds() string {
+	if x != nil {
+		return x.NextTurnRebuilds
+	}
+	return ""
+}
+
+type NoxAgySessionsResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	HistoryMode   string                   `protobuf:"bytes,1,opt,name=history_mode,json=historyMode,proto3" json:"history_mode,omitempty"`
+	SinceUnix     int64                    `protobuf:"varint,2,opt,name=since_unix,json=sinceUnix,proto3" json:"since_unix,omitempty"` // counters below count from this time (NoxChat start)
+	Settings      *NoxAgySessionSettings   `protobuf:"bytes,3,opt,name=settings,proto3" json:"settings,omitempty"`
+	Rebuilds      *NoxAgyRebuildCounts     `protobuf:"bytes,4,opt,name=rebuilds,proto3" json:"rebuilds,omitempty"`
+	InputTokens   *NoxAgyInputTokensByKind `protobuf:"bytes,5,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	WarmCacheHit  float64                  `protobuf:"fixed64,6,opt,name=warm_cache_hit,json=warmCacheHit,proto3" json:"warm_cache_hit,omitempty"`
+	Sessions      []*NoxAgySession         `protobuf:"bytes,7,rep,name=sessions,proto3" json:"sessions,omitempty"`
+	Error         string                   `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxAgySessionsResponse) Reset() {
+	*x = NoxAgySessionsResponse{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[184]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxAgySessionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxAgySessionsResponse) ProtoMessage() {}
+
+func (x *NoxAgySessionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[184]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxAgySessionsResponse.ProtoReflect.Descriptor instead.
+func (*NoxAgySessionsResponse) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{184}
+}
+
+func (x *NoxAgySessionsResponse) GetHistoryMode() string {
+	if x != nil {
+		return x.HistoryMode
+	}
+	return ""
+}
+
+func (x *NoxAgySessionsResponse) GetSinceUnix() int64 {
+	if x != nil {
+		return x.SinceUnix
+	}
+	return 0
+}
+
+func (x *NoxAgySessionsResponse) GetSettings() *NoxAgySessionSettings {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+func (x *NoxAgySessionsResponse) GetRebuilds() *NoxAgyRebuildCounts {
+	if x != nil {
+		return x.Rebuilds
+	}
+	return nil
+}
+
+func (x *NoxAgySessionsResponse) GetInputTokens() *NoxAgyInputTokensByKind {
+	if x != nil {
+		return x.InputTokens
+	}
+	return nil
+}
+
+func (x *NoxAgySessionsResponse) GetWarmCacheHit() float64 {
+	if x != nil {
+		return x.WarmCacheHit
+	}
+	return 0
+}
+
+func (x *NoxAgySessionsResponse) GetSessions() []*NoxAgySession {
+	if x != nil {
+		return x.Sessions
+	}
+	return nil
+}
+
+func (x *NoxAgySessionsResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 var File_madtom_v1_noxchat_proto protoreflect.FileDescriptor
 
 const file_madtom_v1_noxchat_proto_rawDesc = "" +
@@ -15246,7 +15826,60 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"\x17NoxSetUserQuotaResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
 	"\aremoved\x18\x02 \x01(\bR\aremoved\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error2\xef2\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\x17\n" +
+	"\x15NoxAgySessionsRequest\"\x88\x03\n" +
+	"\x15NoxAgySessionSettings\x120\n" +
+	"\x14rebase_growth_tokens\x18\x01 \x01(\tR\x12rebaseGrowthTokens\x127\n" +
+	"\x18rebase_growth_min_tokens\x18\x02 \x01(\x03R\x15rebaseGrowthMinTokens\x127\n" +
+	"\x18rebase_growth_max_tokens\x18\x03 \x01(\x03R\x15rebaseGrowthMaxTokens\x12;\n" +
+	"\x1acold_rebuild_after_seconds\x18\x04 \x01(\x03R\x17coldRebuildAfterSeconds\x12*\n" +
+	"\x11max_session_turns\x18\x05 \x01(\x03R\x0fmaxSessionTurns\x12,\n" +
+	"\x12max_context_tokens\x18\x06 \x01(\x03R\x10maxContextTokens\x124\n" +
+	"\x16working_dialogue_turns\x18\a \x01(\x03R\x14workingDialogueTurns\"\xa0\x01\n" +
+	"\x13NoxAgyRebuildCounts\x12\x10\n" +
+	"\x03new\x18\x01 \x01(\x03R\x03new\x12\x16\n" +
+	"\x06growth\x18\x02 \x01(\x03R\x06growth\x12\x12\n" +
+	"\x04cold\x18\x03 \x01(\x03R\x04cold\x12\x1b\n" +
+	"\tmax_turns\x18\x04 \x01(\x03R\bmaxTurns\x12\x18\n" +
+	"\aexpired\x18\x05 \x01(\x03R\aexpired\x12\x14\n" +
+	"\x05reset\x18\x06 \x01(\x03R\x05reset\"]\n" +
+	"\x11NoxAgyInputTokens\x12\x1a\n" +
+	"\buncached\x18\x01 \x01(\x03R\buncached\x12\x16\n" +
+	"\x06cached\x18\x02 \x01(\x03R\x06cached\x12\x14\n" +
+	"\x05calls\x18\x03 \x01(\x03R\x05calls\"\x87\x01\n" +
+	"\x17NoxAgyInputTokensByKind\x12:\n" +
+	"\tbootstrap\x18\x01 \x01(\v2\x1c.madtom.v1.NoxAgyInputTokensR\tbootstrap\x120\n" +
+	"\x04warm\x18\x02 \x01(\v2\x1c.madtom.v1.NoxAgyInputTokensR\x04warm\"\x93\x04\n" +
+	"\rNoxAgySession\x12\x17\n" +
+	"\achat_id\x18\x01 \x01(\x03R\x06chatId\x12\x1d\n" +
+	"\n" +
+	"chat_title\x18\x02 \x01(\tR\tchatTitle\x12\x14\n" +
+	"\x05epoch\x18\x03 \x01(\x03R\x05epoch\x12\x14\n" +
+	"\x05turns\x18\x04 \x01(\x03R\x05turns\x12\x16\n" +
+	"\x06tokens\x18\x05 \x01(\x03R\x06tokens\x12)\n" +
+	"\x10bootstrap_tokens\x18\x06 \x01(\x03R\x0fbootstrapTokens\x12*\n" +
+	"\x11rebuild_at_tokens\x18\a \x01(\x03R\x0frebuildAtTokens\x120\n" +
+	"\x14growth_budget_tokens\x18\b \x01(\x03R\x12growthBudgetTokens\x12\x1f\n" +
+	"\vgrowth_mode\x18\t \x01(\tR\n" +
+	"growthMode\x12&\n" +
+	"\x0fgrowth_per_turn\x18\n" +
+	" \x01(\x01R\rgrowthPerTurn\x12\x1b\n" +
+	"\tcache_hit\x18\v \x01(\x01R\bcacheHit\x12!\n" +
+	"\fidle_seconds\x18\f \x01(\x03R\vidleSeconds\x12\x1f\n" +
+	"\vage_seconds\x18\r \x01(\x03R\n" +
+	"ageSeconds\x12%\n" +
+	"\x0estarted_reason\x18\x0e \x01(\tR\rstartedReason\x12,\n" +
+	"\x12next_turn_rebuilds\x18\x0f \x01(\tR\x10nextTurnRebuilds\"\x8d\x03\n" +
+	"\x16NoxAgySessionsResponse\x12!\n" +
+	"\fhistory_mode\x18\x01 \x01(\tR\vhistoryMode\x12\x1d\n" +
+	"\n" +
+	"since_unix\x18\x02 \x01(\x03R\tsinceUnix\x12<\n" +
+	"\bsettings\x18\x03 \x01(\v2 .madtom.v1.NoxAgySessionSettingsR\bsettings\x12:\n" +
+	"\brebuilds\x18\x04 \x01(\v2\x1e.madtom.v1.NoxAgyRebuildCountsR\brebuilds\x12E\n" +
+	"\finput_tokens\x18\x05 \x01(\v2\".madtom.v1.NoxAgyInputTokensByKindR\vinputTokens\x12$\n" +
+	"\x0ewarm_cache_hit\x18\x06 \x01(\x01R\fwarmCacheHit\x124\n" +
+	"\bsessions\x18\a \x03(\v2\x18.madtom.v1.NoxAgySessionR\bsessions\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error2\xc63\n" +
 	"\x15NoxChatControlService\x12R\n" +
 	"\rGetNodeStatus\x12\x1f.madtom.v1.NoxNodeStatusRequest\x1a .madtom.v1.NoxNodeStatusResponse\x12a\n" +
 	"\x13UpdateControlConfig\x12(.madtom.v1.NoxUpdateControlConfigRequest\x1a .madtom.v1.NoxNodeStatusResponse\x12T\n" +
@@ -15322,7 +15955,8 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"CronAction\x12\x1f.madtom.v1.NoxCronActionRequest\x1a&.madtom.v1.NoxAutomationActionResponse\x12[\n" +
 	"\x0eListUserQuotas\x12#.madtom.v1.NoxListUserQuotasRequest\x1a$.madtom.v1.NoxListUserQuotasResponse\x12U\n" +
 	"\fGetUserQuota\x12!.madtom.v1.NoxGetUserQuotaRequest\x1a\".madtom.v1.NoxGetUserQuotaResponse\x12U\n" +
-	"\fSetUserQuota\x12!.madtom.v1.NoxSetUserQuotaRequest\x1a\".madtom.v1.NoxSetUserQuotaResponseBUZ3github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1\xaa\x02\x1dMADTOM.Plugins.NoxAI.Proto.V1b\x06proto3"
+	"\fSetUserQuota\x12!.madtom.v1.NoxSetUserQuotaRequest\x1a\".madtom.v1.NoxSetUserQuotaResponse\x12U\n" +
+	"\x0eGetAgySessions\x12 .madtom.v1.NoxAgySessionsRequest\x1a!.madtom.v1.NoxAgySessionsResponseBUZ3github.com/DarkDuck007/madtom/pkg/proto/v1;madtomv1\xaa\x02\x1dMADTOM.Plugins.NoxAI.Proto.V1b\x06proto3"
 
 var (
 	file_madtom_v1_noxchat_proto_rawDescOnce sync.Once
@@ -15336,7 +15970,7 @@ func file_madtom_v1_noxchat_proto_rawDescGZIP() []byte {
 	return file_madtom_v1_noxchat_proto_rawDescData
 }
 
-var file_madtom_v1_noxchat_proto_msgTypes = make([]protoimpl.MessageInfo, 185)
+var file_madtom_v1_noxchat_proto_msgTypes = make([]protoimpl.MessageInfo, 192)
 var file_madtom_v1_noxchat_proto_goTypes = []any{
 	(*NoxNodeStatusRequest)(nil),                  // 0: madtom.v1.NoxNodeStatusRequest
 	(*NoxNodeStatusResponse)(nil),                 // 1: madtom.v1.NoxNodeStatusResponse
@@ -15516,39 +16150,46 @@ var file_madtom_v1_noxchat_proto_goTypes = []any{
 	(*NoxGetUserQuotaResponse)(nil),               // 175: madtom.v1.NoxGetUserQuotaResponse
 	(*NoxSetUserQuotaRequest)(nil),                // 176: madtom.v1.NoxSetUserQuotaRequest
 	(*NoxSetUserQuotaResponse)(nil),               // 177: madtom.v1.NoxSetUserQuotaResponse
-	nil,                                           // 178: madtom.v1.NoxTelemetrySample.MetricsEntry
-	nil,                                           // 179: madtom.v1.NoxChatTraceEvent.AttributesEntry
-	nil,                                           // 180: madtom.v1.NoxDirectTurnEvent.AttributesEntry
-	nil,                                           // 181: madtom.v1.NoxTurnTagEvent.AttributesEntry
-	nil,                                           // 182: madtom.v1.NoxVectorPointItem.PayloadEntry
-	nil,                                           // 183: madtom.v1.NoxSandboxListVmsResponse.PoolsEntry
-	nil,                                           // 184: madtom.v1.NoxSandboxImageStatusResponse.VersionsInUseEntry
-	(*TransportCompressionStats)(nil),             // 185: madtom.v1.TransportCompressionStats
-	(*LogRecord)(nil),                             // 186: madtom.v1.LogRecord
-	(*RangeQueryRequest)(nil),                     // 187: madtom.v1.RangeQueryRequest
-	(*LogChunkQuery)(nil),                         // 188: madtom.v1.LogChunkQuery
-	(*RangeQueryResponse)(nil),                    // 189: madtom.v1.RangeQueryResponse
-	(*LogChunkResponse)(nil),                      // 190: madtom.v1.LogChunkResponse
+	(*NoxAgySessionsRequest)(nil),                 // 178: madtom.v1.NoxAgySessionsRequest
+	(*NoxAgySessionSettings)(nil),                 // 179: madtom.v1.NoxAgySessionSettings
+	(*NoxAgyRebuildCounts)(nil),                   // 180: madtom.v1.NoxAgyRebuildCounts
+	(*NoxAgyInputTokens)(nil),                     // 181: madtom.v1.NoxAgyInputTokens
+	(*NoxAgyInputTokensByKind)(nil),               // 182: madtom.v1.NoxAgyInputTokensByKind
+	(*NoxAgySession)(nil),                         // 183: madtom.v1.NoxAgySession
+	(*NoxAgySessionsResponse)(nil),                // 184: madtom.v1.NoxAgySessionsResponse
+	nil,                                           // 185: madtom.v1.NoxTelemetrySample.MetricsEntry
+	nil,                                           // 186: madtom.v1.NoxChatTraceEvent.AttributesEntry
+	nil,                                           // 187: madtom.v1.NoxDirectTurnEvent.AttributesEntry
+	nil,                                           // 188: madtom.v1.NoxTurnTagEvent.AttributesEntry
+	nil,                                           // 189: madtom.v1.NoxVectorPointItem.PayloadEntry
+	nil,                                           // 190: madtom.v1.NoxSandboxListVmsResponse.PoolsEntry
+	nil,                                           // 191: madtom.v1.NoxSandboxImageStatusResponse.VersionsInUseEntry
+	(*TransportCompressionStats)(nil),             // 192: madtom.v1.TransportCompressionStats
+	(*LogRecord)(nil),                             // 193: madtom.v1.LogRecord
+	(*RangeQueryRequest)(nil),                     // 194: madtom.v1.RangeQueryRequest
+	(*LogChunkQuery)(nil),                         // 195: madtom.v1.LogChunkQuery
+	(*RangeQueryResponse)(nil),                    // 196: madtom.v1.RangeQueryResponse
+	(*LogChunkResponse)(nil),                      // 197: madtom.v1.LogChunkResponse
 }
 var file_madtom_v1_noxchat_proto_depIdxs = []int32{
-	185, // 0: madtom.v1.NoxNodeStatusResponse.transport_stats:type_name -> madtom.v1.TransportCompressionStats
+	192, // 0: madtom.v1.NoxNodeStatusResponse.transport_stats:type_name -> madtom.v1.TransportCompressionStats
 	9,   // 1: madtom.v1.NoxStateChunkPayload.telemetry_samples:type_name -> madtom.v1.NoxTelemetrySample
 	61,  // 2: madtom.v1.NoxStateChunkPayload.job_events:type_name -> madtom.v1.NoxJobProgressEvent
 	27,  // 3: madtom.v1.NoxStateChunkPayload.live_turn_events:type_name -> madtom.v1.NoxTurnTagEvent
-	186, // 4: madtom.v1.NoxLogApiChunkPayload.log_records:type_name -> madtom.v1.LogRecord
+	193, // 4: madtom.v1.NoxLogApiChunkPayload.log_records:type_name -> madtom.v1.LogRecord
 	10,  // 5: madtom.v1.NoxLogApiChunkPayload.api_call_records:type_name -> madtom.v1.NoxRawApiCallRecord
-	178, // 6: madtom.v1.NoxTelemetrySample.metrics:type_name -> madtom.v1.NoxTelemetrySample.MetricsEntry
+	185, // 6: madtom.v1.NoxTelemetrySample.metrics:type_name -> madtom.v1.NoxTelemetrySample.MetricsEntry
 	15,  // 7: madtom.v1.NoxRawApiCallRecord.image_data_urls:type_name -> madtom.v1.NoxImageData
 	11,  // 8: madtom.v1.NoxRawApiCallRecord.trace_context:type_name -> madtom.v1.NoxTraceContext
 	11,  // 9: madtom.v1.NoxChatTraceEvent.trace_context:type_name -> madtom.v1.NoxTraceContext
-	179, // 10: madtom.v1.NoxChatTraceEvent.attributes:type_name -> madtom.v1.NoxChatTraceEvent.AttributesEntry
+	186, // 10: madtom.v1.NoxChatTraceEvent.attributes:type_name -> madtom.v1.NoxChatTraceEvent.AttributesEntry
 	10,  // 11: madtom.v1.NoxChatTraceResponse.calls:type_name -> madtom.v1.NoxRawApiCallRecord
 	12,  // 12: madtom.v1.NoxChatTraceResponse.events:type_name -> madtom.v1.NoxChatTraceEvent
 	23,  // 13: madtom.v1.NoxApiCallChunkResponse.chunks:type_name -> madtom.v1.NoxApiCallChunk
 	10,  // 14: madtom.v1.NoxApiCallRecordList.records:type_name -> madtom.v1.NoxRawApiCallRecord
 	15,  // 15: madtom.v1.NoxDirectMessageRequest.attachments:type_name -> madtom.v1.NoxImageData
-	180, // 16: madtom.v1.NoxDirectTurnEvent.attributes:type_name -> madtom.v1.NoxDirectTurnEvent.AttributesEntry
-	181, // 17: madtom.v1.NoxTurnTagEvent.attributes:type_name -> madtom.v1.NoxTurnTagEvent.AttributesEntry
+	187, // 16: madtom.v1.NoxDirectTurnEvent.attributes:type_name -> madtom.v1.NoxDirectTurnEvent.AttributesEntry
+	188, // 17: madtom.v1.NoxTurnTagEvent.attributes:type_name -> madtom.v1.NoxTurnTagEvent.AttributesEntry
 	29,  // 18: madtom.v1.NoxChatHistoryResponse.messages:type_name -> madtom.v1.NoxMessageItem
 	32,  // 19: madtom.v1.NoxListChatsResponse.chats:type_name -> madtom.v1.NoxChatItem
 	35,  // 20: madtom.v1.NoxMemoryQueryResponse.memories:type_name -> madtom.v1.NoxAtomicMemoryItem
@@ -15560,7 +16201,7 @@ var file_madtom_v1_noxchat_proto_depIdxs = []int32{
 	62,  // 26: madtom.v1.NoxDocGenSettings.sandbox:type_name -> madtom.v1.NoxDocGenSandboxSettings
 	61,  // 27: madtom.v1.NoxActiveJobsResponse.active_jobs:type_name -> madtom.v1.NoxJobProgressEvent
 	63,  // 28: madtom.v1.NoxActiveJobsResponse.doc_gen:type_name -> madtom.v1.NoxDocGenSettings
-	182, // 29: madtom.v1.NoxVectorPointItem.payload:type_name -> madtom.v1.NoxVectorPointItem.PayloadEntry
+	189, // 29: madtom.v1.NoxVectorPointItem.payload:type_name -> madtom.v1.NoxVectorPointItem.PayloadEntry
 	29,  // 30: madtom.v1.NoxVectorPointItem.related_messages:type_name -> madtom.v1.NoxMessageItem
 	66,  // 31: madtom.v1.NoxVectorInspectResponse.target_point:type_name -> madtom.v1.NoxVectorPointItem
 	66,  // 32: madtom.v1.NoxVectorInspectResponse.neighbors:type_name -> madtom.v1.NoxVectorPointItem
@@ -15585,7 +16226,7 @@ var file_madtom_v1_noxchat_proto_depIdxs = []int32{
 	115, // 51: madtom.v1.NoxSandboxVmInfo.sessions:type_name -> madtom.v1.NoxSandboxSession
 	116, // 52: madtom.v1.NoxSandboxVmInfo.jobs:type_name -> madtom.v1.NoxSandboxJob
 	117, // 53: madtom.v1.NoxSandboxListVmsResponse.vms:type_name -> madtom.v1.NoxSandboxVmInfo
-	183, // 54: madtom.v1.NoxSandboxListVmsResponse.pools:type_name -> madtom.v1.NoxSandboxListVmsResponse.PoolsEntry
+	190, // 54: madtom.v1.NoxSandboxListVmsResponse.pools:type_name -> madtom.v1.NoxSandboxListVmsResponse.PoolsEntry
 	119, // 55: madtom.v1.NoxSandboxListVmsResponse.totals:type_name -> madtom.v1.NoxSandboxTotals
 	120, // 56: madtom.v1.NoxSandboxListVmsResponse.host:type_name -> madtom.v1.NoxSandboxHost
 	121, // 57: madtom.v1.NoxSandboxListFilesResponse.entries:type_name -> madtom.v1.NoxSandboxFileEntry
@@ -15594,7 +16235,7 @@ var file_madtom_v1_noxchat_proto_depIdxs = []int32{
 	125, // 60: madtom.v1.NoxSandboxImageStatusResponse.last_build:type_name -> madtom.v1.NoxSandboxLastBuild
 	124, // 61: madtom.v1.NoxSandboxImageStatusResponse.packages:type_name -> madtom.v1.NoxSandboxPackages
 	124, // 62: madtom.v1.NoxSandboxImageStatusResponse.pending_packages:type_name -> madtom.v1.NoxSandboxPackages
-	184, // 63: madtom.v1.NoxSandboxImageStatusResponse.versions_in_use:type_name -> madtom.v1.NoxSandboxImageStatusResponse.VersionsInUseEntry
+	191, // 63: madtom.v1.NoxSandboxImageStatusResponse.versions_in_use:type_name -> madtom.v1.NoxSandboxImageStatusResponse.VersionsInUseEntry
 	126, // 64: madtom.v1.NoxSandboxListRunsResponse.runs:type_name -> madtom.v1.NoxSandboxRun
 	152, // 65: madtom.v1.NoxAutomationStatusResponse.chats:type_name -> madtom.v1.NoxAutomationChatStatus
 	154, // 66: madtom.v1.NoxListPreprocessorsResponse.preprocessors:type_name -> madtom.v1.NoxAutomationPreprocessor
@@ -15607,152 +16248,160 @@ var file_madtom_v1_noxchat_proto_depIdxs = []int32{
 	174, // 73: madtom.v1.NoxGetUserQuotaResponse.user:type_name -> madtom.v1.NoxUserQuotaTier
 	174, // 74: madtom.v1.NoxGetUserQuotaResponse.global:type_name -> madtom.v1.NoxUserQuotaTier
 	170, // 75: madtom.v1.NoxGetUserQuotaResponse.overrides:type_name -> madtom.v1.NoxUserQuotaOverride
-	118, // 76: madtom.v1.NoxSandboxListVmsResponse.PoolsEntry.value:type_name -> madtom.v1.NoxSandboxPool
-	0,   // 77: madtom.v1.NoxChatControlService.GetNodeStatus:input_type -> madtom.v1.NoxNodeStatusRequest
-	2,   // 78: madtom.v1.NoxChatControlService.UpdateControlConfig:input_type -> madtom.v1.NoxUpdateControlConfigRequest
-	3,   // 79: madtom.v1.NoxChatControlService.SubscribeState:input_type -> madtom.v1.NoxStateSubscriptionRequest
-	6,   // 80: madtom.v1.NoxChatControlService.SubscribeLogsAndApi:input_type -> madtom.v1.NoxLogApiSubscriptionRequest
-	187, // 81: madtom.v1.NoxChatControlService.QueryTelemetryRange:input_type -> madtom.v1.RangeQueryRequest
-	16,  // 82: madtom.v1.NoxChatControlService.GetSpoolStats:input_type -> madtom.v1.NoxSpoolStatsRequest
-	97,  // 83: madtom.v1.NoxChatControlService.SearchLogs:input_type -> madtom.v1.NoxSearchLogsRequest
-	188, // 84: madtom.v1.NoxChatControlService.QueryLogChunks:input_type -> madtom.v1.LogChunkQuery
-	18,  // 85: madtom.v1.NoxChatControlService.QueryApiCallChunks:input_type -> madtom.v1.NoxApiCallChunkQuery
-	19,  // 86: madtom.v1.NoxChatControlService.GetApiCallDetail:input_type -> madtom.v1.NoxApiCallDetailRequest
-	13,  // 87: madtom.v1.NoxChatControlService.QueryChatTrace:input_type -> madtom.v1.NoxChatTraceRequest
-	21,  // 88: madtom.v1.NoxChatControlService.ClearSpool:input_type -> madtom.v1.NoxClearSpoolRequest
-	25,  // 89: madtom.v1.NoxChatControlService.SendDirectMessage:input_type -> madtom.v1.NoxDirectMessageRequest
-	28,  // 90: madtom.v1.NoxChatControlService.GetChatHistory:input_type -> madtom.v1.NoxChatHistoryRequest
-	31,  // 91: madtom.v1.NoxChatControlService.ListChats:input_type -> madtom.v1.NoxListChatsRequest
-	34,  // 92: madtom.v1.NoxChatControlService.QueryMemories:input_type -> madtom.v1.NoxMemoryQueryRequest
-	37,  // 93: madtom.v1.NoxChatControlService.SearchMemoriesHybrid:input_type -> madtom.v1.NoxHybridSearchRequest
-	40,  // 94: madtom.v1.NoxChatControlService.UpsertMemory:input_type -> madtom.v1.NoxUpsertMemoryRequest
-	41,  // 95: madtom.v1.NoxChatControlService.DeleteMemory:input_type -> madtom.v1.NoxDeleteMemoryRequest
-	43,  // 96: madtom.v1.NoxChatControlService.ListHotMemories:input_type -> madtom.v1.NoxHotMemoryRequest
-	46,  // 97: madtom.v1.NoxChatControlService.UpsertHotMemory:input_type -> madtom.v1.NoxUpsertHotMemoryRequest
-	47,  // 98: madtom.v1.NoxChatControlService.DeleteHotMemory:input_type -> madtom.v1.NoxDeleteHotMemoryRequest
-	48,  // 99: madtom.v1.NoxChatControlService.QueryMediaLibrary:input_type -> madtom.v1.NoxMediaQueryRequest
-	53,  // 100: madtom.v1.NoxChatControlService.GetMediaAssetPreview:input_type -> madtom.v1.NoxMediaPreviewRequest
-	55,  // 101: madtom.v1.NoxChatControlService.MutateMediaItem:input_type -> madtom.v1.NoxMediaMutationRequest
-	56,  // 102: madtom.v1.NoxChatControlService.ManageMediaPin:input_type -> madtom.v1.NoxMediaPinRequest
-	58,  // 103: madtom.v1.NoxChatControlService.TriggerStickerPackAnalysis:input_type -> madtom.v1.NoxAnalyzePackRequest
-	52,  // 104: madtom.v1.NoxChatControlService.ForceAddSticker:input_type -> madtom.v1.NoxForceAddStickerRequest
-	60,  // 105: madtom.v1.NoxChatControlService.GetActiveJobs:input_type -> madtom.v1.NoxActiveJobsRequest
-	65,  // 106: madtom.v1.NoxChatControlService.InspectVectors:input_type -> madtom.v1.NoxVectorInspectRequest
-	69,  // 107: madtom.v1.NoxChatControlService.ListChatImages:input_type -> madtom.v1.NoxListChatImagesRequest
-	71,  // 108: madtom.v1.NoxChatControlService.GetChatImage:input_type -> madtom.v1.NoxGetChatImageRequest
-	73,  // 109: madtom.v1.NoxChatControlService.GetImageStorageStats:input_type -> madtom.v1.NoxImageStorageStatsRequest
-	76,  // 110: madtom.v1.NoxChatControlService.SweepChatImages:input_type -> madtom.v1.NoxSweepChatImagesRequest
-	79,  // 111: madtom.v1.NoxChatControlService.ListChatFiles:input_type -> madtom.v1.NoxListChatFilesRequest
-	81,  // 112: madtom.v1.NoxChatControlService.GetChatFilePreview:input_type -> madtom.v1.NoxGetChatFilePreviewRequest
-	83,  // 113: madtom.v1.NoxChatControlService.GetChatFileBytes:input_type -> madtom.v1.NoxGetChatFileBytesRequest
-	85,  // 114: madtom.v1.NoxChatControlService.GetWorkspaceStorageStats:input_type -> madtom.v1.NoxWorkspaceStorageStatsRequest
-	88,  // 115: madtom.v1.NoxChatControlService.SweepChatFiles:input_type -> madtom.v1.NoxSweepChatFilesRequest
-	91,  // 116: madtom.v1.NoxChatControlService.QueryUserProfiles:input_type -> madtom.v1.NoxUserProfileQueryRequest
-	93,  // 117: madtom.v1.NoxChatControlService.SearchUserProfiles:input_type -> madtom.v1.NoxUserProfileSearchRequest
-	95,  // 118: madtom.v1.NoxChatControlService.GetUserProfilePhoto:input_type -> madtom.v1.NoxUserProfilePhotoRequest
-	102, // 119: madtom.v1.NoxChatControlService.ListTips:input_type -> madtom.v1.NoxTipListRequest
-	105, // 120: madtom.v1.NoxChatControlService.SearchTips:input_type -> madtom.v1.NoxTipSearchRequest
-	107, // 121: madtom.v1.NoxChatControlService.AddTips:input_type -> madtom.v1.NoxAddTipsRequest
-	110, // 122: madtom.v1.NoxChatControlService.UpdateTip:input_type -> madtom.v1.NoxUpdateTipRequest
-	111, // 123: madtom.v1.NoxChatControlService.DeleteTips:input_type -> madtom.v1.NoxDeleteTipsRequest
-	113, // 124: madtom.v1.NoxChatControlService.TestTips:input_type -> madtom.v1.NoxTestTipsRequest
-	127, // 125: madtom.v1.NoxChatControlService.ListSandboxVms:input_type -> madtom.v1.NoxSandboxListVmsRequest
-	129, // 126: madtom.v1.NoxChatControlService.SandboxVmAction:input_type -> madtom.v1.NoxSandboxVmActionRequest
-	131, // 127: madtom.v1.NoxChatControlService.ListSandboxFiles:input_type -> madtom.v1.NoxSandboxListFilesRequest
-	133, // 128: madtom.v1.NoxChatControlService.ReadSandboxText:input_type -> madtom.v1.NoxSandboxReadTextRequest
-	135, // 129: madtom.v1.NoxChatControlService.PreviewSandboxFile:input_type -> madtom.v1.NoxSandboxPreviewFileRequest
-	137, // 130: madtom.v1.NoxChatControlService.ListSandboxBackups:input_type -> madtom.v1.NoxSandboxListBackupsRequest
-	139, // 131: madtom.v1.NoxChatControlService.RestoreSandboxBackup:input_type -> madtom.v1.NoxSandboxRestoreBackupRequest
-	141, // 132: madtom.v1.NoxChatControlService.ListSandboxLibraryRequests:input_type -> madtom.v1.NoxSandboxListLibraryRequestsRequest
-	143, // 133: madtom.v1.NoxChatControlService.DecideSandboxLibrary:input_type -> madtom.v1.NoxSandboxDecideLibraryRequest
-	145, // 134: madtom.v1.NoxChatControlService.GetSandboxImageStatus:input_type -> madtom.v1.NoxSandboxImageStatusRequest
-	147, // 135: madtom.v1.NoxChatControlService.RebuildSandboxImage:input_type -> madtom.v1.NoxSandboxRebuildImageRequest
-	149, // 136: madtom.v1.NoxChatControlService.ListSandboxRuns:input_type -> madtom.v1.NoxSandboxListRunsRequest
-	151, // 137: madtom.v1.NoxChatControlService.GetAutomationStatus:input_type -> madtom.v1.NoxAutomationStatusRequest
-	155, // 138: madtom.v1.NoxChatControlService.ListPreprocessors:input_type -> madtom.v1.NoxListPreprocessorsRequest
-	157, // 139: madtom.v1.NoxChatControlService.GetPreprocessor:input_type -> madtom.v1.NoxGetPreprocessorRequest
-	159, // 140: madtom.v1.NoxChatControlService.PreprocessorAction:input_type -> madtom.v1.NoxPreprocessorActionRequest
-	161, // 141: madtom.v1.NoxChatControlService.ListPreprocessorLogs:input_type -> madtom.v1.NoxListPreprocessorLogsRequest
-	165, // 142: madtom.v1.NoxChatControlService.ListCrons:input_type -> madtom.v1.NoxListCronsRequest
-	167, // 143: madtom.v1.NoxChatControlService.CronAction:input_type -> madtom.v1.NoxCronActionRequest
-	168, // 144: madtom.v1.NoxChatControlService.ListUserQuotas:input_type -> madtom.v1.NoxListUserQuotasRequest
-	173, // 145: madtom.v1.NoxChatControlService.GetUserQuota:input_type -> madtom.v1.NoxGetUserQuotaRequest
-	176, // 146: madtom.v1.NoxChatControlService.SetUserQuota:input_type -> madtom.v1.NoxSetUserQuotaRequest
-	1,   // 147: madtom.v1.NoxChatControlService.GetNodeStatus:output_type -> madtom.v1.NoxNodeStatusResponse
-	1,   // 148: madtom.v1.NoxChatControlService.UpdateControlConfig:output_type -> madtom.v1.NoxNodeStatusResponse
-	4,   // 149: madtom.v1.NoxChatControlService.SubscribeState:output_type -> madtom.v1.NoxStateChunk
-	7,   // 150: madtom.v1.NoxChatControlService.SubscribeLogsAndApi:output_type -> madtom.v1.NoxLogApiChunk
-	189, // 151: madtom.v1.NoxChatControlService.QueryTelemetryRange:output_type -> madtom.v1.RangeQueryResponse
-	17,  // 152: madtom.v1.NoxChatControlService.GetSpoolStats:output_type -> madtom.v1.NoxSpoolStatsResponse
-	99,  // 153: madtom.v1.NoxChatControlService.SearchLogs:output_type -> madtom.v1.NoxSearchLogsResponse
-	190, // 154: madtom.v1.NoxChatControlService.QueryLogChunks:output_type -> madtom.v1.LogChunkResponse
-	20,  // 155: madtom.v1.NoxChatControlService.QueryApiCallChunks:output_type -> madtom.v1.NoxApiCallChunkResponse
-	10,  // 156: madtom.v1.NoxChatControlService.GetApiCallDetail:output_type -> madtom.v1.NoxRawApiCallRecord
-	14,  // 157: madtom.v1.NoxChatControlService.QueryChatTrace:output_type -> madtom.v1.NoxChatTraceResponse
-	22,  // 158: madtom.v1.NoxChatControlService.ClearSpool:output_type -> madtom.v1.NoxClearSpoolResponse
-	26,  // 159: madtom.v1.NoxChatControlService.SendDirectMessage:output_type -> madtom.v1.NoxDirectTurnEvent
-	30,  // 160: madtom.v1.NoxChatControlService.GetChatHistory:output_type -> madtom.v1.NoxChatHistoryResponse
-	33,  // 161: madtom.v1.NoxChatControlService.ListChats:output_type -> madtom.v1.NoxListChatsResponse
-	36,  // 162: madtom.v1.NoxChatControlService.QueryMemories:output_type -> madtom.v1.NoxMemoryQueryResponse
-	39,  // 163: madtom.v1.NoxChatControlService.SearchMemoriesHybrid:output_type -> madtom.v1.NoxHybridSearchResponse
-	42,  // 164: madtom.v1.NoxChatControlService.UpsertMemory:output_type -> madtom.v1.NoxMemoryMutationResponse
-	42,  // 165: madtom.v1.NoxChatControlService.DeleteMemory:output_type -> madtom.v1.NoxMemoryMutationResponse
-	45,  // 166: madtom.v1.NoxChatControlService.ListHotMemories:output_type -> madtom.v1.NoxHotMemoryResponse
-	45,  // 167: madtom.v1.NoxChatControlService.UpsertHotMemory:output_type -> madtom.v1.NoxHotMemoryResponse
-	45,  // 168: madtom.v1.NoxChatControlService.DeleteHotMemory:output_type -> madtom.v1.NoxHotMemoryResponse
-	50,  // 169: madtom.v1.NoxChatControlService.QueryMediaLibrary:output_type -> madtom.v1.NoxMediaQueryResponse
-	54,  // 170: madtom.v1.NoxChatControlService.GetMediaAssetPreview:output_type -> madtom.v1.NoxMediaPreviewResponse
-	57,  // 171: madtom.v1.NoxChatControlService.MutateMediaItem:output_type -> madtom.v1.NoxMediaMutationResponse
-	57,  // 172: madtom.v1.NoxChatControlService.ManageMediaPin:output_type -> madtom.v1.NoxMediaMutationResponse
-	59,  // 173: madtom.v1.NoxChatControlService.TriggerStickerPackAnalysis:output_type -> madtom.v1.NoxAnalyzePackResponse
-	57,  // 174: madtom.v1.NoxChatControlService.ForceAddSticker:output_type -> madtom.v1.NoxMediaMutationResponse
-	64,  // 175: madtom.v1.NoxChatControlService.GetActiveJobs:output_type -> madtom.v1.NoxActiveJobsResponse
-	67,  // 176: madtom.v1.NoxChatControlService.InspectVectors:output_type -> madtom.v1.NoxVectorInspectResponse
-	70,  // 177: madtom.v1.NoxChatControlService.ListChatImages:output_type -> madtom.v1.NoxListChatImagesResponse
-	72,  // 178: madtom.v1.NoxChatControlService.GetChatImage:output_type -> madtom.v1.NoxGetChatImageResponse
-	75,  // 179: madtom.v1.NoxChatControlService.GetImageStorageStats:output_type -> madtom.v1.NoxImageStorageStatsResponse
-	77,  // 180: madtom.v1.NoxChatControlService.SweepChatImages:output_type -> madtom.v1.NoxSweepChatImagesResponse
-	80,  // 181: madtom.v1.NoxChatControlService.ListChatFiles:output_type -> madtom.v1.NoxListChatFilesResponse
-	82,  // 182: madtom.v1.NoxChatControlService.GetChatFilePreview:output_type -> madtom.v1.NoxGetChatFilePreviewResponse
-	84,  // 183: madtom.v1.NoxChatControlService.GetChatFileBytes:output_type -> madtom.v1.NoxGetChatFileBytesResponse
-	87,  // 184: madtom.v1.NoxChatControlService.GetWorkspaceStorageStats:output_type -> madtom.v1.NoxWorkspaceStorageStatsResponse
-	89,  // 185: madtom.v1.NoxChatControlService.SweepChatFiles:output_type -> madtom.v1.NoxSweepChatFilesResponse
-	92,  // 186: madtom.v1.NoxChatControlService.QueryUserProfiles:output_type -> madtom.v1.NoxUserProfileQueryResponse
-	94,  // 187: madtom.v1.NoxChatControlService.SearchUserProfiles:output_type -> madtom.v1.NoxUserProfileSearchResponse
-	96,  // 188: madtom.v1.NoxChatControlService.GetUserProfilePhoto:output_type -> madtom.v1.NoxUserProfilePhotoResponse
-	103, // 189: madtom.v1.NoxChatControlService.ListTips:output_type -> madtom.v1.NoxTipListResponse
-	106, // 190: madtom.v1.NoxChatControlService.SearchTips:output_type -> madtom.v1.NoxTipSearchResponse
-	109, // 191: madtom.v1.NoxChatControlService.AddTips:output_type -> madtom.v1.NoxAddTipsResponse
-	112, // 192: madtom.v1.NoxChatControlService.UpdateTip:output_type -> madtom.v1.NoxTipMutationResponse
-	112, // 193: madtom.v1.NoxChatControlService.DeleteTips:output_type -> madtom.v1.NoxTipMutationResponse
-	114, // 194: madtom.v1.NoxChatControlService.TestTips:output_type -> madtom.v1.NoxTestTipsResponse
-	128, // 195: madtom.v1.NoxChatControlService.ListSandboxVms:output_type -> madtom.v1.NoxSandboxListVmsResponse
-	130, // 196: madtom.v1.NoxChatControlService.SandboxVmAction:output_type -> madtom.v1.NoxSandboxVmActionResponse
-	132, // 197: madtom.v1.NoxChatControlService.ListSandboxFiles:output_type -> madtom.v1.NoxSandboxListFilesResponse
-	134, // 198: madtom.v1.NoxChatControlService.ReadSandboxText:output_type -> madtom.v1.NoxSandboxReadTextResponse
-	136, // 199: madtom.v1.NoxChatControlService.PreviewSandboxFile:output_type -> madtom.v1.NoxSandboxPreviewFileResponse
-	138, // 200: madtom.v1.NoxChatControlService.ListSandboxBackups:output_type -> madtom.v1.NoxSandboxListBackupsResponse
-	140, // 201: madtom.v1.NoxChatControlService.RestoreSandboxBackup:output_type -> madtom.v1.NoxSandboxRestoreBackupResponse
-	142, // 202: madtom.v1.NoxChatControlService.ListSandboxLibraryRequests:output_type -> madtom.v1.NoxSandboxListLibraryRequestsResponse
-	144, // 203: madtom.v1.NoxChatControlService.DecideSandboxLibrary:output_type -> madtom.v1.NoxSandboxDecideLibraryResponse
-	146, // 204: madtom.v1.NoxChatControlService.GetSandboxImageStatus:output_type -> madtom.v1.NoxSandboxImageStatusResponse
-	148, // 205: madtom.v1.NoxChatControlService.RebuildSandboxImage:output_type -> madtom.v1.NoxSandboxRebuildImageResponse
-	150, // 206: madtom.v1.NoxChatControlService.ListSandboxRuns:output_type -> madtom.v1.NoxSandboxListRunsResponse
-	153, // 207: madtom.v1.NoxChatControlService.GetAutomationStatus:output_type -> madtom.v1.NoxAutomationStatusResponse
-	156, // 208: madtom.v1.NoxChatControlService.ListPreprocessors:output_type -> madtom.v1.NoxListPreprocessorsResponse
-	158, // 209: madtom.v1.NoxChatControlService.GetPreprocessor:output_type -> madtom.v1.NoxGetPreprocessorResponse
-	160, // 210: madtom.v1.NoxChatControlService.PreprocessorAction:output_type -> madtom.v1.NoxAutomationActionResponse
-	163, // 211: madtom.v1.NoxChatControlService.ListPreprocessorLogs:output_type -> madtom.v1.NoxListPreprocessorLogsResponse
-	166, // 212: madtom.v1.NoxChatControlService.ListCrons:output_type -> madtom.v1.NoxListCronsResponse
-	160, // 213: madtom.v1.NoxChatControlService.CronAction:output_type -> madtom.v1.NoxAutomationActionResponse
-	172, // 214: madtom.v1.NoxChatControlService.ListUserQuotas:output_type -> madtom.v1.NoxListUserQuotasResponse
-	175, // 215: madtom.v1.NoxChatControlService.GetUserQuota:output_type -> madtom.v1.NoxGetUserQuotaResponse
-	177, // 216: madtom.v1.NoxChatControlService.SetUserQuota:output_type -> madtom.v1.NoxSetUserQuotaResponse
-	147, // [147:217] is the sub-list for method output_type
-	77,  // [77:147] is the sub-list for method input_type
-	77,  // [77:77] is the sub-list for extension type_name
-	77,  // [77:77] is the sub-list for extension extendee
-	0,   // [0:77] is the sub-list for field type_name
+	181, // 76: madtom.v1.NoxAgyInputTokensByKind.bootstrap:type_name -> madtom.v1.NoxAgyInputTokens
+	181, // 77: madtom.v1.NoxAgyInputTokensByKind.warm:type_name -> madtom.v1.NoxAgyInputTokens
+	179, // 78: madtom.v1.NoxAgySessionsResponse.settings:type_name -> madtom.v1.NoxAgySessionSettings
+	180, // 79: madtom.v1.NoxAgySessionsResponse.rebuilds:type_name -> madtom.v1.NoxAgyRebuildCounts
+	182, // 80: madtom.v1.NoxAgySessionsResponse.input_tokens:type_name -> madtom.v1.NoxAgyInputTokensByKind
+	183, // 81: madtom.v1.NoxAgySessionsResponse.sessions:type_name -> madtom.v1.NoxAgySession
+	118, // 82: madtom.v1.NoxSandboxListVmsResponse.PoolsEntry.value:type_name -> madtom.v1.NoxSandboxPool
+	0,   // 83: madtom.v1.NoxChatControlService.GetNodeStatus:input_type -> madtom.v1.NoxNodeStatusRequest
+	2,   // 84: madtom.v1.NoxChatControlService.UpdateControlConfig:input_type -> madtom.v1.NoxUpdateControlConfigRequest
+	3,   // 85: madtom.v1.NoxChatControlService.SubscribeState:input_type -> madtom.v1.NoxStateSubscriptionRequest
+	6,   // 86: madtom.v1.NoxChatControlService.SubscribeLogsAndApi:input_type -> madtom.v1.NoxLogApiSubscriptionRequest
+	194, // 87: madtom.v1.NoxChatControlService.QueryTelemetryRange:input_type -> madtom.v1.RangeQueryRequest
+	16,  // 88: madtom.v1.NoxChatControlService.GetSpoolStats:input_type -> madtom.v1.NoxSpoolStatsRequest
+	97,  // 89: madtom.v1.NoxChatControlService.SearchLogs:input_type -> madtom.v1.NoxSearchLogsRequest
+	195, // 90: madtom.v1.NoxChatControlService.QueryLogChunks:input_type -> madtom.v1.LogChunkQuery
+	18,  // 91: madtom.v1.NoxChatControlService.QueryApiCallChunks:input_type -> madtom.v1.NoxApiCallChunkQuery
+	19,  // 92: madtom.v1.NoxChatControlService.GetApiCallDetail:input_type -> madtom.v1.NoxApiCallDetailRequest
+	13,  // 93: madtom.v1.NoxChatControlService.QueryChatTrace:input_type -> madtom.v1.NoxChatTraceRequest
+	21,  // 94: madtom.v1.NoxChatControlService.ClearSpool:input_type -> madtom.v1.NoxClearSpoolRequest
+	25,  // 95: madtom.v1.NoxChatControlService.SendDirectMessage:input_type -> madtom.v1.NoxDirectMessageRequest
+	28,  // 96: madtom.v1.NoxChatControlService.GetChatHistory:input_type -> madtom.v1.NoxChatHistoryRequest
+	31,  // 97: madtom.v1.NoxChatControlService.ListChats:input_type -> madtom.v1.NoxListChatsRequest
+	34,  // 98: madtom.v1.NoxChatControlService.QueryMemories:input_type -> madtom.v1.NoxMemoryQueryRequest
+	37,  // 99: madtom.v1.NoxChatControlService.SearchMemoriesHybrid:input_type -> madtom.v1.NoxHybridSearchRequest
+	40,  // 100: madtom.v1.NoxChatControlService.UpsertMemory:input_type -> madtom.v1.NoxUpsertMemoryRequest
+	41,  // 101: madtom.v1.NoxChatControlService.DeleteMemory:input_type -> madtom.v1.NoxDeleteMemoryRequest
+	43,  // 102: madtom.v1.NoxChatControlService.ListHotMemories:input_type -> madtom.v1.NoxHotMemoryRequest
+	46,  // 103: madtom.v1.NoxChatControlService.UpsertHotMemory:input_type -> madtom.v1.NoxUpsertHotMemoryRequest
+	47,  // 104: madtom.v1.NoxChatControlService.DeleteHotMemory:input_type -> madtom.v1.NoxDeleteHotMemoryRequest
+	48,  // 105: madtom.v1.NoxChatControlService.QueryMediaLibrary:input_type -> madtom.v1.NoxMediaQueryRequest
+	53,  // 106: madtom.v1.NoxChatControlService.GetMediaAssetPreview:input_type -> madtom.v1.NoxMediaPreviewRequest
+	55,  // 107: madtom.v1.NoxChatControlService.MutateMediaItem:input_type -> madtom.v1.NoxMediaMutationRequest
+	56,  // 108: madtom.v1.NoxChatControlService.ManageMediaPin:input_type -> madtom.v1.NoxMediaPinRequest
+	58,  // 109: madtom.v1.NoxChatControlService.TriggerStickerPackAnalysis:input_type -> madtom.v1.NoxAnalyzePackRequest
+	52,  // 110: madtom.v1.NoxChatControlService.ForceAddSticker:input_type -> madtom.v1.NoxForceAddStickerRequest
+	60,  // 111: madtom.v1.NoxChatControlService.GetActiveJobs:input_type -> madtom.v1.NoxActiveJobsRequest
+	65,  // 112: madtom.v1.NoxChatControlService.InspectVectors:input_type -> madtom.v1.NoxVectorInspectRequest
+	69,  // 113: madtom.v1.NoxChatControlService.ListChatImages:input_type -> madtom.v1.NoxListChatImagesRequest
+	71,  // 114: madtom.v1.NoxChatControlService.GetChatImage:input_type -> madtom.v1.NoxGetChatImageRequest
+	73,  // 115: madtom.v1.NoxChatControlService.GetImageStorageStats:input_type -> madtom.v1.NoxImageStorageStatsRequest
+	76,  // 116: madtom.v1.NoxChatControlService.SweepChatImages:input_type -> madtom.v1.NoxSweepChatImagesRequest
+	79,  // 117: madtom.v1.NoxChatControlService.ListChatFiles:input_type -> madtom.v1.NoxListChatFilesRequest
+	81,  // 118: madtom.v1.NoxChatControlService.GetChatFilePreview:input_type -> madtom.v1.NoxGetChatFilePreviewRequest
+	83,  // 119: madtom.v1.NoxChatControlService.GetChatFileBytes:input_type -> madtom.v1.NoxGetChatFileBytesRequest
+	85,  // 120: madtom.v1.NoxChatControlService.GetWorkspaceStorageStats:input_type -> madtom.v1.NoxWorkspaceStorageStatsRequest
+	88,  // 121: madtom.v1.NoxChatControlService.SweepChatFiles:input_type -> madtom.v1.NoxSweepChatFilesRequest
+	91,  // 122: madtom.v1.NoxChatControlService.QueryUserProfiles:input_type -> madtom.v1.NoxUserProfileQueryRequest
+	93,  // 123: madtom.v1.NoxChatControlService.SearchUserProfiles:input_type -> madtom.v1.NoxUserProfileSearchRequest
+	95,  // 124: madtom.v1.NoxChatControlService.GetUserProfilePhoto:input_type -> madtom.v1.NoxUserProfilePhotoRequest
+	102, // 125: madtom.v1.NoxChatControlService.ListTips:input_type -> madtom.v1.NoxTipListRequest
+	105, // 126: madtom.v1.NoxChatControlService.SearchTips:input_type -> madtom.v1.NoxTipSearchRequest
+	107, // 127: madtom.v1.NoxChatControlService.AddTips:input_type -> madtom.v1.NoxAddTipsRequest
+	110, // 128: madtom.v1.NoxChatControlService.UpdateTip:input_type -> madtom.v1.NoxUpdateTipRequest
+	111, // 129: madtom.v1.NoxChatControlService.DeleteTips:input_type -> madtom.v1.NoxDeleteTipsRequest
+	113, // 130: madtom.v1.NoxChatControlService.TestTips:input_type -> madtom.v1.NoxTestTipsRequest
+	127, // 131: madtom.v1.NoxChatControlService.ListSandboxVms:input_type -> madtom.v1.NoxSandboxListVmsRequest
+	129, // 132: madtom.v1.NoxChatControlService.SandboxVmAction:input_type -> madtom.v1.NoxSandboxVmActionRequest
+	131, // 133: madtom.v1.NoxChatControlService.ListSandboxFiles:input_type -> madtom.v1.NoxSandboxListFilesRequest
+	133, // 134: madtom.v1.NoxChatControlService.ReadSandboxText:input_type -> madtom.v1.NoxSandboxReadTextRequest
+	135, // 135: madtom.v1.NoxChatControlService.PreviewSandboxFile:input_type -> madtom.v1.NoxSandboxPreviewFileRequest
+	137, // 136: madtom.v1.NoxChatControlService.ListSandboxBackups:input_type -> madtom.v1.NoxSandboxListBackupsRequest
+	139, // 137: madtom.v1.NoxChatControlService.RestoreSandboxBackup:input_type -> madtom.v1.NoxSandboxRestoreBackupRequest
+	141, // 138: madtom.v1.NoxChatControlService.ListSandboxLibraryRequests:input_type -> madtom.v1.NoxSandboxListLibraryRequestsRequest
+	143, // 139: madtom.v1.NoxChatControlService.DecideSandboxLibrary:input_type -> madtom.v1.NoxSandboxDecideLibraryRequest
+	145, // 140: madtom.v1.NoxChatControlService.GetSandboxImageStatus:input_type -> madtom.v1.NoxSandboxImageStatusRequest
+	147, // 141: madtom.v1.NoxChatControlService.RebuildSandboxImage:input_type -> madtom.v1.NoxSandboxRebuildImageRequest
+	149, // 142: madtom.v1.NoxChatControlService.ListSandboxRuns:input_type -> madtom.v1.NoxSandboxListRunsRequest
+	151, // 143: madtom.v1.NoxChatControlService.GetAutomationStatus:input_type -> madtom.v1.NoxAutomationStatusRequest
+	155, // 144: madtom.v1.NoxChatControlService.ListPreprocessors:input_type -> madtom.v1.NoxListPreprocessorsRequest
+	157, // 145: madtom.v1.NoxChatControlService.GetPreprocessor:input_type -> madtom.v1.NoxGetPreprocessorRequest
+	159, // 146: madtom.v1.NoxChatControlService.PreprocessorAction:input_type -> madtom.v1.NoxPreprocessorActionRequest
+	161, // 147: madtom.v1.NoxChatControlService.ListPreprocessorLogs:input_type -> madtom.v1.NoxListPreprocessorLogsRequest
+	165, // 148: madtom.v1.NoxChatControlService.ListCrons:input_type -> madtom.v1.NoxListCronsRequest
+	167, // 149: madtom.v1.NoxChatControlService.CronAction:input_type -> madtom.v1.NoxCronActionRequest
+	168, // 150: madtom.v1.NoxChatControlService.ListUserQuotas:input_type -> madtom.v1.NoxListUserQuotasRequest
+	173, // 151: madtom.v1.NoxChatControlService.GetUserQuota:input_type -> madtom.v1.NoxGetUserQuotaRequest
+	176, // 152: madtom.v1.NoxChatControlService.SetUserQuota:input_type -> madtom.v1.NoxSetUserQuotaRequest
+	178, // 153: madtom.v1.NoxChatControlService.GetAgySessions:input_type -> madtom.v1.NoxAgySessionsRequest
+	1,   // 154: madtom.v1.NoxChatControlService.GetNodeStatus:output_type -> madtom.v1.NoxNodeStatusResponse
+	1,   // 155: madtom.v1.NoxChatControlService.UpdateControlConfig:output_type -> madtom.v1.NoxNodeStatusResponse
+	4,   // 156: madtom.v1.NoxChatControlService.SubscribeState:output_type -> madtom.v1.NoxStateChunk
+	7,   // 157: madtom.v1.NoxChatControlService.SubscribeLogsAndApi:output_type -> madtom.v1.NoxLogApiChunk
+	196, // 158: madtom.v1.NoxChatControlService.QueryTelemetryRange:output_type -> madtom.v1.RangeQueryResponse
+	17,  // 159: madtom.v1.NoxChatControlService.GetSpoolStats:output_type -> madtom.v1.NoxSpoolStatsResponse
+	99,  // 160: madtom.v1.NoxChatControlService.SearchLogs:output_type -> madtom.v1.NoxSearchLogsResponse
+	197, // 161: madtom.v1.NoxChatControlService.QueryLogChunks:output_type -> madtom.v1.LogChunkResponse
+	20,  // 162: madtom.v1.NoxChatControlService.QueryApiCallChunks:output_type -> madtom.v1.NoxApiCallChunkResponse
+	10,  // 163: madtom.v1.NoxChatControlService.GetApiCallDetail:output_type -> madtom.v1.NoxRawApiCallRecord
+	14,  // 164: madtom.v1.NoxChatControlService.QueryChatTrace:output_type -> madtom.v1.NoxChatTraceResponse
+	22,  // 165: madtom.v1.NoxChatControlService.ClearSpool:output_type -> madtom.v1.NoxClearSpoolResponse
+	26,  // 166: madtom.v1.NoxChatControlService.SendDirectMessage:output_type -> madtom.v1.NoxDirectTurnEvent
+	30,  // 167: madtom.v1.NoxChatControlService.GetChatHistory:output_type -> madtom.v1.NoxChatHistoryResponse
+	33,  // 168: madtom.v1.NoxChatControlService.ListChats:output_type -> madtom.v1.NoxListChatsResponse
+	36,  // 169: madtom.v1.NoxChatControlService.QueryMemories:output_type -> madtom.v1.NoxMemoryQueryResponse
+	39,  // 170: madtom.v1.NoxChatControlService.SearchMemoriesHybrid:output_type -> madtom.v1.NoxHybridSearchResponse
+	42,  // 171: madtom.v1.NoxChatControlService.UpsertMemory:output_type -> madtom.v1.NoxMemoryMutationResponse
+	42,  // 172: madtom.v1.NoxChatControlService.DeleteMemory:output_type -> madtom.v1.NoxMemoryMutationResponse
+	45,  // 173: madtom.v1.NoxChatControlService.ListHotMemories:output_type -> madtom.v1.NoxHotMemoryResponse
+	45,  // 174: madtom.v1.NoxChatControlService.UpsertHotMemory:output_type -> madtom.v1.NoxHotMemoryResponse
+	45,  // 175: madtom.v1.NoxChatControlService.DeleteHotMemory:output_type -> madtom.v1.NoxHotMemoryResponse
+	50,  // 176: madtom.v1.NoxChatControlService.QueryMediaLibrary:output_type -> madtom.v1.NoxMediaQueryResponse
+	54,  // 177: madtom.v1.NoxChatControlService.GetMediaAssetPreview:output_type -> madtom.v1.NoxMediaPreviewResponse
+	57,  // 178: madtom.v1.NoxChatControlService.MutateMediaItem:output_type -> madtom.v1.NoxMediaMutationResponse
+	57,  // 179: madtom.v1.NoxChatControlService.ManageMediaPin:output_type -> madtom.v1.NoxMediaMutationResponse
+	59,  // 180: madtom.v1.NoxChatControlService.TriggerStickerPackAnalysis:output_type -> madtom.v1.NoxAnalyzePackResponse
+	57,  // 181: madtom.v1.NoxChatControlService.ForceAddSticker:output_type -> madtom.v1.NoxMediaMutationResponse
+	64,  // 182: madtom.v1.NoxChatControlService.GetActiveJobs:output_type -> madtom.v1.NoxActiveJobsResponse
+	67,  // 183: madtom.v1.NoxChatControlService.InspectVectors:output_type -> madtom.v1.NoxVectorInspectResponse
+	70,  // 184: madtom.v1.NoxChatControlService.ListChatImages:output_type -> madtom.v1.NoxListChatImagesResponse
+	72,  // 185: madtom.v1.NoxChatControlService.GetChatImage:output_type -> madtom.v1.NoxGetChatImageResponse
+	75,  // 186: madtom.v1.NoxChatControlService.GetImageStorageStats:output_type -> madtom.v1.NoxImageStorageStatsResponse
+	77,  // 187: madtom.v1.NoxChatControlService.SweepChatImages:output_type -> madtom.v1.NoxSweepChatImagesResponse
+	80,  // 188: madtom.v1.NoxChatControlService.ListChatFiles:output_type -> madtom.v1.NoxListChatFilesResponse
+	82,  // 189: madtom.v1.NoxChatControlService.GetChatFilePreview:output_type -> madtom.v1.NoxGetChatFilePreviewResponse
+	84,  // 190: madtom.v1.NoxChatControlService.GetChatFileBytes:output_type -> madtom.v1.NoxGetChatFileBytesResponse
+	87,  // 191: madtom.v1.NoxChatControlService.GetWorkspaceStorageStats:output_type -> madtom.v1.NoxWorkspaceStorageStatsResponse
+	89,  // 192: madtom.v1.NoxChatControlService.SweepChatFiles:output_type -> madtom.v1.NoxSweepChatFilesResponse
+	92,  // 193: madtom.v1.NoxChatControlService.QueryUserProfiles:output_type -> madtom.v1.NoxUserProfileQueryResponse
+	94,  // 194: madtom.v1.NoxChatControlService.SearchUserProfiles:output_type -> madtom.v1.NoxUserProfileSearchResponse
+	96,  // 195: madtom.v1.NoxChatControlService.GetUserProfilePhoto:output_type -> madtom.v1.NoxUserProfilePhotoResponse
+	103, // 196: madtom.v1.NoxChatControlService.ListTips:output_type -> madtom.v1.NoxTipListResponse
+	106, // 197: madtom.v1.NoxChatControlService.SearchTips:output_type -> madtom.v1.NoxTipSearchResponse
+	109, // 198: madtom.v1.NoxChatControlService.AddTips:output_type -> madtom.v1.NoxAddTipsResponse
+	112, // 199: madtom.v1.NoxChatControlService.UpdateTip:output_type -> madtom.v1.NoxTipMutationResponse
+	112, // 200: madtom.v1.NoxChatControlService.DeleteTips:output_type -> madtom.v1.NoxTipMutationResponse
+	114, // 201: madtom.v1.NoxChatControlService.TestTips:output_type -> madtom.v1.NoxTestTipsResponse
+	128, // 202: madtom.v1.NoxChatControlService.ListSandboxVms:output_type -> madtom.v1.NoxSandboxListVmsResponse
+	130, // 203: madtom.v1.NoxChatControlService.SandboxVmAction:output_type -> madtom.v1.NoxSandboxVmActionResponse
+	132, // 204: madtom.v1.NoxChatControlService.ListSandboxFiles:output_type -> madtom.v1.NoxSandboxListFilesResponse
+	134, // 205: madtom.v1.NoxChatControlService.ReadSandboxText:output_type -> madtom.v1.NoxSandboxReadTextResponse
+	136, // 206: madtom.v1.NoxChatControlService.PreviewSandboxFile:output_type -> madtom.v1.NoxSandboxPreviewFileResponse
+	138, // 207: madtom.v1.NoxChatControlService.ListSandboxBackups:output_type -> madtom.v1.NoxSandboxListBackupsResponse
+	140, // 208: madtom.v1.NoxChatControlService.RestoreSandboxBackup:output_type -> madtom.v1.NoxSandboxRestoreBackupResponse
+	142, // 209: madtom.v1.NoxChatControlService.ListSandboxLibraryRequests:output_type -> madtom.v1.NoxSandboxListLibraryRequestsResponse
+	144, // 210: madtom.v1.NoxChatControlService.DecideSandboxLibrary:output_type -> madtom.v1.NoxSandboxDecideLibraryResponse
+	146, // 211: madtom.v1.NoxChatControlService.GetSandboxImageStatus:output_type -> madtom.v1.NoxSandboxImageStatusResponse
+	148, // 212: madtom.v1.NoxChatControlService.RebuildSandboxImage:output_type -> madtom.v1.NoxSandboxRebuildImageResponse
+	150, // 213: madtom.v1.NoxChatControlService.ListSandboxRuns:output_type -> madtom.v1.NoxSandboxListRunsResponse
+	153, // 214: madtom.v1.NoxChatControlService.GetAutomationStatus:output_type -> madtom.v1.NoxAutomationStatusResponse
+	156, // 215: madtom.v1.NoxChatControlService.ListPreprocessors:output_type -> madtom.v1.NoxListPreprocessorsResponse
+	158, // 216: madtom.v1.NoxChatControlService.GetPreprocessor:output_type -> madtom.v1.NoxGetPreprocessorResponse
+	160, // 217: madtom.v1.NoxChatControlService.PreprocessorAction:output_type -> madtom.v1.NoxAutomationActionResponse
+	163, // 218: madtom.v1.NoxChatControlService.ListPreprocessorLogs:output_type -> madtom.v1.NoxListPreprocessorLogsResponse
+	166, // 219: madtom.v1.NoxChatControlService.ListCrons:output_type -> madtom.v1.NoxListCronsResponse
+	160, // 220: madtom.v1.NoxChatControlService.CronAction:output_type -> madtom.v1.NoxAutomationActionResponse
+	172, // 221: madtom.v1.NoxChatControlService.ListUserQuotas:output_type -> madtom.v1.NoxListUserQuotasResponse
+	175, // 222: madtom.v1.NoxChatControlService.GetUserQuota:output_type -> madtom.v1.NoxGetUserQuotaResponse
+	177, // 223: madtom.v1.NoxChatControlService.SetUserQuota:output_type -> madtom.v1.NoxSetUserQuotaResponse
+	184, // 224: madtom.v1.NoxChatControlService.GetAgySessions:output_type -> madtom.v1.NoxAgySessionsResponse
+	154, // [154:225] is the sub-list for method output_type
+	83,  // [83:154] is the sub-list for method input_type
+	83,  // [83:83] is the sub-list for extension type_name
+	83,  // [83:83] is the sub-list for extension extendee
+	0,   // [0:83] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_noxchat_proto_init() }
@@ -15785,7 +16434,7 @@ func file_madtom_v1_noxchat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_madtom_v1_noxchat_proto_rawDesc), len(file_madtom_v1_noxchat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   185,
+			NumMessages:   192,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

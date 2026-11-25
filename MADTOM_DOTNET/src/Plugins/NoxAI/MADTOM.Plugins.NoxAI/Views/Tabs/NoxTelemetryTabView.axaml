@@ -13,8 +13,9 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
             <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
                 <StackPanel Spacing="3">
-                    <TextBlock Text="LLM TOKEN THROUGHPUT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <TextBlock Text="LLM TOKENS (INPUT SPLIT BY PROVIDER CACHE)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
                     <TextBlock Text="{Binding TokenThroughputSummary}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                    <TextBlock Text="{Binding TokenWindowSummary}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
             <Border Grid.Column="1" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
@@ -53,7 +54,7 @@
                     <!-- LLM Token Usage Chart -->
                     <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="6" Padding="8">
                         <Grid RowDefinitions="Auto,*">
-                            <TextBlock Text="LLM Tokens (In / Out / Cached)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="4,0,0,4"/>
+                            <TextBlock Text="{Binding TokenChartTitle}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="4,0,0,4"/>
                             <charts:MetricHistoryChartControl Grid.Row="1"
                                                               SeriesList="{Binding TokenSeries}"
                                                               WindowStart="{Binding WindowStart}"
