@@ -1113,6 +1113,36 @@ func (s *Server) CronAction(ctx context.Context, req *madtomv1.NoxCronActionRequ
 	return &resp, nil
 }
 
+func (s *Server) ListUserQuotas(ctx context.Context, req *madtomv1.NoxListUserQuotasRequest) (*madtomv1.NoxListUserQuotasResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("quota_list_users", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxListUserQuotasResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) GetUserQuota(ctx context.Context, req *madtomv1.NoxGetUserQuotaRequest) (*madtomv1.NoxGetUserQuotaResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("quota_get_user", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxGetUserQuotaResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
+func (s *Server) SetUserQuota(ctx context.Context, req *madtomv1.NoxSetUserQuotaRequest) (*madtomv1.NoxSetUserQuotaResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("quota_set_user", req, 10*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxSetUserQuotaResponse
+	_ = json.Unmarshal(reply.Payload, &resp)
+	return &resp, nil
+}
+
 func (s *Server) ListHotMemories(ctx context.Context, req *madtomv1.NoxHotMemoryRequest) (*madtomv1.NoxHotMemoryResponse, error) {
 	reply, err := s.bridgeClient.CallRpc("list_hot_memories", req, 10*time.Second)
 	if err != nil {

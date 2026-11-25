@@ -145,6 +145,11 @@
                         </DataTemplate>
                     </TabItem.ContentTemplate>
                 </TabItem>
+
+                <!-- Tab 11: User Quotas -->
+                <TabItem Header="🚦 User Quotas" FontSize="12">
+                    <tabs:UserQuotasTabView DataContext="{Binding UserQuotasTab}"/>
+                </TabItem>
             </TabControl>
         </Grid>
 

@@ -86,6 +86,9 @@ const (
 	NoxChatControlService_ListPreprocessorLogs_FullMethodName       = "/madtom.v1.NoxChatControlService/ListPreprocessorLogs"
 	NoxChatControlService_ListCrons_FullMethodName                  = "/madtom.v1.NoxChatControlService/ListCrons"
 	NoxChatControlService_CronAction_FullMethodName                 = "/madtom.v1.NoxChatControlService/CronAction"
+	NoxChatControlService_ListUserQuotas_FullMethodName             = "/madtom.v1.NoxChatControlService/ListUserQuotas"
+	NoxChatControlService_GetUserQuota_FullMethodName               = "/madtom.v1.NoxChatControlService/GetUserQuota"
+	NoxChatControlService_SetUserQuota_FullMethodName               = "/madtom.v1.NoxChatControlService/SetUserQuota"
 )
 
 // NoxChatControlServiceClient is the client API for NoxChatControlService service.
@@ -179,6 +182,10 @@ type NoxChatControlServiceClient interface {
 	ListPreprocessorLogs(ctx context.Context, in *NoxListPreprocessorLogsRequest, opts ...grpc.CallOption) (*NoxListPreprocessorLogsResponse, error)
 	ListCrons(ctx context.Context, in *NoxListCronsRequest, opts ...grpc.CallOption) (*NoxListCronsResponse, error)
 	CronAction(ctx context.Context, in *NoxCronActionRequest, opts ...grpc.CallOption) (*NoxAutomationActionResponse, error)
+	// Per-user LLM quotas (Python quota_* control RPCs)
+	ListUserQuotas(ctx context.Context, in *NoxListUserQuotasRequest, opts ...grpc.CallOption) (*NoxListUserQuotasResponse, error)
+	GetUserQuota(ctx context.Context, in *NoxGetUserQuotaRequest, opts ...grpc.CallOption) (*NoxGetUserQuotaResponse, error)
+	SetUserQuota(ctx context.Context, in *NoxSetUserQuotaRequest, opts ...grpc.CallOption) (*NoxSetUserQuotaResponse, error)
 }
 
 type noxChatControlServiceClient struct {
@@ -886,6 +893,36 @@ func (c *noxChatControlServiceClient) CronAction(ctx context.Context, in *NoxCro
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) ListUserQuotas(ctx context.Context, in *NoxListUserQuotasRequest, opts ...grpc.CallOption) (*NoxListUserQuotasResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxListUserQuotasResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListUserQuotas_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) GetUserQuota(ctx context.Context, in *NoxGetUserQuotaRequest, opts ...grpc.CallOption) (*NoxGetUserQuotaResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxGetUserQuotaResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_GetUserQuota_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) SetUserQuota(ctx context.Context, in *NoxSetUserQuotaRequest, opts ...grpc.CallOption) (*NoxSetUserQuotaResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxSetUserQuotaResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_SetUserQuota_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NoxChatControlServiceServer is the server API for NoxChatControlService service.
 // All implementations must embed UnimplementedNoxChatControlServiceServer
 // for forward compatibility.
@@ -977,6 +1014,10 @@ type NoxChatControlServiceServer interface {
 	ListPreprocessorLogs(context.Context, *NoxListPreprocessorLogsRequest) (*NoxListPreprocessorLogsResponse, error)
 	ListCrons(context.Context, *NoxListCronsRequest) (*NoxListCronsResponse, error)
 	CronAction(context.Context, *NoxCronActionRequest) (*NoxAutomationActionResponse, error)
+	// Per-user LLM quotas (Python quota_* control RPCs)
+	ListUserQuotas(context.Context, *NoxListUserQuotasRequest) (*NoxListUserQuotasResponse, error)
+	GetUserQuota(context.Context, *NoxGetUserQuotaRequest) (*NoxGetUserQuotaResponse, error)
+	SetUserQuota(context.Context, *NoxSetUserQuotaRequest) (*NoxSetUserQuotaResponse, error)
 	mustEmbedUnimplementedNoxChatControlServiceServer()
 }
 
@@ -1187,6 +1228,15 @@ func (UnimplementedNoxChatControlServiceServer) ListCrons(context.Context, *NoxL
 }
 func (UnimplementedNoxChatControlServiceServer) CronAction(context.Context, *NoxCronActionRequest) (*NoxAutomationActionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CronAction not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListUserQuotas(context.Context, *NoxListUserQuotasRequest) (*NoxListUserQuotasResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListUserQuotas not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) GetUserQuota(context.Context, *NoxGetUserQuotaRequest) (*NoxGetUserQuotaResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserQuota not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) SetUserQuota(context.Context, *NoxSetUserQuotaRequest) (*NoxSetUserQuotaResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetUserQuota not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) mustEmbedUnimplementedNoxChatControlServiceServer() {}
 func (UnimplementedNoxChatControlServiceServer) testEmbeddedByValue()                               {}
@@ -2394,6 +2444,60 @@ func _NoxChatControlService_CronAction_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_ListUserQuotas_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxListUserQuotasRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListUserQuotas(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListUserQuotas_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListUserQuotas(ctx, req.(*NoxListUserQuotasRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_GetUserQuota_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxGetUserQuotaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).GetUserQuota(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_GetUserQuota_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).GetUserQuota(ctx, req.(*NoxGetUserQuotaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_SetUserQuota_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxSetUserQuotaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).SetUserQuota(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_SetUserQuota_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).SetUserQuota(ctx, req.(*NoxSetUserQuotaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NoxChatControlService_ServiceDesc is the grpc.ServiceDesc for NoxChatControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2656,6 +2760,18 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CronAction",
 			Handler:    _NoxChatControlService_CronAction_Handler,
+		},
+		{
+			MethodName: "ListUserQuotas",
+			Handler:    _NoxChatControlService_ListUserQuotas_Handler,
+		},
+		{
+			MethodName: "GetUserQuota",
+			Handler:    _NoxChatControlService_GetUserQuota_Handler,
+		},
+		{
+			MethodName: "SetUserQuota",
+			Handler:    _NoxChatControlService_SetUserQuota_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

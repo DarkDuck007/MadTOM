@@ -1,0 +1,431 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.NoxAI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="780"
+             x:Class="MADTOM.Plugins.NoxAI.Views.Tabs.UserQuotasTabView"
+             x:DataType="vm:UserQuotasTabViewModel"
+             x:Name="RootControl">
+
+    <Panel>
+        <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16" RowSpacing="10">
+
+            <!-- Header: Rate Limiting Status + Config Defaults + Refresh -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <WrapPanel Orientation="Horizontal" ItemSpacing="14" LineSpacing="6" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="RATE LIMITING:" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                            <Border Classes.enabled="{Binding RateLimitingEnabled}"
+                                    Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    Padding="6,2"
+                                    VerticalAlignment="Center">
+                                <Border.Styles>
+                                    <Style Selector="Border.enabled">
+                                        <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource HealthyBrush}"/>
+                                    </Style>
+                                    <Style Selector="Border.enabled TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource HealthyBrush}"/>
+                                    </Style>
+                                </Border.Styles>
+                                <TextBlock Text="{Binding EnabledBadge}" FontSize="10" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}"/>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="Per-chat defaults:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="5h:" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DefaultUserLimit5hDisplay}" FontSize="11" FontWeight="SemiBold" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                            <TextBlock Text="24h:" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DefaultUserLimit24hDisplay}" FontSize="11" FontWeight="SemiBold" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="Global defaults:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="5h:" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DefaultGlobalLimit5hDisplay}" FontSize="11" FontWeight="SemiBold" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                            <TextBlock Text="24h:" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding DefaultGlobalLimit24hDisplay}" FontSize="11" FontWeight="SemiBold" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </WrapPanel>
+
+                    <Button Grid.Column="1"
+                            Command="{Binding RefreshCommand}"
+                            Content="🔄 Refresh"
+                            Padding="10,4"
+                            FontSize="11"
+                            VerticalAlignment="Center"
+                            IsEnabled="{Binding !IsBusy}"/>
+                </Grid>
+            </Border>
+
+            <!-- Main Content: Overrides Grid (left/top) + Top Users & Detail (right/bottom) -->
+            <Grid Grid.Row="1" ColumnDefinitions="1.15*,*" ColumnSpacing="12">
+
+                <!-- Left: Overrides Grid -->
+                <Border Grid.Column="0"
+                        Background="{DynamicResource DarkBaseBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        ClipToBounds="True">
+                    <Grid RowDefinitions="Auto,Auto,*">
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="0,0,0,1"
+                                Padding="12,6">
+                            <TextBlock Text="OVERRIDES" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                        </Border>
+
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="0,0,0,1"
+                                Padding="12,6">
+                            <Grid ColumnDefinitions="1.2*,1.2*,70,70,130,115" ColumnSpacing="6">
+                                <TextBlock Grid.Column="0" Text="USER" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="1" Text="SCOPE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="2" Text="5H" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="3" Text="24H" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="4" Text="UPDATED AT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBlock Grid.Column="5" Text="ACTIONS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            </Grid>
+                        </Border>
+
+                        <ListBox Grid.Row="2"
+                                 ItemsSource="{Binding Overrides}"
+                                 Background="Transparent"
+                                 BorderThickness="0">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:QuotaOverrideRow">
+                                    <Border Background="{DynamicResource CardBgBrush}"
+                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="8,5"
+                                            Margin="0,1">
+                                        <Grid ColumnDefinitions="1.2*,1.2*,70,70,130,115" ColumnSpacing="6" VerticalAlignment="Center">
+                                            <TextBlock Grid.Column="0" Text="{Binding UserDisplay}" ToolTip.Tip="{Binding UserDisplay}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding ScopeDisplay}" ToolTip.Tip="{Binding ScopeDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Quota5hDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Quota24hDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding UpdatedAtDisplay}" ToolTip.Tip="{Binding UpdatedAtDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                <Button Content="Edit"
+                                                        Command="{Binding #RootControl.((vm:UserQuotasTabViewModel)DataContext).EditOverrideCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Padding="6,2"
+                                                        FontSize="10"/>
+                                                <Button Content="Remove"
+                                                        Padding="6,2"
+                                                        FontSize="10"
+                                                        Foreground="{DynamicResource CriticalBrush}">
+                                                    <Button.Flyout>
+                                                        <Flyout Placement="BottomEdgeAlignedRight">
+                                                            <StackPanel Spacing="8" Width="230" Margin="4">
+                                                                <TextBlock Text="Remove this quota override and revert to defaults?"
+                                                                           TextWrapping="Wrap"
+                                                                           FontSize="11"/>
+                                                                <Button Command="{Binding #RootControl.((vm:UserQuotasTabViewModel)DataContext).RemoveOverrideCommand}"
+                                                                        CommandParameter="{Binding}"
+                                                                        Content="Confirm Remove"
+                                                                        Background="{DynamicResource CriticalBrush}"
+                                                                        Foreground="White"
+                                                                        FontWeight="Bold"
+                                                                        HorizontalAlignment="Right"
+                                                                        Padding="10,4"
+                                                                        FontSize="11"/>
+                                                            </StackPanel>
+                                                        </Flyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+
+                <!-- Right: Top Users (24h) + Selected User Detail Panel -->
+                <Grid Grid.Column="1" RowDefinitions="*,Auto" RowSpacing="10">
+
+                    <!-- Top Users (24h) -->
+                    <Border Grid.Row="0"
+                            Background="{DynamicResource DarkBaseBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            ClipToBounds="True">
+                        <Grid RowDefinitions="Auto,Auto,*">
+                            <Border Grid.Row="0"
+                                    Background="{DynamicResource CardBgBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="12,6">
+                                <TextBlock Text="TOP USERS (24H)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                            </Border>
+
+                            <Border Grid.Row="1"
+                                    Background="{DynamicResource CardBgBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="12,6">
+                                <Grid ColumnDefinitions="*,65,70,55,70" ColumnSpacing="6">
+                                    <TextBlock Grid.Column="0" Text="USER" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="CALLS 5H" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Column="2" Text="CALLS 24H" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Column="3" Text="CHATS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Column="4" Text="EXEMPT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Grid>
+                            </Border>
+
+                            <ListBox Grid.Row="2"
+                                     ItemsSource="{Binding TopUsers}"
+                                     SelectedItem="{Binding SelectedTopUser, Mode=TwoWay}"
+                                     Background="Transparent"
+                                     BorderThickness="0">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="4,2"/>
+                                        <Setter Property="Margin" Value="0"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:TopUserQuotaRow">
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8,5"
+                                                Margin="0,1">
+                                            <Grid ColumnDefinitions="*,65,70,55,70" ColumnSpacing="6" VerticalAlignment="Center">
+                                                <TextBlock Grid.Column="0" Text="{Binding UserDisplay}" ToolTip.Tip="{Binding UserDisplay}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Calls5h}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Calls24h}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Chats}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="4" Text="{Binding ExemptBadge}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Selected User Detail Panel -->
+                    <Border Grid.Row="1"
+                            Background="{DynamicResource CardBgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBlock Text="USER QUOTA DETAIL (GLOBAL)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="ADMIN EXEMPT"
+                                           IsVisible="{Binding DetailExempt}"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           Foreground="{DynamicResource HealthyBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <TextBlock Text="Select a user from Top Users (24h) to inspect global usage and overrides."
+                                       IsVisible="{Binding !HasUserDetail}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+
+                            <StackPanel Spacing="6" IsVisible="{Binding HasUserDetail}">
+                                <TextBlock Text="{Binding DetailUserHeader}" FontSize="12" FontWeight="SemiBold"/>
+
+                                <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="4">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Source:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DetailGlobalSource}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="5h usage:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DetailGlobal5hUsage}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="5h reset:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding DetailGlobal5hReset}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="24h usage:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DetailGlobal24hUsage}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="24h reset:" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding DetailGlobal24hReset}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+
+                                <TextBlock Text="USER OVERRIDES" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"/>
+                                <ListBox ItemsSource="{Binding SelectedUserOverrides}"
+                                         MaxHeight="100"
+                                         Background="{DynamicResource DarkBaseBrush}"
+                                         BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                         BorderThickness="1"
+                                         CornerRadius="4">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:QuotaOverrideRow">
+                                            <Grid ColumnDefinitions="*,85,85" ColumnSpacing="8">
+                                                <TextBlock Grid.Column="0" Text="{Binding ScopeDisplay}" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Quota5hDisplay, StringFormat='5h: {0}'}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Quota24hDisplay, StringFormat='24h: {0}'}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- Editor Panel -->
+            <Border Grid.Row="2"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,10">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="ADD / EDIT QUOTA OVERRIDE (0 = UNLIMITED)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+
+                    <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="8" VerticalAlignment="Center">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="User ID" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBox Text="{Binding EditorUserIdText, Mode=TwoWay}"
+                                     PlaceholderText="e.g. 123456789"
+                                     Width="140"
+                                     FontSize="11"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Scope" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <ComboBox ItemsSource="{Binding ScopeOptions}"
+                                      SelectedItem="{Binding SelectedEditorScope, Mode=TwoWay}"
+                                      Width="140"
+                                      FontSize="11">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:QuotaScopeOption">
+                                        <TextBlock Text="{Binding Label}" FontSize="11"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Chat ID" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBox Text="{Binding EditorChatIdText, Mode=TwoWay}"
+                                     IsEnabled="{Binding IsEditorChatIdEnabled}"
+                                     PlaceholderText="One chat only"
+                                     Width="140"
+                                     FontSize="11"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="5h Quota" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBox Text="{Binding EditorQuota5hText, Mode=TwoWay}"
+                                     PlaceholderText="0"
+                                     Width="90"
+                                     FontSize="11"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="24h Quota" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBox Text="{Binding EditorQuota24hText, Mode=TwoWay}"
+                                     PlaceholderText="0"
+                                     Width="90"
+                                     FontSize="11"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom" Margin="4,0,0,0">
+                            <Button Command="{Binding SaveEditorCommand}"
+                                    Content="Save"
+                                    Padding="14,5"
+                                    FontSize="11"
+                                    FontWeight="SemiBold"
+                                    IsEnabled="{Binding !IsBusy}"/>
+                            <Button Command="{Binding ClearEditorCommand}"
+                                    Content="Clear"
+                                    Padding="10,5"
+                                    FontSize="11"/>
+                        </StackPanel>
+                    </WrapPanel>
+
+                    <TextBlock Text="{Binding EditorErrorMessage}"
+                               IsVisible="{Binding HasEditorError}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource CriticalBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Bottom Status / Error Line -->
+            <Border Grid.Row="3"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12,6">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding StatusMessage}"
+                               IsVisible="{Binding !HasError}"/>
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource CriticalBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding ErrorMessage}"
+                               IsVisible="{Binding HasError}"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Programmatic Confirmation Modal Overlay -->
+        <Border IsVisible="{Binding IsConfirmOpen}" Background="#B0000000">
+            <Border Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource WarningBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="18"
+                    Width="440"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="{Binding ConfirmTitle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding ConfirmMessage}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button Command="{Binding CancelConfirmCommand}" Content="Cancel" Padding="12,5"/>
+                        <Button Command="{Binding ConfirmPendingCommand}"
+                                Content="Confirm"
+                                Background="{DynamicResource CriticalBrush}"
+                                Foreground="White"
+                                FontWeight="Bold"
+                                Padding="12,5"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Panel>
+</UserControl>

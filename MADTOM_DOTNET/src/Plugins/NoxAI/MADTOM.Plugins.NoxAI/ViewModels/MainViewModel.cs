@@ -39,6 +39,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public TipsTabViewModel TipsTab { get; }
     public SandboxTabViewModel SandboxTab { get; }
     public AutomationTabViewModel AutomationTab { get; }
+    public UserQuotasTabViewModel UserQuotasTab { get; }
     public MediaLibraryTabViewModel MediaLibraryTab { get; }
     public ChatFilesTabViewModel ChatFilesTab { get; }
     public ActiveJobsTabViewModel ActiveJobsTab { get; }
@@ -62,6 +63,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         TipsTab = new TipsTabViewModel(_nodeManager);
         SandboxTab = new SandboxTabViewModel(_nodeManager);
         AutomationTab = new AutomationTabViewModel(_nodeManager);
+        UserQuotasTab = new UserQuotasTabViewModel(_nodeManager);
         MediaLibraryTab = new MediaLibraryTabViewModel(_nodeManager);
         ChatFilesTab = new ChatFilesTabViewModel(_nodeManager);
         ActiveJobsTab = new ActiveJobsTabViewModel(_nodeManager);
@@ -83,6 +85,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         MediaLibraryTab.IsTabActive = SelectedWorkspaceTabIndex == 6;
         ChatFilesTab.IsTabActive = SelectedWorkspaceTabIndex == 7;
         RawLogsApiTab.IsTabActive = SelectedWorkspaceTabIndex == 9;
+        UserQuotasTab.IsTabActive = SelectedWorkspaceTabIndex == 10;
 
         RefreshActiveNodes();
 
@@ -139,6 +142,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedWorkspaceTabIndexChanged(int value)
     {
+        if (UserQuotasTab != null) UserQuotasTab.IsTabActive = value == 10;
         if (RawLogsApiTab != null) RawLogsApiTab.IsTabActive = value == 9;
         if (ChatFilesTab != null) ChatFilesTab.IsTabActive = value == 7;
         if (MediaLibraryTab != null)
@@ -169,6 +173,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (TipsTab != null) TipsTab.SelectedNode = value;
         if (SandboxTab != null) SandboxTab.SelectedNode = value;
         if (AutomationTab != null) AutomationTab.SelectedNode = value;
+        if (UserQuotasTab != null) UserQuotasTab.SelectedNode = value;
         if (MediaLibraryTab != null) MediaLibraryTab.SelectedNode = value;
         if (ChatFilesTab != null) ChatFilesTab.SelectedNode = value;
         if (ActiveJobsTab != null) ActiveJobsTab.SelectedNode = value;
@@ -448,6 +453,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStreamCts = null;
         SandboxTab.Dispose();
         AutomationTab.Dispose();
+        UserQuotasTab.Dispose();
         RawLogsApiTab.Dispose();
     }
 }

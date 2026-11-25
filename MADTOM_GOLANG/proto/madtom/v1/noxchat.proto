@@ -108,6 +108,11 @@ service NoxChatControlService {
   rpc ListPreprocessorLogs(NoxListPreprocessorLogsRequest) returns (NoxListPreprocessorLogsResponse);
   rpc ListCrons(NoxListCronsRequest) returns (NoxListCronsResponse);
   rpc CronAction(NoxCronActionRequest) returns (NoxAutomationActionResponse);
+
+  // Per-user LLM quotas (Python quota_* control RPCs)
+  rpc ListUserQuotas(NoxListUserQuotasRequest) returns (NoxListUserQuotasResponse);
+  rpc GetUserQuota(NoxGetUserQuotaRequest) returns (NoxGetUserQuotaResponse);
+  rpc SetUserQuota(NoxSetUserQuotaRequest) returns (NoxSetUserQuotaResponse);
 }
 
 // ------------------------------------------------------------------------------
@@ -1556,4 +1561,93 @@ message NoxListCronsResponse {
 message NoxCronActionRequest {
   int64 id = 1;
   string action = 2;   // enable | disable | cancel
+}
+
+// ==============================================================================
+// Per-user LLM quotas (Python quota_* control RPCs)
+// ==============================================================================
+
+message NoxListUserQuotasRequest {
+  int32 limit = 1;
+}
+
+message NoxUserQuotaDefaults {
+  int32 user_limit_5h = 1;
+  int32 user_limit_24h = 2;
+  int32 user_global_limit_5h = 3;
+  int32 user_global_limit_24h = 4;
+}
+
+message NoxUserQuotaOverride {
+  int64 user_id = 1;
+  string scope = 2;        // all_chats | chat | global
+  int64 chat_id = 3;
+  int32 quota_5h = 4;
+  int32 quota_24h = 5;
+  string updated_at = 6;
+  int64 updated_by = 7;
+  string user_name = 8;
+  string chat_title = 9;
+}
+
+message NoxUserQuotaTopUser {
+  int64 user_id = 1;
+  string user_name = 2;
+  int32 calls_5h = 3;
+  int32 calls_24h = 4;
+  int32 chats = 5;
+  bool exempt = 6;
+}
+
+message NoxListUserQuotasResponse {
+  bool enabled = 1;
+  NoxUserQuotaDefaults defaults = 2;
+  repeated NoxUserQuotaOverride overrides = 3;
+  repeated NoxUserQuotaTopUser top_users = 4;
+  string error = 5;
+}
+
+message NoxGetUserQuotaRequest {
+  int64 user_id = 1;
+  int64 chat_id = 2;       // 0 = none
+}
+
+message NoxUserQuotaTier {
+  string source = 1;
+  int32 count_5h = 2;
+  int32 limit_5h = 3;
+  optional int32 remaining_5h = 4;
+  optional double pct_5h = 5;
+  string reset_5h = 6;
+  int32 count_24h = 7;
+  int32 limit_24h = 8;
+  optional int32 remaining_24h = 9;
+  optional double pct_24h = 10;
+  string reset_24h = 11;
+}
+
+message NoxGetUserQuotaResponse {
+  int64 user_id = 1;
+  string user_name = 2;
+  int64 chat_id = 3;
+  bool exempt = 4;
+  NoxUserQuotaTier user = 5;
+  NoxUserQuotaTier global = 6;
+  repeated NoxUserQuotaOverride overrides = 7;
+  string error = 8;
+}
+
+message NoxSetUserQuotaRequest {
+  int64 user_id = 1;
+  string scope = 2;        // all_chats | chat | global
+  int64 chat_id = 3;
+  int32 quota_5h = 4;
+  int32 quota_24h = 5;
+  bool reset = 6;
+}
+
+message NoxSetUserQuotaResponse {
+  bool ok = 1;
+  bool removed = 2;
+  string error = 3;
 }
