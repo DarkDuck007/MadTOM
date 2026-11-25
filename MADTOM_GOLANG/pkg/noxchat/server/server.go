@@ -89,6 +89,7 @@ func NewServer(cfg *config.ProbeConfig, keyPair *auth.KeyPair, tlsConfig *tls.Co
 }
 
 func NewServerWithVerifier(cfg *config.ProbeConfig, verifier *auth.Verifier, tlsConfig *tls.Config) (*Server, error) {
+	applyControlOverride(cfg)
 	stateBuf := buffer.NewRingChunkBuffer(cfg.StateBufferBytes)
 	logBuf := buffer.NewRingChunkBuffer(cfg.LogBufferBytes)
 
@@ -472,6 +473,7 @@ func (s *Server) GetNodeStatus(ctx context.Context, req *madtomv1.NoxNodeStatusR
 
 func (s *Server) UpdateControlConfig(ctx context.Context, req *madtomv1.NoxUpdateControlConfigRequest) (*madtomv1.NoxNodeStatusResponse, error) {
 	s.cfg.StoreRawLogs = req.StoreRawLogs
+	saveControlOverride(s.cfg)
 	if req.MaxSpoolBytes > 0 {
 		s.cfg.MaxSpoolBytes = int64(req.MaxSpoolBytes)
 	}
