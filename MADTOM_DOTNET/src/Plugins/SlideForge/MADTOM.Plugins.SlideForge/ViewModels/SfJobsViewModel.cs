@@ -497,9 +497,12 @@ public sealed partial class SfJobsViewModel : ObservableObject
         catch (SfRpcException ex)
         {
             FilePreviewImage = null;
-            FileViewerNotice = ex.Code == "not_supported"
-                ? "No page preview available for this file (the bot host may lack a converter). Use Save as… to download."
-                : ex.Code;
+            FileViewerNotice = ex.Code switch
+            {
+                "not_supported" => "No page preview available for this file. Use Save as… to download.",
+                "not_in_sandbox" => "Documents are rendered in the user's sandbox VM, which no longer keeps this job (only the most recent jobs are kept). Use Save as… to download.",
+                _ => ex.Code,
+            };
             ErrorMessage = ex.Code;
         }
         catch (Exception ex)
