@@ -41,6 +41,8 @@ type Host struct {
 	NoxChatConfigPath string   `yaml:"noxchat_config_path"`
 	ImageBuildScript  string   `yaml:"image_build_script"`
 	AgentVsockPort    uint32   `yaml:"agent_vsock_port"`
+	TTSSocketPath     string   `yaml:"tts_socket_path,omitempty"`
+	TTSVsockPort      uint32   `yaml:"tts_vsock_port,omitempty"`
 	Ceilings          Ceilings `yaml:"ceilings"`
 }
 
@@ -48,6 +50,7 @@ const (
 	DefaultJailUIDBase     = 64000
 	DefaultJailUIDCount    = 64
 	DefaultVMMemOverheadMB = 192
+	DefaultTTSVsockPort    = 53
 )
 
 type ChatVM struct {
@@ -87,6 +90,13 @@ type LibraryRequests struct {
 	RebuildWindowLocal string `yaml:"rebuild_window_local"`
 }
 
+type TTS struct {
+	Enabled               bool `yaml:"enabled"`
+	MaxRequestBytes       int  `yaml:"max_request_bytes"`
+	MaxInflightPerVM      int  `yaml:"max_inflight_per_vm"`
+	RequestTimeoutSeconds int  `yaml:"request_timeout_seconds"`
+}
+
 type Sandbox struct {
 	Enabled       bool    `yaml:"enabled"`
 	SocketPath    string  `yaml:"socket_path"`
@@ -124,6 +134,7 @@ type Sandbox struct {
 	DiskIndexEntries            int             `yaml:"disk_index_entries"`
 	ExportAllowedExts           []string        `yaml:"export_allowed_exts"`
 	LibraryRequests             LibraryRequests `yaml:"library_requests"`
+	TTS                         TTS             `yaml:"tts"`
 	PromptUntrustedWrap         bool            `yaml:"prompt_untrusted_wrap"`
 }
 
@@ -155,7 +166,9 @@ func Defaults() Sandbox {
 		SnapshotQuotaMBPerChat: 2048, BackupsKeep: 3, BackupHourLocal: 4, DiskWatermarkPercent: 90,
 		Global: Global{8, 8192, 30}, DiskIndexEntries: 15,
 		ExportAllowedExts: []string{"pdf", "docx", "xlsx", "pptx", "odt", "ods", "odp", "csv", "tsv", "txt", "md", "json", "html", "xml", "yaml", "svg", "png", "jpg", "jpeg", "webp", "gif", "zip", "py", "ipynb", "log"},
-		LibraryRequests:   LibraryRequests{5, "04:30"}, PromptUntrustedWrap: true,
+		LibraryRequests:   LibraryRequests{5, "04:30"},
+		TTS:               TTS{Enabled: true, MaxRequestBytes: 8 << 20, MaxInflightPerVM: 2, RequestTimeoutSeconds: 120},
+		PromptUntrustedWrap: true,
 	}
 }
 
@@ -203,6 +216,14 @@ func Load(hostPath string) (*Effective, error) {
 	for _, path := range []string{host.FirecrackerBin, host.JailerBin, host.KernelPath, host.ImagesDir, host.StateDir, host.ChrootBase, host.SocketPath, host.NoxChatConfigPath, host.ImageBuildScript} {
 		if !filepath.IsAbs(path) || filepath.Clean(path) != path || path == "/" {
 			return nil, fmt.Errorf("host paths must be absolute, canonical, and non-root: %q", path)
+		}
+	}
+	if host.TTSSocketPath != "" {
+		if !filepath.IsAbs(host.TTSSocketPath) || filepath.Clean(host.TTSSocketPath) != host.TTSSocketPath || host.TTSSocketPath == "/" {
+			return nil, fmt.Errorf("tts_socket_path must be absolute, canonical, and non-root: %q", host.TTSSocketPath)
+		}
+		if host.TTSVsockPort == 0 {
+			host.TTSVsockPort = DefaultTTSVsockPort
 		}
 	}
 	ceil := host.Ceilings
@@ -315,4 +336,16 @@ func (cfg *Sandbox) clamp(ceil Ceilings) {
 	cfg.MaxOutputBytes, cfg.MaxTextViewBytes = min(cfg.MaxOutputBytes, ceil.MaxFrameBytes), min(cfg.MaxTextViewBytes, ceil.MaxFrameBytes)
 	cfg.PreviewMaxPx = min(cfg.PreviewMaxPx, 8192)
 	cfg.WarmSeconds, cfg.MaxSessionLifetimeMinutes, cfg.HibernateTTLHours = min(cfg.WarmSeconds, 31536000), min(cfg.MaxSessionLifetimeMinutes, 525600), min(cfg.HibernateTTLHours, 8760)
+	if cfg.TTS.MaxRequestBytes <= 0 {
+		cfg.TTS.MaxRequestBytes = 8 << 20
+	}
+	cfg.TTS.MaxRequestBytes = min(cfg.TTS.MaxRequestBytes, ceil.MaxFrameBytes)
+	if cfg.TTS.MaxInflightPerVM <= 0 {
+		cfg.TTS.MaxInflightPerVM = 2
+	}
+	cfg.TTS.MaxInflightPerVM = min(cfg.TTS.MaxInflightPerVM, 8)
+	if cfg.TTS.RequestTimeoutSeconds <= 0 {
+		cfg.TTS.RequestTimeoutSeconds = 120
+	}
+	cfg.TTS.RequestTimeoutSeconds = min(cfg.TTS.RequestTimeoutSeconds, ceil.ExecTimeoutS, 600)
 }

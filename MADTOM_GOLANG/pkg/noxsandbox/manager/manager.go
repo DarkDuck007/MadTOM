@@ -106,6 +106,9 @@ func New(cfg *config.Effective, opts Options) (*Manager, error) {
 		cancel()
 		return nil, err
 	}
+	if setter, ok := opts.Backend.(interface{ SetTTSHandler(vmm.TTSHandler) }); ok {
+		setter.SetTTSHandler(manager.HandleTTSConn)
+	}
 	return manager, nil
 }
 
@@ -239,10 +242,13 @@ func (manager *Manager) spec(role vmm.Role, id int64, version string, cfg config
 	case vmm.RoleChat:
 		spec.MemMB, spec.VCPUs, spec.CPUQuotaPercent = cfg.ChatVM.MemMB, cfg.ChatVM.VCPUs, cfg.ChatVM.CPUQuotaPercent
 		spec.DataDisk = manager.volume(id)
+		spec.EnableTTS = cfg.TTS.Enabled && manager.host.TTSSocketPath != ""
 	case vmm.RoleTemp, vmm.RoleInspector:
 		spec.MemMB, spec.VCPUs, spec.CPUQuotaPercent, spec.TmpMB = cfg.TempVM.MemMB, cfg.TempVM.VCPUs, cfg.TempVM.CPUQuotaPercent, cfg.TempVM.TmpDiskMB
 		if role == vmm.RoleInspector {
 			spec.DataDisk, spec.DataReadOnly = manager.volume(id), true
+		} else {
+			spec.EnableTTS = cfg.TTS.Enabled && manager.host.TTSSocketPath != ""
 		}
 	case vmm.RolePre:
 		spec.MemMB, spec.VCPUs, spec.CPUQuotaPercent, spec.TmpMB = cfg.PreVM.MemMB, cfg.PreVM.VCPUs, cfg.PreVM.CPUQuotaPercent, min(cfg.PreVM.MemMB/4, 64)

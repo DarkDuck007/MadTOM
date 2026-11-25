@@ -30,6 +30,11 @@ type Backend struct {
 	uidMu        sync.Mutex
 	nextUIDSlot  int
 	freeUIDSlots []int
+	ttsHandler   vmm.TTSHandler
+}
+
+func (backend *Backend) SetTTSHandler(handler vmm.TTSHandler) {
+	backend.ttsHandler = handler
 }
 
 func New(host config.Host) *Backend {
@@ -95,6 +100,8 @@ type machine struct {
 	done              chan struct{}
 	waitErr           error
 	pid               int
+	ttsListener       net.Listener
+	ttsCancel         context.CancelFunc
 	stopMu            sync.Mutex
 	stopped           bool
 }
@@ -117,7 +124,7 @@ func (backend *Backend) start(ctx context.Context, spec vmm.Spec, snapshot *vmm.
 	bin := filepath.Base(executable)
 	dir := filepath.Join(host.ChrootBase, bin, spec.ID)
 	root := filepath.Join(dir, "root")
-	if len(filepath.Join(root, "s", "v")) > 107 {
+	if len(filepath.Join(root, "s", "v_65535")) > 107 {
 		return nil, fmt.Errorf("jail path exceeds Linux Unix socket limit")
 	}
 	if err := os.MkdirAll(filepath.Dir(dir), 0700); err != nil {
@@ -159,6 +166,32 @@ func (backend *Backend) start(ctx context.Context, spec vmm.Spec, snapshot *vmm.
 	if err := os.Chown(sockets, jailID, jailID); err != nil {
 		return nil, err
 	}
+	var ttsListener net.Listener
+	if spec.EnableTTS && backend.ttsHandler != nil && host.TTSSocketPath != "" && (spec.Role == vmm.RoleChat || spec.Role == vmm.RoleTemp) {
+		port := host.TTSVsockPort
+		if port == 0 {
+			port = config.DefaultTTSVsockPort
+		}
+		ttsPath := filepath.Join(sockets, fmt.Sprintf("v_%d", port))
+		ln, err := net.Listen("unix", ttsPath)
+		if err != nil {
+			return nil, fmt.Errorf("listen tts vsock: %w", err)
+		}
+		if err := os.Chown(ttsPath, jailID, jailID); err != nil {
+			_ = ln.Close()
+			return nil, fmt.Errorf("chown tts vsock: %w", err)
+		}
+		if err := os.Chmod(ttsPath, 0600); err != nil {
+			_ = ln.Close()
+			return nil, fmt.Errorf("chmod tts vsock: %w", err)
+		}
+		ttsListener = ln
+	}
+	defer func() {
+		if !launched && ttsListener != nil {
+			_ = ttsListener.Close()
+		}
+	}()
 	for _, asset := range []struct {
 		src, name string
 		writable  bool
@@ -208,7 +241,21 @@ func (backend *Backend) start(ctx context.Context, spec vmm.Spec, snapshot *vmm.
 	launched = true
 	machine := &machine{spec: spec, host: host, dir: dir, root: root, cmd: cmd, jailID: jailID,
 		releaseUID: func() { backend.releaseUIDSlot(uidSlot) }, launcherDone: make(chan struct{}),
-		done: make(chan struct{}), cgroup: cgroup}
+		done: make(chan struct{}), cgroup: cgroup, ttsListener: ttsListener}
+	if ttsListener != nil {
+		ttsCtx, ttsCancel := context.WithCancel(context.Background())
+		machine.ttsCancel = ttsCancel
+		handler := backend.ttsHandler
+		go func() {
+			for {
+				conn, err := ttsListener.Accept()
+				if err != nil {
+					return
+				}
+				go handler(ttsCtx, spec, conn)
+			}
+		}()
+	}
 	machine.client = &http.Client{
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		Transport: &http.Transport{DisableKeepAlives: true, DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
@@ -610,6 +657,12 @@ func (machine *machine) Stop(ctx context.Context) error {
 	defer machine.stopMu.Unlock()
 	if machine.stopped {
 		return nil
+	}
+	if machine.ttsCancel != nil {
+		machine.ttsCancel()
+	}
+	if machine.ttsListener != nil {
+		_ = machine.ttsListener.Close()
 	}
 	if err := machine.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return err

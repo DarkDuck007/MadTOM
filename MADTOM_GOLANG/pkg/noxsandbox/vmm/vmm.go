@@ -14,6 +14,8 @@ const (
 	RoleInspector Role = "inspector"
 )
 
+type TTSHandler func(ctx context.Context, spec Spec, conn net.Conn)
+
 type Spec struct {
 	ID                                   string
 	ChatID                               int64
@@ -24,6 +26,7 @@ type Spec struct {
 	DataReadOnly                         bool
 	TmpMB                                int
 	DiskBwMBs, DiskIOPS                  int
+	EnableTTS                            bool
 }
 
 type Snapshot struct {
