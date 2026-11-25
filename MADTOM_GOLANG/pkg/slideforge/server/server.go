@@ -63,6 +63,7 @@ func DefaultConfig() Config {
 			"sandbox_list_vms", "sandbox_stats", "sandbox_vm_action", "sandbox_list_files", "sandbox_read_text", "sandbox_preview",
 			"sandbox_backups", "sandbox_restore_backup", "sandbox_library_requests", "sandbox_decide_library",
 			"sandbox_image_status", "sandbox_rebuild_image", "sandbox_runs",
+			"list_broadcasts", "get_broadcast", "broadcast_audience", "create_broadcast", "cancel_broadcast",
 		},
 	}
 }
