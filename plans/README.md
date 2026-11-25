@@ -17,6 +17,7 @@ Start a plan's folder on the day the plan is approved. Later changes to it go in
 
 | Date | Plan | Status |
 |---|---|---|
+| 2026-11-25 | [SlideForge plugin fixes: broadcasts, previews, graphs, layout](2026-11-25-slideforge-plugin-fixes/README.md) | in progress |
 | 2026-11-24 | [SlideForge monitoring: Go probe, shared auth hardening, Studio plugin](2026-11-24-slideforge-plugin/README.md) | in progress |
 | 2026-11-22 | ["Studio not working": rejected native tool calls; sandbox media tools](2026-11-22-native-tool-calls/README.md) | deployed |
 | 2026-11-22 | [Skip audio for GIFs and silent videos; audio only when asked](2026-11-22-silent-media/README.md) | deployed (Studio UI pending) |

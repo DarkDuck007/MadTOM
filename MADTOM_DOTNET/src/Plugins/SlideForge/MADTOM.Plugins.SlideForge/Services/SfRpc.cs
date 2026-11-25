@@ -69,6 +69,11 @@ public sealed class SfRpc
         "sandbox_image_status",
         "sandbox_rebuild_image",
         "sandbox_runs",
+        "list_broadcasts",
+        "get_broadcast",
+        "broadcast_audience",
+        "create_broadcast",
+        "cancel_broadcast",
     };
 
     public static IReadOnlySet<string> Methods => AllowlistedMethods;

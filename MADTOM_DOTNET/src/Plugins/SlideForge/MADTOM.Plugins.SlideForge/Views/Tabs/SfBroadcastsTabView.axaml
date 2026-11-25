@@ -1,0 +1,414 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MADTOM.Plugins.SlideForge.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="760"
+             x:Class="MADTOM.Plugins.SlideForge.Views.Tabs.SfBroadcastsTabView"
+             x:DataType="vm:SfBroadcastsViewModel">
+
+    <Panel>
+        <!-- Main Two-Column Layout -->
+        <Grid ColumnDefinitions="1.1*,1*" ColumnSpacing="12" Margin="16">
+            <!-- Left Column: Header Toolbar, Disabled Banner, Broadcasts List -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+                <!-- Header Toolbar -->
+                <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Command="{Binding LoadCommand}" Content="Refresh" Padding="10,4" FontSize="11" IsEnabled="{Binding !IsBusy}"/>
+                            <TextBlock Text="{Binding Broadcasts.Count, StringFormat='{}{0} broadcasts'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding ErrorMessage}"
+                                   Foreground="{DynamicResource CriticalBrush}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Disabled Banner -->
+                <Border Grid.Row="1"
+                        Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource WarningBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10,6"
+                        IsVisible="{Binding !Enabled}">
+                    <TextBlock Text="Broadcasts are disabled in SlideForge config."
+                               Foreground="{DynamicResource WarningBrush}"
+                               FontSize="11"
+                               FontWeight="SemiBold"/>
+                </Border>
+
+                <!-- Broadcasts List -->
+                <Border Grid.Row="2" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                    <ListBox ItemsSource="{Binding Broadcasts}"
+                             SelectedItem="{Binding SelectedBroadcast, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SfBroadcastRow">
+                                <Border Background="{DynamicResource CardBgBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10,8"
+                                        Margin="4,3">
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="5">
+                                        <!-- Row 0: Status Pill, ID, CreatedBy, CreatedAt -->
+                                        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                                            <Border Grid.Column="0"
+                                                    Classes.healthy="{Binding IsStatusHealthy}"
+                                                    Classes.accent="{Binding IsStatusAccent}"
+                                                    Classes.warning="{Binding IsStatusWarning}"
+                                                    Classes.critical="{Binding IsStatusCritical}"
+                                                    Background="{DynamicResource DarkBaseBrush}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Padding="6,2"
+                                                    VerticalAlignment="Center">
+                                                <Border.Styles>
+                                                    <Style Selector="Border.healthy">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource HealthyBrush}"/>
+                                                    </Style>
+                                                    <Style Selector="Border.healthy TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource HealthyBrush}"/>
+                                                    </Style>
+                                                    <Style Selector="Border.accent">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                    </Style>
+                                                    <Style Selector="Border.accent TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                    </Style>
+                                                    <Style Selector="Border.warning">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}"/>
+                                                    </Style>
+                                                    <Style Selector="Border.warning TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                                                    </Style>
+                                                    <Style Selector="Border.critical">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource CriticalBrush}"/>
+                                                    </Style>
+                                                    <Style Selector="Border.critical TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource CriticalBrush}"/>
+                                                    </Style>
+                                                </Border.Styles>
+                                                <TextBlock Text="{Binding StatusText}" FontSize="9" FontWeight="Bold"/>
+                                            </Border>
+
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding BroadcastId}"
+                                                       FontSize="11"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding CreatedBy}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding CreatedAt}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+
+                                        <!-- Row 1: Preview Text -->
+                                        <TextBlock Grid.Row="1"
+                                                   Text="{Binding Preview}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   TextTrimming="CharacterEllipsis"/>
+
+                                        <!-- Row 2: Progress Bar in Its Own Row -->
+                                        <ProgressBar Grid.Row="2"
+                                                     Minimum="0"
+                                                     Maximum="1"
+                                                     Value="{Binding ProgressFraction}"
+                                                     Height="5"/>
+
+                                        <!-- Row 3: Delivery Counters -->
+                                        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+                                            <TextBlock Text="{Binding Progress, StringFormat='Sent: {0}'}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding Failed, StringFormat='Failed: {0}'}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource CriticalBrush}"/>
+                                            <TextBlock Text="{Binding Blocked, StringFormat='Blocked: {0}'}"
+                                                       FontSize="10"
+                                                       FontFamily="{StaticResource MonoFontFamily}"
+                                                       Foreground="{DynamicResource WarningBrush}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </Grid>
+
+            <!-- Right Column: Compose Panel + Selected Broadcast Details -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="12" Margin="0,0,4,0">
+                    <!-- Compose Card -->
+                    <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="COMPOSE BROADCAST" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+
+                            <TextBox Text="{Binding ComposeText, Mode=TwoWay}"
+                                     PlaceholderText="Write broadcast message..."
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     MinHeight="96"
+                                     MaxHeight="220"
+                                     FontSize="12"/>
+
+                            <!-- Optional Language Overrides -->
+                            <Expander Header="English override (optional)" HorizontalAlignment="Stretch">
+                                <TextBox Text="{Binding ComposeTextEn, Mode=TwoWay}"
+                                         PlaceholderText="Optional English text override..."
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         MinHeight="64"
+                                         MaxHeight="160"
+                                         FontSize="11"/>
+                            </Expander>
+
+                            <Expander Header="Persian / Farsi override (optional)" HorizontalAlignment="Stretch">
+                                <TextBox Text="{Binding ComposeTextFa, Mode=TwoWay}"
+                                         PlaceholderText="Optional Persian text override..."
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         MinHeight="64"
+                                         MaxHeight="160"
+                                         FontSize="11"/>
+                            </Expander>
+
+                            <!-- Parse Mode -->
+                            <Grid ColumnDefinitions="110,*" ColumnSpacing="8">
+                                <TextBlock Text="Parse mode:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" SelectedIndex="{Binding ParseModeIndex, Mode=TwoWay}" HorizontalAlignment="Stretch" FontSize="11">
+                                    <ComboBoxItem Content="HTML"/>
+                                    <ComboBoxItem Content="Plain"/>
+                                </ComboBox>
+                            </Grid>
+                            <TextBlock Text="Allowed HTML: b, i, u, s, a, code, pre, blockquote, tg-spoiler (escape &lt; &gt; &amp; as text)"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       TextWrapping="Wrap"/>
+
+                            <!-- Audience Kind -->
+                            <Grid ColumnDefinitions="110,*" ColumnSpacing="8">
+                                <TextBlock Text="Audience:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" SelectedIndex="{Binding AudienceKindIndex, Mode=TwoWay}" HorizontalAlignment="Stretch" FontSize="11">
+                                    <ComboBoxItem Content="All users"/>
+                                    <ComboBoxItem Content="Admins only (test)"/>
+                                    <ComboBoxItem Content="Specific user IDs"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Specific User IDs (visible only for kind 2) -->
+                            <Grid ColumnDefinitions="110,*" ColumnSpacing="8" IsVisible="{Binding IsSpecificUsersAudience}">
+                                <TextBlock Text="User IDs:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding UserIdsText, Mode=TwoWay}"
+                                         PlaceholderText="Comma or space separated IDs"
+                                         FontSize="11"
+                                         FontFamily="{StaticResource MonoFontFamily}"/>
+                            </Grid>
+
+                            <!-- Active Days -->
+                            <Grid ColumnDefinitions="110,*" ColumnSpacing="8">
+                                <TextBlock Text="Active days:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                <TextBox Grid.Column="1"
+                                         Text="{Binding ActiveDaysText, Mode=TwoWay}"
+                                         PlaceholderText="Empty = no filter"
+                                         FontSize="11"
+                                         FontFamily="{StaticResource MonoFontFamily}"/>
+                            </Grid>
+
+                            <!-- Language & Reachability Filters -->
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <CheckBox IsChecked="{Binding LangEn, Mode=TwoWay}" Content="en" FontSize="11"/>
+                                <CheckBox IsChecked="{Binding LangFa, Mode=TwoWay}" Content="fa" FontSize="11"/>
+                                <CheckBox IsChecked="{Binding IncludeUnreachable, Mode=TwoWay}" Content="Include unreachable" FontSize="11"/>
+                            </StackPanel>
+
+                            <!-- Live Recipient Count -->
+                            <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <TextBlock Text="Estimated audience:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding AudienceCountText}"
+                                               FontSize="11"
+                                               FontFamily="{StaticResource MonoFontFamily}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Send Actions -->
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                <Button Command="{Binding SendTestCommand}"
+                                        Content="Send test to admins"
+                                        Padding="10,6"
+                                        FontSize="11"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                                <Button Command="{Binding RequestSendCommand}"
+                                        Content="{Binding SendButtonText}"
+                                        Background="{DynamicResource AccentBrush}"
+                                        Foreground="White"
+                                        Padding="12,6"
+                                        FontSize="11"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Details Card -->
+                    <Border Background="{DynamicResource CardBgBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12"
+                            IsVisible="{Binding HasDetails}">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="BROADCAST DETAILS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Details.BroadcastId, FallbackValue=''}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Details.StatusText, FallbackValue=''}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Command="{Binding CancelBroadcastCommand}"
+                                        Content="Cancel Broadcast"
+                                        Foreground="{DynamicResource CriticalBrush}"
+                                        Padding="10,4"
+                                        FontSize="11"
+                                        IsVisible="{Binding CanCancelSelected}"
+                                        IsEnabled="{Binding !IsBusy}"/>
+                            </Grid>
+
+                            <!-- Broadcast Error -->
+                            <Border Background="{DynamicResource DarkBaseBrush}"
+                                    BorderBrush="{DynamicResource CriticalBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,5"
+                                    IsVisible="{Binding Details.HasError, FallbackValue=False}">
+                                <TextBlock Text="{Binding Details.Error, FallbackValue=''}"
+                                           Foreground="{DynamicResource CriticalBrush}"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                            <!-- Metadata -->
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Audience:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Details.AudienceSummary, FallbackValue=''}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" TextWrapping="Wrap"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Parse mode:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Details.ParseMode, FallbackValue=''}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Created:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Details.CreatedAt, FallbackValue=''}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Created by:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Details.CreatedBy, FallbackValue=''}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}"/>
+                            </Grid>
+
+                            <!-- Message Text -->
+                            <TextBox Text="{Binding Details.Text, Mode=OneWay, FallbackValue=''}"
+                                     IsReadOnly="True"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     MaxHeight="140"
+                                     FontSize="11"
+                                     Background="{DynamicResource DarkBaseBrush}"/>
+
+                            <!-- Deliveries Breakdown -->
+                            <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                                <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="PENDING" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="{Binding Details.Pending, FallbackValue=0}" FontSize="13" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource WarningBrush}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="SENT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="{Binding Details.Sent, FallbackValue=0}" FontSize="13" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource HealthyBrush}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="2">
+                                        <TextBlock Text="FAILED" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="{Binding Details.Failed, FallbackValue=0}" FontSize="13" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource CriticalBrush}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" Spacing="2">
+                                        <TextBlock Text="BLOCKED" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                        <TextBlock Text="{Binding Details.Blocked, FallbackValue=0}" FontSize="13" FontWeight="Bold" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Recent Errors -->
+                            <StackPanel Spacing="6" IsVisible="{Binding Details.HasRecentErrors, FallbackValue=False}">
+                                <TextBlock Text="RECENT ERRORS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <Border Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8">
+                                    <ItemsControl ItemsSource="{Binding Details.RecentErrors}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:SfBroadcastErrorRow">
+                                                <Grid ColumnDefinitions="90,70,*,130" ColumnSpacing="8" Margin="0,2">
+                                                    <TextBlock Grid.Column="0" Text="{Binding UserId}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="10" Foreground="{DynamicResource WarningBrush}"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Error}" FontSize="10" Foreground="{DynamicResource CriticalBrush}" TextWrapping="Wrap"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding At}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Confirmation Dialog Overlay -->
+        <Border Background="#AA000000" IsVisible="{Binding IsConfirmOpen}">
+            <Border Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="20"
+                    Width="360"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="Confirm Broadcast" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding ConfirmText}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button Command="{Binding CancelConfirmCommand}" Content="Cancel" Padding="12,6" FontSize="11"/>
+                        <Button Command="{Binding ConfirmSendCommand}"
+                                Content="Confirm Send"
+                                Background="{DynamicResource AccentBrush}"
+                                Foreground="White"
+                                Padding="12,6"
+                                FontSize="11"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Panel>
+</UserControl>
