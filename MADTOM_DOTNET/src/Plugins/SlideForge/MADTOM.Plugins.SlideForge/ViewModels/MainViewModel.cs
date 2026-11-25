@@ -46,6 +46,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public SfGuidesViewModel GuidesTab { get; }
     public SfSandboxViewModel SandboxTab { get; }
     public SfConfigViewModel ConfigTab { get; }
+    public SfBroadcastsViewModel BroadcastsTab { get; }
     public SfLogsViewModel LogsTab { get; }
     public SfSettingsViewModel SettingsViewModel { get; }
 
@@ -59,6 +60,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         GuidesTab = new SfGuidesViewModel(null);
         SandboxTab = new SfSandboxViewModel(null);
         ConfigTab = new SfConfigViewModel(null);
+        BroadcastsTab = new SfBroadcastsViewModel(null);
         LogsTab = new SfLogsViewModel();
         SettingsViewModel = new SfSettingsViewModel(_nodeManager);
 
@@ -98,12 +100,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SelectedNode ??= ActiveNodes.FirstOrDefault();
     }
 
-    partial void OnSelectedWorkspaceTabIndexChanged(int value)
+    // Workspace tab order (keep in sync with MainView.axaml).
+    public const int TabOverview = 0, TabJobs = 1, TabUsers = 2, TabGuides = 3, TabSandbox = 4,
+        TabConfig = 5, TabBroadcasts = 6, TabLogs = 7;
+
+    partial void OnSelectedWorkspaceTabIndexChanged(int oldValue, int newValue)
     {
-        if (value == 4 && IsConnected)
+        if (oldValue == TabBroadcasts && newValue != TabBroadcasts)
+            BroadcastsTab.OnTabClosed();
+        if (IsConnected)
+            RefreshOpenedTab(newValue);
+    }
+
+    /// <summary>Background refresh whenever a tab is opened; never blocks the UI and keeps current data visible.</summary>
+    private void RefreshOpenedTab(int tab)
+    {
+        var ct = _connectionCts?.Token ?? CancellationToken.None;
+        switch (tab)
         {
-            var ct = _connectionCts?.Token ?? CancellationToken.None;
-            _ = SandboxTab.RefreshAllAsync(ct);
+            case TabUsers: _ = UsersTab.RefreshSilentAsync(ct); break;
+            case TabGuides: _ = GuidesTab.RefreshSilentAsync(ct); break;
+            case TabConfig: _ = ConfigTab.RefreshSilentAsync(ct); break;
+            case TabSandbox: _ = SandboxTab.RefreshAllAsync(ct); break;
+            case TabBroadcasts: BroadcastsTab.OnTabOpened(); break;
         }
     }
 
@@ -138,6 +157,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         GuidesTab.SetRpc(rpc);
         SandboxTab.SetRpc(rpc);
         ConfigTab.SetRpc(rpc);
+        BroadcastsTab.SetRpc(rpc);
 
         IsConnected = true;
         ConnectionStatusBadge = "• CONNECTING";
@@ -180,6 +200,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         GuidesTab.SetRpc(null);
         SandboxTab.SetRpc(null);
         ConfigTab.SetRpc(null);
+        BroadcastsTab.SetRpc(null);
+        BroadcastsTab.OnTabClosed();
     }
 
     [RelayCommand]
@@ -253,7 +275,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         VersionsSummary = $"SlideForge: {OrDash(status.SlideforgeVersion)} · Probe: {OrDash(status.ProbeVersion)} · Python: {OrDash(status.PythonVersion)}";
                         UptimeSummary = $"Uptime: {FormatUptime(status.UptimeSeconds)}";
                         SpoolSummary = $"Spool: {SfJsonHelpers.FormatBytes((long)status.CurrentSpoolBytes)} / {SfJsonHelpers.FormatBytes((long)status.MaxSpoolBytes)}";
-                        if (SelectedWorkspaceTabIndex == 4 && status.BotRunning)
+                        if (SelectedWorkspaceTabIndex == TabSandbox && status.BotRunning)
                         {
                             _ = SandboxTab.RefreshSilentAsync(ct);
                         }

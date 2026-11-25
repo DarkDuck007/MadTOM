@@ -159,7 +159,7 @@ public sealed partial class SfJobsViewModel : ObservableObject
         FilePreviewPages = 0;
         FileViewerNotice = value is null
             ? string.Empty
-            : (!value.IsPreviewable && !value.IsText ? "Binary file — use Save as… to download." : string.Empty);
+            : (!value.IsPreviewable && !value.IsText ? "Unknown file type — press Preview / Read to try opening it." : string.Empty);
     }
 
     public SfJobsViewModel(SfRpc? rpc)
@@ -371,9 +371,8 @@ public sealed partial class SfJobsViewModel : ObservableObject
         }
         else
         {
-            FileViewerText = null;
-            FilePreviewImage = null;
-            FileViewerNotice = "Binary file — use Save as… to download.";
+            // Unknown type: let the server decide (it reports binary content, which we show as a notice).
+            await LoadFileTextAsync(target, ct);
         }
     }
 
@@ -498,7 +497,9 @@ public sealed partial class SfJobsViewModel : ObservableObject
         catch (SfRpcException ex)
         {
             FilePreviewImage = null;
-            FileViewerNotice = ex.Code;
+            FileViewerNotice = ex.Code == "not_supported"
+                ? "No page preview available for this file (the bot host may lack a converter). Use Save as… to download."
+                : ex.Code;
             ErrorMessage = ex.Code;
         }
         catch (Exception ex)

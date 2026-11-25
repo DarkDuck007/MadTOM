@@ -128,32 +128,71 @@
 
             <!-- Sub-Tab 3: Prompt Preview -->
             <TabItem Header="Prompt Preview" FontSize="12">
-                <Grid ColumnDefinitions="360,*" ColumnSpacing="12" Margin="0,8,0,0">
-                    <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10">
-                        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
-                            <TextBlock Text="SAMPLE SPEC JSON" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                            <TextBox Grid.Row="1"
-                                     Text="{Binding PreviewSpecJson, Mode=TwoWay}"
-                                     AcceptsReturn="True"
-                                     TextWrapping="Wrap"
-                                     FontFamily="{StaticResource MonoFontFamily}"
-                                     FontSize="11"/>
-                            <Button Grid.Row="2" Command="{Binding PreviewPromptCommand}" Content="Render Prompt Preview" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10,6" FontSize="11"/>
-                        </Grid>
-                    </Border>
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8" Margin="0,8,0,0">
+                    <TextBlock Grid.Row="0"
+                               Text="{x:Static vm:SfGuidesViewModel.PreviewHint}"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               FontSize="11"/>
 
-                    <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10">
-                        <Grid RowDefinitions="Auto,*" RowSpacing="8">
-                            <TextBlock Text="ASSEMBLED PROMPT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
-                            <TextBox Grid.Row="1"
-                                     Text="{Binding PromptPreview, Mode=OneWay}"
-                                     IsReadOnly="True"
-                                     AcceptsReturn="True"
-                                     TextWrapping="Wrap"
-                                     FontFamily="{StaticResource MonoFontFamily}"
-                                     FontSize="11"/>
-                        </Grid>
-                    </Border>
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding PreviewJobIdInput, Mode=TwoWay}"
+                                 PlaceholderText="job id e.g. 1a2b3c4d"
+                                 FontFamily="{StaticResource MonoFontFamily}"
+                                 FontSize="11"/>
+                        <Button Grid.Column="1"
+                                Command="{Binding LoadSpecFromJobCommand}"
+                                CommandParameter="{Binding PreviewJobIdInput}"
+                                Content="Load spec from job"
+                                Padding="10,5"
+                                FontSize="11"
+                                IsEnabled="{Binding !IsBusy}"/>
+                        <Button Grid.Column="2"
+                                Command="{Binding ResetPreviewSpecCommand}"
+                                Content="Reset template"
+                                Padding="10,5"
+                                FontSize="11"
+                                IsEnabled="{Binding !IsBusy}"/>
+                        <Button Grid.Column="3"
+                                Command="{Binding PreviewPromptCommand}"
+                                Content="Render prompt"
+                                Background="{DynamicResource AccentBrush}"
+                                Foreground="White"
+                                FontWeight="Bold"
+                                Padding="12,5"
+                                FontSize="11"
+                                IsEnabled="{Binding !IsBusy}"/>
+                    </Grid>
+
+                    <Grid Grid.Row="2" ColumnDefinitions="420,*" ColumnSpacing="12">
+                        <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                <TextBlock Text="SAMPLE SPEC JSON" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding PreviewSpecJson, Mode=TwoWay}"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         FontFamily="{StaticResource MonoFontFamily}"
+                                         FontSize="11"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                <TextBlock Text="ASSEMBLED PROMPT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding PromptPreview, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         FontFamily="{StaticResource MonoFontFamily}"
+                                         FontSize="11"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Grid>
             </TabItem>
         </TabControl>

@@ -9,7 +9,7 @@ using Avalonia.Media.Imaging;
 
 namespace MADTOM.Plugins.SlideForge.ViewModels;
 
-internal static class SfJsonHelpers
+public static class SfJsonHelpers
 {
     public const int MaxPreviewBase64Bytes = 16 * 1024 * 1024;
 
@@ -18,23 +18,27 @@ internal static class SfJsonHelpers
     private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         "txt", "md", "csv", "tsv", "json", "yaml", "yml", "xml", "html", "htm",
-        "css", "js", "py", "log", "ini", "toml", "sh", "sql"
+        "css", "js", "py", "log", "ini", "toml", "sh", "sql", "svg"
     };
 
     private static readonly HashSet<string> SandboxPreviewExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         "png", "jpg", "jpeg", "webp", "gif", "bmp", "pdf",
-        "docx", "xlsx", "pptx", "odt", "ods", "odp", "svg"
+        "docx", "doc", "xlsx", "xls", "pptx", "ppt", "odt", "ods", "odp", "rtf", "svg"
     };
 
     private static readonly HashSet<string> JobPreviewExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        "png", "jpg", "jpeg", "webp", "gif", "pdf"
+        "png", "jpg", "jpeg", "webp", "gif", "pdf",
+        // Office documents are converted to PDF page images by the SlideForge control server.
+        "docx", "doc", "odt", "rtf", "pptx", "ppt", "odp", "xlsx", "xls", "ods"
     };
 
     public static readonly JsonSerializerOptions PrettyOptions = new()
     {
         WriteIndented = true,
+        // Keep non-ASCII (Persian etc.) readable instead of \uXXXX escapes; this output is display-only.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     public static string? GetStringOrNull(JsonElement obj, string prop)

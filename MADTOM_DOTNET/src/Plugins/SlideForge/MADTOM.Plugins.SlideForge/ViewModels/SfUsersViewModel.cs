@@ -37,6 +37,8 @@ public sealed record SfUserRow(
 public sealed partial class SfUsersViewModel : ObservableObject
 {
     private SfRpc? _rpc;
+    private int _refreshInFlight;
+    private bool _suppressQuotaInputSync;
 
     [ObservableProperty] private string _searchText = string.Empty;
     [ObservableProperty] private int _totalCount;
@@ -52,7 +54,8 @@ public sealed partial class SfUsersViewModel : ObservableObject
     partial void OnSelectedUserChanged(SfUserRow? value)
     {
         OnPropertyChanged(nameof(HasSelectedUser));
-        QuotaLimitInput = value?.WeeklyLimit?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        if (!_suppressQuotaInputSync)
+            QuotaLimitInput = value?.WeeklyLimit?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     public SfUsersViewModel(SfRpc? rpc)
@@ -77,49 +80,14 @@ public sealed partial class SfUsersViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var payload = new Dictionary<string, object?>();
-            if (!string.IsNullOrWhiteSpace(SearchText))
-                payload["query"] = SearchText.Trim();
-
-            var root = await _rpc.CallAsync("list_users", payload, ct);
-            TotalCount = SfJsonHelpers.GetInt(root, "total");
-
-            long? prevId = SelectedUser?.UserId;
-            Users.Clear();
-            if (root.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var item in items.EnumerateArray())
-                {
-                    Users.Add(new SfUserRow(
-                        UserId: SfJsonHelpers.GetLong(item, "user_id"),
-                        Username: SfJsonHelpers.GetStringOrNull(item, "username"),
-                        FirstName: SfJsonHelpers.GetStringOrNull(item, "first_name"),
-                        Lang: SfJsonHelpers.GetString(item, "lang"),
-                        Banned: SfJsonHelpers.GetBool(item, "banned"),
-                        WeeklyLimit: SfJsonHelpers.GetNullableInt(item, "weekly_limit"),
-                        Jobs7d: SfJsonHelpers.GetInt(item, "jobs_7d"),
-                        Used: SfJsonHelpers.GetInt(item, "used"),
-                        Limit: SfJsonHelpers.GetInt(item, "limit")));
-                }
-            }
-
-            if (prevId.HasValue)
-            {
-                foreach (var u in Users)
-                {
-                    if (u.UserId == prevId.Value)
-                    {
-                        SelectedUser = u;
-                        break;
-                    }
-                }
-            }
-
-            ErrorMessage = null;
+            await LoadUsersCoreAsync(silent: false, ct);
         }
         catch (SfRpcException ex)
         {
             ErrorMessage = ex.Code;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
         }
         catch (Exception ex)
         {
@@ -129,6 +97,128 @@ public sealed partial class SfUsersViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    public async Task RefreshSilentAsync(CancellationToken ct = default)
+    {
+        if (_rpc is null)
+        {
+            ErrorMessage = "not_connected";
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _refreshInFlight, 1, 0) != 0)
+            return;
+
+        try
+        {
+            await LoadUsersCoreAsync(silent: true, ct);
+        }
+        catch (SfRpcException ex)
+        {
+            ErrorMessage = ex.Code;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _refreshInFlight, 0);
+        }
+    }
+
+    private async Task LoadUsersCoreAsync(bool silent, CancellationToken ct)
+    {
+        var payload = new Dictionary<string, object?>();
+        if (!string.IsNullOrWhiteSpace(SearchText))
+            payload["query"] = SearchText.Trim();
+
+        var root = await _rpc!.CallAsync("list_users", payload, ct);
+        TotalCount = SfJsonHelpers.GetInt(root, "total");
+
+        var incoming = new List<SfUserRow>();
+        var incomingById = new Dictionary<long, SfUserRow>();
+        if (root.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in items.EnumerateArray())
+            {
+                var row = new SfUserRow(
+                    UserId: SfJsonHelpers.GetLong(item, "user_id"),
+                    Username: SfJsonHelpers.GetStringOrNull(item, "username"),
+                    FirstName: SfJsonHelpers.GetStringOrNull(item, "first_name"),
+                    Lang: SfJsonHelpers.GetString(item, "lang"),
+                    Banned: SfJsonHelpers.GetBool(item, "banned"),
+                    WeeklyLimit: SfJsonHelpers.GetNullableInt(item, "weekly_limit"),
+                    Jobs7d: SfJsonHelpers.GetInt(item, "jobs_7d"),
+                    Used: SfJsonHelpers.GetInt(item, "used"),
+                    Limit: SfJsonHelpers.GetInt(item, "limit"));
+                incoming.Add(row);
+                incomingById[row.UserId] = row;
+            }
+        }
+
+        long? prevId = SelectedUser?.UserId;
+
+        for (int i = Users.Count - 1; i >= 0; i--)
+        {
+            if (!incomingById.ContainsKey(Users[i].UserId))
+                Users.RemoveAt(i);
+        }
+
+        var existingIds = new HashSet<long>();
+        for (int i = 0; i < Users.Count; i++)
+        {
+            var existing = Users[i];
+            existingIds.Add(existing.UserId);
+            var updated = incomingById[existing.UserId];
+            if (existing != updated)
+                Users[i] = updated;
+        }
+
+        foreach (var row in incoming)
+        {
+            if (existingIds.Add(row.UserId))
+                Users.Add(row);
+        }
+
+        if (prevId.HasValue)
+        {
+            SfUserRow? match = null;
+            foreach (var u in Users)
+            {
+                if (u.UserId == prevId.Value)
+                {
+                    match = u;
+                    break;
+                }
+            }
+
+            bool prevSuppress = _suppressQuotaInputSync;
+            if (silent)
+                _suppressQuotaInputSync = true;
+            try
+            {
+                if (match is not null)
+                {
+                    if (!ReferenceEquals(SelectedUser, match))
+                        SelectedUser = match;
+                }
+                else
+                {
+                    SelectedUser = null;
+                }
+            }
+            finally
+            {
+                _suppressQuotaInputSync = prevSuppress;
+            }
+        }
+
+        ErrorMessage = null;
     }
 
     public async Task SetQuotaAsync(SfUserRow user, int? weeklyLimit, CancellationToken ct = default)

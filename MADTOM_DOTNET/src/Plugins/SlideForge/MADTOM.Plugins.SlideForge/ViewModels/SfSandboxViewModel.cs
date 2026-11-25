@@ -6,33 +6,144 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MADTOM.Plugins.SlideForge.Services;
 
 namespace MADTOM.Plugins.SlideForge.ViewModels;
 
-public sealed record SfSandboxVmRow(
-    long ChatId,
-    string UserLabel,
-    string Kind,
-    string State,
-    string ImageVersion,
-    long MemMb,
-    int Vcpus,
-    long DiskUsedBytes,
-    long DiskQuotaBytes,
-    string LastUsed,
-    long UptimeSeconds = 0,
-    double CpuSecondsToday = 0.0,
-    double CpuBudgetSeconds = 0.0,
-    string CpuResetsAt = "",
-    long Pid = 0,
-    string Since = "",
-    int Backups = 0
-)
+public sealed partial class SfSandboxVmRow : ObservableObject
 {
+    public long ChatId { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayLabel))]
+    private string _userLabel;
+
+    [ObservableProperty]
+    private string _kind;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHot))]
+    [NotifyPropertyChangedFor(nameof(IsCold))]
+    [NotifyPropertyChangedFor(nameof(StateBadge))]
+    [NotifyPropertyChangedFor(nameof(UptimeDisplay))]
+    private string _state;
+
+    [ObservableProperty]
+    private string _imageVersion;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResourcesDisplay))]
+    [NotifyPropertyChangedFor(nameof(MemoryDisplay))]
+    private long _memMb;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResourcesDisplay))]
+    [NotifyPropertyChangedFor(nameof(MemoryDisplay))]
+    private int _vcpus;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DiskDisplay))]
+    [NotifyPropertyChangedFor(nameof(DiskUsageFraction))]
+    private long _diskUsedBytes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DiskDisplay))]
+    [NotifyPropertyChangedFor(nameof(DiskUsageFraction))]
+    private long _diskQuotaBytes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastRunDisplay))]
+    private string _lastUsed;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UptimeDisplay))]
+    private long _uptimeSeconds;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CpuDisplay))]
+    [NotifyPropertyChangedFor(nameof(CpuFraction))]
+    private double _cpuSecondsToday;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CpuDisplay))]
+    [NotifyPropertyChangedFor(nameof(CpuFraction))]
+    private double _cpuBudgetSeconds;
+
+    [ObservableProperty]
+    private string _cpuResetsAt;
+
+    [ObservableProperty]
+    private long _pid;
+
+    [ObservableProperty]
+    private string _since;
+
+    [ObservableProperty]
+    private int _backups;
+
+    public SfSandboxVmRow(
+        long ChatId,
+        string UserLabel,
+        string Kind,
+        string State,
+        string ImageVersion,
+        long MemMb,
+        int Vcpus,
+        long DiskUsedBytes,
+        long DiskQuotaBytes,
+        string LastUsed,
+        long UptimeSeconds = 0,
+        double CpuSecondsToday = 0.0,
+        double CpuBudgetSeconds = 0.0,
+        string CpuResetsAt = "",
+        long Pid = 0,
+        string Since = "",
+        int Backups = 0)
+    {
+        this.ChatId = ChatId;
+        _userLabel = UserLabel;
+        _kind = Kind;
+        _state = State;
+        _imageVersion = ImageVersion;
+        _memMb = MemMb;
+        _vcpus = Vcpus;
+        _diskUsedBytes = DiskUsedBytes;
+        _diskQuotaBytes = DiskQuotaBytes;
+        _lastUsed = LastUsed;
+        _uptimeSeconds = UptimeSeconds;
+        _cpuSecondsToday = CpuSecondsToday;
+        _cpuBudgetSeconds = CpuBudgetSeconds;
+        _cpuResetsAt = CpuResetsAt;
+        _pid = Pid;
+        _since = Since;
+        _backups = Backups;
+    }
+
+    public void UpdateFrom(SfSandboxVmRow other)
+    {
+        UserLabel = other.UserLabel;
+        Kind = other.Kind;
+        State = other.State;
+        ImageVersion = other.ImageVersion;
+        MemMb = other.MemMb;
+        Vcpus = other.Vcpus;
+        DiskUsedBytes = other.DiskUsedBytes;
+        DiskQuotaBytes = other.DiskQuotaBytes;
+        LastUsed = other.LastUsed;
+        UptimeSeconds = other.UptimeSeconds;
+        CpuSecondsToday = other.CpuSecondsToday;
+        CpuBudgetSeconds = other.CpuBudgetSeconds;
+        CpuResetsAt = other.CpuResetsAt;
+        Pid = other.Pid;
+        Since = other.Since;
+        Backups = other.Backups;
+    }
+
     public string DisplayLabel => !string.IsNullOrWhiteSpace(UserLabel)
         ? $"{UserLabel} ({ChatId})"
         : ChatId.ToString(CultureInfo.InvariantCulture);
@@ -92,6 +203,14 @@ public sealed record SfSandboxFileRow(
 public sealed partial class SfSandboxViewModel : ObservableObject
 {
     private SfRpc? _rpc;
+    private int _refreshInFlight;
+    private DateTime? _lastSuccessfulRefreshUtc;
+    private bool _lastStatsIncludedImageStatus;
+    private bool _isSyncingVms;
+    private long? _lastSelectedChatId;
+
+    public int AutoRefreshIntervalSeconds { get; set; } = 10;
+    public Func<DateTime> Clock { get; set; } = static () => DateTime.UtcNow;
 
     [ObservableProperty] private SfSandboxVmRow? _selectedVm;
     [ObservableProperty] private string _sessionName = "main";
@@ -161,7 +280,7 @@ public sealed partial class SfSandboxViewModel : ObservableObject
 
     [ObservableProperty] private string _viewerNotice = string.Empty;
 
-    public bool CanPreviewSelectedFile => SelectedFile is not null && !SelectedFile.IsDirectory && SelectedFile.IsPreview;
+    public bool CanPreviewSelectedFile => SelectedFile is not null && !SelectedFile.IsDirectory;
     public bool IsTextViewerVisible => ViewerText is not null;
     public bool IsImageViewerVisible => PreviewImage is not null;
     public bool HasMultiplePages => PreviewPages > 1;
@@ -184,6 +303,14 @@ public sealed partial class SfSandboxViewModel : ObservableObject
     partial void OnSelectedVmChanged(SfSandboxVmRow? value)
     {
         OnPropertyChanged(nameof(HasSelectedVm));
+        long? newId = value?.ChatId;
+        if (_isSyncingVms && newId is not null && newId == _lastSelectedChatId)
+            return;
+
+        if (newId is not null && newId == _lastSelectedChatId)
+            return;
+
+        _lastSelectedChatId = newId;
         if (value is null)
         {
             Files.Clear();
@@ -208,10 +335,6 @@ public sealed partial class SfSandboxViewModel : ObservableObject
         {
             ViewerNotice = "Directory selected. Click Open or double-click to browse.";
         }
-        else if (!value.IsText && !value.IsPreview)
-        {
-            ViewerNotice = "No preview for this file type.";
-        }
         else
         {
             ViewerNotice = string.Empty;
@@ -223,65 +346,102 @@ public sealed partial class SfSandboxViewModel : ObservableObject
         _rpc = rpc;
     }
 
-    public void SetRpc(SfRpc? rpc) => _rpc = rpc;
+    public void SetRpc(SfRpc? rpc)
+    {
+        _rpc = rpc;
+        _lastSuccessfulRefreshUtc = null;
+    }
 
     [RelayCommand]
     public async Task RefreshAllAsync(CancellationToken ct = default)
     {
-        await LoadVmsAsync(ct);
-        await LoadImageStatusAsync(ct);
+        await RefreshCoreAsync(silent: false, ct);
+        if (!_lastStatsIncludedImageStatus)
+            await LoadImageStatusAsync(ct);
     }
 
-    public async Task RefreshSilentAsync(CancellationToken ct = default)
+    public Task RefreshSilentAsync(CancellationToken ct = default)
     {
-        if (_rpc is null || IsBusy || !AutoRefresh) return;
-        await LoadVmsAsync(ct);
+        if (_rpc is null || !AutoRefresh)
+            return Task.CompletedTask;
+
+        if (_lastSuccessfulRefreshUtc is DateTime last &&
+            (Clock() - last).TotalSeconds < AutoRefreshIntervalSeconds)
+            return Task.CompletedTask;
+
+        return RefreshCoreAsync(silent: true, ct);
     }
 
     [RelayCommand]
-    public async Task LoadVmsAsync(CancellationToken ct = default)
+    public Task LoadVmsAsync(CancellationToken ct = default) => RefreshCoreAsync(silent: false, ct);
+
+    private async Task RefreshCoreAsync(bool silent, CancellationToken ct)
     {
-        if (_rpc is null)
+        var rpc = _rpc;
+        if (rpc is null)
         {
-            ErrorMessage = "not_connected";
+            if (!silent)
+                ErrorMessage = "not_connected";
             return;
         }
 
-        IsBusy = true;
+        if (Interlocked.CompareExchange(ref _refreshInFlight, 1, 0) != 0)
+            return;
+
+        if (!silent)
+            await RunOnUiAsync(() => IsBusy = true);
+
         try
         {
             JsonElement root;
             try
             {
-                root = await _rpc.CallAsync("sandbox_stats", null, ct);
+                root = await rpc.CallAsync("sandbox_stats", null, ct);
             }
             catch (SfRpcException ex) when (ex.Code is "method_not_allowed" or "unknown_method")
             {
-                root = await _rpc.CallAsync("sandbox_list_vms", null, ct);
+                root = await rpc.CallAsync("sandbox_list_vms", null, ct);
             }
 
-            ApplyVmStatsPayload(root);
-            ErrorMessage = null;
+            await RunOnUiAsync(() =>
+            {
+                ApplyVmStatsPayload(root);
+                ErrorMessage = null;
+            });
+            _lastSuccessfulRefreshUtc = Clock();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Ignore cancellation
         }
         catch (SfRpcException ex)
         {
-            ErrorMessage = ex.Code;
+            await RunOnUiAsync(() => ErrorMessage = ex.Code);
         }
         catch (Exception ex)
         {
-            ErrorMessage = ex.Message;
+            await RunOnUiAsync(() => ErrorMessage = ex.Message);
         }
         finally
         {
-            IsBusy = false;
+            Interlocked.Exchange(ref _refreshInFlight, 0);
+            if (!silent)
+                await RunOnUiAsync(() => IsBusy = false);
         }
+    }
+
+    private static async Task RunOnUiAsync(Action action)
+    {
+        if (Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+        await Dispatcher.UIThread.InvokeAsync(action);
     }
 
     private void ApplyVmStatsPayload(JsonElement root)
     {
-        long? prevId = SelectedVm?.ChatId;
-        Vms.Clear();
-
         double defaultCpuBudget = 0;
         long defaultDiskQuota = 0;
         if (root.TryGetProperty("caps", out var capsEl) && capsEl.ValueKind == JsonValueKind.Object)
@@ -291,11 +451,16 @@ public sealed partial class SfSandboxViewModel : ObservableObject
             if (diskGb > 0) defaultDiskQuota = diskGb * 1024L * 1024L * 1024L;
         }
 
+        var incoming = new List<SfSandboxVmRow>();
+        var incomingIds = new HashSet<long>();
         if (root.TryGetProperty("vms", out var vmsEl) && vmsEl.ValueKind == JsonValueKind.Array)
         {
             foreach (var v in vmsEl.EnumerateArray())
             {
                 long chatId = SfJsonHelpers.GetLong(v, "chat_id");
+                if (!incomingIds.Add(chatId))
+                    continue;
+
                 string label = SfJsonHelpers.GetStringOrNull(v, "user_label")
                     ?? SfJsonHelpers.GetStringOrNull(v, "chat_title")
                     ?? string.Empty;
@@ -304,7 +469,7 @@ public sealed partial class SfSandboxViewModel : ObservableObject
                 double cpuBudget = SfJsonHelpers.GetDouble(v, "cpu_budget_seconds");
                 if (cpuBudget <= 0 && defaultCpuBudget > 0) cpuBudget = defaultCpuBudget;
 
-                Vms.Add(new SfSandboxVmRow(
+                incoming.Add(new SfSandboxVmRow(
                     ChatId: chatId,
                     UserLabel: label,
                     Kind: SfJsonHelpers.GetString(v, "kind"),
@@ -325,6 +490,63 @@ public sealed partial class SfSandboxViewModel : ObservableObject
             }
         }
 
+        long? prevId = SelectedVm?.ChatId;
+        _isSyncingVms = true;
+        try
+        {
+            // Remove vanished rows in place (never Clear)
+            for (int i = Vms.Count - 1; i >= 0; i--)
+            {
+                if (!incomingIds.Contains(Vms[i].ChatId))
+                    Vms.RemoveAt(i);
+            }
+
+            // Update existing rows in place, reorder if needed, and insert new rows at their target index
+            for (int targetIdx = 0; targetIdx < incoming.Count; targetIdx++)
+            {
+                var next = incoming[targetIdx];
+                int existingIdx = -1;
+                for (int j = targetIdx; j < Vms.Count; j++)
+                {
+                    if (Vms[j].ChatId == next.ChatId)
+                    {
+                        existingIdx = j;
+                        break;
+                    }
+                }
+
+                if (existingIdx >= 0)
+                {
+                    if (existingIdx != targetIdx)
+                        Vms.Move(existingIdx, targetIdx);
+                    Vms[targetIdx].UpdateFrom(next);
+                }
+                else
+                {
+                    Vms.Insert(targetIdx, next);
+                }
+            }
+
+            if (prevId.HasValue)
+            {
+                var match = Vms.FirstOrDefault(vm => vm.ChatId == prevId.Value);
+                if (match is not null)
+                {
+                    if (!ReferenceEquals(SelectedVm, match))
+                        SelectedVm = match;
+                }
+                else
+                {
+                    _isSyncingVms = false;
+                    SelectedVm = null;
+                }
+            }
+        }
+        finally
+        {
+            _isSyncingVms = false;
+        }
+
         if (root.TryGetProperty("totals", out var totalsEl) && totalsEl.ValueKind == JsonValueKind.Object)
         {
             RunningVms = SfJsonHelpers.GetInt(totalsEl, "running");
@@ -342,11 +564,38 @@ public sealed partial class SfSandboxViewModel : ObservableObject
             HostSummary = $"State disk: {StateDirUsedPercent:F1}%";
         }
 
-        if (prevId.HasValue)
+        if ((root.TryGetProperty("image", out var imgEl) || root.TryGetProperty("image_status", out imgEl)) &&
+            imgEl.ValueKind == JsonValueKind.Object)
         {
-            var match = Vms.FirstOrDefault(vm => vm.ChatId == prevId.Value);
-            if (match is not null)
-                SelectedVm = match;
+            ApplyImageStatusPayload(imgEl);
+            _lastStatsIncludedImageStatus = true;
+        }
+        else
+        {
+            _lastStatsIncludedImageStatus = false;
+        }
+    }
+
+    private void ApplyImageStatusPayload(JsonElement root)
+    {
+        ImageVersion = SfJsonHelpers.GetString(root, "current_version", "—");
+        ImageBuilding = SfJsonHelpers.GetBool(root, "building");
+        string buildStarted = SfJsonHelpers.GetString(root, "build_started");
+        ImageStatusSummary = ImageBuilding
+            ? $"Building since {buildStarted}"
+            : $"Current version: {ImageVersion}";
+
+        if (root.TryGetProperty("last_build", out var lb) && lb.ValueKind == JsonValueKind.Object)
+        {
+            string ver = SfJsonHelpers.GetString(lb, "version");
+            bool ok = SfJsonHelpers.GetBool(lb, "ok");
+            string fin = SfJsonHelpers.GetString(lb, "finished");
+            string tail = SfJsonHelpers.GetString(lb, "log_tail");
+            ImageLastBuildLog = $"Last build {ver} ({(ok ? "OK" : "FAILED")} at {fin})\n{tail}";
+        }
+        else
+        {
+            ImageLastBuildLog = SfJsonHelpers.PrettyPrint(root);
         }
     }
 
@@ -439,21 +688,13 @@ public sealed partial class SfSandboxViewModel : ObservableObject
             return;
         }
 
-        if (target.IsText)
-        {
-            await ReadTextFileAsync(target, ct);
-            return;
-        }
-
         if (target.IsPreview)
         {
             await PreviewFileAsync(target, ct);
             return;
         }
 
-        ViewerText = null;
-        PreviewImage = null;
-        ViewerNotice = "No preview for this file type.";
+        await ReadTextFileAsync(target, ct);
     }
 
     private async Task ReadTextFileAsync(SfSandboxFileRow target, CancellationToken ct)
@@ -474,7 +715,7 @@ public sealed partial class SfSandboxViewModel : ObservableObject
             long size = SfJsonHelpers.GetLong(root, "size", target.Size);
             if (isBinary)
             {
-                ViewerText = string.Empty;
+                ViewerText = null;
                 ViewerNotice = $"Binary file ({SfJsonHelpers.FormatBytes(size)})";
             }
             else
@@ -513,11 +754,17 @@ public sealed partial class SfSandboxViewModel : ObservableObject
         if (!ReferenceEquals(SelectedFile, target))
             SelectedFile = target;
 
-        if (!target.IsPreview)
+        if (target.IsDirectory)
         {
             PreviewImage = null;
             ViewerText = null;
-            ViewerNotice = "No preview for this file type.";
+            ViewerNotice = "Directory selected. Click Open or double-click to browse.";
+            return;
+        }
+
+        if (!target.IsPreview)
+        {
+            await ReadTextFileAsync(target, ct);
             return;
         }
 
@@ -559,8 +806,16 @@ public sealed partial class SfSandboxViewModel : ObservableObject
         catch (SfRpcException ex)
         {
             PreviewImage = null;
-            ViewerNotice = ex.Code;
-            ErrorMessage = ex.Code;
+            if (string.Equals(ex.Code, "not_supported", StringComparison.OrdinalIgnoreCase))
+            {
+                ViewerNotice = "No page preview available for this file.";
+                ErrorMessage = null;
+            }
+            else
+            {
+                ViewerNotice = ex.Code;
+                ErrorMessage = ex.Code;
+            }
         }
         catch (Exception ex)
         {
@@ -644,39 +899,23 @@ public sealed partial class SfSandboxViewModel : ObservableObject
         try
         {
             var root = await _rpc.CallAsync("sandbox_image_status", null, ct);
-            ImageVersion = SfJsonHelpers.GetString(root, "current_version", "—");
-            ImageBuilding = SfJsonHelpers.GetBool(root, "building");
-            string buildStarted = SfJsonHelpers.GetString(root, "build_started");
-            ImageStatusSummary = ImageBuilding
-                ? $"Building since {buildStarted}"
-                : $"Current version: {ImageVersion}";
-
-            if (root.TryGetProperty("last_build", out var lb) && lb.ValueKind == JsonValueKind.Object)
+            await RunOnUiAsync(() =>
             {
-                string ver = SfJsonHelpers.GetString(lb, "version");
-                bool ok = SfJsonHelpers.GetBool(lb, "ok");
-                string fin = SfJsonHelpers.GetString(lb, "finished");
-                string tail = SfJsonHelpers.GetString(lb, "log_tail");
-                ImageLastBuildLog = $"Last build {ver} ({(ok ? "OK" : "FAILED")} at {fin})\n{tail}";
-            }
-            else
-            {
-                ImageLastBuildLog = SfJsonHelpers.PrettyPrint(root);
-            }
-
-            ErrorMessage = null;
+                ApplyImageStatusPayload(root);
+                ErrorMessage = null;
+            });
         }
         catch (SfRpcException ex)
         {
-            ErrorMessage = ex.Code;
+            await RunOnUiAsync(() => ErrorMessage = ex.Code);
         }
         catch (Exception ex)
         {
-            ErrorMessage = ex.Message;
+            await RunOnUiAsync(() => ErrorMessage = ex.Message);
         }
         finally
         {
-            IsBusy = false;
+            await RunOnUiAsync(() => IsBusy = false);
         }
     }
 

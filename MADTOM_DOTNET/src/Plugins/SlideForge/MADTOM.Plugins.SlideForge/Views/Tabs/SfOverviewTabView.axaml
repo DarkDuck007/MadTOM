@@ -8,9 +8,16 @@
              x:Class="MADTOM.Plugins.SlideForge.Views.Tabs.SfOverviewTabView"
              x:DataType="vm:SfOverviewViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="16" RowSpacing="12">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="260" MinHeight="120"/>
+            <RowDefinition Height="6"/>
+            <RowDefinition Height="*" MinHeight="160"/>
+        </Grid.RowDefinitions>
+
         <!-- Toolbar -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
             <TextBlock Text="SLIDEFORGE OVERVIEW &amp; LIVE TELEMETRY" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}" VerticalAlignment="Center"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource CriticalBrush}" FontSize="11" VerticalAlignment="Center" IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
@@ -18,134 +25,176 @@
             </StackPanel>
         </Grid>
 
-        <!-- Summary Cards Row 1 (Live + 7d Metrics) -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*" ColumnSpacing="10">
-            <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="ACTIVE / QUEUED" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{Binding JobsActive}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}"/>
-                        <TextBlock Text="/" FontSize="14" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Bottom"/>
-                        <TextBlock Text="{Binding JobsQueued}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+        <!-- Resizable Top Region (Summary Cards + Breakdown Cards) -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,6">
+            <Grid RowSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="170" MinHeight="90"/>
+                </Grid.RowDefinitions>
 
-            <Border Grid.Column="1" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="WAITING INPUT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <TextBlock Text="{Binding JobsWaitingInput}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
-                </StackPanel>
-            </Border>
+                <!-- Summary Cards Row 1 (Live + 7d Metrics) -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*,*,*" ColumnSpacing="10">
+                    <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="ACTIVE / QUEUED" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{Binding JobsActive}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource HealthyBrush}"/>
+                                <TextBlock Text="/" FontSize="14" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Bottom"/>
+                                <TextBlock Text="{Binding JobsQueued}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
 
-            <Border Grid.Column="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="JOBS (7D)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <TextBlock Text="{Binding Jobs7d}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                </StackPanel>
-            </Border>
+                    <Border Grid.Column="1" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="WAITING INPUT" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding JobsWaitingInput}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                        </StackPanel>
+                    </Border>
 
-            <Border Grid.Column="3" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="FAILURE RATE (7D)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <TextBlock Text="{Binding FailureRateDisplay}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
-                </StackPanel>
-            </Border>
+                    <Border Grid.Column="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="JOBS (7D)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding Jobs7d}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                    </Border>
 
-            <Border Grid.Column="4" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="AVG DURATION (7D)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <TextBlock Text="{Binding AvgDurationDisplay}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                </StackPanel>
-            </Border>
+                    <Border Grid.Column="3" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="FAILURE RATE (7D)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding FailureRateDisplay}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                        </StackPanel>
+                    </Border>
 
-            <Border Grid.Column="5" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="QUOTA BURN (7D)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <TextBlock Text="{Binding QuotaUsed7dTotal}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
-                </StackPanel>
-            </Border>
-        </Grid>
+                    <Border Grid.Column="4" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="AVG DURATION (7D)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding AvgDurationDisplay}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                    </Border>
 
-        <!-- Health Pills + Breakdown -->
-        <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="10">
-            <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="6">
-                    <TextBlock Text="SUBSYSTEM HEALTH" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="{Binding BridgeBadge, StringFormat='Bridge: {0}'}" FontSize="11" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding SandboxBadge, StringFormat='Sandbox: {0}'}" FontSize="11" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding AgyBadge, StringFormat='Agy: {0}'}" FontSize="11" FontWeight="SemiBold"/>
-                    </StackPanel>
-                    <TextBlock Text="{Binding UsersTotal, StringFormat='Total Users: {0}'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                </StackPanel>
-            </Border>
+                    <Border Grid.Column="5" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="QUOTA BURN (7D)" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding QuotaUsed7dTotal}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
 
-            <Border Grid.Column="1" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="JOBS BY STATUS / FORMAT (7D)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <ItemsControl ItemsSource="{Binding StatusBreakdown}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" ItemSpacing="8"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:SfKeyCountRow">
-                                <TextBlock FontSize="11" FontFamily="{StaticResource MonoFontFamily}">
-                                    <Run Text="{Binding Key}"/>
-                                    <Run Text=": "/>
-                                    <Run Text="{Binding Count}" FontWeight="Bold"/>
-                                </TextBlock>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <ItemsControl ItemsSource="{Binding FormatBreakdown}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" ItemSpacing="8"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:SfKeyCountRow">
-                                <TextBlock FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}">
-                                    <Run Text="{Binding Key}"/>
-                                    <Run Text=": "/>
-                                    <Run Text="{Binding Count}" FontWeight="Bold"/>
-                                </TextBlock>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
+                <!-- Health Pills + Breakdown (Three-Card Row) -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                    <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                            <TextBlock Text="SUBSYSTEM HEALTH" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="{Binding BridgeBadge, StringFormat='Bridge: {0}'}" FontSize="11" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding SandboxBadge, StringFormat='Sandbox: {0}'}" FontSize="11" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding AgyBadge, StringFormat='Agy: {0}'}" FontSize="11" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding UsersTotal, StringFormat='Total Users: {0}'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
 
-            <Border Grid.Column="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="TOP USERS (7D)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                    <ItemsControl ItemsSource="{Binding TopUsers}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:SfTopUserRow">
-                                <Grid ColumnDefinitions="*,Auto" Margin="0,1">
-                                    <TextBlock Text="{Binding Label}" FontSize="11"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Jobs, StringFormat='{}{0} jobs'}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
-        </Grid>
+                    <Border Grid.Column="1" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="4">
+                            <TextBlock Text="JOBS BY STATUS / FORMAT (7D)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="4">
+                                    <ItemsControl ItemsSource="{Binding StatusBreakdown}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" ItemSpacing="8"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:SfKeyCountRow">
+                                                <TextBlock FontSize="11" FontFamily="{StaticResource MonoFontFamily}">
+                                                    <Run Text="{Binding Key}"/>
+                                                    <Run Text=": "/>
+                                                    <Run Text="{Binding Count}" FontWeight="Bold"/>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding FormatBreakdown}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" ItemSpacing="8"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:SfKeyCountRow">
+                                                <TextBlock FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}">
+                                                    <Run Text="{Binding Key}"/>
+                                                    <Run Text=": "/>
+                                                    <Run Text="{Binding Count}" FontWeight="Bold"/>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Column="2" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <Grid RowDefinitions="Auto,*" RowSpacing="4">
+                            <TextBlock Text="TOP USERS (7D)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="100">
+                                <ItemsControl ItemsSource="{Binding TopUsers}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SfTopUserRow">
+                                            <Grid ColumnDefinitions="*,Auto" Margin="0,1">
+                                                <TextBlock Text="{Binding Label}" FontSize="11"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Jobs, StringFormat='{}{0} jobs'}" FontSize="11" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Horizontal Resizer -->
+        <GridSplitter Grid.Row="2"
+                      Height="6"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Center"
+                      ResizeDirection="Rows"
+                      Background="{DynamicResource CardHoverBgBrush}"/>
 
         <!-- Active & Queued Jobs Line Chart -->
-        <Border Grid.Row="3" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+        <Border Grid.Row="3" Margin="0,6,0,0" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
             <Grid RowDefinitions="Auto,*">
-                <TextBlock Text="ACTIVE &amp; QUEUED JOBS (LIVE STREAM)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,8"/>
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="ACTIVE &amp; QUEUED JOBS (LIVE STREAM)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="history is collected while Studio is connected" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" Opacity="0.7" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding Timeframes}"
+                              SelectedItem="{Binding SelectedTimeframe, Mode=TwoWay}"
+                              DisplayMemberBinding="{Binding Label, DataType=vm:SfTimeframeOption}"
+                              MinWidth="72"
+                              Height="24"
+                              Padding="6,2"
+                              FontSize="11"
+                              VerticalAlignment="Center"/>
+                </Grid>
                 <charts:MetricHistoryChartControl Grid.Row="1"
                                                   SeriesList="{Binding JobsSeries}"
                                                   WindowStart="{Binding WindowStart}"
                                                   WindowEnd="{Binding WindowEnd}"
                                                   GraphTitle="Jobs"
-                                                  MinHeight="180"/>
+                                                  MinHeight="120"/>
             </Grid>
         </Border>
     </Grid>

@@ -473,7 +473,7 @@ public class SfOverviewViewModelTests
     [Fact]
     public void Telemetry_updates_live_values_and_bounded_history()
     {
-        var vm = new SfOverviewViewModel(new SfRpc(new FakeSlideForgeClient(), "tp2"));
+        var vm = new SfOverviewViewModel(new SfRpc(new FakeSlideForgeClient(), "node-a"));
         for (var i = 0; i < SfOverviewViewModel.HistoryCapacity + 50; i++)
         {
             var s = new SfTelemetrySample { TimestampUnixNano = 1_700_000_000_000_000_000L + i * 1_000_000_000L };
@@ -496,7 +496,7 @@ public class SfOverviewViewModelTests
     [Fact]
     public void Missing_metrics_do_not_reset_known_values()
     {
-        var vm = new SfOverviewViewModel(new SfRpc(new FakeSlideForgeClient(), "tp2"));
+        var vm = new SfOverviewViewModel(new SfRpc(new FakeSlideForgeClient(), "node-a"));
         var a = new SfTelemetrySample();
         a.Metrics["jobs_queued"] = 5;
         vm.ApplyTelemetry(a);

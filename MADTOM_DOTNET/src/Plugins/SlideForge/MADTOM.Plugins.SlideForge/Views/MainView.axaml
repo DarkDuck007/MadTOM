@@ -152,6 +152,9 @@
                 <TabItem Header="⚙ Config" FontSize="12">
                     <tabs:SfConfigTabView DataContext="{Binding ConfigTab}"/>
                 </TabItem>
+                <TabItem Header="📣 Broadcasts" FontSize="12">
+                    <tabs:SfBroadcastsTabView DataContext="{Binding BroadcastsTab}"/>
+                </TabItem>
                 <TabItem Header="📜 Raw Logs &amp; API" FontSize="12">
                     <tabs:SfLogsTabView DataContext="{Binding LogsTab}"/>
                 </TabItem>

@@ -16,22 +16,22 @@
                     <CheckBox IsChecked="{Binding AutoRefresh, Mode=TwoWay}" Content="Auto-refresh" FontSize="11" VerticalAlignment="Center"/>
 
                     <!-- Running VMs / Max with ProgressBar -->
-                    <StackPanel Spacing="2" Width="140" VerticalAlignment="Center">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="RUNNING VMs" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding RunningVmsText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <Grid RowDefinitions="Auto,Auto" MinWidth="150" VerticalAlignment="Center">
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <TextBlock Text="RUNNING VMs" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding RunningVmsText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
-                        <ProgressBar Value="{Binding RunningVmsFraction}" Minimum="0" Maximum="1" Height="5"/>
-                    </StackPanel>
+                        <ProgressBar Grid.Row="1" Value="{Binding RunningVmsFraction}" Minimum="0" Maximum="1" Height="5" MinWidth="0" HorizontalAlignment="Stretch" Margin="0,3,0,0"/>
+                    </Grid>
 
                     <!-- Guest RAM / Cap with ProgressBar -->
-                    <StackPanel Spacing="2" Width="175" VerticalAlignment="Center">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="GUEST RAM" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding GuestMemText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <Grid RowDefinitions="Auto,Auto" MinWidth="185" VerticalAlignment="Center">
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <TextBlock Text="GUEST RAM" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding GuestMemText}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
-                        <ProgressBar Value="{Binding GuestMemFraction}" Minimum="0" Maximum="1" Height="5"/>
-                    </StackPanel>
+                        <ProgressBar Grid.Row="1" Value="{Binding GuestMemFraction}" Minimum="0" Maximum="1" Height="5" MinWidth="0" HorizontalAlignment="Stretch" Margin="0,3,0,0"/>
+                    </Grid>
 
                     <Border Background="{DynamicResource DarkBaseBrush}" CornerRadius="5" Padding="8,3" VerticalAlignment="Center" IsVisible="{Binding HostSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <TextBlock Text="{Binding HostSummary}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource AccentTextBrush}"/>
@@ -104,14 +104,23 @@
         <Border Grid.Row="1" Background="{DynamicResource DarkBaseBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
             <Grid RowDefinitions="Auto,*">
                 <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
-                    <Grid ColumnDefinitions="190,85,80,125,145,165,*" ColumnSpacing="8">
-                        <TextBlock Text="USER / CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="1" Text="STATE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="2" Text="UPTIME" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="3" Text="MEMORY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="4" Text="CPU TODAY / CAP" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="5" Text="DISK / QUOTA" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Grid.Column="6" Text="LAST RUN" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.5*" MinWidth="120"/>
+                            <ColumnDefinition Width="82"/>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="112"/>
+                            <ColumnDefinition Width="1.2*" MinWidth="115"/>
+                            <ColumnDefinition Width="1.3*" MinWidth="125"/>
+                            <ColumnDefinition Width="1.1*" MinWidth="105"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="USER / CHAT" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1"/>
+                        <TextBlock Grid.Column="1" Text="STATE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1"/>
+                        <TextBlock Grid.Column="2" Text="UPTIME" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1"/>
+                        <TextBlock Grid.Column="3" Text="MEMORY" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1"/>
+                        <TextBlock Grid.Column="4" Text="CPU TODAY / CAP" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1"/>
+                        <TextBlock Grid.Column="5" Text="DISK / QUOTA" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1"/>
+                        <TextBlock Grid.Column="6" Text="LAST RUN" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1"/>
                     </Grid>
                 </Border>
                 <ListBox Grid.Row="1"
@@ -120,10 +129,25 @@
                          SelectionChanged="OnVmSelectionChanged"
                          Background="Transparent"
                          BorderThickness="0">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="12,4"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </ListBox.Styles>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:SfSandboxVmRow">
-                            <Grid ColumnDefinitions="190,85,80,125,145,165,*" ColumnSpacing="8" Margin="2,3" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding DisplayLabel}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayLabel}" VerticalAlignment="Center"/>
+                            <Grid ColumnSpacing="8" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.5*" MinWidth="120"/>
+                                    <ColumnDefinition Width="82"/>
+                                    <ColumnDefinition Width="72"/>
+                                    <ColumnDefinition Width="112"/>
+                                    <ColumnDefinition Width="1.2*" MinWidth="115"/>
+                                    <ColumnDefinition Width="1.3*" MinWidth="125"/>
+                                    <ColumnDefinition Width="1.1*" MinWidth="105"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding DisplayLabel}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" ToolTip.Tip="{Binding DisplayLabel}" VerticalAlignment="Center"/>
 
                                 <!-- Hot / Cold State Badge -->
                                 <Border Grid.Column="1"
@@ -152,25 +176,25 @@
                                             <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
                                         </Style>
                                     </Border.Styles>
-                                    <TextBlock Text="{Binding StateBadge}" FontSize="9" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding StateBadge}" FontSize="9" FontWeight="Bold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1"/>
                                 </Border>
 
-                                <TextBlock Grid.Column="2" Text="{Binding UptimeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="3" Text="{Binding MemoryDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{Binding UptimeDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="{Binding MemoryDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" VerticalAlignment="Center"/>
 
                                 <!-- CPU Today vs Daily Cap -->
-                                <StackPanel Grid.Column="4" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding CpuDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
-                                    <ProgressBar Value="{Binding CpuFraction}" Minimum="0" Maximum="1" Height="4"/>
-                                </StackPanel>
+                                <Grid Grid.Column="4" RowDefinitions="Auto,Auto" VerticalAlignment="Center" MinWidth="0">
+                                    <TextBlock Grid.Row="0" Text="{Binding CpuDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" ToolTip.Tip="{Binding CpuDisplay}"/>
+                                    <ProgressBar Grid.Row="1" Value="{Binding CpuFraction}" Minimum="0" Maximum="1" Height="5" MinWidth="0" HorizontalAlignment="Stretch" Margin="0,3,0,0"/>
+                                </Grid>
 
                                 <!-- Disk Used of Quota -->
-                                <StackPanel Grid.Column="5" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding DiskDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}"/>
-                                    <ProgressBar Value="{Binding DiskUsageFraction}" Minimum="0" Maximum="1" Height="4"/>
-                                </StackPanel>
+                                <Grid Grid.Column="5" RowDefinitions="Auto,Auto" VerticalAlignment="Center" MinWidth="0">
+                                    <TextBlock Grid.Row="0" Text="{Binding DiskDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" ToolTip.Tip="{Binding DiskDisplay}"/>
+                                    <ProgressBar Grid.Row="1" Value="{Binding DiskUsageFraction}" Minimum="0" Maximum="1" Height="5" MinWidth="0" HorizontalAlignment="Stretch" Margin="0,3,0,0"/>
+                                </Grid>
 
-                                <TextBlock Grid.Column="6" Text="{Binding LastRunDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="6" Text="{Binding LastRunDisplay}" FontSize="10" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" MaxLines="1" ToolTip.Tip="{Binding LastRunDisplay}" VerticalAlignment="Center"/>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

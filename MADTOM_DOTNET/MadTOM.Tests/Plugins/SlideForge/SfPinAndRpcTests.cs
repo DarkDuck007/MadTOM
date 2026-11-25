@@ -25,7 +25,7 @@ public class SfCertificatePinTests : IDisposable
     [Fact]
     public void Fingerprint_is_lowercase_hex_sha256_of_der_like_the_probe_logs()
     {
-        using var cert = SelfSigned("tp2");
+        using var cert = SelfSigned("node-a");
         var expected = Convert.ToHexString(SHA256.HashData(cert.RawData)).ToLowerInvariant();
         Assert.Equal(expected, SfCertificatePins.Fingerprint(cert));
         Assert.Equal(64, expected.Length);
@@ -35,12 +35,12 @@ public class SfCertificatePinTests : IDisposable
     public void First_use_then_match_then_mismatch()
     {
         var pins = new SfCertificatePins(PinFile);
-        using var a = SelfSigned("tp2");
-        using var b = SelfSigned("tp2");
-        Assert.Equal(SfPinResult.FirstUse, pins.Evaluate("tp2:50057", SfCertificatePins.Fingerprint(a)));
-        pins.Pin("tp2:50057", SfCertificatePins.Fingerprint(a));
-        Assert.Equal(SfPinResult.Match, pins.Evaluate("tp2:50057", SfCertificatePins.Fingerprint(a)));
-        Assert.Equal(SfPinResult.Mismatch, pins.Evaluate("tp2:50057", SfCertificatePins.Fingerprint(b)));
+        using var a = SelfSigned("node-a");
+        using var b = SelfSigned("node-a");
+        Assert.Equal(SfPinResult.FirstUse, pins.Evaluate("node-a:50057", SfCertificatePins.Fingerprint(a)));
+        pins.Pin("node-a:50057", SfCertificatePins.Fingerprint(a));
+        Assert.Equal(SfPinResult.Match, pins.Evaluate("node-a:50057", SfCertificatePins.Fingerprint(a)));
+        Assert.Equal(SfPinResult.Mismatch, pins.Evaluate("node-a:50057", SfCertificatePins.Fingerprint(b)));
         // other endpoints are independent
         Assert.Equal(SfPinResult.FirstUse, pins.Evaluate("other:50057", SfCertificatePins.Fingerprint(b)));
     }
@@ -67,11 +67,11 @@ public class SfCertificatePinTests : IDisposable
     [Fact]
     public void Pins_persist_and_can_be_forgotten()
     {
-        new SfCertificatePins(PinFile).Pin("tp2:50057", new string('b', 64));
+        new SfCertificatePins(PinFile).Pin("node-a:50057", new string('b', 64));
         var reloaded = new SfCertificatePins(PinFile);
-        Assert.Equal(SfPinResult.Match, reloaded.Evaluate("tp2:50057", new string('b', 64)));
-        reloaded.Forget("tp2:50057");
-        Assert.Equal(SfPinResult.FirstUse, new SfCertificatePins(PinFile).Evaluate("tp2:50057", new string('b', 64)));
+        Assert.Equal(SfPinResult.Match, reloaded.Evaluate("node-a:50057", new string('b', 64)));
+        reloaded.Forget("node-a:50057");
+        Assert.Equal(SfPinResult.FirstUse, new SfCertificatePins(PinFile).Evaluate("node-a:50057", new string('b', 64)));
     }
 
     [Fact]
@@ -82,20 +82,20 @@ public class SfCertificatePinTests : IDisposable
         var pins = new SfCertificatePins(PinFile);
         // A corrupt store must not silently turn every node into "first use".
         Assert.True(pins.LoadError is not null);
-        Assert.Equal(SfPinResult.Mismatch, pins.Evaluate("tp2:50057", new string('c', 64)));
+        Assert.Equal(SfPinResult.Mismatch, pins.Evaluate("node-a:50057", new string('c', 64)));
     }
 
     [Fact]
     public void Validator_accepts_match_auto_pins_first_use_only_when_allowed_and_rejects_mismatch()
     {
         var pins = new SfCertificatePins(PinFile);
-        using var a = SelfSigned("tp2");
-        using var b = SelfSigned("tp2");
-        Assert.False(pins.Validate("tp2:50057", a, trustOnFirstUse: false));
-        Assert.Equal(SfPinResult.FirstUse, pins.Evaluate("tp2:50057", SfCertificatePins.Fingerprint(a)));
-        Assert.True(pins.Validate("tp2:50057", a, trustOnFirstUse: true));
-        Assert.True(pins.Validate("tp2:50057", a, trustOnFirstUse: false));
-        Assert.False(pins.Validate("tp2:50057", b, trustOnFirstUse: true)); // TOFU never overrides a pin
+        using var a = SelfSigned("node-a");
+        using var b = SelfSigned("node-a");
+        Assert.False(pins.Validate("node-a:50057", a, trustOnFirstUse: false));
+        Assert.Equal(SfPinResult.FirstUse, pins.Evaluate("node-a:50057", SfCertificatePins.Fingerprint(a)));
+        Assert.True(pins.Validate("node-a:50057", a, trustOnFirstUse: true));
+        Assert.True(pins.Validate("node-a:50057", a, trustOnFirstUse: false));
+        Assert.False(pins.Validate("node-a:50057", b, trustOnFirstUse: true)); // TOFU never overrides a pin
         Assert.Equal(SfCertificatePins.Fingerprint(b), pins.LastMismatch?.Presented);
         Assert.Equal(SfCertificatePins.Fingerprint(a), pins.LastMismatch?.Pinned);
     }
@@ -112,6 +112,7 @@ public class SfRpcTests
         "sandbox_list_vms", "sandbox_stats", "sandbox_vm_action", "sandbox_list_files", "sandbox_read_text", "sandbox_preview",
         "sandbox_backups", "sandbox_restore_backup", "sandbox_library_requests", "sandbox_decide_library",
         "sandbox_image_status", "sandbox_rebuild_image", "sandbox_runs",
+        "list_broadcasts", "get_broadcast", "broadcast_audience", "create_broadcast", "cancel_broadcast",
     };
 
     [Fact]
@@ -125,11 +126,11 @@ public class SfRpcTests
     {
         var fake = new FakeSlideForgeClient();
         fake.Handlers["list_jobs"] = _ => new { total = 0, items = Array.Empty<object>(), limit = 50, offset = 0 };
-        var rpc = new SfRpc(fake, "tp2");
+        var rpc = new SfRpc(fake, "node-a");
         var res = await rpc.CallAsync("list_jobs", new { Limit = 50, UserId = (long?)7, Status = (string?)null });
         Assert.Equal(0, res.GetProperty("total").GetInt32());
         var call = fake.Calls.Single();
-        Assert.Equal("tp2", call.NodeId);
+        Assert.Equal("node-a", call.NodeId);
         Assert.Equal(50, (int)call.Payload!["limit"]!);
         Assert.Equal(7, (long)call.Payload!["user_id"]!);
         Assert.True(call.TimeoutMs is > 0 and <= 120000);
@@ -139,7 +140,7 @@ public class SfRpcTests
     public async Task Explicit_nulls_are_sent_for_quota_reset()
     {
         var fake = new FakeSlideForgeClient();
-        var rpc = new SfRpc(fake, "tp2");
+        var rpc = new SfRpc(fake, "node-a");
         await rpc.CallAsync("set_user_quota", new Dictionary<string, object?> { ["user_id"] = 7L, ["weekly_limit"] = null });
         var p = fake.LastPayload("set_user_quota")!.AsObject();
         Assert.True(p.ContainsKey("weekly_limit"));
@@ -151,7 +152,7 @@ public class SfRpcTests
     {
         var fake = new FakeSlideForgeClient();
         fake.Errors["get_job"] = "not_found";
-        var rpc = new SfRpc(fake, "tp2");
+        var rpc = new SfRpc(fake, "node-a");
         var ex = await Assert.ThrowsAsync<SfRpcException>(() => rpc.CallAsync("get_job", new { job_id = "J-1" }));
         Assert.Equal("not_found", ex.Code);
         fake.Offline = true;
@@ -163,7 +164,7 @@ public class SfRpcTests
     public async Task Unknown_methods_are_refused_locally()
     {
         var fake = new FakeSlideForgeClient();
-        var rpc = new SfRpc(fake, "tp2");
+        var rpc = new SfRpc(fake, "node-a");
         var ex = await Assert.ThrowsAsync<SfRpcException>(() => rpc.CallAsync("drop_tables"));
         Assert.Equal("method_not_allowed", ex.Code);
         Assert.Empty(fake.Calls);
@@ -174,7 +175,7 @@ public class SfRpcTests
     {
         var fake = new FakeSlideForgeClient();
         fake.Handlers["get_overview"] = _ => new { };
-        var rpc = new SfRpc(fake, "tp2");
+        var rpc = new SfRpc(fake, "node-a");
         var res = await rpc.CallAsync("get_overview");
         Assert.Equal(JsonValueKind.Object, res.ValueKind);
         Assert.Equal("{}", fake.Calls.Single().Payload!.ToJsonString());
