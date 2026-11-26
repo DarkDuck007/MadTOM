@@ -44,6 +44,9 @@ service NoxChatControlService {
   rpc SearchMemoriesHybrid(NoxHybridSearchRequest) returns (NoxHybridSearchResponse);
   rpc UpsertMemory(NoxUpsertMemoryRequest) returns (NoxMemoryMutationResponse);
   rpc DeleteMemory(NoxDeleteMemoryRequest) returns (NoxMemoryMutationResponse);
+  // Operator-reviewed merges of duplicate memories (one profile per person)
+  rpc ListMemoryMerges(NoxMemoryMergeListRequest) returns (NoxMemoryMergeListResponse);
+  rpc MemoryMergeAction(NoxMemoryMergeActionRequest) returns (NoxMemoryMergeActionResponse);
   rpc ListHotMemories(NoxHotMemoryRequest) returns (NoxHotMemoryResponse);
   rpc UpsertHotMemory(NoxUpsertHotMemoryRequest) returns (NoxHotMemoryResponse);
   rpc DeleteHotMemory(NoxDeleteHotMemoryRequest) returns (NoxHotMemoryResponse);
@@ -510,6 +513,66 @@ message NoxMemoryMutationResponse {
   bool success = 1;
   string memory_id = 2;
   string message = 3;
+}
+
+message NoxMemoryMergeSource {
+  string id = 1;
+  string content = 2;
+  string created_at = 3;
+}
+
+message NoxMemoryMergeProposal {
+  int64 id = 1;
+  int64 chat_id = 2;
+  string entity_key = 3;
+  string subject = 4;
+  string kind = 5;                       // "merge" | "subject" (only sets the subject, text unchanged)
+  repeated NoxMemoryMergeSource sources = 6;
+  string proposed = 7;                   // one fact per line; several memories separated by a "---" line
+  repeated string dropped = 8;           // facts the merged text leaves out
+  string status = 9;                     // pending | applied | rejected | stale | failed
+  string error = 10;
+  string result_memory_id = 11;
+  string created_at = 12;
+  string decided_at = 13;
+}
+
+message NoxMemoryMergeJob {
+  int64 chat_id = 1;
+  bool running = 2;
+  int32 total = 3;
+  int32 done = 4;
+  int32 failed = 5;
+  string started_at = 6;
+  string finished_at = 7;
+  string error = 8;
+}
+
+message NoxMemoryMergeListRequest {
+  string node_id = 1;
+  optional int64 chat_id = 2;
+  string status = 3;
+}
+
+message NoxMemoryMergeListResponse {
+  repeated NoxMemoryMergeProposal proposals = 1;
+  repeated NoxMemoryMergeJob jobs = 2;
+  string error = 3;
+}
+
+message NoxMemoryMergeActionRequest {
+  string node_id = 1;
+  string action = 2;                     // generate (chat_id) | apply (ids; edited_text for one id) | reject (ids)
+  int64 chat_id = 3;
+  repeated int64 ids = 4;
+  string edited_text = 5;
+}
+
+message NoxMemoryMergeActionResponse {
+  bool ok = 1;
+  string message = 2;
+  repeated int64 applied_ids = 3;
+  repeated string errors = 4;
 }
 
 message NoxHotMemoryRequest {

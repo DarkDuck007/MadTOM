@@ -847,6 +847,32 @@ func (s *Server) DeleteMemory(ctx context.Context, req *madtomv1.NoxDeleteMemory
 	return &resp, nil
 }
 
+// Memory merge proposals (Studio review of one-profile-per-person merges)
+
+func (s *Server) ListMemoryMerges(ctx context.Context, req *madtomv1.NoxMemoryMergeListRequest) (*madtomv1.NoxMemoryMergeListResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("list_memory_merges", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxMemoryMergeListResponse
+	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
+		resp.Error = fmt.Sprintf("decode: %v", err)
+	}
+	return &resp, nil
+}
+
+func (s *Server) MemoryMergeAction(ctx context.Context, req *madtomv1.NoxMemoryMergeActionRequest) (*madtomv1.NoxMemoryMergeActionResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("memory_merge_action", req, 120*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxMemoryMergeActionResponse
+	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
+		resp.Message = fmt.Sprintf("decode: %v", err)
+	}
+	return &resp, nil
+}
+
 // Tips
 func (s *Server) ListTips(ctx context.Context, req *madtomv1.NoxTipListRequest) (*madtomv1.NoxTipListResponse, error) {
 	reply, err := s.bridgeClient.CallRpc("list_tips", req, 10*time.Second)

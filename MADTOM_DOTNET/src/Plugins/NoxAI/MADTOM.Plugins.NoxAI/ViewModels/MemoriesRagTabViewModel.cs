@@ -185,6 +185,11 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
 
     partial void OnSelectedNodeChanged(NoxNodeModel? value)
     {
+        ClearMerges();
+        if (value != null && SelectedSubTabIndex == MergesSubTabIndex)
+        {
+            _ = LoadMergeChatsAsync();
+        }
         if (value != null)
         {
             _ = RefreshMemories();
@@ -209,6 +214,11 @@ public sealed partial class MemoriesRagTabViewModel : ObservableObject
         if (value == 1 && UserProfiles.Count == 0 && SelectedNode != null)
         {
             _ = RefreshUserProfiles();
+        }
+        else if (value == MergesSubTabIndex && SelectedNode != null)
+        {
+            if (MergeChats.Count == 0) _ = LoadMergeChatsAsync();
+            else _ = RefreshMergesAsync();
         }
     }
 

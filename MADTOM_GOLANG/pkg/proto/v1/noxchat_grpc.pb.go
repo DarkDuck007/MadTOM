@@ -38,6 +38,8 @@ const (
 	NoxChatControlService_SearchMemoriesHybrid_FullMethodName       = "/madtom.v1.NoxChatControlService/SearchMemoriesHybrid"
 	NoxChatControlService_UpsertMemory_FullMethodName               = "/madtom.v1.NoxChatControlService/UpsertMemory"
 	NoxChatControlService_DeleteMemory_FullMethodName               = "/madtom.v1.NoxChatControlService/DeleteMemory"
+	NoxChatControlService_ListMemoryMerges_FullMethodName           = "/madtom.v1.NoxChatControlService/ListMemoryMerges"
+	NoxChatControlService_MemoryMergeAction_FullMethodName          = "/madtom.v1.NoxChatControlService/MemoryMergeAction"
 	NoxChatControlService_ListHotMemories_FullMethodName            = "/madtom.v1.NoxChatControlService/ListHotMemories"
 	NoxChatControlService_UpsertHotMemory_FullMethodName            = "/madtom.v1.NoxChatControlService/UpsertHotMemory"
 	NoxChatControlService_DeleteHotMemory_FullMethodName            = "/madtom.v1.NoxChatControlService/DeleteHotMemory"
@@ -127,6 +129,9 @@ type NoxChatControlServiceClient interface {
 	SearchMemoriesHybrid(ctx context.Context, in *NoxHybridSearchRequest, opts ...grpc.CallOption) (*NoxHybridSearchResponse, error)
 	UpsertMemory(ctx context.Context, in *NoxUpsertMemoryRequest, opts ...grpc.CallOption) (*NoxMemoryMutationResponse, error)
 	DeleteMemory(ctx context.Context, in *NoxDeleteMemoryRequest, opts ...grpc.CallOption) (*NoxMemoryMutationResponse, error)
+	// Operator-reviewed merges of duplicate memories (one profile per person)
+	ListMemoryMerges(ctx context.Context, in *NoxMemoryMergeListRequest, opts ...grpc.CallOption) (*NoxMemoryMergeListResponse, error)
+	MemoryMergeAction(ctx context.Context, in *NoxMemoryMergeActionRequest, opts ...grpc.CallOption) (*NoxMemoryMergeActionResponse, error)
 	ListHotMemories(ctx context.Context, in *NoxHotMemoryRequest, opts ...grpc.CallOption) (*NoxHotMemoryResponse, error)
 	UpsertHotMemory(ctx context.Context, in *NoxUpsertHotMemoryRequest, opts ...grpc.CallOption) (*NoxHotMemoryResponse, error)
 	DeleteHotMemory(ctx context.Context, in *NoxDeleteHotMemoryRequest, opts ...grpc.CallOption) (*NoxHotMemoryResponse, error)
@@ -410,6 +415,26 @@ func (c *noxChatControlServiceClient) DeleteMemory(ctx context.Context, in *NoxD
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(NoxMemoryMutationResponse)
 	err := c.cc.Invoke(ctx, NoxChatControlService_DeleteMemory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) ListMemoryMerges(ctx context.Context, in *NoxMemoryMergeListRequest, opts ...grpc.CallOption) (*NoxMemoryMergeListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxMemoryMergeListResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListMemoryMerges_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) MemoryMergeAction(ctx context.Context, in *NoxMemoryMergeActionRequest, opts ...grpc.CallOption) (*NoxMemoryMergeActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxMemoryMergeActionResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_MemoryMergeAction_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -971,6 +996,9 @@ type NoxChatControlServiceServer interface {
 	SearchMemoriesHybrid(context.Context, *NoxHybridSearchRequest) (*NoxHybridSearchResponse, error)
 	UpsertMemory(context.Context, *NoxUpsertMemoryRequest) (*NoxMemoryMutationResponse, error)
 	DeleteMemory(context.Context, *NoxDeleteMemoryRequest) (*NoxMemoryMutationResponse, error)
+	// Operator-reviewed merges of duplicate memories (one profile per person)
+	ListMemoryMerges(context.Context, *NoxMemoryMergeListRequest) (*NoxMemoryMergeListResponse, error)
+	MemoryMergeAction(context.Context, *NoxMemoryMergeActionRequest) (*NoxMemoryMergeActionResponse, error)
 	ListHotMemories(context.Context, *NoxHotMemoryRequest) (*NoxHotMemoryResponse, error)
 	UpsertHotMemory(context.Context, *NoxUpsertHotMemoryRequest) (*NoxHotMemoryResponse, error)
 	DeleteHotMemory(context.Context, *NoxDeleteHotMemoryRequest) (*NoxHotMemoryResponse, error)
@@ -1099,6 +1127,12 @@ func (UnimplementedNoxChatControlServiceServer) UpsertMemory(context.Context, *N
 }
 func (UnimplementedNoxChatControlServiceServer) DeleteMemory(context.Context, *NoxDeleteMemoryRequest) (*NoxMemoryMutationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteMemory not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListMemoryMerges(context.Context, *NoxMemoryMergeListRequest) (*NoxMemoryMergeListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMemoryMerges not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) MemoryMergeAction(context.Context, *NoxMemoryMergeActionRequest) (*NoxMemoryMergeActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MemoryMergeAction not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) ListHotMemories(context.Context, *NoxHotMemoryRequest) (*NoxHotMemoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListHotMemories not implemented")
@@ -1594,6 +1628,42 @@ func _NoxChatControlService_DeleteMemory_Handler(srv interface{}, ctx context.Co
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NoxChatControlServiceServer).DeleteMemory(ctx, req.(*NoxDeleteMemoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_ListMemoryMerges_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxMemoryMergeListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListMemoryMerges(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListMemoryMerges_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListMemoryMerges(ctx, req.(*NoxMemoryMergeListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_MemoryMergeAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxMemoryMergeActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).MemoryMergeAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_MemoryMergeAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).MemoryMergeAction(ctx, req.(*NoxMemoryMergeActionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2604,6 +2674,14 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteMemory",
 			Handler:    _NoxChatControlService_DeleteMemory_Handler,
+		},
+		{
+			MethodName: "ListMemoryMerges",
+			Handler:    _NoxChatControlService_ListMemoryMerges_Handler,
+		},
+		{
+			MethodName: "MemoryMergeAction",
+			Handler:    _NoxChatControlService_MemoryMergeAction_Handler,
 		},
 		{
 			MethodName: "ListHotMemories",

@@ -3478,6 +3478,570 @@ func (x *NoxMemoryMutationResponse) GetMessage() string {
 	return ""
 }
 
+type NoxMemoryMergeSource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxMemoryMergeSource) Reset() {
+	*x = NoxMemoryMergeSource{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxMemoryMergeSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxMemoryMergeSource) ProtoMessage() {}
+
+func (x *NoxMemoryMergeSource) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxMemoryMergeSource.ProtoReflect.Descriptor instead.
+func (*NoxMemoryMergeSource) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *NoxMemoryMergeSource) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeSource) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeSource) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+type NoxMemoryMergeProposal struct {
+	state          protoimpl.MessageState  `protogen:"open.v1"`
+	Id             int64                   `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	ChatId         int64                   `protobuf:"varint,2,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	EntityKey      string                  `protobuf:"bytes,3,opt,name=entity_key,json=entityKey,proto3" json:"entity_key,omitempty"`
+	Subject        string                  `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Kind           string                  `protobuf:"bytes,5,opt,name=kind,proto3" json:"kind,omitempty"` // "merge" | "subject" (only sets the subject, text unchanged)
+	Sources        []*NoxMemoryMergeSource `protobuf:"bytes,6,rep,name=sources,proto3" json:"sources,omitempty"`
+	Proposed       string                  `protobuf:"bytes,7,opt,name=proposed,proto3" json:"proposed,omitempty"` // one fact per line; several memories separated by a "---" line
+	Dropped        []string                `protobuf:"bytes,8,rep,name=dropped,proto3" json:"dropped,omitempty"`   // facts the merged text leaves out
+	Status         string                  `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`     // pending | applied | rejected | stale | failed
+	Error          string                  `protobuf:"bytes,10,opt,name=error,proto3" json:"error,omitempty"`
+	ResultMemoryId string                  `protobuf:"bytes,11,opt,name=result_memory_id,json=resultMemoryId,proto3" json:"result_memory_id,omitempty"`
+	CreatedAt      string                  `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	DecidedAt      string                  `protobuf:"bytes,13,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *NoxMemoryMergeProposal) Reset() {
+	*x = NoxMemoryMergeProposal{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxMemoryMergeProposal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxMemoryMergeProposal) ProtoMessage() {}
+
+func (x *NoxMemoryMergeProposal) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxMemoryMergeProposal.ProtoReflect.Descriptor instead.
+func (*NoxMemoryMergeProposal) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *NoxMemoryMergeProposal) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *NoxMemoryMergeProposal) GetChatId() int64 {
+	if x != nil {
+		return x.ChatId
+	}
+	return 0
+}
+
+func (x *NoxMemoryMergeProposal) GetEntityKey() string {
+	if x != nil {
+		return x.EntityKey
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeProposal) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeProposal) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeProposal) GetSources() []*NoxMemoryMergeSource {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *NoxMemoryMergeProposal) GetProposed() string {
+	if x != nil {
+		return x.Proposed
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeProposal) GetDropped() []string {
+	if x != nil {
+		return x.Dropped
+	}
+	return nil
+}
+
+func (x *NoxMemoryMergeProposal) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeProposal) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeProposal) GetResultMemoryId() string {
+	if x != nil {
+		return x.ResultMemoryId
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeProposal) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeProposal) GetDecidedAt() string {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return ""
+}
+
+type NoxMemoryMergeJob struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ChatId        int64                  `protobuf:"varint,1,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	Running       bool                   `protobuf:"varint,2,opt,name=running,proto3" json:"running,omitempty"`
+	Total         int32                  `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
+	Done          int32                  `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
+	Failed        int32                  `protobuf:"varint,5,opt,name=failed,proto3" json:"failed,omitempty"`
+	StartedAt     string                 `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt    string                 `protobuf:"bytes,7,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	Error         string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxMemoryMergeJob) Reset() {
+	*x = NoxMemoryMergeJob{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxMemoryMergeJob) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxMemoryMergeJob) ProtoMessage() {}
+
+func (x *NoxMemoryMergeJob) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxMemoryMergeJob.ProtoReflect.Descriptor instead.
+func (*NoxMemoryMergeJob) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *NoxMemoryMergeJob) GetChatId() int64 {
+	if x != nil {
+		return x.ChatId
+	}
+	return 0
+}
+
+func (x *NoxMemoryMergeJob) GetRunning() bool {
+	if x != nil {
+		return x.Running
+	}
+	return false
+}
+
+func (x *NoxMemoryMergeJob) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *NoxMemoryMergeJob) GetDone() int32 {
+	if x != nil {
+		return x.Done
+	}
+	return 0
+}
+
+func (x *NoxMemoryMergeJob) GetFailed() int32 {
+	if x != nil {
+		return x.Failed
+	}
+	return 0
+}
+
+func (x *NoxMemoryMergeJob) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeJob) GetFinishedAt() string {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeJob) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type NoxMemoryMergeListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	ChatId        *int64                 `protobuf:"varint,2,opt,name=chat_id,json=chatId,proto3,oneof" json:"chat_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxMemoryMergeListRequest) Reset() {
+	*x = NoxMemoryMergeListRequest{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxMemoryMergeListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxMemoryMergeListRequest) ProtoMessage() {}
+
+func (x *NoxMemoryMergeListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxMemoryMergeListRequest.ProtoReflect.Descriptor instead.
+func (*NoxMemoryMergeListRequest) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *NoxMemoryMergeListRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeListRequest) GetChatId() int64 {
+	if x != nil && x.ChatId != nil {
+		return *x.ChatId
+	}
+	return 0
+}
+
+func (x *NoxMemoryMergeListRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type NoxMemoryMergeListResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Proposals     []*NoxMemoryMergeProposal `protobuf:"bytes,1,rep,name=proposals,proto3" json:"proposals,omitempty"`
+	Jobs          []*NoxMemoryMergeJob      `protobuf:"bytes,2,rep,name=jobs,proto3" json:"jobs,omitempty"`
+	Error         string                    `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxMemoryMergeListResponse) Reset() {
+	*x = NoxMemoryMergeListResponse{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxMemoryMergeListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxMemoryMergeListResponse) ProtoMessage() {}
+
+func (x *NoxMemoryMergeListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxMemoryMergeListResponse.ProtoReflect.Descriptor instead.
+func (*NoxMemoryMergeListResponse) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *NoxMemoryMergeListResponse) GetProposals() []*NoxMemoryMergeProposal {
+	if x != nil {
+		return x.Proposals
+	}
+	return nil
+}
+
+func (x *NoxMemoryMergeListResponse) GetJobs() []*NoxMemoryMergeJob {
+	if x != nil {
+		return x.Jobs
+	}
+	return nil
+}
+
+func (x *NoxMemoryMergeListResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type NoxMemoryMergeActionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"` // generate (chat_id) | apply (ids; edited_text for one id) | reject (ids)
+	ChatId        int64                  `protobuf:"varint,3,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	Ids           []int64                `protobuf:"varint,4,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	EditedText    string                 `protobuf:"bytes,5,opt,name=edited_text,json=editedText,proto3" json:"edited_text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxMemoryMergeActionRequest) Reset() {
+	*x = NoxMemoryMergeActionRequest{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxMemoryMergeActionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxMemoryMergeActionRequest) ProtoMessage() {}
+
+func (x *NoxMemoryMergeActionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxMemoryMergeActionRequest.ProtoReflect.Descriptor instead.
+func (*NoxMemoryMergeActionRequest) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *NoxMemoryMergeActionRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeActionRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeActionRequest) GetChatId() int64 {
+	if x != nil {
+		return x.ChatId
+	}
+	return 0
+}
+
+func (x *NoxMemoryMergeActionRequest) GetIds() []int64 {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+func (x *NoxMemoryMergeActionRequest) GetEditedText() string {
+	if x != nil {
+		return x.EditedText
+	}
+	return ""
+}
+
+type NoxMemoryMergeActionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	AppliedIds    []int64                `protobuf:"varint,3,rep,packed,name=applied_ids,json=appliedIds,proto3" json:"applied_ids,omitempty"`
+	Errors        []string               `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoxMemoryMergeActionResponse) Reset() {
+	*x = NoxMemoryMergeActionResponse{}
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoxMemoryMergeActionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoxMemoryMergeActionResponse) ProtoMessage() {}
+
+func (x *NoxMemoryMergeActionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoxMemoryMergeActionResponse.ProtoReflect.Descriptor instead.
+func (*NoxMemoryMergeActionResponse) Descriptor() ([]byte, []int) {
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *NoxMemoryMergeActionResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *NoxMemoryMergeActionResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *NoxMemoryMergeActionResponse) GetAppliedIds() []int64 {
+	if x != nil {
+		return x.AppliedIds
+	}
+	return nil
+}
+
+func (x *NoxMemoryMergeActionResponse) GetErrors() []string {
+	if x != nil {
+		return x.Errors
+	}
+	return nil
+}
+
 type NoxHotMemoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -3488,7 +4052,7 @@ type NoxHotMemoryRequest struct {
 
 func (x *NoxHotMemoryRequest) Reset() {
 	*x = NoxHotMemoryRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[43]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3500,7 +4064,7 @@ func (x *NoxHotMemoryRequest) String() string {
 func (*NoxHotMemoryRequest) ProtoMessage() {}
 
 func (x *NoxHotMemoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[43]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3513,7 +4077,7 @@ func (x *NoxHotMemoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxHotMemoryRequest.ProtoReflect.Descriptor instead.
 func (*NoxHotMemoryRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{43}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *NoxHotMemoryRequest) GetNodeId() string {
@@ -3543,7 +4107,7 @@ type NoxHotMemoryItem struct {
 
 func (x *NoxHotMemoryItem) Reset() {
 	*x = NoxHotMemoryItem{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[44]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3555,7 +4119,7 @@ func (x *NoxHotMemoryItem) String() string {
 func (*NoxHotMemoryItem) ProtoMessage() {}
 
 func (x *NoxHotMemoryItem) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[44]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3568,7 +4132,7 @@ func (x *NoxHotMemoryItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxHotMemoryItem.ProtoReflect.Descriptor instead.
 func (*NoxHotMemoryItem) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{44}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *NoxHotMemoryItem) GetChatId() int64 {
@@ -3617,7 +4181,7 @@ type NoxHotMemoryResponse struct {
 
 func (x *NoxHotMemoryResponse) Reset() {
 	*x = NoxHotMemoryResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[45]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3629,7 +4193,7 @@ func (x *NoxHotMemoryResponse) String() string {
 func (*NoxHotMemoryResponse) ProtoMessage() {}
 
 func (x *NoxHotMemoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[45]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3642,7 +4206,7 @@ func (x *NoxHotMemoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxHotMemoryResponse.ProtoReflect.Descriptor instead.
 func (*NoxHotMemoryResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{45}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *NoxHotMemoryResponse) GetZstdPayload() []byte {
@@ -3678,7 +4242,7 @@ type NoxUpsertHotMemoryRequest struct {
 
 func (x *NoxUpsertHotMemoryRequest) Reset() {
 	*x = NoxUpsertHotMemoryRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[46]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3690,7 +4254,7 @@ func (x *NoxUpsertHotMemoryRequest) String() string {
 func (*NoxUpsertHotMemoryRequest) ProtoMessage() {}
 
 func (x *NoxUpsertHotMemoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[46]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3703,7 +4267,7 @@ func (x *NoxUpsertHotMemoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUpsertHotMemoryRequest.ProtoReflect.Descriptor instead.
 func (*NoxUpsertHotMemoryRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{46}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *NoxUpsertHotMemoryRequest) GetNodeId() string {
@@ -3745,7 +4309,7 @@ type NoxDeleteHotMemoryRequest struct {
 
 func (x *NoxDeleteHotMemoryRequest) Reset() {
 	*x = NoxDeleteHotMemoryRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[47]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3757,7 +4321,7 @@ func (x *NoxDeleteHotMemoryRequest) String() string {
 func (*NoxDeleteHotMemoryRequest) ProtoMessage() {}
 
 func (x *NoxDeleteHotMemoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[47]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3770,7 +4334,7 @@ func (x *NoxDeleteHotMemoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxDeleteHotMemoryRequest.ProtoReflect.Descriptor instead.
 func (*NoxDeleteHotMemoryRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{47}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *NoxDeleteHotMemoryRequest) GetNodeId() string {
@@ -3811,7 +4375,7 @@ type NoxMediaQueryRequest struct {
 
 func (x *NoxMediaQueryRequest) Reset() {
 	*x = NoxMediaQueryRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[48]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3823,7 +4387,7 @@ func (x *NoxMediaQueryRequest) String() string {
 func (*NoxMediaQueryRequest) ProtoMessage() {}
 
 func (x *NoxMediaQueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[48]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3836,7 +4400,7 @@ func (x *NoxMediaQueryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxMediaQueryRequest.ProtoReflect.Descriptor instead.
 func (*NoxMediaQueryRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{48}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *NoxMediaQueryRequest) GetNodeId() string {
@@ -3905,7 +4469,7 @@ type NoxMediaLibraryItem struct {
 
 func (x *NoxMediaLibraryItem) Reset() {
 	*x = NoxMediaLibraryItem{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[49]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3917,7 +4481,7 @@ func (x *NoxMediaLibraryItem) String() string {
 func (*NoxMediaLibraryItem) ProtoMessage() {}
 
 func (x *NoxMediaLibraryItem) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[49]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3930,7 +4494,7 @@ func (x *NoxMediaLibraryItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxMediaLibraryItem.ProtoReflect.Descriptor instead.
 func (*NoxMediaLibraryItem) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{49}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *NoxMediaLibraryItem) GetFileUniqueId() string {
@@ -4058,7 +4622,7 @@ type NoxMediaQueryResponse struct {
 
 func (x *NoxMediaQueryResponse) Reset() {
 	*x = NoxMediaQueryResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[50]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4070,7 +4634,7 @@ func (x *NoxMediaQueryResponse) String() string {
 func (*NoxMediaQueryResponse) ProtoMessage() {}
 
 func (x *NoxMediaQueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[50]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4083,7 +4647,7 @@ func (x *NoxMediaQueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxMediaQueryResponse.ProtoReflect.Descriptor instead.
 func (*NoxMediaQueryResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{50}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *NoxMediaQueryResponse) GetZstdPayload() []byte {
@@ -4133,7 +4697,7 @@ type NoxStickerPackItem struct {
 
 func (x *NoxStickerPackItem) Reset() {
 	*x = NoxStickerPackItem{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[51]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4145,7 +4709,7 @@ func (x *NoxStickerPackItem) String() string {
 func (*NoxStickerPackItem) ProtoMessage() {}
 
 func (x *NoxStickerPackItem) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[51]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4158,7 +4722,7 @@ func (x *NoxStickerPackItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxStickerPackItem.ProtoReflect.Descriptor instead.
 func (*NoxStickerPackItem) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{51}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *NoxStickerPackItem) GetSetName() string {
@@ -4205,7 +4769,7 @@ type NoxForceAddStickerRequest struct {
 
 func (x *NoxForceAddStickerRequest) Reset() {
 	*x = NoxForceAddStickerRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[52]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4217,7 +4781,7 @@ func (x *NoxForceAddStickerRequest) String() string {
 func (*NoxForceAddStickerRequest) ProtoMessage() {}
 
 func (x *NoxForceAddStickerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[52]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4230,7 +4794,7 @@ func (x *NoxForceAddStickerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxForceAddStickerRequest.ProtoReflect.Descriptor instead.
 func (*NoxForceAddStickerRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{52}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *NoxForceAddStickerRequest) GetNodeId() string {
@@ -4299,7 +4863,7 @@ type NoxMediaPreviewRequest struct {
 
 func (x *NoxMediaPreviewRequest) Reset() {
 	*x = NoxMediaPreviewRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[53]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4311,7 +4875,7 @@ func (x *NoxMediaPreviewRequest) String() string {
 func (*NoxMediaPreviewRequest) ProtoMessage() {}
 
 func (x *NoxMediaPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[53]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4324,7 +4888,7 @@ func (x *NoxMediaPreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxMediaPreviewRequest.ProtoReflect.Descriptor instead.
 func (*NoxMediaPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{53}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *NoxMediaPreviewRequest) GetNodeId() string {
@@ -4352,7 +4916,7 @@ type NoxMediaPreviewResponse struct {
 
 func (x *NoxMediaPreviewResponse) Reset() {
 	*x = NoxMediaPreviewResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[54]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4364,7 +4928,7 @@ func (x *NoxMediaPreviewResponse) String() string {
 func (*NoxMediaPreviewResponse) ProtoMessage() {}
 
 func (x *NoxMediaPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[54]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4377,7 +4941,7 @@ func (x *NoxMediaPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxMediaPreviewResponse.ProtoReflect.Descriptor instead.
 func (*NoxMediaPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{54}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *NoxMediaPreviewResponse) GetFileUniqueId() string {
@@ -4417,7 +4981,7 @@ type NoxMediaMutationRequest struct {
 
 func (x *NoxMediaMutationRequest) Reset() {
 	*x = NoxMediaMutationRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[55]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4429,7 +4993,7 @@ func (x *NoxMediaMutationRequest) String() string {
 func (*NoxMediaMutationRequest) ProtoMessage() {}
 
 func (x *NoxMediaMutationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[55]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4442,7 +5006,7 @@ func (x *NoxMediaMutationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxMediaMutationRequest.ProtoReflect.Descriptor instead.
 func (*NoxMediaMutationRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{55}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *NoxMediaMutationRequest) GetNodeId() string {
@@ -4515,7 +5079,7 @@ type NoxMediaPinRequest struct {
 
 func (x *NoxMediaPinRequest) Reset() {
 	*x = NoxMediaPinRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[56]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4527,7 +5091,7 @@ func (x *NoxMediaPinRequest) String() string {
 func (*NoxMediaPinRequest) ProtoMessage() {}
 
 func (x *NoxMediaPinRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[56]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4540,7 +5104,7 @@ func (x *NoxMediaPinRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxMediaPinRequest.ProtoReflect.Descriptor instead.
 func (*NoxMediaPinRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{56}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *NoxMediaPinRequest) GetNodeId() string {
@@ -4595,7 +5159,7 @@ type NoxMediaMutationResponse struct {
 
 func (x *NoxMediaMutationResponse) Reset() {
 	*x = NoxMediaMutationResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[57]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4607,7 +5171,7 @@ func (x *NoxMediaMutationResponse) String() string {
 func (*NoxMediaMutationResponse) ProtoMessage() {}
 
 func (x *NoxMediaMutationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[57]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4620,7 +5184,7 @@ func (x *NoxMediaMutationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxMediaMutationResponse.ProtoReflect.Descriptor instead.
 func (*NoxMediaMutationResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{57}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *NoxMediaMutationResponse) GetSuccess() bool {
@@ -4649,7 +5213,7 @@ type NoxAnalyzePackRequest struct {
 
 func (x *NoxAnalyzePackRequest) Reset() {
 	*x = NoxAnalyzePackRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[58]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4661,7 +5225,7 @@ func (x *NoxAnalyzePackRequest) String() string {
 func (*NoxAnalyzePackRequest) ProtoMessage() {}
 
 func (x *NoxAnalyzePackRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[58]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4674,7 +5238,7 @@ func (x *NoxAnalyzePackRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAnalyzePackRequest.ProtoReflect.Descriptor instead.
 func (*NoxAnalyzePackRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{58}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *NoxAnalyzePackRequest) GetNodeId() string {
@@ -4716,7 +5280,7 @@ type NoxAnalyzePackResponse struct {
 
 func (x *NoxAnalyzePackResponse) Reset() {
 	*x = NoxAnalyzePackResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[59]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4728,7 +5292,7 @@ func (x *NoxAnalyzePackResponse) String() string {
 func (*NoxAnalyzePackResponse) ProtoMessage() {}
 
 func (x *NoxAnalyzePackResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[59]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4741,7 +5305,7 @@ func (x *NoxAnalyzePackResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAnalyzePackResponse.ProtoReflect.Descriptor instead.
 func (*NoxAnalyzePackResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{59}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *NoxAnalyzePackResponse) GetSuccess() bool {
@@ -4777,7 +5341,7 @@ type NoxActiveJobsRequest struct {
 
 func (x *NoxActiveJobsRequest) Reset() {
 	*x = NoxActiveJobsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[60]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4789,7 +5353,7 @@ func (x *NoxActiveJobsRequest) String() string {
 func (*NoxActiveJobsRequest) ProtoMessage() {}
 
 func (x *NoxActiveJobsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[60]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4802,7 +5366,7 @@ func (x *NoxActiveJobsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxActiveJobsRequest.ProtoReflect.Descriptor instead.
 func (*NoxActiveJobsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{60}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *NoxActiveJobsRequest) GetNodeId() string {
@@ -4828,7 +5392,7 @@ type NoxJobProgressEvent struct {
 
 func (x *NoxJobProgressEvent) Reset() {
 	*x = NoxJobProgressEvent{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[61]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4840,7 +5404,7 @@ func (x *NoxJobProgressEvent) String() string {
 func (*NoxJobProgressEvent) ProtoMessage() {}
 
 func (x *NoxJobProgressEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[61]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4853,7 +5417,7 @@ func (x *NoxJobProgressEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxJobProgressEvent.ProtoReflect.Descriptor instead.
 func (*NoxJobProgressEvent) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{61}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *NoxJobProgressEvent) GetJobId() string {
@@ -4924,7 +5488,7 @@ type NoxDocGenSandboxSettings struct {
 
 func (x *NoxDocGenSandboxSettings) Reset() {
 	*x = NoxDocGenSandboxSettings{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[62]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4936,7 +5500,7 @@ func (x *NoxDocGenSandboxSettings) String() string {
 func (*NoxDocGenSandboxSettings) ProtoMessage() {}
 
 func (x *NoxDocGenSandboxSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[62]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4949,7 +5513,7 @@ func (x *NoxDocGenSandboxSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxDocGenSandboxSettings.ProtoReflect.Descriptor instead.
 func (*NoxDocGenSandboxSettings) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{62}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *NoxDocGenSandboxSettings) GetKeepJobs() int32 {
@@ -4991,7 +5555,7 @@ type NoxDocGenSettings struct {
 
 func (x *NoxDocGenSettings) Reset() {
 	*x = NoxDocGenSettings{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[63]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5003,7 +5567,7 @@ func (x *NoxDocGenSettings) String() string {
 func (*NoxDocGenSettings) ProtoMessage() {}
 
 func (x *NoxDocGenSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[63]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5016,7 +5580,7 @@ func (x *NoxDocGenSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxDocGenSettings.ProtoReflect.Descriptor instead.
 func (*NoxDocGenSettings) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{63}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *NoxDocGenSettings) GetExecutor() string {
@@ -5052,7 +5616,7 @@ type NoxActiveJobsResponse struct {
 
 func (x *NoxActiveJobsResponse) Reset() {
 	*x = NoxActiveJobsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[64]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5064,7 +5628,7 @@ func (x *NoxActiveJobsResponse) String() string {
 func (*NoxActiveJobsResponse) ProtoMessage() {}
 
 func (x *NoxActiveJobsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[64]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5077,7 +5641,7 @@ func (x *NoxActiveJobsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxActiveJobsResponse.ProtoReflect.Descriptor instead.
 func (*NoxActiveJobsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{64}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *NoxActiveJobsResponse) GetZstdPayload() []byte {
@@ -5120,7 +5684,7 @@ type NoxVectorInspectRequest struct {
 
 func (x *NoxVectorInspectRequest) Reset() {
 	*x = NoxVectorInspectRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[65]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5132,7 +5696,7 @@ func (x *NoxVectorInspectRequest) String() string {
 func (*NoxVectorInspectRequest) ProtoMessage() {}
 
 func (x *NoxVectorInspectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[65]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5145,7 +5709,7 @@ func (x *NoxVectorInspectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxVectorInspectRequest.ProtoReflect.Descriptor instead.
 func (*NoxVectorInspectRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{65}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *NoxVectorInspectRequest) GetNodeId() string {
@@ -5192,7 +5756,7 @@ type NoxVectorPointItem struct {
 
 func (x *NoxVectorPointItem) Reset() {
 	*x = NoxVectorPointItem{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[66]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5204,7 +5768,7 @@ func (x *NoxVectorPointItem) String() string {
 func (*NoxVectorPointItem) ProtoMessage() {}
 
 func (x *NoxVectorPointItem) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[66]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5217,7 +5781,7 @@ func (x *NoxVectorPointItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxVectorPointItem.ProtoReflect.Descriptor instead.
 func (*NoxVectorPointItem) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{66}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *NoxVectorPointItem) GetPointId() string {
@@ -5288,7 +5852,7 @@ type NoxVectorInspectResponse struct {
 
 func (x *NoxVectorInspectResponse) Reset() {
 	*x = NoxVectorInspectResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[67]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5300,7 +5864,7 @@ func (x *NoxVectorInspectResponse) String() string {
 func (*NoxVectorInspectResponse) ProtoMessage() {}
 
 func (x *NoxVectorInspectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[67]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5313,7 +5877,7 @@ func (x *NoxVectorInspectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxVectorInspectResponse.ProtoReflect.Descriptor instead.
 func (*NoxVectorInspectResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{67}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *NoxVectorInspectResponse) GetZstdPayload() []byte {
@@ -5370,7 +5934,7 @@ type NoxChatImage struct {
 
 func (x *NoxChatImage) Reset() {
 	*x = NoxChatImage{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[68]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5382,7 +5946,7 @@ func (x *NoxChatImage) String() string {
 func (*NoxChatImage) ProtoMessage() {}
 
 func (x *NoxChatImage) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[68]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5395,7 +5959,7 @@ func (x *NoxChatImage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxChatImage.ProtoReflect.Descriptor instead.
 func (*NoxChatImage) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{68}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *NoxChatImage) GetUuid() string {
@@ -5502,7 +6066,7 @@ type NoxListChatImagesRequest struct {
 
 func (x *NoxListChatImagesRequest) Reset() {
 	*x = NoxListChatImagesRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[69]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5514,7 +6078,7 @@ func (x *NoxListChatImagesRequest) String() string {
 func (*NoxListChatImagesRequest) ProtoMessage() {}
 
 func (x *NoxListChatImagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[69]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5527,7 +6091,7 @@ func (x *NoxListChatImagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListChatImagesRequest.ProtoReflect.Descriptor instead.
 func (*NoxListChatImagesRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{69}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *NoxListChatImagesRequest) GetNodeId() string {
@@ -5574,7 +6138,7 @@ type NoxListChatImagesResponse struct {
 
 func (x *NoxListChatImagesResponse) Reset() {
 	*x = NoxListChatImagesResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[70]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5586,7 +6150,7 @@ func (x *NoxListChatImagesResponse) String() string {
 func (*NoxListChatImagesResponse) ProtoMessage() {}
 
 func (x *NoxListChatImagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[70]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5599,7 +6163,7 @@ func (x *NoxListChatImagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListChatImagesResponse.ProtoReflect.Descriptor instead.
 func (*NoxListChatImagesResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{70}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *NoxListChatImagesResponse) GetImages() []*NoxChatImage {
@@ -5621,7 +6185,7 @@ type NoxGetChatImageRequest struct {
 
 func (x *NoxGetChatImageRequest) Reset() {
 	*x = NoxGetChatImageRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[71]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5633,7 +6197,7 @@ func (x *NoxGetChatImageRequest) String() string {
 func (*NoxGetChatImageRequest) ProtoMessage() {}
 
 func (x *NoxGetChatImageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[71]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5646,7 +6210,7 @@ func (x *NoxGetChatImageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetChatImageRequest.ProtoReflect.Descriptor instead.
 func (*NoxGetChatImageRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{71}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *NoxGetChatImageRequest) GetNodeId() string {
@@ -5688,7 +6252,7 @@ type NoxGetChatImageResponse struct {
 
 func (x *NoxGetChatImageResponse) Reset() {
 	*x = NoxGetChatImageResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[72]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5700,7 +6264,7 @@ func (x *NoxGetChatImageResponse) String() string {
 func (*NoxGetChatImageResponse) ProtoMessage() {}
 
 func (x *NoxGetChatImageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[72]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5713,7 +6277,7 @@ func (x *NoxGetChatImageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetChatImageResponse.ProtoReflect.Descriptor instead.
 func (*NoxGetChatImageResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{72}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *NoxGetChatImageResponse) GetImage() *NoxChatImage {
@@ -5746,7 +6310,7 @@ type NoxImageStorageStatsRequest struct {
 
 func (x *NoxImageStorageStatsRequest) Reset() {
 	*x = NoxImageStorageStatsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[73]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5758,7 +6322,7 @@ func (x *NoxImageStorageStatsRequest) String() string {
 func (*NoxImageStorageStatsRequest) ProtoMessage() {}
 
 func (x *NoxImageStorageStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[73]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5771,7 +6335,7 @@ func (x *NoxImageStorageStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxImageStorageStatsRequest.ProtoReflect.Descriptor instead.
 func (*NoxImageStorageStatsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{73}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *NoxImageStorageStatsRequest) GetNodeId() string {
@@ -5794,7 +6358,7 @@ type NoxChatImageUsage struct {
 
 func (x *NoxChatImageUsage) Reset() {
 	*x = NoxChatImageUsage{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[74]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5806,7 +6370,7 @@ func (x *NoxChatImageUsage) String() string {
 func (*NoxChatImageUsage) ProtoMessage() {}
 
 func (x *NoxChatImageUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[74]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5819,7 +6383,7 @@ func (x *NoxChatImageUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxChatImageUsage.ProtoReflect.Descriptor instead.
 func (*NoxChatImageUsage) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{74}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *NoxChatImageUsage) GetChatId() int64 {
@@ -5870,7 +6434,7 @@ type NoxImageStorageStatsResponse struct {
 
 func (x *NoxImageStorageStatsResponse) Reset() {
 	*x = NoxImageStorageStatsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[75]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5882,7 +6446,7 @@ func (x *NoxImageStorageStatsResponse) String() string {
 func (*NoxImageStorageStatsResponse) ProtoMessage() {}
 
 func (x *NoxImageStorageStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[75]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5895,7 +6459,7 @@ func (x *NoxImageStorageStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxImageStorageStatsResponse.ProtoReflect.Descriptor instead.
 func (*NoxImageStorageStatsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{75}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *NoxImageStorageStatsResponse) GetTotalBytes() int64 {
@@ -5947,7 +6511,7 @@ type NoxSweepChatImagesRequest struct {
 
 func (x *NoxSweepChatImagesRequest) Reset() {
 	*x = NoxSweepChatImagesRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[76]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5959,7 +6523,7 @@ func (x *NoxSweepChatImagesRequest) String() string {
 func (*NoxSweepChatImagesRequest) ProtoMessage() {}
 
 func (x *NoxSweepChatImagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[76]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5972,7 +6536,7 @@ func (x *NoxSweepChatImagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSweepChatImagesRequest.ProtoReflect.Descriptor instead.
 func (*NoxSweepChatImagesRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{76}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *NoxSweepChatImagesRequest) GetNodeId() string {
@@ -6027,7 +6591,7 @@ type NoxSweepChatImagesResponse struct {
 
 func (x *NoxSweepChatImagesResponse) Reset() {
 	*x = NoxSweepChatImagesResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[77]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6039,7 +6603,7 @@ func (x *NoxSweepChatImagesResponse) String() string {
 func (*NoxSweepChatImagesResponse) ProtoMessage() {}
 
 func (x *NoxSweepChatImagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[77]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6052,7 +6616,7 @@ func (x *NoxSweepChatImagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSweepChatImagesResponse.ProtoReflect.Descriptor instead.
 func (*NoxSweepChatImagesResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{77}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *NoxSweepChatImagesResponse) GetDeletedCount() uint32 {
@@ -6104,7 +6668,7 @@ type NoxChatFile struct {
 
 func (x *NoxChatFile) Reset() {
 	*x = NoxChatFile{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[78]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6116,7 +6680,7 @@ func (x *NoxChatFile) String() string {
 func (*NoxChatFile) ProtoMessage() {}
 
 func (x *NoxChatFile) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[78]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6129,7 +6693,7 @@ func (x *NoxChatFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxChatFile.ProtoReflect.Descriptor instead.
 func (*NoxChatFile) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{78}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *NoxChatFile) GetUuid() string {
@@ -6300,7 +6864,7 @@ type NoxListChatFilesRequest struct {
 
 func (x *NoxListChatFilesRequest) Reset() {
 	*x = NoxListChatFilesRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[79]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6312,7 +6876,7 @@ func (x *NoxListChatFilesRequest) String() string {
 func (*NoxListChatFilesRequest) ProtoMessage() {}
 
 func (x *NoxListChatFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[79]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6325,7 +6889,7 @@ func (x *NoxListChatFilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListChatFilesRequest.ProtoReflect.Descriptor instead.
 func (*NoxListChatFilesRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{79}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *NoxListChatFilesRequest) GetNodeId() string {
@@ -6380,7 +6944,7 @@ type NoxListChatFilesResponse struct {
 
 func (x *NoxListChatFilesResponse) Reset() {
 	*x = NoxListChatFilesResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[80]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6392,7 +6956,7 @@ func (x *NoxListChatFilesResponse) String() string {
 func (*NoxListChatFilesResponse) ProtoMessage() {}
 
 func (x *NoxListChatFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[80]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6405,7 +6969,7 @@ func (x *NoxListChatFilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListChatFilesResponse.ProtoReflect.Descriptor instead.
 func (*NoxListChatFilesResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{80}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *NoxListChatFilesResponse) GetFiles() []*NoxChatFile {
@@ -6436,7 +7000,7 @@ type NoxGetChatFilePreviewRequest struct {
 
 func (x *NoxGetChatFilePreviewRequest) Reset() {
 	*x = NoxGetChatFilePreviewRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[81]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6448,7 +7012,7 @@ func (x *NoxGetChatFilePreviewRequest) String() string {
 func (*NoxGetChatFilePreviewRequest) ProtoMessage() {}
 
 func (x *NoxGetChatFilePreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[81]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6461,7 +7025,7 @@ func (x *NoxGetChatFilePreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetChatFilePreviewRequest.ProtoReflect.Descriptor instead.
 func (*NoxGetChatFilePreviewRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{81}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *NoxGetChatFilePreviewRequest) GetNodeId() string {
@@ -6521,7 +7085,7 @@ type NoxGetChatFilePreviewResponse struct {
 
 func (x *NoxGetChatFilePreviewResponse) Reset() {
 	*x = NoxGetChatFilePreviewResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[82]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6533,7 +7097,7 @@ func (x *NoxGetChatFilePreviewResponse) String() string {
 func (*NoxGetChatFilePreviewResponse) ProtoMessage() {}
 
 func (x *NoxGetChatFilePreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[82]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6546,7 +7110,7 @@ func (x *NoxGetChatFilePreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetChatFilePreviewResponse.ProtoReflect.Descriptor instead.
 func (*NoxGetChatFilePreviewResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{82}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *NoxGetChatFilePreviewResponse) GetFile() *NoxChatFile {
@@ -6609,7 +7173,7 @@ type NoxGetChatFileBytesRequest struct {
 
 func (x *NoxGetChatFileBytesRequest) Reset() {
 	*x = NoxGetChatFileBytesRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[83]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6621,7 +7185,7 @@ func (x *NoxGetChatFileBytesRequest) String() string {
 func (*NoxGetChatFileBytesRequest) ProtoMessage() {}
 
 func (x *NoxGetChatFileBytesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[83]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6634,7 +7198,7 @@ func (x *NoxGetChatFileBytesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetChatFileBytesRequest.ProtoReflect.Descriptor instead.
 func (*NoxGetChatFileBytesRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{83}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *NoxGetChatFileBytesRequest) GetNodeId() string {
@@ -6670,7 +7234,7 @@ type NoxGetChatFileBytesResponse struct {
 
 func (x *NoxGetChatFileBytesResponse) Reset() {
 	*x = NoxGetChatFileBytesResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[84]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6682,7 +7246,7 @@ func (x *NoxGetChatFileBytesResponse) String() string {
 func (*NoxGetChatFileBytesResponse) ProtoMessage() {}
 
 func (x *NoxGetChatFileBytesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[84]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6695,7 +7259,7 @@ func (x *NoxGetChatFileBytesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetChatFileBytesResponse.ProtoReflect.Descriptor instead.
 func (*NoxGetChatFileBytesResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{84}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *NoxGetChatFileBytesResponse) GetFilename() string {
@@ -6735,7 +7299,7 @@ type NoxWorkspaceStorageStatsRequest struct {
 
 func (x *NoxWorkspaceStorageStatsRequest) Reset() {
 	*x = NoxWorkspaceStorageStatsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[85]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6747,7 +7311,7 @@ func (x *NoxWorkspaceStorageStatsRequest) String() string {
 func (*NoxWorkspaceStorageStatsRequest) ProtoMessage() {}
 
 func (x *NoxWorkspaceStorageStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[85]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6760,7 +7324,7 @@ func (x *NoxWorkspaceStorageStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxWorkspaceStorageStatsRequest.ProtoReflect.Descriptor instead.
 func (*NoxWorkspaceStorageStatsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{85}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *NoxWorkspaceStorageStatsRequest) GetNodeId() string {
@@ -6787,7 +7351,7 @@ type NoxChatFileUsage struct {
 
 func (x *NoxChatFileUsage) Reset() {
 	*x = NoxChatFileUsage{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[86]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6799,7 +7363,7 @@ func (x *NoxChatFileUsage) String() string {
 func (*NoxChatFileUsage) ProtoMessage() {}
 
 func (x *NoxChatFileUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[86]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6812,7 +7376,7 @@ func (x *NoxChatFileUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxChatFileUsage.ProtoReflect.Descriptor instead.
 func (*NoxChatFileUsage) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{86}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *NoxChatFileUsage) GetChatId() int64 {
@@ -6894,7 +7458,7 @@ type NoxWorkspaceStorageStatsResponse struct {
 
 func (x *NoxWorkspaceStorageStatsResponse) Reset() {
 	*x = NoxWorkspaceStorageStatsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[87]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6906,7 +7470,7 @@ func (x *NoxWorkspaceStorageStatsResponse) String() string {
 func (*NoxWorkspaceStorageStatsResponse) ProtoMessage() {}
 
 func (x *NoxWorkspaceStorageStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[87]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6919,7 +7483,7 @@ func (x *NoxWorkspaceStorageStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxWorkspaceStorageStatsResponse.ProtoReflect.Descriptor instead.
 func (*NoxWorkspaceStorageStatsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{87}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *NoxWorkspaceStorageStatsResponse) GetTotalBytes() int64 {
@@ -6993,7 +7557,7 @@ type NoxSweepChatFilesRequest struct {
 
 func (x *NoxSweepChatFilesRequest) Reset() {
 	*x = NoxSweepChatFilesRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[88]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7005,7 +7569,7 @@ func (x *NoxSweepChatFilesRequest) String() string {
 func (*NoxSweepChatFilesRequest) ProtoMessage() {}
 
 func (x *NoxSweepChatFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[88]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7018,7 +7582,7 @@ func (x *NoxSweepChatFilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSweepChatFilesRequest.ProtoReflect.Descriptor instead.
 func (*NoxSweepChatFilesRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{88}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *NoxSweepChatFilesRequest) GetNodeId() string {
@@ -7081,7 +7645,7 @@ type NoxSweepChatFilesResponse struct {
 
 func (x *NoxSweepChatFilesResponse) Reset() {
 	*x = NoxSweepChatFilesResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[89]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7093,7 +7657,7 @@ func (x *NoxSweepChatFilesResponse) String() string {
 func (*NoxSweepChatFilesResponse) ProtoMessage() {}
 
 func (x *NoxSweepChatFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[89]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7106,7 +7670,7 @@ func (x *NoxSweepChatFilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSweepChatFilesResponse.ProtoReflect.Descriptor instead.
 func (*NoxSweepChatFilesResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{89}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *NoxSweepChatFilesResponse) GetDeletedCount() uint32 {
@@ -7156,7 +7720,7 @@ type NoxUserProfile struct {
 
 func (x *NoxUserProfile) Reset() {
 	*x = NoxUserProfile{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[90]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7168,7 +7732,7 @@ func (x *NoxUserProfile) String() string {
 func (*NoxUserProfile) ProtoMessage() {}
 
 func (x *NoxUserProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[90]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7181,7 +7745,7 @@ func (x *NoxUserProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserProfile.ProtoReflect.Descriptor instead.
 func (*NoxUserProfile) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{90}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *NoxUserProfile) GetUserId() int64 {
@@ -7300,7 +7864,7 @@ type NoxUserProfileQueryRequest struct {
 
 func (x *NoxUserProfileQueryRequest) Reset() {
 	*x = NoxUserProfileQueryRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[91]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7312,7 +7876,7 @@ func (x *NoxUserProfileQueryRequest) String() string {
 func (*NoxUserProfileQueryRequest) ProtoMessage() {}
 
 func (x *NoxUserProfileQueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[91]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7325,7 +7889,7 @@ func (x *NoxUserProfileQueryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserProfileQueryRequest.ProtoReflect.Descriptor instead.
 func (*NoxUserProfileQueryRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{91}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *NoxUserProfileQueryRequest) GetNodeId() string {
@@ -7361,7 +7925,7 @@ type NoxUserProfileQueryResponse struct {
 
 func (x *NoxUserProfileQueryResponse) Reset() {
 	*x = NoxUserProfileQueryResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[92]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7373,7 +7937,7 @@ func (x *NoxUserProfileQueryResponse) String() string {
 func (*NoxUserProfileQueryResponse) ProtoMessage() {}
 
 func (x *NoxUserProfileQueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[92]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7386,7 +7950,7 @@ func (x *NoxUserProfileQueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserProfileQueryResponse.ProtoReflect.Descriptor instead.
 func (*NoxUserProfileQueryResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{92}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *NoxUserProfileQueryResponse) GetZstdPayload() []byte {
@@ -7428,7 +7992,7 @@ type NoxUserProfileSearchRequest struct {
 
 func (x *NoxUserProfileSearchRequest) Reset() {
 	*x = NoxUserProfileSearchRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[93]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7440,7 +8004,7 @@ func (x *NoxUserProfileSearchRequest) String() string {
 func (*NoxUserProfileSearchRequest) ProtoMessage() {}
 
 func (x *NoxUserProfileSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[93]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7453,7 +8017,7 @@ func (x *NoxUserProfileSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserProfileSearchRequest.ProtoReflect.Descriptor instead.
 func (*NoxUserProfileSearchRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{93}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *NoxUserProfileSearchRequest) GetNodeId() string {
@@ -7489,7 +8053,7 @@ type NoxUserProfileSearchResponse struct {
 
 func (x *NoxUserProfileSearchResponse) Reset() {
 	*x = NoxUserProfileSearchResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[94]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7501,7 +8065,7 @@ func (x *NoxUserProfileSearchResponse) String() string {
 func (*NoxUserProfileSearchResponse) ProtoMessage() {}
 
 func (x *NoxUserProfileSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[94]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7514,7 +8078,7 @@ func (x *NoxUserProfileSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserProfileSearchResponse.ProtoReflect.Descriptor instead.
 func (*NoxUserProfileSearchResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{94}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *NoxUserProfileSearchResponse) GetZstdPayload() []byte {
@@ -7555,7 +8119,7 @@ type NoxUserProfilePhotoRequest struct {
 
 func (x *NoxUserProfilePhotoRequest) Reset() {
 	*x = NoxUserProfilePhotoRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[95]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7567,7 +8131,7 @@ func (x *NoxUserProfilePhotoRequest) String() string {
 func (*NoxUserProfilePhotoRequest) ProtoMessage() {}
 
 func (x *NoxUserProfilePhotoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[95]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7580,7 +8144,7 @@ func (x *NoxUserProfilePhotoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserProfilePhotoRequest.ProtoReflect.Descriptor instead.
 func (*NoxUserProfilePhotoRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{95}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *NoxUserProfilePhotoRequest) GetNodeId() string {
@@ -7608,7 +8172,7 @@ type NoxUserProfilePhotoResponse struct {
 
 func (x *NoxUserProfilePhotoResponse) Reset() {
 	*x = NoxUserProfilePhotoResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[96]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7620,7 +8184,7 @@ func (x *NoxUserProfilePhotoResponse) String() string {
 func (*NoxUserProfilePhotoResponse) ProtoMessage() {}
 
 func (x *NoxUserProfilePhotoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[96]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7633,7 +8197,7 @@ func (x *NoxUserProfilePhotoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserProfilePhotoResponse.ProtoReflect.Descriptor instead.
 func (*NoxUserProfilePhotoResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{96}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *NoxUserProfilePhotoResponse) GetUserId() int64 {
@@ -7675,7 +8239,7 @@ type NoxSearchLogsRequest struct {
 
 func (x *NoxSearchLogsRequest) Reset() {
 	*x = NoxSearchLogsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[97]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7687,7 +8251,7 @@ func (x *NoxSearchLogsRequest) String() string {
 func (*NoxSearchLogsRequest) ProtoMessage() {}
 
 func (x *NoxSearchLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[97]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7700,7 +8264,7 @@ func (x *NoxSearchLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSearchLogsRequest.ProtoReflect.Descriptor instead.
 func (*NoxSearchLogsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{97}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *NoxSearchLogsRequest) GetNodeId() string {
@@ -7784,7 +8348,7 @@ type NoxLogSearchHit struct {
 
 func (x *NoxLogSearchHit) Reset() {
 	*x = NoxLogSearchHit{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[98]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7796,7 +8360,7 @@ func (x *NoxLogSearchHit) String() string {
 func (*NoxLogSearchHit) ProtoMessage() {}
 
 func (x *NoxLogSearchHit) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[98]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7809,7 +8373,7 @@ func (x *NoxLogSearchHit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxLogSearchHit.ProtoReflect.Descriptor instead.
 func (*NoxLogSearchHit) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{98}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *NoxLogSearchHit) GetChunkId() uint64 {
@@ -7896,7 +8460,7 @@ type NoxSearchLogsResponse struct {
 
 func (x *NoxSearchLogsResponse) Reset() {
 	*x = NoxSearchLogsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[99]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7908,7 +8472,7 @@ func (x *NoxSearchLogsResponse) String() string {
 func (*NoxSearchLogsResponse) ProtoMessage() {}
 
 func (x *NoxSearchLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[99]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7921,7 +8485,7 @@ func (x *NoxSearchLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSearchLogsResponse.ProtoReflect.Descriptor instead.
 func (*NoxSearchLogsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{99}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *NoxSearchLogsResponse) GetZstdPayload() []byte {
@@ -8041,7 +8605,7 @@ type NoxTipItem struct {
 
 func (x *NoxTipItem) Reset() {
 	*x = NoxTipItem{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[100]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8053,7 +8617,7 @@ func (x *NoxTipItem) String() string {
 func (*NoxTipItem) ProtoMessage() {}
 
 func (x *NoxTipItem) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[100]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8066,7 +8630,7 @@ func (x *NoxTipItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipItem.ProtoReflect.Descriptor instead.
 func (*NoxTipItem) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{100}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *NoxTipItem) GetId() string {
@@ -8190,7 +8754,7 @@ type NoxTipSettings struct {
 
 func (x *NoxTipSettings) Reset() {
 	*x = NoxTipSettings{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[101]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8202,7 +8766,7 @@ func (x *NoxTipSettings) String() string {
 func (*NoxTipSettings) ProtoMessage() {}
 
 func (x *NoxTipSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[101]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8215,7 +8779,7 @@ func (x *NoxTipSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipSettings.ProtoReflect.Descriptor instead.
 func (*NoxTipSettings) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{101}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *NoxTipSettings) GetEnabled() bool {
@@ -8291,7 +8855,7 @@ type NoxTipListRequest struct {
 
 func (x *NoxTipListRequest) Reset() {
 	*x = NoxTipListRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[102]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8303,7 +8867,7 @@ func (x *NoxTipListRequest) String() string {
 func (*NoxTipListRequest) ProtoMessage() {}
 
 func (x *NoxTipListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[102]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8316,7 +8880,7 @@ func (x *NoxTipListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipListRequest.ProtoReflect.Descriptor instead.
 func (*NoxTipListRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{102}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *NoxTipListRequest) GetNodeId() string {
@@ -8395,7 +8959,7 @@ type NoxTipListResponse struct {
 
 func (x *NoxTipListResponse) Reset() {
 	*x = NoxTipListResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[103]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8407,7 +8971,7 @@ func (x *NoxTipListResponse) String() string {
 func (*NoxTipListResponse) ProtoMessage() {}
 
 func (x *NoxTipListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[103]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8420,7 +8984,7 @@ func (x *NoxTipListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipListResponse.ProtoReflect.Descriptor instead.
 func (*NoxTipListResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{103}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *NoxTipListResponse) GetTips() []*NoxTipItem {
@@ -8468,7 +9032,7 @@ type NoxTipScored struct {
 
 func (x *NoxTipScored) Reset() {
 	*x = NoxTipScored{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[104]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8480,7 +9044,7 @@ func (x *NoxTipScored) String() string {
 func (*NoxTipScored) ProtoMessage() {}
 
 func (x *NoxTipScored) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[104]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8493,7 +9057,7 @@ func (x *NoxTipScored) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipScored.ProtoReflect.Descriptor instead.
 func (*NoxTipScored) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{104}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *NoxTipScored) GetTip() *NoxTipItem {
@@ -8523,7 +9087,7 @@ type NoxTipSearchRequest struct {
 
 func (x *NoxTipSearchRequest) Reset() {
 	*x = NoxTipSearchRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[105]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8535,7 +9099,7 @@ func (x *NoxTipSearchRequest) String() string {
 func (*NoxTipSearchRequest) ProtoMessage() {}
 
 func (x *NoxTipSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[105]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8548,7 +9112,7 @@ func (x *NoxTipSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipSearchRequest.ProtoReflect.Descriptor instead.
 func (*NoxTipSearchRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{105}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *NoxTipSearchRequest) GetNodeId() string {
@@ -8595,7 +9159,7 @@ type NoxTipSearchResponse struct {
 
 func (x *NoxTipSearchResponse) Reset() {
 	*x = NoxTipSearchResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[106]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8607,7 +9171,7 @@ func (x *NoxTipSearchResponse) String() string {
 func (*NoxTipSearchResponse) ProtoMessage() {}
 
 func (x *NoxTipSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[106]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8620,7 +9184,7 @@ func (x *NoxTipSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipSearchResponse.ProtoReflect.Descriptor instead.
 func (*NoxTipSearchResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{106}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *NoxTipSearchResponse) GetResults() []*NoxTipScored {
@@ -8642,7 +9206,7 @@ type NoxAddTipsRequest struct {
 
 func (x *NoxAddTipsRequest) Reset() {
 	*x = NoxAddTipsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[107]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8654,7 +9218,7 @@ func (x *NoxAddTipsRequest) String() string {
 func (*NoxAddTipsRequest) ProtoMessage() {}
 
 func (x *NoxAddTipsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[107]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8667,7 +9231,7 @@ func (x *NoxAddTipsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAddTipsRequest.ProtoReflect.Descriptor instead.
 func (*NoxAddTipsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{107}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *NoxAddTipsRequest) GetNodeId() string {
@@ -8708,7 +9272,7 @@ type NoxTipRejected struct {
 
 func (x *NoxTipRejected) Reset() {
 	*x = NoxTipRejected{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[108]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8720,7 +9284,7 @@ func (x *NoxTipRejected) String() string {
 func (*NoxTipRejected) ProtoMessage() {}
 
 func (x *NoxTipRejected) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[108]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8733,7 +9297,7 @@ func (x *NoxTipRejected) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipRejected.ProtoReflect.Descriptor instead.
 func (*NoxTipRejected) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{108}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *NoxTipRejected) GetText() string {
@@ -8761,7 +9325,7 @@ type NoxAddTipsResponse struct {
 
 func (x *NoxAddTipsResponse) Reset() {
 	*x = NoxAddTipsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[109]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8773,7 +9337,7 @@ func (x *NoxAddTipsResponse) String() string {
 func (*NoxAddTipsResponse) ProtoMessage() {}
 
 func (x *NoxAddTipsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[109]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8786,7 +9350,7 @@ func (x *NoxAddTipsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAddTipsResponse.ProtoReflect.Descriptor instead.
 func (*NoxAddTipsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{109}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *NoxAddTipsResponse) GetAdded() []*NoxTipItem {
@@ -8830,7 +9394,7 @@ type NoxUpdateTipRequest struct {
 
 func (x *NoxUpdateTipRequest) Reset() {
 	*x = NoxUpdateTipRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[110]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8842,7 +9406,7 @@ func (x *NoxUpdateTipRequest) String() string {
 func (*NoxUpdateTipRequest) ProtoMessage() {}
 
 func (x *NoxUpdateTipRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[110]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8855,7 +9419,7 @@ func (x *NoxUpdateTipRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUpdateTipRequest.ProtoReflect.Descriptor instead.
 func (*NoxUpdateTipRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{110}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *NoxUpdateTipRequest) GetNodeId() string {
@@ -8952,7 +9516,7 @@ type NoxDeleteTipsRequest struct {
 
 func (x *NoxDeleteTipsRequest) Reset() {
 	*x = NoxDeleteTipsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[111]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8964,7 +9528,7 @@ func (x *NoxDeleteTipsRequest) String() string {
 func (*NoxDeleteTipsRequest) ProtoMessage() {}
 
 func (x *NoxDeleteTipsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[111]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8977,7 +9541,7 @@ func (x *NoxDeleteTipsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxDeleteTipsRequest.ProtoReflect.Descriptor instead.
 func (*NoxDeleteTipsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{111}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *NoxDeleteTipsRequest) GetNodeId() string {
@@ -9007,7 +9571,7 @@ type NoxTipMutationResponse struct {
 
 func (x *NoxTipMutationResponse) Reset() {
 	*x = NoxTipMutationResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[112]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9019,7 +9583,7 @@ func (x *NoxTipMutationResponse) String() string {
 func (*NoxTipMutationResponse) ProtoMessage() {}
 
 func (x *NoxTipMutationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[112]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9032,7 +9596,7 @@ func (x *NoxTipMutationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTipMutationResponse.ProtoReflect.Descriptor instead.
 func (*NoxTipMutationResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{112}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *NoxTipMutationResponse) GetSuccess() bool {
@@ -9082,7 +9646,7 @@ type NoxTestTipsRequest struct {
 
 func (x *NoxTestTipsRequest) Reset() {
 	*x = NoxTestTipsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[113]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9094,7 +9658,7 @@ func (x *NoxTestTipsRequest) String() string {
 func (*NoxTestTipsRequest) ProtoMessage() {}
 
 func (x *NoxTestTipsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[113]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9107,7 +9671,7 @@ func (x *NoxTestTipsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTestTipsRequest.ProtoReflect.Descriptor instead.
 func (*NoxTestTipsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{113}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *NoxTestTipsRequest) GetNodeId() string {
@@ -9149,7 +9713,7 @@ type NoxTestTipsResponse struct {
 
 func (x *NoxTestTipsResponse) Reset() {
 	*x = NoxTestTipsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[114]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9161,7 +9725,7 @@ func (x *NoxTestTipsResponse) String() string {
 func (*NoxTestTipsResponse) ProtoMessage() {}
 
 func (x *NoxTestTipsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[114]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9174,7 +9738,7 @@ func (x *NoxTestTipsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxTestTipsResponse.ProtoReflect.Descriptor instead.
 func (*NoxTestTipsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{114}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *NoxTestTipsResponse) GetThreshold() float64 {
@@ -9215,7 +9779,7 @@ type NoxSandboxSession struct {
 
 func (x *NoxSandboxSession) Reset() {
 	*x = NoxSandboxSession{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[115]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9227,7 +9791,7 @@ func (x *NoxSandboxSession) String() string {
 func (*NoxSandboxSession) ProtoMessage() {}
 
 func (x *NoxSandboxSession) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[115]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9240,7 +9804,7 @@ func (x *NoxSandboxSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxSession.ProtoReflect.Descriptor instead.
 func (*NoxSandboxSession) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{115}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *NoxSandboxSession) GetName() string {
@@ -9275,7 +9839,7 @@ type NoxSandboxJob struct {
 
 func (x *NoxSandboxJob) Reset() {
 	*x = NoxSandboxJob{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[116]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9287,7 +9851,7 @@ func (x *NoxSandboxJob) String() string {
 func (*NoxSandboxJob) ProtoMessage() {}
 
 func (x *NoxSandboxJob) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[116]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9300,7 +9864,7 @@ func (x *NoxSandboxJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxJob.ProtoReflect.Descriptor instead.
 func (*NoxSandboxJob) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{116}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *NoxSandboxJob) GetJobId() string {
@@ -9354,7 +9918,7 @@ type NoxSandboxVmInfo struct {
 
 func (x *NoxSandboxVmInfo) Reset() {
 	*x = NoxSandboxVmInfo{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[117]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9366,7 +9930,7 @@ func (x *NoxSandboxVmInfo) String() string {
 func (*NoxSandboxVmInfo) ProtoMessage() {}
 
 func (x *NoxSandboxVmInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[117]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9379,7 +9943,7 @@ func (x *NoxSandboxVmInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxVmInfo.ProtoReflect.Descriptor instead.
 func (*NoxSandboxVmInfo) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{117}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *NoxSandboxVmInfo) GetChatId() int64 {
@@ -9546,7 +10110,7 @@ type NoxSandboxPool struct {
 
 func (x *NoxSandboxPool) Reset() {
 	*x = NoxSandboxPool{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[118]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9558,7 +10122,7 @@ func (x *NoxSandboxPool) String() string {
 func (*NoxSandboxPool) ProtoMessage() {}
 
 func (x *NoxSandboxPool) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[118]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9571,7 +10135,7 @@ func (x *NoxSandboxPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxPool.ProtoReflect.Descriptor instead.
 func (*NoxSandboxPool) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{118}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *NoxSandboxPool) GetReady() int32 {
@@ -9600,7 +10164,7 @@ type NoxSandboxTotals struct {
 
 func (x *NoxSandboxTotals) Reset() {
 	*x = NoxSandboxTotals{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[119]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9612,7 +10176,7 @@ func (x *NoxSandboxTotals) String() string {
 func (*NoxSandboxTotals) ProtoMessage() {}
 
 func (x *NoxSandboxTotals) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[119]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9625,7 +10189,7 @@ func (x *NoxSandboxTotals) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxTotals.ProtoReflect.Descriptor instead.
 func (*NoxSandboxTotals) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{119}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *NoxSandboxTotals) GetRunning() int32 {
@@ -9665,7 +10229,7 @@ type NoxSandboxHost struct {
 
 func (x *NoxSandboxHost) Reset() {
 	*x = NoxSandboxHost{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[120]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9677,7 +10241,7 @@ func (x *NoxSandboxHost) String() string {
 func (*NoxSandboxHost) ProtoMessage() {}
 
 func (x *NoxSandboxHost) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[120]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9690,7 +10254,7 @@ func (x *NoxSandboxHost) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxHost.ProtoReflect.Descriptor instead.
 func (*NoxSandboxHost) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{120}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *NoxSandboxHost) GetStateDirUsedPercent() float64 {
@@ -9712,7 +10276,7 @@ type NoxSandboxFileEntry struct {
 
 func (x *NoxSandboxFileEntry) Reset() {
 	*x = NoxSandboxFileEntry{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[121]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9724,7 +10288,7 @@ func (x *NoxSandboxFileEntry) String() string {
 func (*NoxSandboxFileEntry) ProtoMessage() {}
 
 func (x *NoxSandboxFileEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[121]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9737,7 +10301,7 @@ func (x *NoxSandboxFileEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxFileEntry.ProtoReflect.Descriptor instead.
 func (*NoxSandboxFileEntry) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{121}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *NoxSandboxFileEntry) GetPath() string {
@@ -9779,7 +10343,7 @@ type NoxSandboxBackup struct {
 
 func (x *NoxSandboxBackup) Reset() {
 	*x = NoxSandboxBackup{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[122]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9791,7 +10355,7 @@ func (x *NoxSandboxBackup) String() string {
 func (*NoxSandboxBackup) ProtoMessage() {}
 
 func (x *NoxSandboxBackup) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[122]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9804,7 +10368,7 @@ func (x *NoxSandboxBackup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxBackup.ProtoReflect.Descriptor instead.
 func (*NoxSandboxBackup) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{122}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *NoxSandboxBackup) GetId() string {
@@ -9849,7 +10413,7 @@ type NoxSandboxLibraryRequest struct {
 
 func (x *NoxSandboxLibraryRequest) Reset() {
 	*x = NoxSandboxLibraryRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[123]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9861,7 +10425,7 @@ func (x *NoxSandboxLibraryRequest) String() string {
 func (*NoxSandboxLibraryRequest) ProtoMessage() {}
 
 func (x *NoxSandboxLibraryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[123]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9874,7 +10438,7 @@ func (x *NoxSandboxLibraryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxLibraryRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxLibraryRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{123}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *NoxSandboxLibraryRequest) GetId() int64 {
@@ -9978,7 +10542,7 @@ type NoxSandboxPackages struct {
 
 func (x *NoxSandboxPackages) Reset() {
 	*x = NoxSandboxPackages{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[124]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9990,7 +10554,7 @@ func (x *NoxSandboxPackages) String() string {
 func (*NoxSandboxPackages) ProtoMessage() {}
 
 func (x *NoxSandboxPackages) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[124]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10003,7 +10567,7 @@ func (x *NoxSandboxPackages) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxPackages.ProtoReflect.Descriptor instead.
 func (*NoxSandboxPackages) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{124}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *NoxSandboxPackages) GetPip() []string {
@@ -10032,7 +10596,7 @@ type NoxSandboxLastBuild struct {
 
 func (x *NoxSandboxLastBuild) Reset() {
 	*x = NoxSandboxLastBuild{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[125]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10044,7 +10608,7 @@ func (x *NoxSandboxLastBuild) String() string {
 func (*NoxSandboxLastBuild) ProtoMessage() {}
 
 func (x *NoxSandboxLastBuild) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[125]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10057,7 +10621,7 @@ func (x *NoxSandboxLastBuild) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxLastBuild.ProtoReflect.Descriptor instead.
 func (*NoxSandboxLastBuild) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{125}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *NoxSandboxLastBuild) GetVersion() string {
@@ -10110,7 +10674,7 @@ type NoxSandboxRun struct {
 
 func (x *NoxSandboxRun) Reset() {
 	*x = NoxSandboxRun{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[126]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10122,7 +10686,7 @@ func (x *NoxSandboxRun) String() string {
 func (*NoxSandboxRun) ProtoMessage() {}
 
 func (x *NoxSandboxRun) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[126]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10135,7 +10699,7 @@ func (x *NoxSandboxRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxRun.ProtoReflect.Descriptor instead.
 func (*NoxSandboxRun) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{126}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *NoxSandboxRun) GetId() int64 {
@@ -10245,7 +10809,7 @@ type NoxSandboxListVmsRequest struct {
 
 func (x *NoxSandboxListVmsRequest) Reset() {
 	*x = NoxSandboxListVmsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[127]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10257,7 +10821,7 @@ func (x *NoxSandboxListVmsRequest) String() string {
 func (*NoxSandboxListVmsRequest) ProtoMessage() {}
 
 func (x *NoxSandboxListVmsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[127]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10270,7 +10834,7 @@ func (x *NoxSandboxListVmsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxListVmsRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListVmsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{127}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *NoxSandboxListVmsRequest) GetNodeId() string {
@@ -10293,7 +10857,7 @@ type NoxSandboxListVmsResponse struct {
 
 func (x *NoxSandboxListVmsResponse) Reset() {
 	*x = NoxSandboxListVmsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[128]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10305,7 +10869,7 @@ func (x *NoxSandboxListVmsResponse) String() string {
 func (*NoxSandboxListVmsResponse) ProtoMessage() {}
 
 func (x *NoxSandboxListVmsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[128]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10318,7 +10882,7 @@ func (x *NoxSandboxListVmsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxListVmsResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListVmsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{128}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *NoxSandboxListVmsResponse) GetVms() []*NoxSandboxVmInfo {
@@ -10368,7 +10932,7 @@ type NoxSandboxVmActionRequest struct {
 
 func (x *NoxSandboxVmActionRequest) Reset() {
 	*x = NoxSandboxVmActionRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[129]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10380,7 +10944,7 @@ func (x *NoxSandboxVmActionRequest) String() string {
 func (*NoxSandboxVmActionRequest) ProtoMessage() {}
 
 func (x *NoxSandboxVmActionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[129]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10393,7 +10957,7 @@ func (x *NoxSandboxVmActionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxVmActionRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxVmActionRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{129}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *NoxSandboxVmActionRequest) GetNodeId() string {
@@ -10435,7 +10999,7 @@ type NoxSandboxVmActionResponse struct {
 
 func (x *NoxSandboxVmActionResponse) Reset() {
 	*x = NoxSandboxVmActionResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[130]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10447,7 +11011,7 @@ func (x *NoxSandboxVmActionResponse) String() string {
 func (*NoxSandboxVmActionResponse) ProtoMessage() {}
 
 func (x *NoxSandboxVmActionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[130]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10460,7 +11024,7 @@ func (x *NoxSandboxVmActionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxVmActionResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxVmActionResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{130}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *NoxSandboxVmActionResponse) GetOk() bool {
@@ -10497,7 +11061,7 @@ type NoxSandboxListFilesRequest struct {
 
 func (x *NoxSandboxListFilesRequest) Reset() {
 	*x = NoxSandboxListFilesRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[131]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10509,7 +11073,7 @@ func (x *NoxSandboxListFilesRequest) String() string {
 func (*NoxSandboxListFilesRequest) ProtoMessage() {}
 
 func (x *NoxSandboxListFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[131]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10522,7 +11086,7 @@ func (x *NoxSandboxListFilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxListFilesRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListFilesRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{131}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *NoxSandboxListFilesRequest) GetNodeId() string {
@@ -10572,7 +11136,7 @@ type NoxSandboxListFilesResponse struct {
 
 func (x *NoxSandboxListFilesResponse) Reset() {
 	*x = NoxSandboxListFilesResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[132]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10584,7 +11148,7 @@ func (x *NoxSandboxListFilesResponse) String() string {
 func (*NoxSandboxListFilesResponse) ProtoMessage() {}
 
 func (x *NoxSandboxListFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[132]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10597,7 +11161,7 @@ func (x *NoxSandboxListFilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxListFilesResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListFilesResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{132}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *NoxSandboxListFilesResponse) GetEntries() []*NoxSandboxFileEntry {
@@ -10639,7 +11203,7 @@ type NoxSandboxReadTextRequest struct {
 
 func (x *NoxSandboxReadTextRequest) Reset() {
 	*x = NoxSandboxReadTextRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[133]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10651,7 +11215,7 @@ func (x *NoxSandboxReadTextRequest) String() string {
 func (*NoxSandboxReadTextRequest) ProtoMessage() {}
 
 func (x *NoxSandboxReadTextRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[133]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10664,7 +11228,7 @@ func (x *NoxSandboxReadTextRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxReadTextRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxReadTextRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{133}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *NoxSandboxReadTextRequest) GetNodeId() string {
@@ -10701,7 +11265,7 @@ type NoxSandboxReadTextResponse struct {
 
 func (x *NoxSandboxReadTextResponse) Reset() {
 	*x = NoxSandboxReadTextResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[134]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10713,7 +11277,7 @@ func (x *NoxSandboxReadTextResponse) String() string {
 func (*NoxSandboxReadTextResponse) ProtoMessage() {}
 
 func (x *NoxSandboxReadTextResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[134]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10726,7 +11290,7 @@ func (x *NoxSandboxReadTextResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxReadTextResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxReadTextResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{134}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *NoxSandboxReadTextResponse) GetText() string {
@@ -10776,7 +11340,7 @@ type NoxSandboxPreviewFileRequest struct {
 
 func (x *NoxSandboxPreviewFileRequest) Reset() {
 	*x = NoxSandboxPreviewFileRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[135]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10788,7 +11352,7 @@ func (x *NoxSandboxPreviewFileRequest) String() string {
 func (*NoxSandboxPreviewFileRequest) ProtoMessage() {}
 
 func (x *NoxSandboxPreviewFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[135]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10801,7 +11365,7 @@ func (x *NoxSandboxPreviewFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxPreviewFileRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxPreviewFileRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{135}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *NoxSandboxPreviewFileRequest) GetNodeId() string {
@@ -10846,7 +11410,7 @@ type NoxSandboxPreviewFileResponse struct {
 
 func (x *NoxSandboxPreviewFileResponse) Reset() {
 	*x = NoxSandboxPreviewFileResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[136]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10858,7 +11422,7 @@ func (x *NoxSandboxPreviewFileResponse) String() string {
 func (*NoxSandboxPreviewFileResponse) ProtoMessage() {}
 
 func (x *NoxSandboxPreviewFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[136]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10871,7 +11435,7 @@ func (x *NoxSandboxPreviewFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxPreviewFileResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxPreviewFileResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{136}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *NoxSandboxPreviewFileResponse) GetPngB64() string {
@@ -10926,7 +11490,7 @@ type NoxSandboxListBackupsRequest struct {
 
 func (x *NoxSandboxListBackupsRequest) Reset() {
 	*x = NoxSandboxListBackupsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[137]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10938,7 +11502,7 @@ func (x *NoxSandboxListBackupsRequest) String() string {
 func (*NoxSandboxListBackupsRequest) ProtoMessage() {}
 
 func (x *NoxSandboxListBackupsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[137]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10951,7 +11515,7 @@ func (x *NoxSandboxListBackupsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxListBackupsRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListBackupsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{137}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *NoxSandboxListBackupsRequest) GetNodeId() string {
@@ -10978,7 +11542,7 @@ type NoxSandboxListBackupsResponse struct {
 
 func (x *NoxSandboxListBackupsResponse) Reset() {
 	*x = NoxSandboxListBackupsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[138]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10990,7 +11554,7 @@ func (x *NoxSandboxListBackupsResponse) String() string {
 func (*NoxSandboxListBackupsResponse) ProtoMessage() {}
 
 func (x *NoxSandboxListBackupsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[138]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11003,7 +11567,7 @@ func (x *NoxSandboxListBackupsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxListBackupsResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListBackupsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{138}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *NoxSandboxListBackupsResponse) GetBackups() []*NoxSandboxBackup {
@@ -11031,7 +11595,7 @@ type NoxSandboxRestoreBackupRequest struct {
 
 func (x *NoxSandboxRestoreBackupRequest) Reset() {
 	*x = NoxSandboxRestoreBackupRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[139]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11043,7 +11607,7 @@ func (x *NoxSandboxRestoreBackupRequest) String() string {
 func (*NoxSandboxRestoreBackupRequest) ProtoMessage() {}
 
 func (x *NoxSandboxRestoreBackupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[139]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11056,7 +11620,7 @@ func (x *NoxSandboxRestoreBackupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxRestoreBackupRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxRestoreBackupRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{139}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *NoxSandboxRestoreBackupRequest) GetNodeId() string {
@@ -11090,7 +11654,7 @@ type NoxSandboxRestoreBackupResponse struct {
 
 func (x *NoxSandboxRestoreBackupResponse) Reset() {
 	*x = NoxSandboxRestoreBackupResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[140]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11102,7 +11666,7 @@ func (x *NoxSandboxRestoreBackupResponse) String() string {
 func (*NoxSandboxRestoreBackupResponse) ProtoMessage() {}
 
 func (x *NoxSandboxRestoreBackupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[140]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11115,7 +11679,7 @@ func (x *NoxSandboxRestoreBackupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxRestoreBackupResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxRestoreBackupResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{140}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *NoxSandboxRestoreBackupResponse) GetOk() bool {
@@ -11143,7 +11707,7 @@ type NoxSandboxListLibraryRequestsRequest struct {
 
 func (x *NoxSandboxListLibraryRequestsRequest) Reset() {
 	*x = NoxSandboxListLibraryRequestsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[141]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11155,7 +11719,7 @@ func (x *NoxSandboxListLibraryRequestsRequest) String() string {
 func (*NoxSandboxListLibraryRequestsRequest) ProtoMessage() {}
 
 func (x *NoxSandboxListLibraryRequestsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[141]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11168,7 +11732,7 @@ func (x *NoxSandboxListLibraryRequestsRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use NoxSandboxListLibraryRequestsRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListLibraryRequestsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{141}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *NoxSandboxListLibraryRequestsRequest) GetNodeId() string {
@@ -11202,7 +11766,7 @@ type NoxSandboxListLibraryRequestsResponse struct {
 
 func (x *NoxSandboxListLibraryRequestsResponse) Reset() {
 	*x = NoxSandboxListLibraryRequestsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[142]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11214,7 +11778,7 @@ func (x *NoxSandboxListLibraryRequestsResponse) String() string {
 func (*NoxSandboxListLibraryRequestsResponse) ProtoMessage() {}
 
 func (x *NoxSandboxListLibraryRequestsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[142]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11227,7 +11791,7 @@ func (x *NoxSandboxListLibraryRequestsResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use NoxSandboxListLibraryRequestsResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListLibraryRequestsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{142}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *NoxSandboxListLibraryRequestsResponse) GetRequests() []*NoxSandboxLibraryRequest {
@@ -11257,7 +11821,7 @@ type NoxSandboxDecideLibraryRequest struct {
 
 func (x *NoxSandboxDecideLibraryRequest) Reset() {
 	*x = NoxSandboxDecideLibraryRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[143]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11269,7 +11833,7 @@ func (x *NoxSandboxDecideLibraryRequest) String() string {
 func (*NoxSandboxDecideLibraryRequest) ProtoMessage() {}
 
 func (x *NoxSandboxDecideLibraryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[143]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11282,7 +11846,7 @@ func (x *NoxSandboxDecideLibraryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxDecideLibraryRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxDecideLibraryRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{143}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *NoxSandboxDecideLibraryRequest) GetNodeId() string {
@@ -11331,7 +11895,7 @@ type NoxSandboxDecideLibraryResponse struct {
 
 func (x *NoxSandboxDecideLibraryResponse) Reset() {
 	*x = NoxSandboxDecideLibraryResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[144]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11343,7 +11907,7 @@ func (x *NoxSandboxDecideLibraryResponse) String() string {
 func (*NoxSandboxDecideLibraryResponse) ProtoMessage() {}
 
 func (x *NoxSandboxDecideLibraryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[144]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11356,7 +11920,7 @@ func (x *NoxSandboxDecideLibraryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxDecideLibraryResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxDecideLibraryResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{144}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *NoxSandboxDecideLibraryResponse) GetOk() bool {
@@ -11389,7 +11953,7 @@ type NoxSandboxImageStatusRequest struct {
 
 func (x *NoxSandboxImageStatusRequest) Reset() {
 	*x = NoxSandboxImageStatusRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[145]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11401,7 +11965,7 @@ func (x *NoxSandboxImageStatusRequest) String() string {
 func (*NoxSandboxImageStatusRequest) ProtoMessage() {}
 
 func (x *NoxSandboxImageStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[145]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11414,7 +11978,7 @@ func (x *NoxSandboxImageStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxImageStatusRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxImageStatusRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{145}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *NoxSandboxImageStatusRequest) GetNodeId() string {
@@ -11440,7 +12004,7 @@ type NoxSandboxImageStatusResponse struct {
 
 func (x *NoxSandboxImageStatusResponse) Reset() {
 	*x = NoxSandboxImageStatusResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[146]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11452,7 +12016,7 @@ func (x *NoxSandboxImageStatusResponse) String() string {
 func (*NoxSandboxImageStatusResponse) ProtoMessage() {}
 
 func (x *NoxSandboxImageStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[146]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11465,7 +12029,7 @@ func (x *NoxSandboxImageStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxImageStatusResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxImageStatusResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{146}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *NoxSandboxImageStatusResponse) GetCurrentVersion() string {
@@ -11533,7 +12097,7 @@ type NoxSandboxRebuildImageRequest struct {
 
 func (x *NoxSandboxRebuildImageRequest) Reset() {
 	*x = NoxSandboxRebuildImageRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[147]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11545,7 +12109,7 @@ func (x *NoxSandboxRebuildImageRequest) String() string {
 func (*NoxSandboxRebuildImageRequest) ProtoMessage() {}
 
 func (x *NoxSandboxRebuildImageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[147]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11558,7 +12122,7 @@ func (x *NoxSandboxRebuildImageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxRebuildImageRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxRebuildImageRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{147}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *NoxSandboxRebuildImageRequest) GetNodeId() string {
@@ -11579,7 +12143,7 @@ type NoxSandboxRebuildImageResponse struct {
 
 func (x *NoxSandboxRebuildImageResponse) Reset() {
 	*x = NoxSandboxRebuildImageResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[148]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11591,7 +12155,7 @@ func (x *NoxSandboxRebuildImageResponse) String() string {
 func (*NoxSandboxRebuildImageResponse) ProtoMessage() {}
 
 func (x *NoxSandboxRebuildImageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[148]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11604,7 +12168,7 @@ func (x *NoxSandboxRebuildImageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxRebuildImageResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxRebuildImageResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{148}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *NoxSandboxRebuildImageResponse) GetOk() bool {
@@ -11640,7 +12204,7 @@ type NoxSandboxListRunsRequest struct {
 
 func (x *NoxSandboxListRunsRequest) Reset() {
 	*x = NoxSandboxListRunsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[149]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11652,7 +12216,7 @@ func (x *NoxSandboxListRunsRequest) String() string {
 func (*NoxSandboxListRunsRequest) ProtoMessage() {}
 
 func (x *NoxSandboxListRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[149]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11665,7 +12229,7 @@ func (x *NoxSandboxListRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxListRunsRequest.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListRunsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{149}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *NoxSandboxListRunsRequest) GetNodeId() string {
@@ -11709,7 +12273,7 @@ type NoxSandboxListRunsResponse struct {
 
 func (x *NoxSandboxListRunsResponse) Reset() {
 	*x = NoxSandboxListRunsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[150]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11721,7 +12285,7 @@ func (x *NoxSandboxListRunsResponse) String() string {
 func (*NoxSandboxListRunsResponse) ProtoMessage() {}
 
 func (x *NoxSandboxListRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[150]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11734,7 +12298,7 @@ func (x *NoxSandboxListRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSandboxListRunsResponse.ProtoReflect.Descriptor instead.
 func (*NoxSandboxListRunsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{150}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *NoxSandboxListRunsResponse) GetRuns() []*NoxSandboxRun {
@@ -11781,7 +12345,7 @@ type NoxAutomationStatusRequest struct {
 
 func (x *NoxAutomationStatusRequest) Reset() {
 	*x = NoxAutomationStatusRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[151]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11793,7 +12357,7 @@ func (x *NoxAutomationStatusRequest) String() string {
 func (*NoxAutomationStatusRequest) ProtoMessage() {}
 
 func (x *NoxAutomationStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[151]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11806,7 +12370,7 @@ func (x *NoxAutomationStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAutomationStatusRequest.ProtoReflect.Descriptor instead.
 func (*NoxAutomationStatusRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{151}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *NoxAutomationStatusRequest) GetChatId() int64 {
@@ -11834,7 +12398,7 @@ type NoxAutomationChatStatus struct {
 
 func (x *NoxAutomationChatStatus) Reset() {
 	*x = NoxAutomationChatStatus{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[152]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11846,7 +12410,7 @@ func (x *NoxAutomationChatStatus) String() string {
 func (*NoxAutomationChatStatus) ProtoMessage() {}
 
 func (x *NoxAutomationChatStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[152]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11859,7 +12423,7 @@ func (x *NoxAutomationChatStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAutomationChatStatus.ProtoReflect.Descriptor instead.
 func (*NoxAutomationChatStatus) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{152}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *NoxAutomationChatStatus) GetChatId() int64 {
@@ -11943,7 +12507,7 @@ type NoxAutomationStatusResponse struct {
 
 func (x *NoxAutomationStatusResponse) Reset() {
 	*x = NoxAutomationStatusResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[153]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11955,7 +12519,7 @@ func (x *NoxAutomationStatusResponse) String() string {
 func (*NoxAutomationStatusResponse) ProtoMessage() {}
 
 func (x *NoxAutomationStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[153]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11968,7 +12532,7 @@ func (x *NoxAutomationStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAutomationStatusResponse.ProtoReflect.Descriptor instead.
 func (*NoxAutomationStatusResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{153}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *NoxAutomationStatusResponse) GetChats() []*NoxAutomationChatStatus {
@@ -12020,7 +12584,7 @@ type NoxAutomationPreprocessor struct {
 
 func (x *NoxAutomationPreprocessor) Reset() {
 	*x = NoxAutomationPreprocessor{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[154]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12032,7 +12596,7 @@ func (x *NoxAutomationPreprocessor) String() string {
 func (*NoxAutomationPreprocessor) ProtoMessage() {}
 
 func (x *NoxAutomationPreprocessor) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[154]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12045,7 +12609,7 @@ func (x *NoxAutomationPreprocessor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAutomationPreprocessor.ProtoReflect.Descriptor instead.
 func (*NoxAutomationPreprocessor) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{154}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *NoxAutomationPreprocessor) GetId() int64 {
@@ -12197,7 +12761,7 @@ type NoxListPreprocessorsRequest struct {
 
 func (x *NoxListPreprocessorsRequest) Reset() {
 	*x = NoxListPreprocessorsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[155]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12209,7 +12773,7 @@ func (x *NoxListPreprocessorsRequest) String() string {
 func (*NoxListPreprocessorsRequest) ProtoMessage() {}
 
 func (x *NoxListPreprocessorsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[155]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12222,7 +12786,7 @@ func (x *NoxListPreprocessorsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListPreprocessorsRequest.ProtoReflect.Descriptor instead.
 func (*NoxListPreprocessorsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{155}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *NoxListPreprocessorsRequest) GetChatId() int64 {
@@ -12242,7 +12806,7 @@ type NoxListPreprocessorsResponse struct {
 
 func (x *NoxListPreprocessorsResponse) Reset() {
 	*x = NoxListPreprocessorsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[156]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[163]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12254,7 +12818,7 @@ func (x *NoxListPreprocessorsResponse) String() string {
 func (*NoxListPreprocessorsResponse) ProtoMessage() {}
 
 func (x *NoxListPreprocessorsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[156]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[163]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12267,7 +12831,7 @@ func (x *NoxListPreprocessorsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListPreprocessorsResponse.ProtoReflect.Descriptor instead.
 func (*NoxListPreprocessorsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{156}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *NoxListPreprocessorsResponse) GetPreprocessors() []*NoxAutomationPreprocessor {
@@ -12293,7 +12857,7 @@ type NoxGetPreprocessorRequest struct {
 
 func (x *NoxGetPreprocessorRequest) Reset() {
 	*x = NoxGetPreprocessorRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[157]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[164]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12305,7 +12869,7 @@ func (x *NoxGetPreprocessorRequest) String() string {
 func (*NoxGetPreprocessorRequest) ProtoMessage() {}
 
 func (x *NoxGetPreprocessorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[157]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[164]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12318,7 +12882,7 @@ func (x *NoxGetPreprocessorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetPreprocessorRequest.ProtoReflect.Descriptor instead.
 func (*NoxGetPreprocessorRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{157}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{164}
 }
 
 func (x *NoxGetPreprocessorRequest) GetId() int64 {
@@ -12341,7 +12905,7 @@ type NoxGetPreprocessorResponse struct {
 
 func (x *NoxGetPreprocessorResponse) Reset() {
 	*x = NoxGetPreprocessorResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[158]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[165]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12353,7 +12917,7 @@ func (x *NoxGetPreprocessorResponse) String() string {
 func (*NoxGetPreprocessorResponse) ProtoMessage() {}
 
 func (x *NoxGetPreprocessorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[158]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[165]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12366,7 +12930,7 @@ func (x *NoxGetPreprocessorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetPreprocessorResponse.ProtoReflect.Descriptor instead.
 func (*NoxGetPreprocessorResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{158}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{165}
 }
 
 func (x *NoxGetPreprocessorResponse) GetPreprocessor() *NoxAutomationPreprocessor {
@@ -12414,7 +12978,7 @@ type NoxPreprocessorActionRequest struct {
 
 func (x *NoxPreprocessorActionRequest) Reset() {
 	*x = NoxPreprocessorActionRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[159]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[166]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12426,7 +12990,7 @@ func (x *NoxPreprocessorActionRequest) String() string {
 func (*NoxPreprocessorActionRequest) ProtoMessage() {}
 
 func (x *NoxPreprocessorActionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[159]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[166]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12439,7 +13003,7 @@ func (x *NoxPreprocessorActionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxPreprocessorActionRequest.ProtoReflect.Descriptor instead.
 func (*NoxPreprocessorActionRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{159}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{166}
 }
 
 func (x *NoxPreprocessorActionRequest) GetId() int64 {
@@ -12466,7 +13030,7 @@ type NoxAutomationActionResponse struct {
 
 func (x *NoxAutomationActionResponse) Reset() {
 	*x = NoxAutomationActionResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[160]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[167]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12478,7 +13042,7 @@ func (x *NoxAutomationActionResponse) String() string {
 func (*NoxAutomationActionResponse) ProtoMessage() {}
 
 func (x *NoxAutomationActionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[160]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[167]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12491,7 +13055,7 @@ func (x *NoxAutomationActionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAutomationActionResponse.ProtoReflect.Descriptor instead.
 func (*NoxAutomationActionResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{160}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{167}
 }
 
 func (x *NoxAutomationActionResponse) GetOk() bool {
@@ -12520,7 +13084,7 @@ type NoxListPreprocessorLogsRequest struct {
 
 func (x *NoxListPreprocessorLogsRequest) Reset() {
 	*x = NoxListPreprocessorLogsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[161]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[168]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12532,7 +13096,7 @@ func (x *NoxListPreprocessorLogsRequest) String() string {
 func (*NoxListPreprocessorLogsRequest) ProtoMessage() {}
 
 func (x *NoxListPreprocessorLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[161]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[168]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12545,7 +13109,7 @@ func (x *NoxListPreprocessorLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListPreprocessorLogsRequest.ProtoReflect.Descriptor instead.
 func (*NoxListPreprocessorLogsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{161}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{168}
 }
 
 func (x *NoxListPreprocessorLogsRequest) GetChatId() int64 {
@@ -12595,7 +13159,7 @@ type NoxAutomationLogEntry struct {
 
 func (x *NoxAutomationLogEntry) Reset() {
 	*x = NoxAutomationLogEntry{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[162]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[169]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12607,7 +13171,7 @@ func (x *NoxAutomationLogEntry) String() string {
 func (*NoxAutomationLogEntry) ProtoMessage() {}
 
 func (x *NoxAutomationLogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[162]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[169]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12620,7 +13184,7 @@ func (x *NoxAutomationLogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAutomationLogEntry.ProtoReflect.Descriptor instead.
 func (*NoxAutomationLogEntry) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{162}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{169}
 }
 
 func (x *NoxAutomationLogEntry) GetId() int64 {
@@ -12711,7 +13275,7 @@ type NoxListPreprocessorLogsResponse struct {
 
 func (x *NoxListPreprocessorLogsResponse) Reset() {
 	*x = NoxListPreprocessorLogsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[163]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[170]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12723,7 +13287,7 @@ func (x *NoxListPreprocessorLogsResponse) String() string {
 func (*NoxListPreprocessorLogsResponse) ProtoMessage() {}
 
 func (x *NoxListPreprocessorLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[163]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[170]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12736,7 +13300,7 @@ func (x *NoxListPreprocessorLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListPreprocessorLogsResponse.ProtoReflect.Descriptor instead.
 func (*NoxListPreprocessorLogsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{163}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{170}
 }
 
 func (x *NoxListPreprocessorLogsResponse) GetEntries() []*NoxAutomationLogEntry {
@@ -12788,7 +13352,7 @@ type NoxAutomationCron struct {
 
 func (x *NoxAutomationCron) Reset() {
 	*x = NoxAutomationCron{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[164]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[171]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12800,7 +13364,7 @@ func (x *NoxAutomationCron) String() string {
 func (*NoxAutomationCron) ProtoMessage() {}
 
 func (x *NoxAutomationCron) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[164]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[171]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12813,7 +13377,7 @@ func (x *NoxAutomationCron) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAutomationCron.ProtoReflect.Descriptor instead.
 func (*NoxAutomationCron) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{164}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{171}
 }
 
 func (x *NoxAutomationCron) GetId() int64 {
@@ -12965,7 +13529,7 @@ type NoxListCronsRequest struct {
 
 func (x *NoxListCronsRequest) Reset() {
 	*x = NoxListCronsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[165]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[172]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12977,7 +13541,7 @@ func (x *NoxListCronsRequest) String() string {
 func (*NoxListCronsRequest) ProtoMessage() {}
 
 func (x *NoxListCronsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[165]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[172]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12990,7 +13554,7 @@ func (x *NoxListCronsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListCronsRequest.ProtoReflect.Descriptor instead.
 func (*NoxListCronsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{165}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{172}
 }
 
 func (x *NoxListCronsRequest) GetChatId() int64 {
@@ -13010,7 +13574,7 @@ type NoxListCronsResponse struct {
 
 func (x *NoxListCronsResponse) Reset() {
 	*x = NoxListCronsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[166]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[173]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13022,7 +13586,7 @@ func (x *NoxListCronsResponse) String() string {
 func (*NoxListCronsResponse) ProtoMessage() {}
 
 func (x *NoxListCronsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[166]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[173]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13035,7 +13599,7 @@ func (x *NoxListCronsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListCronsResponse.ProtoReflect.Descriptor instead.
 func (*NoxListCronsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{166}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{173}
 }
 
 func (x *NoxListCronsResponse) GetCrons() []*NoxAutomationCron {
@@ -13062,7 +13626,7 @@ type NoxCronActionRequest struct {
 
 func (x *NoxCronActionRequest) Reset() {
 	*x = NoxCronActionRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[167]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[174]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13074,7 +13638,7 @@ func (x *NoxCronActionRequest) String() string {
 func (*NoxCronActionRequest) ProtoMessage() {}
 
 func (x *NoxCronActionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[167]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[174]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13087,7 +13651,7 @@ func (x *NoxCronActionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxCronActionRequest.ProtoReflect.Descriptor instead.
 func (*NoxCronActionRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{167}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{174}
 }
 
 func (x *NoxCronActionRequest) GetId() int64 {
@@ -13113,7 +13677,7 @@ type NoxListUserQuotasRequest struct {
 
 func (x *NoxListUserQuotasRequest) Reset() {
 	*x = NoxListUserQuotasRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[168]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[175]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13125,7 +13689,7 @@ func (x *NoxListUserQuotasRequest) String() string {
 func (*NoxListUserQuotasRequest) ProtoMessage() {}
 
 func (x *NoxListUserQuotasRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[168]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[175]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13138,7 +13702,7 @@ func (x *NoxListUserQuotasRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListUserQuotasRequest.ProtoReflect.Descriptor instead.
 func (*NoxListUserQuotasRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{168}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{175}
 }
 
 func (x *NoxListUserQuotasRequest) GetLimit() int32 {
@@ -13160,7 +13724,7 @@ type NoxUserQuotaDefaults struct {
 
 func (x *NoxUserQuotaDefaults) Reset() {
 	*x = NoxUserQuotaDefaults{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[169]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[176]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13172,7 +13736,7 @@ func (x *NoxUserQuotaDefaults) String() string {
 func (*NoxUserQuotaDefaults) ProtoMessage() {}
 
 func (x *NoxUserQuotaDefaults) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[169]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[176]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13185,7 +13749,7 @@ func (x *NoxUserQuotaDefaults) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserQuotaDefaults.ProtoReflect.Descriptor instead.
 func (*NoxUserQuotaDefaults) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{169}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{176}
 }
 
 func (x *NoxUserQuotaDefaults) GetUserLimit_5H() int32 {
@@ -13233,7 +13797,7 @@ type NoxUserQuotaOverride struct {
 
 func (x *NoxUserQuotaOverride) Reset() {
 	*x = NoxUserQuotaOverride{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[170]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[177]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13245,7 +13809,7 @@ func (x *NoxUserQuotaOverride) String() string {
 func (*NoxUserQuotaOverride) ProtoMessage() {}
 
 func (x *NoxUserQuotaOverride) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[170]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[177]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13258,7 +13822,7 @@ func (x *NoxUserQuotaOverride) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserQuotaOverride.ProtoReflect.Descriptor instead.
 func (*NoxUserQuotaOverride) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{170}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{177}
 }
 
 func (x *NoxUserQuotaOverride) GetUserId() int64 {
@@ -13338,7 +13902,7 @@ type NoxUserQuotaTopUser struct {
 
 func (x *NoxUserQuotaTopUser) Reset() {
 	*x = NoxUserQuotaTopUser{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[171]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[178]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13350,7 +13914,7 @@ func (x *NoxUserQuotaTopUser) String() string {
 func (*NoxUserQuotaTopUser) ProtoMessage() {}
 
 func (x *NoxUserQuotaTopUser) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[171]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[178]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13363,7 +13927,7 @@ func (x *NoxUserQuotaTopUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserQuotaTopUser.ProtoReflect.Descriptor instead.
 func (*NoxUserQuotaTopUser) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{171}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{178}
 }
 
 func (x *NoxUserQuotaTopUser) GetUserId() int64 {
@@ -13421,7 +13985,7 @@ type NoxListUserQuotasResponse struct {
 
 func (x *NoxListUserQuotasResponse) Reset() {
 	*x = NoxListUserQuotasResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[172]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[179]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13433,7 +13997,7 @@ func (x *NoxListUserQuotasResponse) String() string {
 func (*NoxListUserQuotasResponse) ProtoMessage() {}
 
 func (x *NoxListUserQuotasResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[172]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[179]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13446,7 +14010,7 @@ func (x *NoxListUserQuotasResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxListUserQuotasResponse.ProtoReflect.Descriptor instead.
 func (*NoxListUserQuotasResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{172}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{179}
 }
 
 func (x *NoxListUserQuotasResponse) GetEnabled() bool {
@@ -13494,7 +14058,7 @@ type NoxGetUserQuotaRequest struct {
 
 func (x *NoxGetUserQuotaRequest) Reset() {
 	*x = NoxGetUserQuotaRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[173]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[180]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13506,7 +14070,7 @@ func (x *NoxGetUserQuotaRequest) String() string {
 func (*NoxGetUserQuotaRequest) ProtoMessage() {}
 
 func (x *NoxGetUserQuotaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[173]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[180]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13519,7 +14083,7 @@ func (x *NoxGetUserQuotaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetUserQuotaRequest.ProtoReflect.Descriptor instead.
 func (*NoxGetUserQuotaRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{173}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{180}
 }
 
 func (x *NoxGetUserQuotaRequest) GetUserId() int64 {
@@ -13555,7 +14119,7 @@ type NoxUserQuotaTier struct {
 
 func (x *NoxUserQuotaTier) Reset() {
 	*x = NoxUserQuotaTier{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[174]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[181]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13567,7 +14131,7 @@ func (x *NoxUserQuotaTier) String() string {
 func (*NoxUserQuotaTier) ProtoMessage() {}
 
 func (x *NoxUserQuotaTier) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[174]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[181]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13580,7 +14144,7 @@ func (x *NoxUserQuotaTier) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxUserQuotaTier.ProtoReflect.Descriptor instead.
 func (*NoxUserQuotaTier) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{174}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{181}
 }
 
 func (x *NoxUserQuotaTier) GetSource() string {
@@ -13676,7 +14240,7 @@ type NoxGetUserQuotaResponse struct {
 
 func (x *NoxGetUserQuotaResponse) Reset() {
 	*x = NoxGetUserQuotaResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[175]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[182]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13688,7 +14252,7 @@ func (x *NoxGetUserQuotaResponse) String() string {
 func (*NoxGetUserQuotaResponse) ProtoMessage() {}
 
 func (x *NoxGetUserQuotaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[175]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[182]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13701,7 +14265,7 @@ func (x *NoxGetUserQuotaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxGetUserQuotaResponse.ProtoReflect.Descriptor instead.
 func (*NoxGetUserQuotaResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{175}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{182}
 }
 
 func (x *NoxGetUserQuotaResponse) GetUserId() int64 {
@@ -13774,7 +14338,7 @@ type NoxSetUserQuotaRequest struct {
 
 func (x *NoxSetUserQuotaRequest) Reset() {
 	*x = NoxSetUserQuotaRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[176]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[183]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13786,7 +14350,7 @@ func (x *NoxSetUserQuotaRequest) String() string {
 func (*NoxSetUserQuotaRequest) ProtoMessage() {}
 
 func (x *NoxSetUserQuotaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[176]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[183]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13799,7 +14363,7 @@ func (x *NoxSetUserQuotaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSetUserQuotaRequest.ProtoReflect.Descriptor instead.
 func (*NoxSetUserQuotaRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{176}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{183}
 }
 
 func (x *NoxSetUserQuotaRequest) GetUserId() int64 {
@@ -13855,7 +14419,7 @@ type NoxSetUserQuotaResponse struct {
 
 func (x *NoxSetUserQuotaResponse) Reset() {
 	*x = NoxSetUserQuotaResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[177]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[184]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13867,7 +14431,7 @@ func (x *NoxSetUserQuotaResponse) String() string {
 func (*NoxSetUserQuotaResponse) ProtoMessage() {}
 
 func (x *NoxSetUserQuotaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[177]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[184]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13880,7 +14444,7 @@ func (x *NoxSetUserQuotaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxSetUserQuotaResponse.ProtoReflect.Descriptor instead.
 func (*NoxSetUserQuotaResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{177}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{184}
 }
 
 func (x *NoxSetUserQuotaResponse) GetOk() bool {
@@ -13912,7 +14476,7 @@ type NoxAgySessionsRequest struct {
 
 func (x *NoxAgySessionsRequest) Reset() {
 	*x = NoxAgySessionsRequest{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[178]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[185]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13924,7 +14488,7 @@ func (x *NoxAgySessionsRequest) String() string {
 func (*NoxAgySessionsRequest) ProtoMessage() {}
 
 func (x *NoxAgySessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[178]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[185]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13937,7 +14501,7 @@ func (x *NoxAgySessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAgySessionsRequest.ProtoReflect.Descriptor instead.
 func (*NoxAgySessionsRequest) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{178}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{185}
 }
 
 type NoxAgySessionSettings struct {
@@ -13955,7 +14519,7 @@ type NoxAgySessionSettings struct {
 
 func (x *NoxAgySessionSettings) Reset() {
 	*x = NoxAgySessionSettings{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[179]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[186]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13967,7 +14531,7 @@ func (x *NoxAgySessionSettings) String() string {
 func (*NoxAgySessionSettings) ProtoMessage() {}
 
 func (x *NoxAgySessionSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[179]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[186]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13980,7 +14544,7 @@ func (x *NoxAgySessionSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAgySessionSettings.ProtoReflect.Descriptor instead.
 func (*NoxAgySessionSettings) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{179}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{186}
 }
 
 func (x *NoxAgySessionSettings) GetRebaseGrowthTokens() string {
@@ -14046,7 +14610,7 @@ type NoxAgyRebuildCounts struct {
 
 func (x *NoxAgyRebuildCounts) Reset() {
 	*x = NoxAgyRebuildCounts{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[180]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[187]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14058,7 +14622,7 @@ func (x *NoxAgyRebuildCounts) String() string {
 func (*NoxAgyRebuildCounts) ProtoMessage() {}
 
 func (x *NoxAgyRebuildCounts) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[180]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[187]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14071,7 +14635,7 @@ func (x *NoxAgyRebuildCounts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAgyRebuildCounts.ProtoReflect.Descriptor instead.
 func (*NoxAgyRebuildCounts) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{180}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{187}
 }
 
 func (x *NoxAgyRebuildCounts) GetNew() int64 {
@@ -14127,7 +14691,7 @@ type NoxAgyInputTokens struct {
 
 func (x *NoxAgyInputTokens) Reset() {
 	*x = NoxAgyInputTokens{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[181]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[188]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14139,7 +14703,7 @@ func (x *NoxAgyInputTokens) String() string {
 func (*NoxAgyInputTokens) ProtoMessage() {}
 
 func (x *NoxAgyInputTokens) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[181]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[188]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14152,7 +14716,7 @@ func (x *NoxAgyInputTokens) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAgyInputTokens.ProtoReflect.Descriptor instead.
 func (*NoxAgyInputTokens) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{181}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{188}
 }
 
 func (x *NoxAgyInputTokens) GetUncached() int64 {
@@ -14186,7 +14750,7 @@ type NoxAgyInputTokensByKind struct {
 
 func (x *NoxAgyInputTokensByKind) Reset() {
 	*x = NoxAgyInputTokensByKind{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[182]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[189]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14198,7 +14762,7 @@ func (x *NoxAgyInputTokensByKind) String() string {
 func (*NoxAgyInputTokensByKind) ProtoMessage() {}
 
 func (x *NoxAgyInputTokensByKind) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[182]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[189]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14211,7 +14775,7 @@ func (x *NoxAgyInputTokensByKind) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAgyInputTokensByKind.ProtoReflect.Descriptor instead.
 func (*NoxAgyInputTokensByKind) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{182}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{189}
 }
 
 func (x *NoxAgyInputTokensByKind) GetBootstrap() *NoxAgyInputTokens {
@@ -14251,7 +14815,7 @@ type NoxAgySession struct {
 
 func (x *NoxAgySession) Reset() {
 	*x = NoxAgySession{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[183]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[190]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14263,7 +14827,7 @@ func (x *NoxAgySession) String() string {
 func (*NoxAgySession) ProtoMessage() {}
 
 func (x *NoxAgySession) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[183]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[190]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14276,7 +14840,7 @@ func (x *NoxAgySession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAgySession.ProtoReflect.Descriptor instead.
 func (*NoxAgySession) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{183}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{190}
 }
 
 func (x *NoxAgySession) GetChatId() int64 {
@@ -14400,7 +14964,7 @@ type NoxAgySessionsResponse struct {
 
 func (x *NoxAgySessionsResponse) Reset() {
 	*x = NoxAgySessionsResponse{}
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[184]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[191]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14412,7 +14976,7 @@ func (x *NoxAgySessionsResponse) String() string {
 func (*NoxAgySessionsResponse) ProtoMessage() {}
 
 func (x *NoxAgySessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_madtom_v1_noxchat_proto_msgTypes[184]
+	mi := &file_madtom_v1_noxchat_proto_msgTypes[191]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14425,7 +14989,7 @@ func (x *NoxAgySessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoxAgySessionsResponse.ProtoReflect.Descriptor instead.
 func (*NoxAgySessionsResponse) Descriptor() ([]byte, []int) {
-	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{184}
+	return file_madtom_v1_noxchat_proto_rawDescGZIP(), []int{191}
 }
 
 func (x *NoxAgySessionsResponse) GetHistoryMode() string {
@@ -14829,7 +15393,64 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"\x19NoxMemoryMutationResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1b\n" +
 	"\tmemory_id\x18\x02 \x01(\tR\bmemoryId\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"G\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"_\n" +
+	"\x14NoxMemoryMergeSource\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\tR\tcreatedAt\"\x95\x03\n" +
+	"\x16NoxMemoryMergeProposal\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x17\n" +
+	"\achat_id\x18\x02 \x01(\x03R\x06chatId\x12\x1d\n" +
+	"\n" +
+	"entity_key\x18\x03 \x01(\tR\tentityKey\x12\x18\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12\x12\n" +
+	"\x04kind\x18\x05 \x01(\tR\x04kind\x129\n" +
+	"\asources\x18\x06 \x03(\v2\x1f.madtom.v1.NoxMemoryMergeSourceR\asources\x12\x1a\n" +
+	"\bproposed\x18\a \x01(\tR\bproposed\x12\x18\n" +
+	"\adropped\x18\b \x03(\tR\adropped\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x14\n" +
+	"\x05error\x18\n" +
+	" \x01(\tR\x05error\x12(\n" +
+	"\x10result_memory_id\x18\v \x01(\tR\x0eresultMemoryId\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\f \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"decided_at\x18\r \x01(\tR\tdecidedAt\"\xde\x01\n" +
+	"\x11NoxMemoryMergeJob\x12\x17\n" +
+	"\achat_id\x18\x01 \x01(\x03R\x06chatId\x12\x18\n" +
+	"\arunning\x18\x02 \x01(\bR\arunning\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\x12\x12\n" +
+	"\x04done\x18\x04 \x01(\x05R\x04done\x12\x16\n" +
+	"\x06failed\x18\x05 \x01(\x05R\x06failed\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x06 \x01(\tR\tstartedAt\x12\x1f\n" +
+	"\vfinished_at\x18\a \x01(\tR\n" +
+	"finishedAt\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\"v\n" +
+	"\x19NoxMemoryMergeListRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1c\n" +
+	"\achat_id\x18\x02 \x01(\x03H\x00R\x06chatId\x88\x01\x01\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06statusB\n" +
+	"\n" +
+	"\b_chat_id\"\xa5\x01\n" +
+	"\x1aNoxMemoryMergeListResponse\x12?\n" +
+	"\tproposals\x18\x01 \x03(\v2!.madtom.v1.NoxMemoryMergeProposalR\tproposals\x120\n" +
+	"\x04jobs\x18\x02 \x03(\v2\x1c.madtom.v1.NoxMemoryMergeJobR\x04jobs\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\x9a\x01\n" +
+	"\x1bNoxMemoryMergeActionRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\x12\x17\n" +
+	"\achat_id\x18\x03 \x01(\x03R\x06chatId\x12\x10\n" +
+	"\x03ids\x18\x04 \x03(\x03R\x03ids\x12\x1f\n" +
+	"\vedited_text\x18\x05 \x01(\tR\n" +
+	"editedText\"\x81\x01\n" +
+	"\x1cNoxMemoryMergeActionResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1f\n" +
+	"\vapplied_ids\x18\x03 \x03(\x03R\n" +
+	"appliedIds\x12\x16\n" +
+	"\x06errors\x18\x04 \x03(\tR\x06errors\"G\n" +
 	"\x13NoxHotMemoryRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x17\n" +
 	"\achat_id\x18\x02 \x01(\x03R\x06chatId\"\xb5\x01\n" +
@@ -15879,7 +16500,7 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"\finput_tokens\x18\x05 \x01(\v2\".madtom.v1.NoxAgyInputTokensByKindR\vinputTokens\x12$\n" +
 	"\x0ewarm_cache_hit\x18\x06 \x01(\x01R\fwarmCacheHit\x124\n" +
 	"\bsessions\x18\a \x03(\v2\x18.madtom.v1.NoxAgySessionR\bsessions\x12\x14\n" +
-	"\x05error\x18\b \x01(\tR\x05error2\xc63\n" +
+	"\x05error\x18\b \x01(\tR\x05error2\x8d5\n" +
 	"\x15NoxChatControlService\x12R\n" +
 	"\rGetNodeStatus\x12\x1f.madtom.v1.NoxNodeStatusRequest\x1a .madtom.v1.NoxNodeStatusResponse\x12a\n" +
 	"\x13UpdateControlConfig\x12(.madtom.v1.NoxUpdateControlConfigRequest\x1a .madtom.v1.NoxNodeStatusResponse\x12T\n" +
@@ -15901,7 +16522,9 @@ const file_madtom_v1_noxchat_proto_rawDesc = "" +
 	"\rQueryMemories\x12 .madtom.v1.NoxMemoryQueryRequest\x1a!.madtom.v1.NoxMemoryQueryResponse\x12]\n" +
 	"\x14SearchMemoriesHybrid\x12!.madtom.v1.NoxHybridSearchRequest\x1a\".madtom.v1.NoxHybridSearchResponse\x12W\n" +
 	"\fUpsertMemory\x12!.madtom.v1.NoxUpsertMemoryRequest\x1a$.madtom.v1.NoxMemoryMutationResponse\x12W\n" +
-	"\fDeleteMemory\x12!.madtom.v1.NoxDeleteMemoryRequest\x1a$.madtom.v1.NoxMemoryMutationResponse\x12R\n" +
+	"\fDeleteMemory\x12!.madtom.v1.NoxDeleteMemoryRequest\x1a$.madtom.v1.NoxMemoryMutationResponse\x12_\n" +
+	"\x10ListMemoryMerges\x12$.madtom.v1.NoxMemoryMergeListRequest\x1a%.madtom.v1.NoxMemoryMergeListResponse\x12d\n" +
+	"\x11MemoryMergeAction\x12&.madtom.v1.NoxMemoryMergeActionRequest\x1a'.madtom.v1.NoxMemoryMergeActionResponse\x12R\n" +
 	"\x0fListHotMemories\x12\x1e.madtom.v1.NoxHotMemoryRequest\x1a\x1f.madtom.v1.NoxHotMemoryResponse\x12X\n" +
 	"\x0fUpsertHotMemory\x12$.madtom.v1.NoxUpsertHotMemoryRequest\x1a\x1f.madtom.v1.NoxHotMemoryResponse\x12X\n" +
 	"\x0fDeleteHotMemory\x12$.madtom.v1.NoxDeleteHotMemoryRequest\x1a\x1f.madtom.v1.NoxHotMemoryResponse\x12V\n" +
@@ -15970,7 +16593,7 @@ func file_madtom_v1_noxchat_proto_rawDescGZIP() []byte {
 	return file_madtom_v1_noxchat_proto_rawDescData
 }
 
-var file_madtom_v1_noxchat_proto_msgTypes = make([]protoimpl.MessageInfo, 192)
+var file_madtom_v1_noxchat_proto_msgTypes = make([]protoimpl.MessageInfo, 199)
 var file_madtom_v1_noxchat_proto_goTypes = []any{
 	(*NoxNodeStatusRequest)(nil),                  // 0: madtom.v1.NoxNodeStatusRequest
 	(*NoxNodeStatusResponse)(nil),                 // 1: madtom.v1.NoxNodeStatusResponse
@@ -16015,393 +16638,407 @@ var file_madtom_v1_noxchat_proto_goTypes = []any{
 	(*NoxUpsertMemoryRequest)(nil),                // 40: madtom.v1.NoxUpsertMemoryRequest
 	(*NoxDeleteMemoryRequest)(nil),                // 41: madtom.v1.NoxDeleteMemoryRequest
 	(*NoxMemoryMutationResponse)(nil),             // 42: madtom.v1.NoxMemoryMutationResponse
-	(*NoxHotMemoryRequest)(nil),                   // 43: madtom.v1.NoxHotMemoryRequest
-	(*NoxHotMemoryItem)(nil),                      // 44: madtom.v1.NoxHotMemoryItem
-	(*NoxHotMemoryResponse)(nil),                  // 45: madtom.v1.NoxHotMemoryResponse
-	(*NoxUpsertHotMemoryRequest)(nil),             // 46: madtom.v1.NoxUpsertHotMemoryRequest
-	(*NoxDeleteHotMemoryRequest)(nil),             // 47: madtom.v1.NoxDeleteHotMemoryRequest
-	(*NoxMediaQueryRequest)(nil),                  // 48: madtom.v1.NoxMediaQueryRequest
-	(*NoxMediaLibraryItem)(nil),                   // 49: madtom.v1.NoxMediaLibraryItem
-	(*NoxMediaQueryResponse)(nil),                 // 50: madtom.v1.NoxMediaQueryResponse
-	(*NoxStickerPackItem)(nil),                    // 51: madtom.v1.NoxStickerPackItem
-	(*NoxForceAddStickerRequest)(nil),             // 52: madtom.v1.NoxForceAddStickerRequest
-	(*NoxMediaPreviewRequest)(nil),                // 53: madtom.v1.NoxMediaPreviewRequest
-	(*NoxMediaPreviewResponse)(nil),               // 54: madtom.v1.NoxMediaPreviewResponse
-	(*NoxMediaMutationRequest)(nil),               // 55: madtom.v1.NoxMediaMutationRequest
-	(*NoxMediaPinRequest)(nil),                    // 56: madtom.v1.NoxMediaPinRequest
-	(*NoxMediaMutationResponse)(nil),              // 57: madtom.v1.NoxMediaMutationResponse
-	(*NoxAnalyzePackRequest)(nil),                 // 58: madtom.v1.NoxAnalyzePackRequest
-	(*NoxAnalyzePackResponse)(nil),                // 59: madtom.v1.NoxAnalyzePackResponse
-	(*NoxActiveJobsRequest)(nil),                  // 60: madtom.v1.NoxActiveJobsRequest
-	(*NoxJobProgressEvent)(nil),                   // 61: madtom.v1.NoxJobProgressEvent
-	(*NoxDocGenSandboxSettings)(nil),              // 62: madtom.v1.NoxDocGenSandboxSettings
-	(*NoxDocGenSettings)(nil),                     // 63: madtom.v1.NoxDocGenSettings
-	(*NoxActiveJobsResponse)(nil),                 // 64: madtom.v1.NoxActiveJobsResponse
-	(*NoxVectorInspectRequest)(nil),               // 65: madtom.v1.NoxVectorInspectRequest
-	(*NoxVectorPointItem)(nil),                    // 66: madtom.v1.NoxVectorPointItem
-	(*NoxVectorInspectResponse)(nil),              // 67: madtom.v1.NoxVectorInspectResponse
-	(*NoxChatImage)(nil),                          // 68: madtom.v1.NoxChatImage
-	(*NoxListChatImagesRequest)(nil),              // 69: madtom.v1.NoxListChatImagesRequest
-	(*NoxListChatImagesResponse)(nil),             // 70: madtom.v1.NoxListChatImagesResponse
-	(*NoxGetChatImageRequest)(nil),                // 71: madtom.v1.NoxGetChatImageRequest
-	(*NoxGetChatImageResponse)(nil),               // 72: madtom.v1.NoxGetChatImageResponse
-	(*NoxImageStorageStatsRequest)(nil),           // 73: madtom.v1.NoxImageStorageStatsRequest
-	(*NoxChatImageUsage)(nil),                     // 74: madtom.v1.NoxChatImageUsage
-	(*NoxImageStorageStatsResponse)(nil),          // 75: madtom.v1.NoxImageStorageStatsResponse
-	(*NoxSweepChatImagesRequest)(nil),             // 76: madtom.v1.NoxSweepChatImagesRequest
-	(*NoxSweepChatImagesResponse)(nil),            // 77: madtom.v1.NoxSweepChatImagesResponse
-	(*NoxChatFile)(nil),                           // 78: madtom.v1.NoxChatFile
-	(*NoxListChatFilesRequest)(nil),               // 79: madtom.v1.NoxListChatFilesRequest
-	(*NoxListChatFilesResponse)(nil),              // 80: madtom.v1.NoxListChatFilesResponse
-	(*NoxGetChatFilePreviewRequest)(nil),          // 81: madtom.v1.NoxGetChatFilePreviewRequest
-	(*NoxGetChatFilePreviewResponse)(nil),         // 82: madtom.v1.NoxGetChatFilePreviewResponse
-	(*NoxGetChatFileBytesRequest)(nil),            // 83: madtom.v1.NoxGetChatFileBytesRequest
-	(*NoxGetChatFileBytesResponse)(nil),           // 84: madtom.v1.NoxGetChatFileBytesResponse
-	(*NoxWorkspaceStorageStatsRequest)(nil),       // 85: madtom.v1.NoxWorkspaceStorageStatsRequest
-	(*NoxChatFileUsage)(nil),                      // 86: madtom.v1.NoxChatFileUsage
-	(*NoxWorkspaceStorageStatsResponse)(nil),      // 87: madtom.v1.NoxWorkspaceStorageStatsResponse
-	(*NoxSweepChatFilesRequest)(nil),              // 88: madtom.v1.NoxSweepChatFilesRequest
-	(*NoxSweepChatFilesResponse)(nil),             // 89: madtom.v1.NoxSweepChatFilesResponse
-	(*NoxUserProfile)(nil),                        // 90: madtom.v1.NoxUserProfile
-	(*NoxUserProfileQueryRequest)(nil),            // 91: madtom.v1.NoxUserProfileQueryRequest
-	(*NoxUserProfileQueryResponse)(nil),           // 92: madtom.v1.NoxUserProfileQueryResponse
-	(*NoxUserProfileSearchRequest)(nil),           // 93: madtom.v1.NoxUserProfileSearchRequest
-	(*NoxUserProfileSearchResponse)(nil),          // 94: madtom.v1.NoxUserProfileSearchResponse
-	(*NoxUserProfilePhotoRequest)(nil),            // 95: madtom.v1.NoxUserProfilePhotoRequest
-	(*NoxUserProfilePhotoResponse)(nil),           // 96: madtom.v1.NoxUserProfilePhotoResponse
-	(*NoxSearchLogsRequest)(nil),                  // 97: madtom.v1.NoxSearchLogsRequest
-	(*NoxLogSearchHit)(nil),                       // 98: madtom.v1.NoxLogSearchHit
-	(*NoxSearchLogsResponse)(nil),                 // 99: madtom.v1.NoxSearchLogsResponse
-	(*NoxTipItem)(nil),                            // 100: madtom.v1.NoxTipItem
-	(*NoxTipSettings)(nil),                        // 101: madtom.v1.NoxTipSettings
-	(*NoxTipListRequest)(nil),                     // 102: madtom.v1.NoxTipListRequest
-	(*NoxTipListResponse)(nil),                    // 103: madtom.v1.NoxTipListResponse
-	(*NoxTipScored)(nil),                          // 104: madtom.v1.NoxTipScored
-	(*NoxTipSearchRequest)(nil),                   // 105: madtom.v1.NoxTipSearchRequest
-	(*NoxTipSearchResponse)(nil),                  // 106: madtom.v1.NoxTipSearchResponse
-	(*NoxAddTipsRequest)(nil),                     // 107: madtom.v1.NoxAddTipsRequest
-	(*NoxTipRejected)(nil),                        // 108: madtom.v1.NoxTipRejected
-	(*NoxAddTipsResponse)(nil),                    // 109: madtom.v1.NoxAddTipsResponse
-	(*NoxUpdateTipRequest)(nil),                   // 110: madtom.v1.NoxUpdateTipRequest
-	(*NoxDeleteTipsRequest)(nil),                  // 111: madtom.v1.NoxDeleteTipsRequest
-	(*NoxTipMutationResponse)(nil),                // 112: madtom.v1.NoxTipMutationResponse
-	(*NoxTestTipsRequest)(nil),                    // 113: madtom.v1.NoxTestTipsRequest
-	(*NoxTestTipsResponse)(nil),                   // 114: madtom.v1.NoxTestTipsResponse
-	(*NoxSandboxSession)(nil),                     // 115: madtom.v1.NoxSandboxSession
-	(*NoxSandboxJob)(nil),                         // 116: madtom.v1.NoxSandboxJob
-	(*NoxSandboxVmInfo)(nil),                      // 117: madtom.v1.NoxSandboxVmInfo
-	(*NoxSandboxPool)(nil),                        // 118: madtom.v1.NoxSandboxPool
-	(*NoxSandboxTotals)(nil),                      // 119: madtom.v1.NoxSandboxTotals
-	(*NoxSandboxHost)(nil),                        // 120: madtom.v1.NoxSandboxHost
-	(*NoxSandboxFileEntry)(nil),                   // 121: madtom.v1.NoxSandboxFileEntry
-	(*NoxSandboxBackup)(nil),                      // 122: madtom.v1.NoxSandboxBackup
-	(*NoxSandboxLibraryRequest)(nil),              // 123: madtom.v1.NoxSandboxLibraryRequest
-	(*NoxSandboxPackages)(nil),                    // 124: madtom.v1.NoxSandboxPackages
-	(*NoxSandboxLastBuild)(nil),                   // 125: madtom.v1.NoxSandboxLastBuild
-	(*NoxSandboxRun)(nil),                         // 126: madtom.v1.NoxSandboxRun
-	(*NoxSandboxListVmsRequest)(nil),              // 127: madtom.v1.NoxSandboxListVmsRequest
-	(*NoxSandboxListVmsResponse)(nil),             // 128: madtom.v1.NoxSandboxListVmsResponse
-	(*NoxSandboxVmActionRequest)(nil),             // 129: madtom.v1.NoxSandboxVmActionRequest
-	(*NoxSandboxVmActionResponse)(nil),            // 130: madtom.v1.NoxSandboxVmActionResponse
-	(*NoxSandboxListFilesRequest)(nil),            // 131: madtom.v1.NoxSandboxListFilesRequest
-	(*NoxSandboxListFilesResponse)(nil),           // 132: madtom.v1.NoxSandboxListFilesResponse
-	(*NoxSandboxReadTextRequest)(nil),             // 133: madtom.v1.NoxSandboxReadTextRequest
-	(*NoxSandboxReadTextResponse)(nil),            // 134: madtom.v1.NoxSandboxReadTextResponse
-	(*NoxSandboxPreviewFileRequest)(nil),          // 135: madtom.v1.NoxSandboxPreviewFileRequest
-	(*NoxSandboxPreviewFileResponse)(nil),         // 136: madtom.v1.NoxSandboxPreviewFileResponse
-	(*NoxSandboxListBackupsRequest)(nil),          // 137: madtom.v1.NoxSandboxListBackupsRequest
-	(*NoxSandboxListBackupsResponse)(nil),         // 138: madtom.v1.NoxSandboxListBackupsResponse
-	(*NoxSandboxRestoreBackupRequest)(nil),        // 139: madtom.v1.NoxSandboxRestoreBackupRequest
-	(*NoxSandboxRestoreBackupResponse)(nil),       // 140: madtom.v1.NoxSandboxRestoreBackupResponse
-	(*NoxSandboxListLibraryRequestsRequest)(nil),  // 141: madtom.v1.NoxSandboxListLibraryRequestsRequest
-	(*NoxSandboxListLibraryRequestsResponse)(nil), // 142: madtom.v1.NoxSandboxListLibraryRequestsResponse
-	(*NoxSandboxDecideLibraryRequest)(nil),        // 143: madtom.v1.NoxSandboxDecideLibraryRequest
-	(*NoxSandboxDecideLibraryResponse)(nil),       // 144: madtom.v1.NoxSandboxDecideLibraryResponse
-	(*NoxSandboxImageStatusRequest)(nil),          // 145: madtom.v1.NoxSandboxImageStatusRequest
-	(*NoxSandboxImageStatusResponse)(nil),         // 146: madtom.v1.NoxSandboxImageStatusResponse
-	(*NoxSandboxRebuildImageRequest)(nil),         // 147: madtom.v1.NoxSandboxRebuildImageRequest
-	(*NoxSandboxRebuildImageResponse)(nil),        // 148: madtom.v1.NoxSandboxRebuildImageResponse
-	(*NoxSandboxListRunsRequest)(nil),             // 149: madtom.v1.NoxSandboxListRunsRequest
-	(*NoxSandboxListRunsResponse)(nil),            // 150: madtom.v1.NoxSandboxListRunsResponse
-	(*NoxAutomationStatusRequest)(nil),            // 151: madtom.v1.NoxAutomationStatusRequest
-	(*NoxAutomationChatStatus)(nil),               // 152: madtom.v1.NoxAutomationChatStatus
-	(*NoxAutomationStatusResponse)(nil),           // 153: madtom.v1.NoxAutomationStatusResponse
-	(*NoxAutomationPreprocessor)(nil),             // 154: madtom.v1.NoxAutomationPreprocessor
-	(*NoxListPreprocessorsRequest)(nil),           // 155: madtom.v1.NoxListPreprocessorsRequest
-	(*NoxListPreprocessorsResponse)(nil),          // 156: madtom.v1.NoxListPreprocessorsResponse
-	(*NoxGetPreprocessorRequest)(nil),             // 157: madtom.v1.NoxGetPreprocessorRequest
-	(*NoxGetPreprocessorResponse)(nil),            // 158: madtom.v1.NoxGetPreprocessorResponse
-	(*NoxPreprocessorActionRequest)(nil),          // 159: madtom.v1.NoxPreprocessorActionRequest
-	(*NoxAutomationActionResponse)(nil),           // 160: madtom.v1.NoxAutomationActionResponse
-	(*NoxListPreprocessorLogsRequest)(nil),        // 161: madtom.v1.NoxListPreprocessorLogsRequest
-	(*NoxAutomationLogEntry)(nil),                 // 162: madtom.v1.NoxAutomationLogEntry
-	(*NoxListPreprocessorLogsResponse)(nil),       // 163: madtom.v1.NoxListPreprocessorLogsResponse
-	(*NoxAutomationCron)(nil),                     // 164: madtom.v1.NoxAutomationCron
-	(*NoxListCronsRequest)(nil),                   // 165: madtom.v1.NoxListCronsRequest
-	(*NoxListCronsResponse)(nil),                  // 166: madtom.v1.NoxListCronsResponse
-	(*NoxCronActionRequest)(nil),                  // 167: madtom.v1.NoxCronActionRequest
-	(*NoxListUserQuotasRequest)(nil),              // 168: madtom.v1.NoxListUserQuotasRequest
-	(*NoxUserQuotaDefaults)(nil),                  // 169: madtom.v1.NoxUserQuotaDefaults
-	(*NoxUserQuotaOverride)(nil),                  // 170: madtom.v1.NoxUserQuotaOverride
-	(*NoxUserQuotaTopUser)(nil),                   // 171: madtom.v1.NoxUserQuotaTopUser
-	(*NoxListUserQuotasResponse)(nil),             // 172: madtom.v1.NoxListUserQuotasResponse
-	(*NoxGetUserQuotaRequest)(nil),                // 173: madtom.v1.NoxGetUserQuotaRequest
-	(*NoxUserQuotaTier)(nil),                      // 174: madtom.v1.NoxUserQuotaTier
-	(*NoxGetUserQuotaResponse)(nil),               // 175: madtom.v1.NoxGetUserQuotaResponse
-	(*NoxSetUserQuotaRequest)(nil),                // 176: madtom.v1.NoxSetUserQuotaRequest
-	(*NoxSetUserQuotaResponse)(nil),               // 177: madtom.v1.NoxSetUserQuotaResponse
-	(*NoxAgySessionsRequest)(nil),                 // 178: madtom.v1.NoxAgySessionsRequest
-	(*NoxAgySessionSettings)(nil),                 // 179: madtom.v1.NoxAgySessionSettings
-	(*NoxAgyRebuildCounts)(nil),                   // 180: madtom.v1.NoxAgyRebuildCounts
-	(*NoxAgyInputTokens)(nil),                     // 181: madtom.v1.NoxAgyInputTokens
-	(*NoxAgyInputTokensByKind)(nil),               // 182: madtom.v1.NoxAgyInputTokensByKind
-	(*NoxAgySession)(nil),                         // 183: madtom.v1.NoxAgySession
-	(*NoxAgySessionsResponse)(nil),                // 184: madtom.v1.NoxAgySessionsResponse
-	nil,                                           // 185: madtom.v1.NoxTelemetrySample.MetricsEntry
-	nil,                                           // 186: madtom.v1.NoxChatTraceEvent.AttributesEntry
-	nil,                                           // 187: madtom.v1.NoxDirectTurnEvent.AttributesEntry
-	nil,                                           // 188: madtom.v1.NoxTurnTagEvent.AttributesEntry
-	nil,                                           // 189: madtom.v1.NoxVectorPointItem.PayloadEntry
-	nil,                                           // 190: madtom.v1.NoxSandboxListVmsResponse.PoolsEntry
-	nil,                                           // 191: madtom.v1.NoxSandboxImageStatusResponse.VersionsInUseEntry
-	(*TransportCompressionStats)(nil),             // 192: madtom.v1.TransportCompressionStats
-	(*LogRecord)(nil),                             // 193: madtom.v1.LogRecord
-	(*RangeQueryRequest)(nil),                     // 194: madtom.v1.RangeQueryRequest
-	(*LogChunkQuery)(nil),                         // 195: madtom.v1.LogChunkQuery
-	(*RangeQueryResponse)(nil),                    // 196: madtom.v1.RangeQueryResponse
-	(*LogChunkResponse)(nil),                      // 197: madtom.v1.LogChunkResponse
+	(*NoxMemoryMergeSource)(nil),                  // 43: madtom.v1.NoxMemoryMergeSource
+	(*NoxMemoryMergeProposal)(nil),                // 44: madtom.v1.NoxMemoryMergeProposal
+	(*NoxMemoryMergeJob)(nil),                     // 45: madtom.v1.NoxMemoryMergeJob
+	(*NoxMemoryMergeListRequest)(nil),             // 46: madtom.v1.NoxMemoryMergeListRequest
+	(*NoxMemoryMergeListResponse)(nil),            // 47: madtom.v1.NoxMemoryMergeListResponse
+	(*NoxMemoryMergeActionRequest)(nil),           // 48: madtom.v1.NoxMemoryMergeActionRequest
+	(*NoxMemoryMergeActionResponse)(nil),          // 49: madtom.v1.NoxMemoryMergeActionResponse
+	(*NoxHotMemoryRequest)(nil),                   // 50: madtom.v1.NoxHotMemoryRequest
+	(*NoxHotMemoryItem)(nil),                      // 51: madtom.v1.NoxHotMemoryItem
+	(*NoxHotMemoryResponse)(nil),                  // 52: madtom.v1.NoxHotMemoryResponse
+	(*NoxUpsertHotMemoryRequest)(nil),             // 53: madtom.v1.NoxUpsertHotMemoryRequest
+	(*NoxDeleteHotMemoryRequest)(nil),             // 54: madtom.v1.NoxDeleteHotMemoryRequest
+	(*NoxMediaQueryRequest)(nil),                  // 55: madtom.v1.NoxMediaQueryRequest
+	(*NoxMediaLibraryItem)(nil),                   // 56: madtom.v1.NoxMediaLibraryItem
+	(*NoxMediaQueryResponse)(nil),                 // 57: madtom.v1.NoxMediaQueryResponse
+	(*NoxStickerPackItem)(nil),                    // 58: madtom.v1.NoxStickerPackItem
+	(*NoxForceAddStickerRequest)(nil),             // 59: madtom.v1.NoxForceAddStickerRequest
+	(*NoxMediaPreviewRequest)(nil),                // 60: madtom.v1.NoxMediaPreviewRequest
+	(*NoxMediaPreviewResponse)(nil),               // 61: madtom.v1.NoxMediaPreviewResponse
+	(*NoxMediaMutationRequest)(nil),               // 62: madtom.v1.NoxMediaMutationRequest
+	(*NoxMediaPinRequest)(nil),                    // 63: madtom.v1.NoxMediaPinRequest
+	(*NoxMediaMutationResponse)(nil),              // 64: madtom.v1.NoxMediaMutationResponse
+	(*NoxAnalyzePackRequest)(nil),                 // 65: madtom.v1.NoxAnalyzePackRequest
+	(*NoxAnalyzePackResponse)(nil),                // 66: madtom.v1.NoxAnalyzePackResponse
+	(*NoxActiveJobsRequest)(nil),                  // 67: madtom.v1.NoxActiveJobsRequest
+	(*NoxJobProgressEvent)(nil),                   // 68: madtom.v1.NoxJobProgressEvent
+	(*NoxDocGenSandboxSettings)(nil),              // 69: madtom.v1.NoxDocGenSandboxSettings
+	(*NoxDocGenSettings)(nil),                     // 70: madtom.v1.NoxDocGenSettings
+	(*NoxActiveJobsResponse)(nil),                 // 71: madtom.v1.NoxActiveJobsResponse
+	(*NoxVectorInspectRequest)(nil),               // 72: madtom.v1.NoxVectorInspectRequest
+	(*NoxVectorPointItem)(nil),                    // 73: madtom.v1.NoxVectorPointItem
+	(*NoxVectorInspectResponse)(nil),              // 74: madtom.v1.NoxVectorInspectResponse
+	(*NoxChatImage)(nil),                          // 75: madtom.v1.NoxChatImage
+	(*NoxListChatImagesRequest)(nil),              // 76: madtom.v1.NoxListChatImagesRequest
+	(*NoxListChatImagesResponse)(nil),             // 77: madtom.v1.NoxListChatImagesResponse
+	(*NoxGetChatImageRequest)(nil),                // 78: madtom.v1.NoxGetChatImageRequest
+	(*NoxGetChatImageResponse)(nil),               // 79: madtom.v1.NoxGetChatImageResponse
+	(*NoxImageStorageStatsRequest)(nil),           // 80: madtom.v1.NoxImageStorageStatsRequest
+	(*NoxChatImageUsage)(nil),                     // 81: madtom.v1.NoxChatImageUsage
+	(*NoxImageStorageStatsResponse)(nil),          // 82: madtom.v1.NoxImageStorageStatsResponse
+	(*NoxSweepChatImagesRequest)(nil),             // 83: madtom.v1.NoxSweepChatImagesRequest
+	(*NoxSweepChatImagesResponse)(nil),            // 84: madtom.v1.NoxSweepChatImagesResponse
+	(*NoxChatFile)(nil),                           // 85: madtom.v1.NoxChatFile
+	(*NoxListChatFilesRequest)(nil),               // 86: madtom.v1.NoxListChatFilesRequest
+	(*NoxListChatFilesResponse)(nil),              // 87: madtom.v1.NoxListChatFilesResponse
+	(*NoxGetChatFilePreviewRequest)(nil),          // 88: madtom.v1.NoxGetChatFilePreviewRequest
+	(*NoxGetChatFilePreviewResponse)(nil),         // 89: madtom.v1.NoxGetChatFilePreviewResponse
+	(*NoxGetChatFileBytesRequest)(nil),            // 90: madtom.v1.NoxGetChatFileBytesRequest
+	(*NoxGetChatFileBytesResponse)(nil),           // 91: madtom.v1.NoxGetChatFileBytesResponse
+	(*NoxWorkspaceStorageStatsRequest)(nil),       // 92: madtom.v1.NoxWorkspaceStorageStatsRequest
+	(*NoxChatFileUsage)(nil),                      // 93: madtom.v1.NoxChatFileUsage
+	(*NoxWorkspaceStorageStatsResponse)(nil),      // 94: madtom.v1.NoxWorkspaceStorageStatsResponse
+	(*NoxSweepChatFilesRequest)(nil),              // 95: madtom.v1.NoxSweepChatFilesRequest
+	(*NoxSweepChatFilesResponse)(nil),             // 96: madtom.v1.NoxSweepChatFilesResponse
+	(*NoxUserProfile)(nil),                        // 97: madtom.v1.NoxUserProfile
+	(*NoxUserProfileQueryRequest)(nil),            // 98: madtom.v1.NoxUserProfileQueryRequest
+	(*NoxUserProfileQueryResponse)(nil),           // 99: madtom.v1.NoxUserProfileQueryResponse
+	(*NoxUserProfileSearchRequest)(nil),           // 100: madtom.v1.NoxUserProfileSearchRequest
+	(*NoxUserProfileSearchResponse)(nil),          // 101: madtom.v1.NoxUserProfileSearchResponse
+	(*NoxUserProfilePhotoRequest)(nil),            // 102: madtom.v1.NoxUserProfilePhotoRequest
+	(*NoxUserProfilePhotoResponse)(nil),           // 103: madtom.v1.NoxUserProfilePhotoResponse
+	(*NoxSearchLogsRequest)(nil),                  // 104: madtom.v1.NoxSearchLogsRequest
+	(*NoxLogSearchHit)(nil),                       // 105: madtom.v1.NoxLogSearchHit
+	(*NoxSearchLogsResponse)(nil),                 // 106: madtom.v1.NoxSearchLogsResponse
+	(*NoxTipItem)(nil),                            // 107: madtom.v1.NoxTipItem
+	(*NoxTipSettings)(nil),                        // 108: madtom.v1.NoxTipSettings
+	(*NoxTipListRequest)(nil),                     // 109: madtom.v1.NoxTipListRequest
+	(*NoxTipListResponse)(nil),                    // 110: madtom.v1.NoxTipListResponse
+	(*NoxTipScored)(nil),                          // 111: madtom.v1.NoxTipScored
+	(*NoxTipSearchRequest)(nil),                   // 112: madtom.v1.NoxTipSearchRequest
+	(*NoxTipSearchResponse)(nil),                  // 113: madtom.v1.NoxTipSearchResponse
+	(*NoxAddTipsRequest)(nil),                     // 114: madtom.v1.NoxAddTipsRequest
+	(*NoxTipRejected)(nil),                        // 115: madtom.v1.NoxTipRejected
+	(*NoxAddTipsResponse)(nil),                    // 116: madtom.v1.NoxAddTipsResponse
+	(*NoxUpdateTipRequest)(nil),                   // 117: madtom.v1.NoxUpdateTipRequest
+	(*NoxDeleteTipsRequest)(nil),                  // 118: madtom.v1.NoxDeleteTipsRequest
+	(*NoxTipMutationResponse)(nil),                // 119: madtom.v1.NoxTipMutationResponse
+	(*NoxTestTipsRequest)(nil),                    // 120: madtom.v1.NoxTestTipsRequest
+	(*NoxTestTipsResponse)(nil),                   // 121: madtom.v1.NoxTestTipsResponse
+	(*NoxSandboxSession)(nil),                     // 122: madtom.v1.NoxSandboxSession
+	(*NoxSandboxJob)(nil),                         // 123: madtom.v1.NoxSandboxJob
+	(*NoxSandboxVmInfo)(nil),                      // 124: madtom.v1.NoxSandboxVmInfo
+	(*NoxSandboxPool)(nil),                        // 125: madtom.v1.NoxSandboxPool
+	(*NoxSandboxTotals)(nil),                      // 126: madtom.v1.NoxSandboxTotals
+	(*NoxSandboxHost)(nil),                        // 127: madtom.v1.NoxSandboxHost
+	(*NoxSandboxFileEntry)(nil),                   // 128: madtom.v1.NoxSandboxFileEntry
+	(*NoxSandboxBackup)(nil),                      // 129: madtom.v1.NoxSandboxBackup
+	(*NoxSandboxLibraryRequest)(nil),              // 130: madtom.v1.NoxSandboxLibraryRequest
+	(*NoxSandboxPackages)(nil),                    // 131: madtom.v1.NoxSandboxPackages
+	(*NoxSandboxLastBuild)(nil),                   // 132: madtom.v1.NoxSandboxLastBuild
+	(*NoxSandboxRun)(nil),                         // 133: madtom.v1.NoxSandboxRun
+	(*NoxSandboxListVmsRequest)(nil),              // 134: madtom.v1.NoxSandboxListVmsRequest
+	(*NoxSandboxListVmsResponse)(nil),             // 135: madtom.v1.NoxSandboxListVmsResponse
+	(*NoxSandboxVmActionRequest)(nil),             // 136: madtom.v1.NoxSandboxVmActionRequest
+	(*NoxSandboxVmActionResponse)(nil),            // 137: madtom.v1.NoxSandboxVmActionResponse
+	(*NoxSandboxListFilesRequest)(nil),            // 138: madtom.v1.NoxSandboxListFilesRequest
+	(*NoxSandboxListFilesResponse)(nil),           // 139: madtom.v1.NoxSandboxListFilesResponse
+	(*NoxSandboxReadTextRequest)(nil),             // 140: madtom.v1.NoxSandboxReadTextRequest
+	(*NoxSandboxReadTextResponse)(nil),            // 141: madtom.v1.NoxSandboxReadTextResponse
+	(*NoxSandboxPreviewFileRequest)(nil),          // 142: madtom.v1.NoxSandboxPreviewFileRequest
+	(*NoxSandboxPreviewFileResponse)(nil),         // 143: madtom.v1.NoxSandboxPreviewFileResponse
+	(*NoxSandboxListBackupsRequest)(nil),          // 144: madtom.v1.NoxSandboxListBackupsRequest
+	(*NoxSandboxListBackupsResponse)(nil),         // 145: madtom.v1.NoxSandboxListBackupsResponse
+	(*NoxSandboxRestoreBackupRequest)(nil),        // 146: madtom.v1.NoxSandboxRestoreBackupRequest
+	(*NoxSandboxRestoreBackupResponse)(nil),       // 147: madtom.v1.NoxSandboxRestoreBackupResponse
+	(*NoxSandboxListLibraryRequestsRequest)(nil),  // 148: madtom.v1.NoxSandboxListLibraryRequestsRequest
+	(*NoxSandboxListLibraryRequestsResponse)(nil), // 149: madtom.v1.NoxSandboxListLibraryRequestsResponse
+	(*NoxSandboxDecideLibraryRequest)(nil),        // 150: madtom.v1.NoxSandboxDecideLibraryRequest
+	(*NoxSandboxDecideLibraryResponse)(nil),       // 151: madtom.v1.NoxSandboxDecideLibraryResponse
+	(*NoxSandboxImageStatusRequest)(nil),          // 152: madtom.v1.NoxSandboxImageStatusRequest
+	(*NoxSandboxImageStatusResponse)(nil),         // 153: madtom.v1.NoxSandboxImageStatusResponse
+	(*NoxSandboxRebuildImageRequest)(nil),         // 154: madtom.v1.NoxSandboxRebuildImageRequest
+	(*NoxSandboxRebuildImageResponse)(nil),        // 155: madtom.v1.NoxSandboxRebuildImageResponse
+	(*NoxSandboxListRunsRequest)(nil),             // 156: madtom.v1.NoxSandboxListRunsRequest
+	(*NoxSandboxListRunsResponse)(nil),            // 157: madtom.v1.NoxSandboxListRunsResponse
+	(*NoxAutomationStatusRequest)(nil),            // 158: madtom.v1.NoxAutomationStatusRequest
+	(*NoxAutomationChatStatus)(nil),               // 159: madtom.v1.NoxAutomationChatStatus
+	(*NoxAutomationStatusResponse)(nil),           // 160: madtom.v1.NoxAutomationStatusResponse
+	(*NoxAutomationPreprocessor)(nil),             // 161: madtom.v1.NoxAutomationPreprocessor
+	(*NoxListPreprocessorsRequest)(nil),           // 162: madtom.v1.NoxListPreprocessorsRequest
+	(*NoxListPreprocessorsResponse)(nil),          // 163: madtom.v1.NoxListPreprocessorsResponse
+	(*NoxGetPreprocessorRequest)(nil),             // 164: madtom.v1.NoxGetPreprocessorRequest
+	(*NoxGetPreprocessorResponse)(nil),            // 165: madtom.v1.NoxGetPreprocessorResponse
+	(*NoxPreprocessorActionRequest)(nil),          // 166: madtom.v1.NoxPreprocessorActionRequest
+	(*NoxAutomationActionResponse)(nil),           // 167: madtom.v1.NoxAutomationActionResponse
+	(*NoxListPreprocessorLogsRequest)(nil),        // 168: madtom.v1.NoxListPreprocessorLogsRequest
+	(*NoxAutomationLogEntry)(nil),                 // 169: madtom.v1.NoxAutomationLogEntry
+	(*NoxListPreprocessorLogsResponse)(nil),       // 170: madtom.v1.NoxListPreprocessorLogsResponse
+	(*NoxAutomationCron)(nil),                     // 171: madtom.v1.NoxAutomationCron
+	(*NoxListCronsRequest)(nil),                   // 172: madtom.v1.NoxListCronsRequest
+	(*NoxListCronsResponse)(nil),                  // 173: madtom.v1.NoxListCronsResponse
+	(*NoxCronActionRequest)(nil),                  // 174: madtom.v1.NoxCronActionRequest
+	(*NoxListUserQuotasRequest)(nil),              // 175: madtom.v1.NoxListUserQuotasRequest
+	(*NoxUserQuotaDefaults)(nil),                  // 176: madtom.v1.NoxUserQuotaDefaults
+	(*NoxUserQuotaOverride)(nil),                  // 177: madtom.v1.NoxUserQuotaOverride
+	(*NoxUserQuotaTopUser)(nil),                   // 178: madtom.v1.NoxUserQuotaTopUser
+	(*NoxListUserQuotasResponse)(nil),             // 179: madtom.v1.NoxListUserQuotasResponse
+	(*NoxGetUserQuotaRequest)(nil),                // 180: madtom.v1.NoxGetUserQuotaRequest
+	(*NoxUserQuotaTier)(nil),                      // 181: madtom.v1.NoxUserQuotaTier
+	(*NoxGetUserQuotaResponse)(nil),               // 182: madtom.v1.NoxGetUserQuotaResponse
+	(*NoxSetUserQuotaRequest)(nil),                // 183: madtom.v1.NoxSetUserQuotaRequest
+	(*NoxSetUserQuotaResponse)(nil),               // 184: madtom.v1.NoxSetUserQuotaResponse
+	(*NoxAgySessionsRequest)(nil),                 // 185: madtom.v1.NoxAgySessionsRequest
+	(*NoxAgySessionSettings)(nil),                 // 186: madtom.v1.NoxAgySessionSettings
+	(*NoxAgyRebuildCounts)(nil),                   // 187: madtom.v1.NoxAgyRebuildCounts
+	(*NoxAgyInputTokens)(nil),                     // 188: madtom.v1.NoxAgyInputTokens
+	(*NoxAgyInputTokensByKind)(nil),               // 189: madtom.v1.NoxAgyInputTokensByKind
+	(*NoxAgySession)(nil),                         // 190: madtom.v1.NoxAgySession
+	(*NoxAgySessionsResponse)(nil),                // 191: madtom.v1.NoxAgySessionsResponse
+	nil,                                           // 192: madtom.v1.NoxTelemetrySample.MetricsEntry
+	nil,                                           // 193: madtom.v1.NoxChatTraceEvent.AttributesEntry
+	nil,                                           // 194: madtom.v1.NoxDirectTurnEvent.AttributesEntry
+	nil,                                           // 195: madtom.v1.NoxTurnTagEvent.AttributesEntry
+	nil,                                           // 196: madtom.v1.NoxVectorPointItem.PayloadEntry
+	nil,                                           // 197: madtom.v1.NoxSandboxListVmsResponse.PoolsEntry
+	nil,                                           // 198: madtom.v1.NoxSandboxImageStatusResponse.VersionsInUseEntry
+	(*TransportCompressionStats)(nil),             // 199: madtom.v1.TransportCompressionStats
+	(*LogRecord)(nil),                             // 200: madtom.v1.LogRecord
+	(*RangeQueryRequest)(nil),                     // 201: madtom.v1.RangeQueryRequest
+	(*LogChunkQuery)(nil),                         // 202: madtom.v1.LogChunkQuery
+	(*RangeQueryResponse)(nil),                    // 203: madtom.v1.RangeQueryResponse
+	(*LogChunkResponse)(nil),                      // 204: madtom.v1.LogChunkResponse
 }
 var file_madtom_v1_noxchat_proto_depIdxs = []int32{
-	192, // 0: madtom.v1.NoxNodeStatusResponse.transport_stats:type_name -> madtom.v1.TransportCompressionStats
+	199, // 0: madtom.v1.NoxNodeStatusResponse.transport_stats:type_name -> madtom.v1.TransportCompressionStats
 	9,   // 1: madtom.v1.NoxStateChunkPayload.telemetry_samples:type_name -> madtom.v1.NoxTelemetrySample
-	61,  // 2: madtom.v1.NoxStateChunkPayload.job_events:type_name -> madtom.v1.NoxJobProgressEvent
+	68,  // 2: madtom.v1.NoxStateChunkPayload.job_events:type_name -> madtom.v1.NoxJobProgressEvent
 	27,  // 3: madtom.v1.NoxStateChunkPayload.live_turn_events:type_name -> madtom.v1.NoxTurnTagEvent
-	193, // 4: madtom.v1.NoxLogApiChunkPayload.log_records:type_name -> madtom.v1.LogRecord
+	200, // 4: madtom.v1.NoxLogApiChunkPayload.log_records:type_name -> madtom.v1.LogRecord
 	10,  // 5: madtom.v1.NoxLogApiChunkPayload.api_call_records:type_name -> madtom.v1.NoxRawApiCallRecord
-	185, // 6: madtom.v1.NoxTelemetrySample.metrics:type_name -> madtom.v1.NoxTelemetrySample.MetricsEntry
+	192, // 6: madtom.v1.NoxTelemetrySample.metrics:type_name -> madtom.v1.NoxTelemetrySample.MetricsEntry
 	15,  // 7: madtom.v1.NoxRawApiCallRecord.image_data_urls:type_name -> madtom.v1.NoxImageData
 	11,  // 8: madtom.v1.NoxRawApiCallRecord.trace_context:type_name -> madtom.v1.NoxTraceContext
 	11,  // 9: madtom.v1.NoxChatTraceEvent.trace_context:type_name -> madtom.v1.NoxTraceContext
-	186, // 10: madtom.v1.NoxChatTraceEvent.attributes:type_name -> madtom.v1.NoxChatTraceEvent.AttributesEntry
+	193, // 10: madtom.v1.NoxChatTraceEvent.attributes:type_name -> madtom.v1.NoxChatTraceEvent.AttributesEntry
 	10,  // 11: madtom.v1.NoxChatTraceResponse.calls:type_name -> madtom.v1.NoxRawApiCallRecord
 	12,  // 12: madtom.v1.NoxChatTraceResponse.events:type_name -> madtom.v1.NoxChatTraceEvent
 	23,  // 13: madtom.v1.NoxApiCallChunkResponse.chunks:type_name -> madtom.v1.NoxApiCallChunk
 	10,  // 14: madtom.v1.NoxApiCallRecordList.records:type_name -> madtom.v1.NoxRawApiCallRecord
 	15,  // 15: madtom.v1.NoxDirectMessageRequest.attachments:type_name -> madtom.v1.NoxImageData
-	187, // 16: madtom.v1.NoxDirectTurnEvent.attributes:type_name -> madtom.v1.NoxDirectTurnEvent.AttributesEntry
-	188, // 17: madtom.v1.NoxTurnTagEvent.attributes:type_name -> madtom.v1.NoxTurnTagEvent.AttributesEntry
+	194, // 16: madtom.v1.NoxDirectTurnEvent.attributes:type_name -> madtom.v1.NoxDirectTurnEvent.AttributesEntry
+	195, // 17: madtom.v1.NoxTurnTagEvent.attributes:type_name -> madtom.v1.NoxTurnTagEvent.AttributesEntry
 	29,  // 18: madtom.v1.NoxChatHistoryResponse.messages:type_name -> madtom.v1.NoxMessageItem
 	32,  // 19: madtom.v1.NoxListChatsResponse.chats:type_name -> madtom.v1.NoxChatItem
 	35,  // 20: madtom.v1.NoxMemoryQueryResponse.memories:type_name -> madtom.v1.NoxAtomicMemoryItem
 	35,  // 21: madtom.v1.NoxHybridSearchResultItem.memory:type_name -> madtom.v1.NoxAtomicMemoryItem
 	38,  // 22: madtom.v1.NoxHybridSearchResponse.results:type_name -> madtom.v1.NoxHybridSearchResultItem
-	44,  // 23: madtom.v1.NoxHotMemoryResponse.items:type_name -> madtom.v1.NoxHotMemoryItem
-	49,  // 24: madtom.v1.NoxMediaQueryResponse.items:type_name -> madtom.v1.NoxMediaLibraryItem
-	51,  // 25: madtom.v1.NoxMediaQueryResponse.sticker_packs:type_name -> madtom.v1.NoxStickerPackItem
-	62,  // 26: madtom.v1.NoxDocGenSettings.sandbox:type_name -> madtom.v1.NoxDocGenSandboxSettings
-	61,  // 27: madtom.v1.NoxActiveJobsResponse.active_jobs:type_name -> madtom.v1.NoxJobProgressEvent
-	63,  // 28: madtom.v1.NoxActiveJobsResponse.doc_gen:type_name -> madtom.v1.NoxDocGenSettings
-	189, // 29: madtom.v1.NoxVectorPointItem.payload:type_name -> madtom.v1.NoxVectorPointItem.PayloadEntry
-	29,  // 30: madtom.v1.NoxVectorPointItem.related_messages:type_name -> madtom.v1.NoxMessageItem
-	66,  // 31: madtom.v1.NoxVectorInspectResponse.target_point:type_name -> madtom.v1.NoxVectorPointItem
-	66,  // 32: madtom.v1.NoxVectorInspectResponse.neighbors:type_name -> madtom.v1.NoxVectorPointItem
-	68,  // 33: madtom.v1.NoxListChatImagesResponse.images:type_name -> madtom.v1.NoxChatImage
-	68,  // 34: madtom.v1.NoxGetChatImageResponse.image:type_name -> madtom.v1.NoxChatImage
-	74,  // 35: madtom.v1.NoxImageStorageStatsResponse.chats:type_name -> madtom.v1.NoxChatImageUsage
-	78,  // 36: madtom.v1.NoxListChatFilesResponse.files:type_name -> madtom.v1.NoxChatFile
-	78,  // 37: madtom.v1.NoxGetChatFilePreviewResponse.file:type_name -> madtom.v1.NoxChatFile
-	86,  // 38: madtom.v1.NoxWorkspaceStorageStatsResponse.chats:type_name -> madtom.v1.NoxChatFileUsage
-	90,  // 39: madtom.v1.NoxUserProfileQueryResponse.profiles:type_name -> madtom.v1.NoxUserProfile
-	90,  // 40: madtom.v1.NoxUserProfileSearchResponse.profiles:type_name -> madtom.v1.NoxUserProfile
-	98,  // 41: madtom.v1.NoxSearchLogsResponse.hits:type_name -> madtom.v1.NoxLogSearchHit
-	100, // 42: madtom.v1.NoxTipListResponse.tips:type_name -> madtom.v1.NoxTipItem
-	101, // 43: madtom.v1.NoxTipListResponse.settings:type_name -> madtom.v1.NoxTipSettings
-	100, // 44: madtom.v1.NoxTipScored.tip:type_name -> madtom.v1.NoxTipItem
-	104, // 45: madtom.v1.NoxTipSearchResponse.results:type_name -> madtom.v1.NoxTipScored
-	100, // 46: madtom.v1.NoxAddTipsResponse.added:type_name -> madtom.v1.NoxTipItem
-	108, // 47: madtom.v1.NoxAddTipsResponse.rejected:type_name -> madtom.v1.NoxTipRejected
-	100, // 48: madtom.v1.NoxTipMutationResponse.tip:type_name -> madtom.v1.NoxTipItem
-	104, // 49: madtom.v1.NoxTestTipsResponse.shown:type_name -> madtom.v1.NoxTipScored
-	104, // 50: madtom.v1.NoxTestTipsResponse.below_threshold:type_name -> madtom.v1.NoxTipScored
-	115, // 51: madtom.v1.NoxSandboxVmInfo.sessions:type_name -> madtom.v1.NoxSandboxSession
-	116, // 52: madtom.v1.NoxSandboxVmInfo.jobs:type_name -> madtom.v1.NoxSandboxJob
-	117, // 53: madtom.v1.NoxSandboxListVmsResponse.vms:type_name -> madtom.v1.NoxSandboxVmInfo
-	190, // 54: madtom.v1.NoxSandboxListVmsResponse.pools:type_name -> madtom.v1.NoxSandboxListVmsResponse.PoolsEntry
-	119, // 55: madtom.v1.NoxSandboxListVmsResponse.totals:type_name -> madtom.v1.NoxSandboxTotals
-	120, // 56: madtom.v1.NoxSandboxListVmsResponse.host:type_name -> madtom.v1.NoxSandboxHost
-	121, // 57: madtom.v1.NoxSandboxListFilesResponse.entries:type_name -> madtom.v1.NoxSandboxFileEntry
-	122, // 58: madtom.v1.NoxSandboxListBackupsResponse.backups:type_name -> madtom.v1.NoxSandboxBackup
-	123, // 59: madtom.v1.NoxSandboxListLibraryRequestsResponse.requests:type_name -> madtom.v1.NoxSandboxLibraryRequest
-	125, // 60: madtom.v1.NoxSandboxImageStatusResponse.last_build:type_name -> madtom.v1.NoxSandboxLastBuild
-	124, // 61: madtom.v1.NoxSandboxImageStatusResponse.packages:type_name -> madtom.v1.NoxSandboxPackages
-	124, // 62: madtom.v1.NoxSandboxImageStatusResponse.pending_packages:type_name -> madtom.v1.NoxSandboxPackages
-	191, // 63: madtom.v1.NoxSandboxImageStatusResponse.versions_in_use:type_name -> madtom.v1.NoxSandboxImageStatusResponse.VersionsInUseEntry
-	126, // 64: madtom.v1.NoxSandboxListRunsResponse.runs:type_name -> madtom.v1.NoxSandboxRun
-	152, // 65: madtom.v1.NoxAutomationStatusResponse.chats:type_name -> madtom.v1.NoxAutomationChatStatus
-	154, // 66: madtom.v1.NoxListPreprocessorsResponse.preprocessors:type_name -> madtom.v1.NoxAutomationPreprocessor
-	154, // 67: madtom.v1.NoxGetPreprocessorResponse.preprocessor:type_name -> madtom.v1.NoxAutomationPreprocessor
-	162, // 68: madtom.v1.NoxListPreprocessorLogsResponse.entries:type_name -> madtom.v1.NoxAutomationLogEntry
-	164, // 69: madtom.v1.NoxListCronsResponse.crons:type_name -> madtom.v1.NoxAutomationCron
-	169, // 70: madtom.v1.NoxListUserQuotasResponse.defaults:type_name -> madtom.v1.NoxUserQuotaDefaults
-	170, // 71: madtom.v1.NoxListUserQuotasResponse.overrides:type_name -> madtom.v1.NoxUserQuotaOverride
-	171, // 72: madtom.v1.NoxListUserQuotasResponse.top_users:type_name -> madtom.v1.NoxUserQuotaTopUser
-	174, // 73: madtom.v1.NoxGetUserQuotaResponse.user:type_name -> madtom.v1.NoxUserQuotaTier
-	174, // 74: madtom.v1.NoxGetUserQuotaResponse.global:type_name -> madtom.v1.NoxUserQuotaTier
-	170, // 75: madtom.v1.NoxGetUserQuotaResponse.overrides:type_name -> madtom.v1.NoxUserQuotaOverride
-	181, // 76: madtom.v1.NoxAgyInputTokensByKind.bootstrap:type_name -> madtom.v1.NoxAgyInputTokens
-	181, // 77: madtom.v1.NoxAgyInputTokensByKind.warm:type_name -> madtom.v1.NoxAgyInputTokens
-	179, // 78: madtom.v1.NoxAgySessionsResponse.settings:type_name -> madtom.v1.NoxAgySessionSettings
-	180, // 79: madtom.v1.NoxAgySessionsResponse.rebuilds:type_name -> madtom.v1.NoxAgyRebuildCounts
-	182, // 80: madtom.v1.NoxAgySessionsResponse.input_tokens:type_name -> madtom.v1.NoxAgyInputTokensByKind
-	183, // 81: madtom.v1.NoxAgySessionsResponse.sessions:type_name -> madtom.v1.NoxAgySession
-	118, // 82: madtom.v1.NoxSandboxListVmsResponse.PoolsEntry.value:type_name -> madtom.v1.NoxSandboxPool
-	0,   // 83: madtom.v1.NoxChatControlService.GetNodeStatus:input_type -> madtom.v1.NoxNodeStatusRequest
-	2,   // 84: madtom.v1.NoxChatControlService.UpdateControlConfig:input_type -> madtom.v1.NoxUpdateControlConfigRequest
-	3,   // 85: madtom.v1.NoxChatControlService.SubscribeState:input_type -> madtom.v1.NoxStateSubscriptionRequest
-	6,   // 86: madtom.v1.NoxChatControlService.SubscribeLogsAndApi:input_type -> madtom.v1.NoxLogApiSubscriptionRequest
-	194, // 87: madtom.v1.NoxChatControlService.QueryTelemetryRange:input_type -> madtom.v1.RangeQueryRequest
-	16,  // 88: madtom.v1.NoxChatControlService.GetSpoolStats:input_type -> madtom.v1.NoxSpoolStatsRequest
-	97,  // 89: madtom.v1.NoxChatControlService.SearchLogs:input_type -> madtom.v1.NoxSearchLogsRequest
-	195, // 90: madtom.v1.NoxChatControlService.QueryLogChunks:input_type -> madtom.v1.LogChunkQuery
-	18,  // 91: madtom.v1.NoxChatControlService.QueryApiCallChunks:input_type -> madtom.v1.NoxApiCallChunkQuery
-	19,  // 92: madtom.v1.NoxChatControlService.GetApiCallDetail:input_type -> madtom.v1.NoxApiCallDetailRequest
-	13,  // 93: madtom.v1.NoxChatControlService.QueryChatTrace:input_type -> madtom.v1.NoxChatTraceRequest
-	21,  // 94: madtom.v1.NoxChatControlService.ClearSpool:input_type -> madtom.v1.NoxClearSpoolRequest
-	25,  // 95: madtom.v1.NoxChatControlService.SendDirectMessage:input_type -> madtom.v1.NoxDirectMessageRequest
-	28,  // 96: madtom.v1.NoxChatControlService.GetChatHistory:input_type -> madtom.v1.NoxChatHistoryRequest
-	31,  // 97: madtom.v1.NoxChatControlService.ListChats:input_type -> madtom.v1.NoxListChatsRequest
-	34,  // 98: madtom.v1.NoxChatControlService.QueryMemories:input_type -> madtom.v1.NoxMemoryQueryRequest
-	37,  // 99: madtom.v1.NoxChatControlService.SearchMemoriesHybrid:input_type -> madtom.v1.NoxHybridSearchRequest
-	40,  // 100: madtom.v1.NoxChatControlService.UpsertMemory:input_type -> madtom.v1.NoxUpsertMemoryRequest
-	41,  // 101: madtom.v1.NoxChatControlService.DeleteMemory:input_type -> madtom.v1.NoxDeleteMemoryRequest
-	43,  // 102: madtom.v1.NoxChatControlService.ListHotMemories:input_type -> madtom.v1.NoxHotMemoryRequest
-	46,  // 103: madtom.v1.NoxChatControlService.UpsertHotMemory:input_type -> madtom.v1.NoxUpsertHotMemoryRequest
-	47,  // 104: madtom.v1.NoxChatControlService.DeleteHotMemory:input_type -> madtom.v1.NoxDeleteHotMemoryRequest
-	48,  // 105: madtom.v1.NoxChatControlService.QueryMediaLibrary:input_type -> madtom.v1.NoxMediaQueryRequest
-	53,  // 106: madtom.v1.NoxChatControlService.GetMediaAssetPreview:input_type -> madtom.v1.NoxMediaPreviewRequest
-	55,  // 107: madtom.v1.NoxChatControlService.MutateMediaItem:input_type -> madtom.v1.NoxMediaMutationRequest
-	56,  // 108: madtom.v1.NoxChatControlService.ManageMediaPin:input_type -> madtom.v1.NoxMediaPinRequest
-	58,  // 109: madtom.v1.NoxChatControlService.TriggerStickerPackAnalysis:input_type -> madtom.v1.NoxAnalyzePackRequest
-	52,  // 110: madtom.v1.NoxChatControlService.ForceAddSticker:input_type -> madtom.v1.NoxForceAddStickerRequest
-	60,  // 111: madtom.v1.NoxChatControlService.GetActiveJobs:input_type -> madtom.v1.NoxActiveJobsRequest
-	65,  // 112: madtom.v1.NoxChatControlService.InspectVectors:input_type -> madtom.v1.NoxVectorInspectRequest
-	69,  // 113: madtom.v1.NoxChatControlService.ListChatImages:input_type -> madtom.v1.NoxListChatImagesRequest
-	71,  // 114: madtom.v1.NoxChatControlService.GetChatImage:input_type -> madtom.v1.NoxGetChatImageRequest
-	73,  // 115: madtom.v1.NoxChatControlService.GetImageStorageStats:input_type -> madtom.v1.NoxImageStorageStatsRequest
-	76,  // 116: madtom.v1.NoxChatControlService.SweepChatImages:input_type -> madtom.v1.NoxSweepChatImagesRequest
-	79,  // 117: madtom.v1.NoxChatControlService.ListChatFiles:input_type -> madtom.v1.NoxListChatFilesRequest
-	81,  // 118: madtom.v1.NoxChatControlService.GetChatFilePreview:input_type -> madtom.v1.NoxGetChatFilePreviewRequest
-	83,  // 119: madtom.v1.NoxChatControlService.GetChatFileBytes:input_type -> madtom.v1.NoxGetChatFileBytesRequest
-	85,  // 120: madtom.v1.NoxChatControlService.GetWorkspaceStorageStats:input_type -> madtom.v1.NoxWorkspaceStorageStatsRequest
-	88,  // 121: madtom.v1.NoxChatControlService.SweepChatFiles:input_type -> madtom.v1.NoxSweepChatFilesRequest
-	91,  // 122: madtom.v1.NoxChatControlService.QueryUserProfiles:input_type -> madtom.v1.NoxUserProfileQueryRequest
-	93,  // 123: madtom.v1.NoxChatControlService.SearchUserProfiles:input_type -> madtom.v1.NoxUserProfileSearchRequest
-	95,  // 124: madtom.v1.NoxChatControlService.GetUserProfilePhoto:input_type -> madtom.v1.NoxUserProfilePhotoRequest
-	102, // 125: madtom.v1.NoxChatControlService.ListTips:input_type -> madtom.v1.NoxTipListRequest
-	105, // 126: madtom.v1.NoxChatControlService.SearchTips:input_type -> madtom.v1.NoxTipSearchRequest
-	107, // 127: madtom.v1.NoxChatControlService.AddTips:input_type -> madtom.v1.NoxAddTipsRequest
-	110, // 128: madtom.v1.NoxChatControlService.UpdateTip:input_type -> madtom.v1.NoxUpdateTipRequest
-	111, // 129: madtom.v1.NoxChatControlService.DeleteTips:input_type -> madtom.v1.NoxDeleteTipsRequest
-	113, // 130: madtom.v1.NoxChatControlService.TestTips:input_type -> madtom.v1.NoxTestTipsRequest
-	127, // 131: madtom.v1.NoxChatControlService.ListSandboxVms:input_type -> madtom.v1.NoxSandboxListVmsRequest
-	129, // 132: madtom.v1.NoxChatControlService.SandboxVmAction:input_type -> madtom.v1.NoxSandboxVmActionRequest
-	131, // 133: madtom.v1.NoxChatControlService.ListSandboxFiles:input_type -> madtom.v1.NoxSandboxListFilesRequest
-	133, // 134: madtom.v1.NoxChatControlService.ReadSandboxText:input_type -> madtom.v1.NoxSandboxReadTextRequest
-	135, // 135: madtom.v1.NoxChatControlService.PreviewSandboxFile:input_type -> madtom.v1.NoxSandboxPreviewFileRequest
-	137, // 136: madtom.v1.NoxChatControlService.ListSandboxBackups:input_type -> madtom.v1.NoxSandboxListBackupsRequest
-	139, // 137: madtom.v1.NoxChatControlService.RestoreSandboxBackup:input_type -> madtom.v1.NoxSandboxRestoreBackupRequest
-	141, // 138: madtom.v1.NoxChatControlService.ListSandboxLibraryRequests:input_type -> madtom.v1.NoxSandboxListLibraryRequestsRequest
-	143, // 139: madtom.v1.NoxChatControlService.DecideSandboxLibrary:input_type -> madtom.v1.NoxSandboxDecideLibraryRequest
-	145, // 140: madtom.v1.NoxChatControlService.GetSandboxImageStatus:input_type -> madtom.v1.NoxSandboxImageStatusRequest
-	147, // 141: madtom.v1.NoxChatControlService.RebuildSandboxImage:input_type -> madtom.v1.NoxSandboxRebuildImageRequest
-	149, // 142: madtom.v1.NoxChatControlService.ListSandboxRuns:input_type -> madtom.v1.NoxSandboxListRunsRequest
-	151, // 143: madtom.v1.NoxChatControlService.GetAutomationStatus:input_type -> madtom.v1.NoxAutomationStatusRequest
-	155, // 144: madtom.v1.NoxChatControlService.ListPreprocessors:input_type -> madtom.v1.NoxListPreprocessorsRequest
-	157, // 145: madtom.v1.NoxChatControlService.GetPreprocessor:input_type -> madtom.v1.NoxGetPreprocessorRequest
-	159, // 146: madtom.v1.NoxChatControlService.PreprocessorAction:input_type -> madtom.v1.NoxPreprocessorActionRequest
-	161, // 147: madtom.v1.NoxChatControlService.ListPreprocessorLogs:input_type -> madtom.v1.NoxListPreprocessorLogsRequest
-	165, // 148: madtom.v1.NoxChatControlService.ListCrons:input_type -> madtom.v1.NoxListCronsRequest
-	167, // 149: madtom.v1.NoxChatControlService.CronAction:input_type -> madtom.v1.NoxCronActionRequest
-	168, // 150: madtom.v1.NoxChatControlService.ListUserQuotas:input_type -> madtom.v1.NoxListUserQuotasRequest
-	173, // 151: madtom.v1.NoxChatControlService.GetUserQuota:input_type -> madtom.v1.NoxGetUserQuotaRequest
-	176, // 152: madtom.v1.NoxChatControlService.SetUserQuota:input_type -> madtom.v1.NoxSetUserQuotaRequest
-	178, // 153: madtom.v1.NoxChatControlService.GetAgySessions:input_type -> madtom.v1.NoxAgySessionsRequest
-	1,   // 154: madtom.v1.NoxChatControlService.GetNodeStatus:output_type -> madtom.v1.NoxNodeStatusResponse
-	1,   // 155: madtom.v1.NoxChatControlService.UpdateControlConfig:output_type -> madtom.v1.NoxNodeStatusResponse
-	4,   // 156: madtom.v1.NoxChatControlService.SubscribeState:output_type -> madtom.v1.NoxStateChunk
-	7,   // 157: madtom.v1.NoxChatControlService.SubscribeLogsAndApi:output_type -> madtom.v1.NoxLogApiChunk
-	196, // 158: madtom.v1.NoxChatControlService.QueryTelemetryRange:output_type -> madtom.v1.RangeQueryResponse
-	17,  // 159: madtom.v1.NoxChatControlService.GetSpoolStats:output_type -> madtom.v1.NoxSpoolStatsResponse
-	99,  // 160: madtom.v1.NoxChatControlService.SearchLogs:output_type -> madtom.v1.NoxSearchLogsResponse
-	197, // 161: madtom.v1.NoxChatControlService.QueryLogChunks:output_type -> madtom.v1.LogChunkResponse
-	20,  // 162: madtom.v1.NoxChatControlService.QueryApiCallChunks:output_type -> madtom.v1.NoxApiCallChunkResponse
-	10,  // 163: madtom.v1.NoxChatControlService.GetApiCallDetail:output_type -> madtom.v1.NoxRawApiCallRecord
-	14,  // 164: madtom.v1.NoxChatControlService.QueryChatTrace:output_type -> madtom.v1.NoxChatTraceResponse
-	22,  // 165: madtom.v1.NoxChatControlService.ClearSpool:output_type -> madtom.v1.NoxClearSpoolResponse
-	26,  // 166: madtom.v1.NoxChatControlService.SendDirectMessage:output_type -> madtom.v1.NoxDirectTurnEvent
-	30,  // 167: madtom.v1.NoxChatControlService.GetChatHistory:output_type -> madtom.v1.NoxChatHistoryResponse
-	33,  // 168: madtom.v1.NoxChatControlService.ListChats:output_type -> madtom.v1.NoxListChatsResponse
-	36,  // 169: madtom.v1.NoxChatControlService.QueryMemories:output_type -> madtom.v1.NoxMemoryQueryResponse
-	39,  // 170: madtom.v1.NoxChatControlService.SearchMemoriesHybrid:output_type -> madtom.v1.NoxHybridSearchResponse
-	42,  // 171: madtom.v1.NoxChatControlService.UpsertMemory:output_type -> madtom.v1.NoxMemoryMutationResponse
-	42,  // 172: madtom.v1.NoxChatControlService.DeleteMemory:output_type -> madtom.v1.NoxMemoryMutationResponse
-	45,  // 173: madtom.v1.NoxChatControlService.ListHotMemories:output_type -> madtom.v1.NoxHotMemoryResponse
-	45,  // 174: madtom.v1.NoxChatControlService.UpsertHotMemory:output_type -> madtom.v1.NoxHotMemoryResponse
-	45,  // 175: madtom.v1.NoxChatControlService.DeleteHotMemory:output_type -> madtom.v1.NoxHotMemoryResponse
-	50,  // 176: madtom.v1.NoxChatControlService.QueryMediaLibrary:output_type -> madtom.v1.NoxMediaQueryResponse
-	54,  // 177: madtom.v1.NoxChatControlService.GetMediaAssetPreview:output_type -> madtom.v1.NoxMediaPreviewResponse
-	57,  // 178: madtom.v1.NoxChatControlService.MutateMediaItem:output_type -> madtom.v1.NoxMediaMutationResponse
-	57,  // 179: madtom.v1.NoxChatControlService.ManageMediaPin:output_type -> madtom.v1.NoxMediaMutationResponse
-	59,  // 180: madtom.v1.NoxChatControlService.TriggerStickerPackAnalysis:output_type -> madtom.v1.NoxAnalyzePackResponse
-	57,  // 181: madtom.v1.NoxChatControlService.ForceAddSticker:output_type -> madtom.v1.NoxMediaMutationResponse
-	64,  // 182: madtom.v1.NoxChatControlService.GetActiveJobs:output_type -> madtom.v1.NoxActiveJobsResponse
-	67,  // 183: madtom.v1.NoxChatControlService.InspectVectors:output_type -> madtom.v1.NoxVectorInspectResponse
-	70,  // 184: madtom.v1.NoxChatControlService.ListChatImages:output_type -> madtom.v1.NoxListChatImagesResponse
-	72,  // 185: madtom.v1.NoxChatControlService.GetChatImage:output_type -> madtom.v1.NoxGetChatImageResponse
-	75,  // 186: madtom.v1.NoxChatControlService.GetImageStorageStats:output_type -> madtom.v1.NoxImageStorageStatsResponse
-	77,  // 187: madtom.v1.NoxChatControlService.SweepChatImages:output_type -> madtom.v1.NoxSweepChatImagesResponse
-	80,  // 188: madtom.v1.NoxChatControlService.ListChatFiles:output_type -> madtom.v1.NoxListChatFilesResponse
-	82,  // 189: madtom.v1.NoxChatControlService.GetChatFilePreview:output_type -> madtom.v1.NoxGetChatFilePreviewResponse
-	84,  // 190: madtom.v1.NoxChatControlService.GetChatFileBytes:output_type -> madtom.v1.NoxGetChatFileBytesResponse
-	87,  // 191: madtom.v1.NoxChatControlService.GetWorkspaceStorageStats:output_type -> madtom.v1.NoxWorkspaceStorageStatsResponse
-	89,  // 192: madtom.v1.NoxChatControlService.SweepChatFiles:output_type -> madtom.v1.NoxSweepChatFilesResponse
-	92,  // 193: madtom.v1.NoxChatControlService.QueryUserProfiles:output_type -> madtom.v1.NoxUserProfileQueryResponse
-	94,  // 194: madtom.v1.NoxChatControlService.SearchUserProfiles:output_type -> madtom.v1.NoxUserProfileSearchResponse
-	96,  // 195: madtom.v1.NoxChatControlService.GetUserProfilePhoto:output_type -> madtom.v1.NoxUserProfilePhotoResponse
-	103, // 196: madtom.v1.NoxChatControlService.ListTips:output_type -> madtom.v1.NoxTipListResponse
-	106, // 197: madtom.v1.NoxChatControlService.SearchTips:output_type -> madtom.v1.NoxTipSearchResponse
-	109, // 198: madtom.v1.NoxChatControlService.AddTips:output_type -> madtom.v1.NoxAddTipsResponse
-	112, // 199: madtom.v1.NoxChatControlService.UpdateTip:output_type -> madtom.v1.NoxTipMutationResponse
-	112, // 200: madtom.v1.NoxChatControlService.DeleteTips:output_type -> madtom.v1.NoxTipMutationResponse
-	114, // 201: madtom.v1.NoxChatControlService.TestTips:output_type -> madtom.v1.NoxTestTipsResponse
-	128, // 202: madtom.v1.NoxChatControlService.ListSandboxVms:output_type -> madtom.v1.NoxSandboxListVmsResponse
-	130, // 203: madtom.v1.NoxChatControlService.SandboxVmAction:output_type -> madtom.v1.NoxSandboxVmActionResponse
-	132, // 204: madtom.v1.NoxChatControlService.ListSandboxFiles:output_type -> madtom.v1.NoxSandboxListFilesResponse
-	134, // 205: madtom.v1.NoxChatControlService.ReadSandboxText:output_type -> madtom.v1.NoxSandboxReadTextResponse
-	136, // 206: madtom.v1.NoxChatControlService.PreviewSandboxFile:output_type -> madtom.v1.NoxSandboxPreviewFileResponse
-	138, // 207: madtom.v1.NoxChatControlService.ListSandboxBackups:output_type -> madtom.v1.NoxSandboxListBackupsResponse
-	140, // 208: madtom.v1.NoxChatControlService.RestoreSandboxBackup:output_type -> madtom.v1.NoxSandboxRestoreBackupResponse
-	142, // 209: madtom.v1.NoxChatControlService.ListSandboxLibraryRequests:output_type -> madtom.v1.NoxSandboxListLibraryRequestsResponse
-	144, // 210: madtom.v1.NoxChatControlService.DecideSandboxLibrary:output_type -> madtom.v1.NoxSandboxDecideLibraryResponse
-	146, // 211: madtom.v1.NoxChatControlService.GetSandboxImageStatus:output_type -> madtom.v1.NoxSandboxImageStatusResponse
-	148, // 212: madtom.v1.NoxChatControlService.RebuildSandboxImage:output_type -> madtom.v1.NoxSandboxRebuildImageResponse
-	150, // 213: madtom.v1.NoxChatControlService.ListSandboxRuns:output_type -> madtom.v1.NoxSandboxListRunsResponse
-	153, // 214: madtom.v1.NoxChatControlService.GetAutomationStatus:output_type -> madtom.v1.NoxAutomationStatusResponse
-	156, // 215: madtom.v1.NoxChatControlService.ListPreprocessors:output_type -> madtom.v1.NoxListPreprocessorsResponse
-	158, // 216: madtom.v1.NoxChatControlService.GetPreprocessor:output_type -> madtom.v1.NoxGetPreprocessorResponse
-	160, // 217: madtom.v1.NoxChatControlService.PreprocessorAction:output_type -> madtom.v1.NoxAutomationActionResponse
-	163, // 218: madtom.v1.NoxChatControlService.ListPreprocessorLogs:output_type -> madtom.v1.NoxListPreprocessorLogsResponse
-	166, // 219: madtom.v1.NoxChatControlService.ListCrons:output_type -> madtom.v1.NoxListCronsResponse
-	160, // 220: madtom.v1.NoxChatControlService.CronAction:output_type -> madtom.v1.NoxAutomationActionResponse
-	172, // 221: madtom.v1.NoxChatControlService.ListUserQuotas:output_type -> madtom.v1.NoxListUserQuotasResponse
-	175, // 222: madtom.v1.NoxChatControlService.GetUserQuota:output_type -> madtom.v1.NoxGetUserQuotaResponse
-	177, // 223: madtom.v1.NoxChatControlService.SetUserQuota:output_type -> madtom.v1.NoxSetUserQuotaResponse
-	184, // 224: madtom.v1.NoxChatControlService.GetAgySessions:output_type -> madtom.v1.NoxAgySessionsResponse
-	154, // [154:225] is the sub-list for method output_type
-	83,  // [83:154] is the sub-list for method input_type
-	83,  // [83:83] is the sub-list for extension type_name
-	83,  // [83:83] is the sub-list for extension extendee
-	0,   // [0:83] is the sub-list for field type_name
+	43,  // 23: madtom.v1.NoxMemoryMergeProposal.sources:type_name -> madtom.v1.NoxMemoryMergeSource
+	44,  // 24: madtom.v1.NoxMemoryMergeListResponse.proposals:type_name -> madtom.v1.NoxMemoryMergeProposal
+	45,  // 25: madtom.v1.NoxMemoryMergeListResponse.jobs:type_name -> madtom.v1.NoxMemoryMergeJob
+	51,  // 26: madtom.v1.NoxHotMemoryResponse.items:type_name -> madtom.v1.NoxHotMemoryItem
+	56,  // 27: madtom.v1.NoxMediaQueryResponse.items:type_name -> madtom.v1.NoxMediaLibraryItem
+	58,  // 28: madtom.v1.NoxMediaQueryResponse.sticker_packs:type_name -> madtom.v1.NoxStickerPackItem
+	69,  // 29: madtom.v1.NoxDocGenSettings.sandbox:type_name -> madtom.v1.NoxDocGenSandboxSettings
+	68,  // 30: madtom.v1.NoxActiveJobsResponse.active_jobs:type_name -> madtom.v1.NoxJobProgressEvent
+	70,  // 31: madtom.v1.NoxActiveJobsResponse.doc_gen:type_name -> madtom.v1.NoxDocGenSettings
+	196, // 32: madtom.v1.NoxVectorPointItem.payload:type_name -> madtom.v1.NoxVectorPointItem.PayloadEntry
+	29,  // 33: madtom.v1.NoxVectorPointItem.related_messages:type_name -> madtom.v1.NoxMessageItem
+	73,  // 34: madtom.v1.NoxVectorInspectResponse.target_point:type_name -> madtom.v1.NoxVectorPointItem
+	73,  // 35: madtom.v1.NoxVectorInspectResponse.neighbors:type_name -> madtom.v1.NoxVectorPointItem
+	75,  // 36: madtom.v1.NoxListChatImagesResponse.images:type_name -> madtom.v1.NoxChatImage
+	75,  // 37: madtom.v1.NoxGetChatImageResponse.image:type_name -> madtom.v1.NoxChatImage
+	81,  // 38: madtom.v1.NoxImageStorageStatsResponse.chats:type_name -> madtom.v1.NoxChatImageUsage
+	85,  // 39: madtom.v1.NoxListChatFilesResponse.files:type_name -> madtom.v1.NoxChatFile
+	85,  // 40: madtom.v1.NoxGetChatFilePreviewResponse.file:type_name -> madtom.v1.NoxChatFile
+	93,  // 41: madtom.v1.NoxWorkspaceStorageStatsResponse.chats:type_name -> madtom.v1.NoxChatFileUsage
+	97,  // 42: madtom.v1.NoxUserProfileQueryResponse.profiles:type_name -> madtom.v1.NoxUserProfile
+	97,  // 43: madtom.v1.NoxUserProfileSearchResponse.profiles:type_name -> madtom.v1.NoxUserProfile
+	105, // 44: madtom.v1.NoxSearchLogsResponse.hits:type_name -> madtom.v1.NoxLogSearchHit
+	107, // 45: madtom.v1.NoxTipListResponse.tips:type_name -> madtom.v1.NoxTipItem
+	108, // 46: madtom.v1.NoxTipListResponse.settings:type_name -> madtom.v1.NoxTipSettings
+	107, // 47: madtom.v1.NoxTipScored.tip:type_name -> madtom.v1.NoxTipItem
+	111, // 48: madtom.v1.NoxTipSearchResponse.results:type_name -> madtom.v1.NoxTipScored
+	107, // 49: madtom.v1.NoxAddTipsResponse.added:type_name -> madtom.v1.NoxTipItem
+	115, // 50: madtom.v1.NoxAddTipsResponse.rejected:type_name -> madtom.v1.NoxTipRejected
+	107, // 51: madtom.v1.NoxTipMutationResponse.tip:type_name -> madtom.v1.NoxTipItem
+	111, // 52: madtom.v1.NoxTestTipsResponse.shown:type_name -> madtom.v1.NoxTipScored
+	111, // 53: madtom.v1.NoxTestTipsResponse.below_threshold:type_name -> madtom.v1.NoxTipScored
+	122, // 54: madtom.v1.NoxSandboxVmInfo.sessions:type_name -> madtom.v1.NoxSandboxSession
+	123, // 55: madtom.v1.NoxSandboxVmInfo.jobs:type_name -> madtom.v1.NoxSandboxJob
+	124, // 56: madtom.v1.NoxSandboxListVmsResponse.vms:type_name -> madtom.v1.NoxSandboxVmInfo
+	197, // 57: madtom.v1.NoxSandboxListVmsResponse.pools:type_name -> madtom.v1.NoxSandboxListVmsResponse.PoolsEntry
+	126, // 58: madtom.v1.NoxSandboxListVmsResponse.totals:type_name -> madtom.v1.NoxSandboxTotals
+	127, // 59: madtom.v1.NoxSandboxListVmsResponse.host:type_name -> madtom.v1.NoxSandboxHost
+	128, // 60: madtom.v1.NoxSandboxListFilesResponse.entries:type_name -> madtom.v1.NoxSandboxFileEntry
+	129, // 61: madtom.v1.NoxSandboxListBackupsResponse.backups:type_name -> madtom.v1.NoxSandboxBackup
+	130, // 62: madtom.v1.NoxSandboxListLibraryRequestsResponse.requests:type_name -> madtom.v1.NoxSandboxLibraryRequest
+	132, // 63: madtom.v1.NoxSandboxImageStatusResponse.last_build:type_name -> madtom.v1.NoxSandboxLastBuild
+	131, // 64: madtom.v1.NoxSandboxImageStatusResponse.packages:type_name -> madtom.v1.NoxSandboxPackages
+	131, // 65: madtom.v1.NoxSandboxImageStatusResponse.pending_packages:type_name -> madtom.v1.NoxSandboxPackages
+	198, // 66: madtom.v1.NoxSandboxImageStatusResponse.versions_in_use:type_name -> madtom.v1.NoxSandboxImageStatusResponse.VersionsInUseEntry
+	133, // 67: madtom.v1.NoxSandboxListRunsResponse.runs:type_name -> madtom.v1.NoxSandboxRun
+	159, // 68: madtom.v1.NoxAutomationStatusResponse.chats:type_name -> madtom.v1.NoxAutomationChatStatus
+	161, // 69: madtom.v1.NoxListPreprocessorsResponse.preprocessors:type_name -> madtom.v1.NoxAutomationPreprocessor
+	161, // 70: madtom.v1.NoxGetPreprocessorResponse.preprocessor:type_name -> madtom.v1.NoxAutomationPreprocessor
+	169, // 71: madtom.v1.NoxListPreprocessorLogsResponse.entries:type_name -> madtom.v1.NoxAutomationLogEntry
+	171, // 72: madtom.v1.NoxListCronsResponse.crons:type_name -> madtom.v1.NoxAutomationCron
+	176, // 73: madtom.v1.NoxListUserQuotasResponse.defaults:type_name -> madtom.v1.NoxUserQuotaDefaults
+	177, // 74: madtom.v1.NoxListUserQuotasResponse.overrides:type_name -> madtom.v1.NoxUserQuotaOverride
+	178, // 75: madtom.v1.NoxListUserQuotasResponse.top_users:type_name -> madtom.v1.NoxUserQuotaTopUser
+	181, // 76: madtom.v1.NoxGetUserQuotaResponse.user:type_name -> madtom.v1.NoxUserQuotaTier
+	181, // 77: madtom.v1.NoxGetUserQuotaResponse.global:type_name -> madtom.v1.NoxUserQuotaTier
+	177, // 78: madtom.v1.NoxGetUserQuotaResponse.overrides:type_name -> madtom.v1.NoxUserQuotaOverride
+	188, // 79: madtom.v1.NoxAgyInputTokensByKind.bootstrap:type_name -> madtom.v1.NoxAgyInputTokens
+	188, // 80: madtom.v1.NoxAgyInputTokensByKind.warm:type_name -> madtom.v1.NoxAgyInputTokens
+	186, // 81: madtom.v1.NoxAgySessionsResponse.settings:type_name -> madtom.v1.NoxAgySessionSettings
+	187, // 82: madtom.v1.NoxAgySessionsResponse.rebuilds:type_name -> madtom.v1.NoxAgyRebuildCounts
+	189, // 83: madtom.v1.NoxAgySessionsResponse.input_tokens:type_name -> madtom.v1.NoxAgyInputTokensByKind
+	190, // 84: madtom.v1.NoxAgySessionsResponse.sessions:type_name -> madtom.v1.NoxAgySession
+	125, // 85: madtom.v1.NoxSandboxListVmsResponse.PoolsEntry.value:type_name -> madtom.v1.NoxSandboxPool
+	0,   // 86: madtom.v1.NoxChatControlService.GetNodeStatus:input_type -> madtom.v1.NoxNodeStatusRequest
+	2,   // 87: madtom.v1.NoxChatControlService.UpdateControlConfig:input_type -> madtom.v1.NoxUpdateControlConfigRequest
+	3,   // 88: madtom.v1.NoxChatControlService.SubscribeState:input_type -> madtom.v1.NoxStateSubscriptionRequest
+	6,   // 89: madtom.v1.NoxChatControlService.SubscribeLogsAndApi:input_type -> madtom.v1.NoxLogApiSubscriptionRequest
+	201, // 90: madtom.v1.NoxChatControlService.QueryTelemetryRange:input_type -> madtom.v1.RangeQueryRequest
+	16,  // 91: madtom.v1.NoxChatControlService.GetSpoolStats:input_type -> madtom.v1.NoxSpoolStatsRequest
+	104, // 92: madtom.v1.NoxChatControlService.SearchLogs:input_type -> madtom.v1.NoxSearchLogsRequest
+	202, // 93: madtom.v1.NoxChatControlService.QueryLogChunks:input_type -> madtom.v1.LogChunkQuery
+	18,  // 94: madtom.v1.NoxChatControlService.QueryApiCallChunks:input_type -> madtom.v1.NoxApiCallChunkQuery
+	19,  // 95: madtom.v1.NoxChatControlService.GetApiCallDetail:input_type -> madtom.v1.NoxApiCallDetailRequest
+	13,  // 96: madtom.v1.NoxChatControlService.QueryChatTrace:input_type -> madtom.v1.NoxChatTraceRequest
+	21,  // 97: madtom.v1.NoxChatControlService.ClearSpool:input_type -> madtom.v1.NoxClearSpoolRequest
+	25,  // 98: madtom.v1.NoxChatControlService.SendDirectMessage:input_type -> madtom.v1.NoxDirectMessageRequest
+	28,  // 99: madtom.v1.NoxChatControlService.GetChatHistory:input_type -> madtom.v1.NoxChatHistoryRequest
+	31,  // 100: madtom.v1.NoxChatControlService.ListChats:input_type -> madtom.v1.NoxListChatsRequest
+	34,  // 101: madtom.v1.NoxChatControlService.QueryMemories:input_type -> madtom.v1.NoxMemoryQueryRequest
+	37,  // 102: madtom.v1.NoxChatControlService.SearchMemoriesHybrid:input_type -> madtom.v1.NoxHybridSearchRequest
+	40,  // 103: madtom.v1.NoxChatControlService.UpsertMemory:input_type -> madtom.v1.NoxUpsertMemoryRequest
+	41,  // 104: madtom.v1.NoxChatControlService.DeleteMemory:input_type -> madtom.v1.NoxDeleteMemoryRequest
+	46,  // 105: madtom.v1.NoxChatControlService.ListMemoryMerges:input_type -> madtom.v1.NoxMemoryMergeListRequest
+	48,  // 106: madtom.v1.NoxChatControlService.MemoryMergeAction:input_type -> madtom.v1.NoxMemoryMergeActionRequest
+	50,  // 107: madtom.v1.NoxChatControlService.ListHotMemories:input_type -> madtom.v1.NoxHotMemoryRequest
+	53,  // 108: madtom.v1.NoxChatControlService.UpsertHotMemory:input_type -> madtom.v1.NoxUpsertHotMemoryRequest
+	54,  // 109: madtom.v1.NoxChatControlService.DeleteHotMemory:input_type -> madtom.v1.NoxDeleteHotMemoryRequest
+	55,  // 110: madtom.v1.NoxChatControlService.QueryMediaLibrary:input_type -> madtom.v1.NoxMediaQueryRequest
+	60,  // 111: madtom.v1.NoxChatControlService.GetMediaAssetPreview:input_type -> madtom.v1.NoxMediaPreviewRequest
+	62,  // 112: madtom.v1.NoxChatControlService.MutateMediaItem:input_type -> madtom.v1.NoxMediaMutationRequest
+	63,  // 113: madtom.v1.NoxChatControlService.ManageMediaPin:input_type -> madtom.v1.NoxMediaPinRequest
+	65,  // 114: madtom.v1.NoxChatControlService.TriggerStickerPackAnalysis:input_type -> madtom.v1.NoxAnalyzePackRequest
+	59,  // 115: madtom.v1.NoxChatControlService.ForceAddSticker:input_type -> madtom.v1.NoxForceAddStickerRequest
+	67,  // 116: madtom.v1.NoxChatControlService.GetActiveJobs:input_type -> madtom.v1.NoxActiveJobsRequest
+	72,  // 117: madtom.v1.NoxChatControlService.InspectVectors:input_type -> madtom.v1.NoxVectorInspectRequest
+	76,  // 118: madtom.v1.NoxChatControlService.ListChatImages:input_type -> madtom.v1.NoxListChatImagesRequest
+	78,  // 119: madtom.v1.NoxChatControlService.GetChatImage:input_type -> madtom.v1.NoxGetChatImageRequest
+	80,  // 120: madtom.v1.NoxChatControlService.GetImageStorageStats:input_type -> madtom.v1.NoxImageStorageStatsRequest
+	83,  // 121: madtom.v1.NoxChatControlService.SweepChatImages:input_type -> madtom.v1.NoxSweepChatImagesRequest
+	86,  // 122: madtom.v1.NoxChatControlService.ListChatFiles:input_type -> madtom.v1.NoxListChatFilesRequest
+	88,  // 123: madtom.v1.NoxChatControlService.GetChatFilePreview:input_type -> madtom.v1.NoxGetChatFilePreviewRequest
+	90,  // 124: madtom.v1.NoxChatControlService.GetChatFileBytes:input_type -> madtom.v1.NoxGetChatFileBytesRequest
+	92,  // 125: madtom.v1.NoxChatControlService.GetWorkspaceStorageStats:input_type -> madtom.v1.NoxWorkspaceStorageStatsRequest
+	95,  // 126: madtom.v1.NoxChatControlService.SweepChatFiles:input_type -> madtom.v1.NoxSweepChatFilesRequest
+	98,  // 127: madtom.v1.NoxChatControlService.QueryUserProfiles:input_type -> madtom.v1.NoxUserProfileQueryRequest
+	100, // 128: madtom.v1.NoxChatControlService.SearchUserProfiles:input_type -> madtom.v1.NoxUserProfileSearchRequest
+	102, // 129: madtom.v1.NoxChatControlService.GetUserProfilePhoto:input_type -> madtom.v1.NoxUserProfilePhotoRequest
+	109, // 130: madtom.v1.NoxChatControlService.ListTips:input_type -> madtom.v1.NoxTipListRequest
+	112, // 131: madtom.v1.NoxChatControlService.SearchTips:input_type -> madtom.v1.NoxTipSearchRequest
+	114, // 132: madtom.v1.NoxChatControlService.AddTips:input_type -> madtom.v1.NoxAddTipsRequest
+	117, // 133: madtom.v1.NoxChatControlService.UpdateTip:input_type -> madtom.v1.NoxUpdateTipRequest
+	118, // 134: madtom.v1.NoxChatControlService.DeleteTips:input_type -> madtom.v1.NoxDeleteTipsRequest
+	120, // 135: madtom.v1.NoxChatControlService.TestTips:input_type -> madtom.v1.NoxTestTipsRequest
+	134, // 136: madtom.v1.NoxChatControlService.ListSandboxVms:input_type -> madtom.v1.NoxSandboxListVmsRequest
+	136, // 137: madtom.v1.NoxChatControlService.SandboxVmAction:input_type -> madtom.v1.NoxSandboxVmActionRequest
+	138, // 138: madtom.v1.NoxChatControlService.ListSandboxFiles:input_type -> madtom.v1.NoxSandboxListFilesRequest
+	140, // 139: madtom.v1.NoxChatControlService.ReadSandboxText:input_type -> madtom.v1.NoxSandboxReadTextRequest
+	142, // 140: madtom.v1.NoxChatControlService.PreviewSandboxFile:input_type -> madtom.v1.NoxSandboxPreviewFileRequest
+	144, // 141: madtom.v1.NoxChatControlService.ListSandboxBackups:input_type -> madtom.v1.NoxSandboxListBackupsRequest
+	146, // 142: madtom.v1.NoxChatControlService.RestoreSandboxBackup:input_type -> madtom.v1.NoxSandboxRestoreBackupRequest
+	148, // 143: madtom.v1.NoxChatControlService.ListSandboxLibraryRequests:input_type -> madtom.v1.NoxSandboxListLibraryRequestsRequest
+	150, // 144: madtom.v1.NoxChatControlService.DecideSandboxLibrary:input_type -> madtom.v1.NoxSandboxDecideLibraryRequest
+	152, // 145: madtom.v1.NoxChatControlService.GetSandboxImageStatus:input_type -> madtom.v1.NoxSandboxImageStatusRequest
+	154, // 146: madtom.v1.NoxChatControlService.RebuildSandboxImage:input_type -> madtom.v1.NoxSandboxRebuildImageRequest
+	156, // 147: madtom.v1.NoxChatControlService.ListSandboxRuns:input_type -> madtom.v1.NoxSandboxListRunsRequest
+	158, // 148: madtom.v1.NoxChatControlService.GetAutomationStatus:input_type -> madtom.v1.NoxAutomationStatusRequest
+	162, // 149: madtom.v1.NoxChatControlService.ListPreprocessors:input_type -> madtom.v1.NoxListPreprocessorsRequest
+	164, // 150: madtom.v1.NoxChatControlService.GetPreprocessor:input_type -> madtom.v1.NoxGetPreprocessorRequest
+	166, // 151: madtom.v1.NoxChatControlService.PreprocessorAction:input_type -> madtom.v1.NoxPreprocessorActionRequest
+	168, // 152: madtom.v1.NoxChatControlService.ListPreprocessorLogs:input_type -> madtom.v1.NoxListPreprocessorLogsRequest
+	172, // 153: madtom.v1.NoxChatControlService.ListCrons:input_type -> madtom.v1.NoxListCronsRequest
+	174, // 154: madtom.v1.NoxChatControlService.CronAction:input_type -> madtom.v1.NoxCronActionRequest
+	175, // 155: madtom.v1.NoxChatControlService.ListUserQuotas:input_type -> madtom.v1.NoxListUserQuotasRequest
+	180, // 156: madtom.v1.NoxChatControlService.GetUserQuota:input_type -> madtom.v1.NoxGetUserQuotaRequest
+	183, // 157: madtom.v1.NoxChatControlService.SetUserQuota:input_type -> madtom.v1.NoxSetUserQuotaRequest
+	185, // 158: madtom.v1.NoxChatControlService.GetAgySessions:input_type -> madtom.v1.NoxAgySessionsRequest
+	1,   // 159: madtom.v1.NoxChatControlService.GetNodeStatus:output_type -> madtom.v1.NoxNodeStatusResponse
+	1,   // 160: madtom.v1.NoxChatControlService.UpdateControlConfig:output_type -> madtom.v1.NoxNodeStatusResponse
+	4,   // 161: madtom.v1.NoxChatControlService.SubscribeState:output_type -> madtom.v1.NoxStateChunk
+	7,   // 162: madtom.v1.NoxChatControlService.SubscribeLogsAndApi:output_type -> madtom.v1.NoxLogApiChunk
+	203, // 163: madtom.v1.NoxChatControlService.QueryTelemetryRange:output_type -> madtom.v1.RangeQueryResponse
+	17,  // 164: madtom.v1.NoxChatControlService.GetSpoolStats:output_type -> madtom.v1.NoxSpoolStatsResponse
+	106, // 165: madtom.v1.NoxChatControlService.SearchLogs:output_type -> madtom.v1.NoxSearchLogsResponse
+	204, // 166: madtom.v1.NoxChatControlService.QueryLogChunks:output_type -> madtom.v1.LogChunkResponse
+	20,  // 167: madtom.v1.NoxChatControlService.QueryApiCallChunks:output_type -> madtom.v1.NoxApiCallChunkResponse
+	10,  // 168: madtom.v1.NoxChatControlService.GetApiCallDetail:output_type -> madtom.v1.NoxRawApiCallRecord
+	14,  // 169: madtom.v1.NoxChatControlService.QueryChatTrace:output_type -> madtom.v1.NoxChatTraceResponse
+	22,  // 170: madtom.v1.NoxChatControlService.ClearSpool:output_type -> madtom.v1.NoxClearSpoolResponse
+	26,  // 171: madtom.v1.NoxChatControlService.SendDirectMessage:output_type -> madtom.v1.NoxDirectTurnEvent
+	30,  // 172: madtom.v1.NoxChatControlService.GetChatHistory:output_type -> madtom.v1.NoxChatHistoryResponse
+	33,  // 173: madtom.v1.NoxChatControlService.ListChats:output_type -> madtom.v1.NoxListChatsResponse
+	36,  // 174: madtom.v1.NoxChatControlService.QueryMemories:output_type -> madtom.v1.NoxMemoryQueryResponse
+	39,  // 175: madtom.v1.NoxChatControlService.SearchMemoriesHybrid:output_type -> madtom.v1.NoxHybridSearchResponse
+	42,  // 176: madtom.v1.NoxChatControlService.UpsertMemory:output_type -> madtom.v1.NoxMemoryMutationResponse
+	42,  // 177: madtom.v1.NoxChatControlService.DeleteMemory:output_type -> madtom.v1.NoxMemoryMutationResponse
+	47,  // 178: madtom.v1.NoxChatControlService.ListMemoryMerges:output_type -> madtom.v1.NoxMemoryMergeListResponse
+	49,  // 179: madtom.v1.NoxChatControlService.MemoryMergeAction:output_type -> madtom.v1.NoxMemoryMergeActionResponse
+	52,  // 180: madtom.v1.NoxChatControlService.ListHotMemories:output_type -> madtom.v1.NoxHotMemoryResponse
+	52,  // 181: madtom.v1.NoxChatControlService.UpsertHotMemory:output_type -> madtom.v1.NoxHotMemoryResponse
+	52,  // 182: madtom.v1.NoxChatControlService.DeleteHotMemory:output_type -> madtom.v1.NoxHotMemoryResponse
+	57,  // 183: madtom.v1.NoxChatControlService.QueryMediaLibrary:output_type -> madtom.v1.NoxMediaQueryResponse
+	61,  // 184: madtom.v1.NoxChatControlService.GetMediaAssetPreview:output_type -> madtom.v1.NoxMediaPreviewResponse
+	64,  // 185: madtom.v1.NoxChatControlService.MutateMediaItem:output_type -> madtom.v1.NoxMediaMutationResponse
+	64,  // 186: madtom.v1.NoxChatControlService.ManageMediaPin:output_type -> madtom.v1.NoxMediaMutationResponse
+	66,  // 187: madtom.v1.NoxChatControlService.TriggerStickerPackAnalysis:output_type -> madtom.v1.NoxAnalyzePackResponse
+	64,  // 188: madtom.v1.NoxChatControlService.ForceAddSticker:output_type -> madtom.v1.NoxMediaMutationResponse
+	71,  // 189: madtom.v1.NoxChatControlService.GetActiveJobs:output_type -> madtom.v1.NoxActiveJobsResponse
+	74,  // 190: madtom.v1.NoxChatControlService.InspectVectors:output_type -> madtom.v1.NoxVectorInspectResponse
+	77,  // 191: madtom.v1.NoxChatControlService.ListChatImages:output_type -> madtom.v1.NoxListChatImagesResponse
+	79,  // 192: madtom.v1.NoxChatControlService.GetChatImage:output_type -> madtom.v1.NoxGetChatImageResponse
+	82,  // 193: madtom.v1.NoxChatControlService.GetImageStorageStats:output_type -> madtom.v1.NoxImageStorageStatsResponse
+	84,  // 194: madtom.v1.NoxChatControlService.SweepChatImages:output_type -> madtom.v1.NoxSweepChatImagesResponse
+	87,  // 195: madtom.v1.NoxChatControlService.ListChatFiles:output_type -> madtom.v1.NoxListChatFilesResponse
+	89,  // 196: madtom.v1.NoxChatControlService.GetChatFilePreview:output_type -> madtom.v1.NoxGetChatFilePreviewResponse
+	91,  // 197: madtom.v1.NoxChatControlService.GetChatFileBytes:output_type -> madtom.v1.NoxGetChatFileBytesResponse
+	94,  // 198: madtom.v1.NoxChatControlService.GetWorkspaceStorageStats:output_type -> madtom.v1.NoxWorkspaceStorageStatsResponse
+	96,  // 199: madtom.v1.NoxChatControlService.SweepChatFiles:output_type -> madtom.v1.NoxSweepChatFilesResponse
+	99,  // 200: madtom.v1.NoxChatControlService.QueryUserProfiles:output_type -> madtom.v1.NoxUserProfileQueryResponse
+	101, // 201: madtom.v1.NoxChatControlService.SearchUserProfiles:output_type -> madtom.v1.NoxUserProfileSearchResponse
+	103, // 202: madtom.v1.NoxChatControlService.GetUserProfilePhoto:output_type -> madtom.v1.NoxUserProfilePhotoResponse
+	110, // 203: madtom.v1.NoxChatControlService.ListTips:output_type -> madtom.v1.NoxTipListResponse
+	113, // 204: madtom.v1.NoxChatControlService.SearchTips:output_type -> madtom.v1.NoxTipSearchResponse
+	116, // 205: madtom.v1.NoxChatControlService.AddTips:output_type -> madtom.v1.NoxAddTipsResponse
+	119, // 206: madtom.v1.NoxChatControlService.UpdateTip:output_type -> madtom.v1.NoxTipMutationResponse
+	119, // 207: madtom.v1.NoxChatControlService.DeleteTips:output_type -> madtom.v1.NoxTipMutationResponse
+	121, // 208: madtom.v1.NoxChatControlService.TestTips:output_type -> madtom.v1.NoxTestTipsResponse
+	135, // 209: madtom.v1.NoxChatControlService.ListSandboxVms:output_type -> madtom.v1.NoxSandboxListVmsResponse
+	137, // 210: madtom.v1.NoxChatControlService.SandboxVmAction:output_type -> madtom.v1.NoxSandboxVmActionResponse
+	139, // 211: madtom.v1.NoxChatControlService.ListSandboxFiles:output_type -> madtom.v1.NoxSandboxListFilesResponse
+	141, // 212: madtom.v1.NoxChatControlService.ReadSandboxText:output_type -> madtom.v1.NoxSandboxReadTextResponse
+	143, // 213: madtom.v1.NoxChatControlService.PreviewSandboxFile:output_type -> madtom.v1.NoxSandboxPreviewFileResponse
+	145, // 214: madtom.v1.NoxChatControlService.ListSandboxBackups:output_type -> madtom.v1.NoxSandboxListBackupsResponse
+	147, // 215: madtom.v1.NoxChatControlService.RestoreSandboxBackup:output_type -> madtom.v1.NoxSandboxRestoreBackupResponse
+	149, // 216: madtom.v1.NoxChatControlService.ListSandboxLibraryRequests:output_type -> madtom.v1.NoxSandboxListLibraryRequestsResponse
+	151, // 217: madtom.v1.NoxChatControlService.DecideSandboxLibrary:output_type -> madtom.v1.NoxSandboxDecideLibraryResponse
+	153, // 218: madtom.v1.NoxChatControlService.GetSandboxImageStatus:output_type -> madtom.v1.NoxSandboxImageStatusResponse
+	155, // 219: madtom.v1.NoxChatControlService.RebuildSandboxImage:output_type -> madtom.v1.NoxSandboxRebuildImageResponse
+	157, // 220: madtom.v1.NoxChatControlService.ListSandboxRuns:output_type -> madtom.v1.NoxSandboxListRunsResponse
+	160, // 221: madtom.v1.NoxChatControlService.GetAutomationStatus:output_type -> madtom.v1.NoxAutomationStatusResponse
+	163, // 222: madtom.v1.NoxChatControlService.ListPreprocessors:output_type -> madtom.v1.NoxListPreprocessorsResponse
+	165, // 223: madtom.v1.NoxChatControlService.GetPreprocessor:output_type -> madtom.v1.NoxGetPreprocessorResponse
+	167, // 224: madtom.v1.NoxChatControlService.PreprocessorAction:output_type -> madtom.v1.NoxAutomationActionResponse
+	170, // 225: madtom.v1.NoxChatControlService.ListPreprocessorLogs:output_type -> madtom.v1.NoxListPreprocessorLogsResponse
+	173, // 226: madtom.v1.NoxChatControlService.ListCrons:output_type -> madtom.v1.NoxListCronsResponse
+	167, // 227: madtom.v1.NoxChatControlService.CronAction:output_type -> madtom.v1.NoxAutomationActionResponse
+	179, // 228: madtom.v1.NoxChatControlService.ListUserQuotas:output_type -> madtom.v1.NoxListUserQuotasResponse
+	182, // 229: madtom.v1.NoxChatControlService.GetUserQuota:output_type -> madtom.v1.NoxGetUserQuotaResponse
+	184, // 230: madtom.v1.NoxChatControlService.SetUserQuota:output_type -> madtom.v1.NoxSetUserQuotaResponse
+	191, // 231: madtom.v1.NoxChatControlService.GetAgySessions:output_type -> madtom.v1.NoxAgySessionsResponse
+	159, // [159:232] is the sub-list for method output_type
+	86,  // [86:159] is the sub-list for method input_type
+	86,  // [86:86] is the sub-list for extension type_name
+	86,  // [86:86] is the sub-list for extension extendee
+	0,   // [0:86] is the sub-list for field type_name
 }
 
 func init() { file_madtom_v1_noxchat_proto_init() }
@@ -16413,28 +17050,29 @@ func file_madtom_v1_noxchat_proto_init() {
 	file_madtom_v1_query_proto_init()
 	file_madtom_v1_noxchat_proto_msgTypes[11].OneofWrappers = []any{}
 	file_madtom_v1_noxchat_proto_msgTypes[13].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[123].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[126].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[129].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[131].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[46].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[130].OneofWrappers = []any{}
 	file_madtom_v1_noxchat_proto_msgTypes[133].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[135].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[137].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[139].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[141].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[149].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[151].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[155].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[161].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[165].OneofWrappers = []any{}
-	file_madtom_v1_noxchat_proto_msgTypes[174].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[136].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[138].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[140].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[142].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[144].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[146].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[148].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[156].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[158].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[162].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[168].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[172].OneofWrappers = []any{}
+	file_madtom_v1_noxchat_proto_msgTypes[181].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_madtom_v1_noxchat_proto_rawDesc), len(file_madtom_v1_noxchat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   192,
+			NumMessages:   199,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
