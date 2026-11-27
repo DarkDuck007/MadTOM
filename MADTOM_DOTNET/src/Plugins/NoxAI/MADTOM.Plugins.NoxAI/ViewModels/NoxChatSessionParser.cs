@@ -18,8 +18,11 @@ public sealed class ParsedSystemSectionModel
     public string BadgeColor { get; init; } = "#A855F7";
     public string SectionIcon { get; init; } = "⚙";
 
-    public Avalonia.Media.FlowDirection FlowDirection => NoxChatSessionParser.IsRtl(Content) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
-    public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(Content) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+    private bool? _isContentRtl;
+    private bool IsContentRtl => _isContentRtl ??= NoxChatSessionParser.IsRtl(Content);
+
+    public Avalonia.Media.FlowDirection FlowDirection => IsContentRtl ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment TextAlignment => IsContentRtl ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
 }
 
 public sealed class ParsedToolCallModel
@@ -35,9 +38,13 @@ public sealed class ParsedChatEntryModel
     public string FullText => string.IsNullOrEmpty(Header) ? Body : $"{Header} {Body}";
     public string Sender { get; init; } = string.Empty;
     public bool IsBot { get; init; }
+    public bool IsMember { get; init; }
 
-    public Avalonia.Media.FlowDirection FlowDirection => NoxChatSessionParser.IsRtl(Body) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
-    public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(Body) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+    private bool? _isBodyRtl;
+    private bool IsBodyRtl => _isBodyRtl ??= NoxChatSessionParser.IsRtl(Body);
+
+    public Avalonia.Media.FlowDirection FlowDirection => IsBodyRtl ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment TextAlignment => IsBodyRtl ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
 
     public bool HasHeader => !string.IsNullOrWhiteSpace(Header);
 
@@ -48,8 +55,8 @@ public sealed class ParsedChatEntryModel
     public string TextForegroundHex => IsBot ? "#ECFDF5" : "#E2E8F0";
     public string BadgeBackgroundHex => IsBot ? "#064E3B" : "#0C4A6E";
     public string BadgeForegroundHex => IsBot ? "#6EE7B7" : "#7DD3FC";
-    public string BadgeText => IsBot ? "BOT" : "USER";
-    public bool HasBadge => IsBot;
+    public string BadgeText => IsBot ? "BOT" : (IsMember ? "MEMBER" : "USER");
+    public bool HasBadge => IsBot || IsMember;
 }
 
 public sealed partial class ParsedTurnItemModel : ObservableObject
@@ -64,11 +71,17 @@ public sealed partial class ParsedTurnItemModel : ObservableObject
     public string? ThoughtText { get; init; }
     public bool HasThought => !string.IsNullOrWhiteSpace(ThoughtText);
 
-    public Avalonia.Media.FlowDirection FlowDirection => NoxChatSessionParser.IsRtl(Text) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
-    public Avalonia.Media.TextAlignment TextAlignment => NoxChatSessionParser.IsRtl(Text) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+    private bool? _isTextRtl;
+    private bool IsTextRtl => _isTextRtl ??= NoxChatSessionParser.IsRtl(Text);
 
-    public Avalonia.Media.FlowDirection ThoughtFlowDirection => NoxChatSessionParser.IsRtl(ThoughtText) ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
-    public Avalonia.Media.TextAlignment ThoughtTextAlignment => NoxChatSessionParser.IsRtl(ThoughtText) ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+    public Avalonia.Media.FlowDirection FlowDirection => IsTextRtl ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment TextAlignment => IsTextRtl ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
+
+    private bool? _isThoughtRtl;
+    private bool IsThoughtRtl => _isThoughtRtl ??= NoxChatSessionParser.IsRtl(ThoughtText);
+
+    public Avalonia.Media.FlowDirection ThoughtFlowDirection => IsThoughtRtl ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
+    public Avalonia.Media.TextAlignment ThoughtTextAlignment => IsThoughtRtl ? Avalonia.Media.TextAlignment.Right : Avalonia.Media.TextAlignment.Left;
 
     public ObservableCollection<ParsedSystemSectionModel> SystemSections { get; } = new();
     public bool HasSystemSections => SystemSections.Count > 0;
@@ -96,16 +109,16 @@ public static class NoxChatSessionParser
     {
         if (string.IsNullOrWhiteSpace(text)) return false;
 
-        // Strip sender prefixes like "[2026/11/11 19:00:01] [#1234 Alice]: ", "[#1234 Alice]: ", "[Alice -> #5678]: ", "Alice: ", "@alice: "
+        // Strip sender prefixes like "[2026/11/11 19:00:01 UTC] [#1234 Alice [member]]: ", "[#1234 Alice]: ", "[Alice -> #5678]: ", "Alice: ", "@alice: "
         int startIndex = 0;
-        var prefixMatch = Regex.Match(text, @"^(?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*)?\[(?:(?:EDIT\s+)?#\d+\s+)?[^\]:\r\n]+(?:\s+->\s+#\d+)?\]:\s*");
+        var prefixMatch = IsRtlPrefixRegex.Match(text);
         if (prefixMatch.Success)
         {
             startIndex = prefixMatch.Length;
         }
         else
         {
-            var colonMatch = Regex.Match(text, @"^[A-Za-z0-9_.\-@]+\s*:\s*");
+            var colonMatch = IsRtlColonPrefixRegex.Match(text);
             if (colonMatch.Success && colonMatch.Length < 30)
             {
                 startIndex = colonMatch.Length;
@@ -170,6 +183,22 @@ public static class NoxChatSessionParser
         return false;
     }
 
+    private static readonly Regex IsRtlPrefixRegex = new(
+        @"^(?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}(?:\s*(?:UTC|GMT|Z|[+-]\d{2}:?\d{2}))?\]\s*)?\[(?:(?:EDIT\s+)?#\d+\s+)?[^\r\n]+?(?:\s+\[member\])?(?:\s+->\s+#\d+)?\]:\s*",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex IsRtlColonPrefixRegex = new(
+        @"^[A-Za-z0-9_.\-@]+\s*:\s*",
+        RegexOptions.Compiled);
+
+    private static readonly Regex UnicodeEscapeRegex = new(
+        @"\\u([0-9a-fA-F]{4})",
+        RegexOptions.Compiled);
+
+    private static readonly Regex PersonaNameRegex = new(
+        @"^\s*You are ([^.\r\n]{1,40})\.",
+        RegexOptions.Compiled);
+
     private static readonly Regex ThoughtRegex = new(@"<thought>(.*?)</thought>", RegexOptions.Singleline | RegexOptions.Compiled);
     private static readonly Regex BotActionTagRegex = new(
         @"<(?<tag>reply|msg|react|sticker|gif|image|document|remember|forget|hot|caption)\b(?<attrs>[^>]*)>(?<body>.*?)</\k<tag>>",
@@ -200,12 +229,38 @@ public static class NoxChatSessionParser
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex SenderLineRegex = new(
-        @"\[(?:EDIT\s+)?#\d+\s+([^\r\n]+?)(?:\s+->\s+#\d+)?\]:",
-        RegexOptions.Compiled);
+        @"\[(?:EDIT\s+)?#\d+\s+(?<sender>[^\r\n]+?)(?<member>\s+\[member\])?(?:\s+->\s+#\d+)?\]:",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex ChatEntryHeaderRegex = new(
-        @"(?:^|[\r\n]+)(?:((?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*)?\[(?:EDIT\s+)?#\d+\s+[^\r\n]+?(?:\s+->\s+#\d+)?\]:|\[CONTEXT DIFF\]|\[NEW MESSAGES\]|\[Your previous reply was assigned message ID\(s\):[^\]]*\]|\[Ambient Check:[^\]]*\]|\[Respond to this merged batch of message IDs:[^\]]*\]|\[Replied-to message[^\]]*\]:?|\[Attached [^\]]+\]|===\s*ARCHIVED CONVERSATION HISTORY\s*===|===\s*LIVE CONTEXT & RECALLED KNOWLEDGE\s*===|===\s*RECENT MESSAGES & CURRENT TURN\s*===|PINNED FAVORITE STICKERS:|PINNED FAVORITE GIFS:|RELEVANT MEDIA CANDIDATES:|RELEVANT STICKERS:|RELEVANT GIFS:|PARTICIPANTS' STICKER PREFERENCES:|PARTICIPANTS' PROFILES:|USER PROFILES:|PARTICIPANTS' USER PROFILES:|CALLER PROFILE:|RELEVANT RECALLED MEMORIES:|HOT CONVERSATION MEMORY:|BACKGROUND TASK RESULTS:|ACTIVE BACKGROUND JOBS[^\r\n]*:|TIPS FOR THIS MOMENT[^\r\n]*:|STUDIO QUESTIONS WAITING FOR YOUR ANSWER[^\r\n]*:|SANDBOX DISK[^\r\n]*:|Your VM /data[^\r\n]*:|\[Current request[^\]]*\]:|\[Incoming[^\]]*\]:|(?:Group|Private)?\s*Chat:\s*['""][^'""\r\n]+['""])[ \t]*)",
+        @"(?m)^(?:((?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}(?:\s*(?:UTC|GMT|Z|[+-]\d{2}:?\d{2}))?\]\s*)?\[(?:EDIT\s+)?#\d+\s+[^\r\n]+?(?:\s+\[member\])?(?:\s+->\s+#\d+)?\]:|\[CONTEXT DIFF\]|\[NEW MESSAGES\]|\[Your previous reply was assigned message ID\(s\):[^\]]*\]|\[Ambient Check:[^\]]*\]|\[Respond to this merged batch of message IDs:[^\]]*\]|\[Replied-to message[^\]]*\]:?|\[Quoted section from replied message\]:?|\[Attached [^\]]+\]|===\s*ARCHIVED CONVERSATION HISTORY\s*===|===\s*LIVE CONTEXT & RECALLED KNOWLEDGE\s*===|===\s*RECENT MESSAGES & CURRENT TURN\s*===|===\s*GUEST SESSION HISTORY\s*===|PINNED FAVORITE STICKERS:|PINNED FAVORITE GIFS:|RELEVANT MEDIA CANDIDATES:|RELEVANT STICKERS:|RELEVANT GIFS:|PARTICIPANTS' STICKER PREFERENCES:|PARTICIPANTS' PROFILES:|USER PROFILES:|PARTICIPANTS' USER PROFILES:|CALLER PROFILE:|RELEVANT RECALLED MEMORIES:|HOT CONVERSATION MEMORY:|BACKGROUND TASK RESULTS:|ACTIVE BACKGROUND JOBS[^\r\n]*:|TIPS FOR THIS MOMENT[^\r\n]*:|STUDIO QUESTIONS WAITING FOR YOUR ANSWER[^\r\n]*:|SANDBOX DISK[^\r\n]*:|Your VM /data[^\r\n]*:|\[Current request[^\]]*\]:|\[Incoming[^\]]*\]:|(?:Group|Private)?\s*Chat:\s*['""][^'""\r\n]+['""])[ \t]*)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static string NormalizeEscapedNewlines(string text)
+    {
+        if (string.IsNullOrEmpty(text) || text.Contains('\n') || !text.Contains("\\n", StringComparison.Ordinal))
+        {
+            return text;
+        }
+        return text.Replace("\\r\\n", "\n", StringComparison.Ordinal)
+                   .Replace("\\n", "\n", StringComparison.Ordinal);
+    }
+
+    private static string? ExtractPersonaName(string systemText)
+    {
+        if (string.IsNullOrWhiteSpace(systemText)) return null;
+        var m = PersonaNameRegex.Match(systemText);
+        if (!m.Success) return null;
+        string candidate = m.Groups[1].Value.Trim();
+        if (string.IsNullOrEmpty(candidate) ||
+            candidate.StartsWith("a ", StringComparison.OrdinalIgnoreCase) ||
+            candidate.StartsWith("an ", StringComparison.OrdinalIgnoreCase) ||
+            candidate.StartsWith("the ", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+        return candidate;
+    }
 
     private static string UnescapeJsonSnippetForChatName(string raw)
     {
@@ -216,7 +271,7 @@ public static class NoxChatSessionParser
                       .Replace("\\'", "'", StringComparison.Ordinal);
         if (s.Contains(@"\u", StringComparison.Ordinal))
         {
-            s = Regex.Replace(s, @"\\u([0-9a-fA-F]{4})", m =>
+            s = UnicodeEscapeRegex.Replace(s, m =>
             {
                 int code = int.Parse(m.Groups[1].Value, System.Globalization.NumberStyles.HexNumber);
                 return ((char)code).ToString();
@@ -302,6 +357,8 @@ public static class NoxChatSessionParser
         if (callItem == null) return turns;
 
         var availableImages = new List<RawApiCallImageItem>(callItem.Images);
+        bool requestParsed = false;
+        string? botPersonaName = null;
 
         // 1. Parse Request JSON (messages array or prompt)
         try
@@ -323,6 +380,7 @@ public static class NoxChatSessionParser
 
                 if (messagesArray.ValueKind == JsonValueKind.Array)
                 {
+                    requestParsed = true;
                     var (sentFrom, toolStep) = AgySentSlice(root, messagesArray);
                     int index = -1;
                     foreach (var m in messagesArray.EnumerateArray())
@@ -344,10 +402,14 @@ public static class NoxChatSessionParser
                                 var textParts = new List<string>();
                                 foreach (var part in c.EnumerateArray())
                                 {
-                                    if (part.ValueKind == JsonValueKind.Object)
+                                    if (part.ValueKind == JsonValueKind.String)
+                                    {
+                                        textParts.Add(part.GetString() ?? "");
+                                    }
+                                    else if (part.ValueKind == JsonValueKind.Object)
                                     {
                                         string pType = part.TryGetProperty("type", out var pt) ? pt.GetString() ?? "" : "";
-                                        if (pType == "text" && part.TryGetProperty("text", out var txtVal))
+                                        if ((pType is "text" or "input_text" or "") && part.TryGetProperty("text", out var txtVal) && txtVal.ValueKind == JsonValueKind.String)
                                         {
                                             textParts.Add(txtVal.GetString() ?? "");
                                         }
@@ -376,6 +438,7 @@ public static class NoxChatSessionParser
 
                         if (role is "system" or "developer")
                         {
+                            botPersonaName ??= ExtractPersonaName(textContent);
                             var sysTurn = new ParsedTurnItemModel
                             {
                                 Role = "system",
@@ -407,7 +470,7 @@ public static class NoxChatSessionParser
                                 Text = textContent
                             };
 
-                            var chatEntries = ParseChatEntries(textContent);
+                            var chatEntries = ParseChatEntries(textContent, botPersonaName);
                             foreach (var e in chatEntries)
                             {
                                 userTurn.ChatEntries.Add(e);
@@ -486,11 +549,13 @@ public static class NoxChatSessionParser
         catch { }
 
         // 2. Parse Response JSON (current bot completion)
+        bool responseParsed = false;
         try
         {
             if (!string.IsNullOrWhiteSpace(callItem.ResponseJson))
             {
                 using var respDoc = JsonDocument.Parse(callItem.ResponseJson);
+                responseParsed = true;
                 var respRoot = respDoc.RootElement;
                 string botReply = string.Empty;
                 string? botThought = null;
@@ -590,7 +655,41 @@ public static class NoxChatSessionParser
             }
         }
 
-        // 4. Fallback if no structured turns were extracted
+        // 4. Fallback if request/response JSON could not be parsed or no structured turns were extracted
+        if (!requestParsed && !string.IsNullOrWhiteSpace(callItem.RequestJson))
+        {
+            var rawUserTurn = new ParsedTurnItemModel
+            {
+                Role = "user",
+                HeaderTitle = $"RAW REQUEST // {callItem.Caller}",
+                TimestampText = callItem.TimestampText,
+                HeaderBadgeBackground = "#1E293B",
+                HeaderBadgeForeground = "#94A3B8",
+                BorderBrushHex = "#475569",
+                Text = callItem.RequestJson
+            };
+            var rawEntries = ParseChatEntries(callItem.RequestJson, botPersonaName);
+            foreach (var e in rawEntries)
+            {
+                rawUserTurn.ChatEntries.Add(e);
+            }
+            turns.Insert(0, rawUserTurn);
+        }
+
+        if (!responseParsed && !string.IsNullOrWhiteSpace(callItem.ResponseJson))
+        {
+            turns.Add(new ParsedTurnItemModel
+            {
+                Role = "bot",
+                HeaderTitle = $"RAW RESPONSE // {callItem.Model}",
+                TimestampText = callItem.TimestampText,
+                HeaderBadgeBackground = "#064E3B",
+                HeaderBadgeForeground = "#34D399",
+                BorderBrushHex = "#10B981",
+                Text = callItem.ResponseJson
+            });
+        }
+
         if (turns.Count == 0)
         {
             var rawUserTurn = new ParsedTurnItemModel
@@ -603,26 +702,7 @@ public static class NoxChatSessionParser
                 BorderBrushHex = "#475569",
                 Text = callItem.RequestJson
             };
-            var rawEntries = ParseChatEntries(callItem.RequestJson);
-            foreach (var e in rawEntries)
-            {
-                rawUserTurn.ChatEntries.Add(e);
-            }
             turns.Add(rawUserTurn);
-
-            if (!string.IsNullOrWhiteSpace(callItem.ResponseJson))
-            {
-                turns.Add(new ParsedTurnItemModel
-                {
-                    Role = "bot",
-                    HeaderTitle = $"RAW RESPONSE // {callItem.Model}",
-                    TimestampText = callItem.TimestampText,
-                    HeaderBadgeBackground = "#064E3B",
-                    HeaderBadgeForeground = "#34D399",
-                    BorderBrushHex = "#10B981",
-                    Text = callItem.ResponseJson
-                });
-            }
         }
 
         // 5. Ensure ChatName is populated on callItem if detected from unescaped turns
@@ -681,6 +761,7 @@ public static class NoxChatSessionParser
     {
         var sections = new List<ParsedSystemSectionModel>();
         if (string.IsNullOrWhiteSpace(systemPrompt)) return sections;
+        systemPrompt = NormalizeEscapedNewlines(systemPrompt);
 
         var matches = SectionHeaderRegex.Matches(systemPrompt);
         if (matches.Count == 0)
@@ -888,9 +969,13 @@ public static class NoxChatSessionParser
     }
 
     public static List<ParsedChatEntryModel> ParseChatEntries(string userText)
+        => ParseChatEntries(userText, botPersonaName: null);
+
+    private static List<ParsedChatEntryModel> ParseChatEntries(string userText, string? botPersonaName)
     {
         var entries = new List<ParsedChatEntryModel>();
         if (string.IsNullOrWhiteSpace(userText)) return entries;
+        userText = NormalizeEscapedNewlines(userText);
 
         var matches = ChatEntryHeaderRegex.Matches(userText);
         if (matches.Count > 0)
@@ -926,17 +1011,21 @@ public static class NoxChatSessionParser
                 }
 
                 string sender = string.Empty;
+                string rawSender = string.Empty;
+                bool isMember = false;
                 var sMatch = SenderLineRegex.Match(header);
                 if (sMatch.Success)
                 {
-                    sender = CleanSenderName(sMatch.Groups[1].Value);
+                    rawSender = sMatch.Groups["sender"].Value;
+                    sender = CleanSenderName(rawSender);
+                    isMember = sMatch.Groups["member"].Success;
                 }
 
-                string rawSender = sMatch.Success ? sMatch.Groups[1].Value : string.Empty;
                 bool isBot = header.Contains("(You)", StringComparison.OrdinalIgnoreCase) ||
                              header.Contains("(bot)", StringComparison.OrdinalIgnoreCase) ||
                              rawSender.Contains("(You)", StringComparison.OrdinalIgnoreCase) ||
                              rawSender.Contains("(bot)", StringComparison.OrdinalIgnoreCase) ||
+                             (!string.IsNullOrEmpty(botPersonaName) && string.Equals(sender, botPersonaName, StringComparison.OrdinalIgnoreCase)) ||
                              string.Equals(sender, "Nox", StringComparison.OrdinalIgnoreCase) ||
                              string.Equals(sender, "Bot", StringComparison.OrdinalIgnoreCase) ||
                              string.Equals(sender, "Assistant", StringComparison.OrdinalIgnoreCase) ||
@@ -947,7 +1036,8 @@ public static class NoxChatSessionParser
                     Header = header,
                     Body = body,
                     Sender = sender,
-                    IsBot = isBot
+                    IsBot = isBot,
+                    IsMember = isMember
                 });
             }
 

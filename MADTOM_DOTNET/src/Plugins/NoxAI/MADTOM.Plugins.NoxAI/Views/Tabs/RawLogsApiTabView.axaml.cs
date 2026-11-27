@@ -21,10 +21,40 @@ public partial class RawLogsApiTabView : UserControl
             }
         };
 
-        ChatHistoryScroll.ScrollChanged += OnChatScrollChanged;
+        ChatHistoryListBox.TemplateApplied += OnChatHistoryListBoxTemplateApplied;
         DataContextChanged += OnDataContextChanged;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+    }
+
+    private void OnChatHistoryListBoxTemplateApplied(object? sender, Avalonia.Controls.Primitives.TemplateAppliedEventArgs e)
+    {
+        AttachChatScrollViewer(e.NameScope.Find<ScrollViewer>("PART_ScrollViewer"));
+    }
+
+    private void AttachChatScrollViewer(ScrollViewer? scrollViewer)
+    {
+        scrollViewer ??= ChatHistoryListBox.FindDescendantOfType<ScrollViewer>();
+        if (ReferenceEquals(_chatHistoryScrollViewer, scrollViewer)) return;
+        DetachChatScrollViewer();
+        _chatHistoryScrollViewer = scrollViewer;
+        if (_chatHistoryScrollViewer != null)
+        {
+            _chatHistoryScrollViewer.ScrollChanged += OnChatScrollChanged;
+            if (_chatStickToBottom)
+            {
+                ScrollChatToEnd();
+            }
+        }
+    }
+
+    private void DetachChatScrollViewer()
+    {
+        if (_chatHistoryScrollViewer != null)
+        {
+            _chatHistoryScrollViewer.ScrollChanged -= OnChatScrollChanged;
+            _chatHistoryScrollViewer = null;
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -53,9 +83,12 @@ public partial class RawLogsApiTabView : UserControl
 
     // ------------------------------------------------------------------ Chats: bottom-anchored history
 
+    private ScrollViewer? _chatHistoryScrollViewer;
     private bool _chatStickToBottom = true;
     private bool _chatScrollToEndQueued;
+    private bool _isAdjustingChatScroll;
     private double? _chatOlderAnchorExtent; // extent before older calls were prepended
+    private double _chatOlderAnchorOffset;  // offset before older calls were prepended
 
     private void OnChatHistoryReset()
     {
@@ -68,7 +101,15 @@ public partial class RawLogsApiTabView : UserControl
     private void OnChatOlderPrepending()
     {
         _chatStickToBottom = false;
-        _chatOlderAnchorExtent = ChatHistoryScroll.Extent.Height;
+        if (_chatHistoryScrollViewer is { } sv)
+        {
+            _chatOlderAnchorExtent = sv.Extent.Height;
+            _chatOlderAnchorOffset = sv.Offset.Y;
+        }
+        else
+        {
+            _chatOlderAnchorExtent = null;
+        }
     }
 
     private void OnChatJumpToNewest(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => OnChatHistoryReset();
@@ -80,39 +121,70 @@ public partial class RawLogsApiTabView : UserControl
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             _chatScrollToEndQueued = false;
-            if (_chatStickToBottom)
+            if (!_chatStickToBottom) return;
+
+            if (_currentVm is { ChatHistory.Count: > 0 } vm)
             {
-                ChatHistoryScroll.ScrollToEnd();
+                ChatHistoryListBox.ScrollIntoView(vm.ChatHistory[^1]);
             }
-        }, Avalonia.Threading.DispatcherPriority.Background);
+
+            if (_chatHistoryScrollViewer is { } sv)
+            {
+                double maxOffset = Math.Max(0, sv.Extent.Height - sv.Viewport.Height);
+                _isAdjustingChatScroll = true;
+                try
+                {
+                    sv.Offset = new Vector(sv.Offset.X, maxOffset);
+                }
+                finally
+                {
+                    _isAdjustingChatScroll = false;
+                }
+            }
+        }, Avalonia.Threading.DispatcherPriority.Render);
     }
 
     private void OnChatScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
-        var sv = ChatHistoryScroll;
+        if (_isAdjustingChatScroll || _chatHistoryScrollViewer is not { } sv) return;
+
         double maxOffset = Math.Max(0, sv.Extent.Height - sv.Viewport.Height);
-        bool atBottom = sv.Offset.Y >= maxOffset - 40;
+        bool atBottom = maxOffset <= 1 || sv.Offset.Y >= maxOffset - 40;
         bool extentChanged = Math.Abs(e.ExtentDelta.Y) > 0.5;
 
         if (_chatOlderAnchorExtent is double before && extentChanged)
         {
-            // Older calls were inserted above: shift by the added height so the view doesn't jump.
+            // Older calls were prepended above: shift synchronously by the added height so the view stays anchored.
             _chatOlderAnchorExtent = null;
-            sv.Offset = new Vector(sv.Offset.X, Math.Max(0, sv.Offset.Y + (sv.Extent.Height - before)));
+            double targetY = Math.Max(0, _chatOlderAnchorOffset + (sv.Extent.Height - before));
+            _isAdjustingChatScroll = true;
+            try
+            {
+                sv.Offset = new Vector(sv.Offset.X, targetY);
+            }
+            finally
+            {
+                _isAdjustingChatScroll = false;
+            }
             return;
         }
 
         if (extentChanged)
         {
-            // Layout expansion from coalesced payload batches: keep pinned to bottom if stick-to-bottom is active,
-            // or anchor the current reading position relative to the bottom when payloads above expand.
-            if (_chatStickToBottom)
+            // Layout expansion from visible payload batches: pin synchronously to bottom if stick-to-bottom is active;
+            // if the user has scrolled up, do not fight their scroll position.
+            if (_chatStickToBottom && !atBottom)
             {
-                if (!atBottom) ScrollChatToEnd();
-            }
-            else if (e.ExtentDelta.Y > 0.5 && sv.Offset.Y > 0)
-            {
-                sv.Offset = new Vector(sv.Offset.X, Math.Max(0, sv.Offset.Y + e.ExtentDelta.Y));
+                _isAdjustingChatScroll = true;
+                try
+                {
+                    sv.Offset = new Vector(sv.Offset.X, maxOffset);
+                }
+                finally
+                {
+                    _isAdjustingChatScroll = false;
+                }
+                atBottom = true;
             }
         }
         else
@@ -125,9 +197,12 @@ public partial class RawLogsApiTabView : UserControl
         ChatJumpToNewest.IsVisible = !_chatStickToBottom && !atBottom;
 
         // Near the top (on user scroll): extend the window upwards (one step at a time).
-        if (!extentChanged && !_chatStickToBottom && _chatOlderAnchorExtent == null && sv.Offset.Y < sv.Viewport.Height &&
+        if (!extentChanged && !_chatStickToBottom && _chatOlderAnchorExtent == null &&
+            sv.Offset.Y < Math.Max(120, sv.Viewport.Height * 0.5) &&
             DataContext is RawLogsApiTabViewModel vm && vm.ChatHasOlder)
+        {
             vm.LoadOlderChatHistory(); // anchors via ChatOlderPrepending
+        }
     }
 
     private void OnLogNavigationRequested(ulong seq) => Avalonia.Threading.Dispatcher.UIThread.Post(() => LogViewer.ScrollToSequence(seq));
@@ -164,12 +239,14 @@ public partial class RawLogsApiTabView : UserControl
         {
             _attachedScrollViewer.ScrollChanged += OnScrollChanged;
         }
+        AttachChatScrollViewer(null);
     }
 
     private void OnUnloaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_currentVm != null) _currentVm.IsTabActive = false;
         DetachScrollViewer();
+        DetachChatScrollViewer();
     }
 
     private void DetachScrollViewer()

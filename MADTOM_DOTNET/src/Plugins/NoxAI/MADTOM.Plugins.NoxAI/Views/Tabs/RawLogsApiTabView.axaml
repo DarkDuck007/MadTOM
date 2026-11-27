@@ -450,13 +450,42 @@
                                         IsVisible="{Binding ChatHasOlder}" HorizontalAlignment="Center" Padding="10,2" FontSize="10"/>
 
                                 <Panel Grid.Row="3">
-                                <ScrollViewer x:Name="ChatHistoryScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <ItemsControl ItemsSource="{Binding ChatHistory}">
-                                        <ItemsControl.ItemsPanel>
-                                            <!-- Windowed StackPanel eliminates VirtualizingStackPanel height re-estimation jumps during async payload expansion -->
-                                            <ItemsPanelTemplate><StackPanel/></ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.DataTemplates>
+                                <ListBox x:Name="ChatHistoryListBox"
+                                         ItemsSource="{Binding ChatHistory}"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         Padding="0"
+                                         AutoScrollToSelectedItem="False"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         ScrollViewer.IsScrollChainingEnabled="False">
+                                    <ListBox.Styles>
+                                        <Style Selector="ListBoxItem">
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Margin" Value="0"/>
+                                            <Setter Property="MinHeight" Value="0"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        </Style>
+                                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                        </Style>
+                                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                        </Style>
+                                        <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                        </Style>
+                                        <Style Selector="ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                        </Style>
+                                    </ListBox.Styles>
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <VirtualizingStackPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.DataTemplates>
                                             <!-- One API call: header with the same fields as the Raw API detail header, then the parsed turns -->
                                             <DataTemplate DataType="vm:RawApiCallItemModel">
                                                 <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}"
@@ -483,7 +512,7 @@
                                                                              IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                         <TextBlock Text="Loading payload…" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
                                                                    IsVisible="{Binding !IsDetailsLoaded}"/>
-                                                        <tabs:ParsedCallTurnsView/>
+                                                        <tabs:ParsedCallTurnsView IsVisible="{Binding HasParsedTurns}"/>
                                                         <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsDetailsLoaded}">
                                                             <ToggleButton Content="Request JSON" IsChecked="{Binding ShowRequestJson, Mode=TwoWay}" FontSize="9" Padding="6,1" MinHeight="0"/>
                                                             <ToggleButton Content="Response JSON" IsChecked="{Binding ShowResponseJson, Mode=TwoWay}" FontSize="9" Padding="6,1" MinHeight="0"/>
@@ -511,9 +540,8 @@
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>
-                                        </ItemsControl.DataTemplates>
-                                    </ItemsControl>
-                                </ScrollViewer>
+                                    </ListBox.DataTemplates>
+                                </ListBox>
                                 <Button x:Name="ChatJumpToNewest" IsVisible="False" Click="OnChatJumpToNewest"
                                         HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,12"
                                         Padding="12,5" CornerRadius="16" Background="#2563EB" Foreground="White" BorderThickness="0" Cursor="Hand">

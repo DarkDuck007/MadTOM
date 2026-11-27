@@ -76,9 +76,27 @@ public sealed class ChatTraceRowModel
 public sealed partial class RawLogsApiTabViewModel
 {
     public const string NoChatKey = "none";
+    public const int ChatViewCacheSize = 8;
     private const int ChatInitialWindow = 150; // newest calls shown when a chat opens
     private const int ChatOlderStep = 100;     // added at the top when scrolling near it
     private const int MaxTraceEventsPerChat = 2000;
+    private const int ChatFirstDetailWaveSize = 12;
+    private const int ChatSubsequentDetailWaveSize = 16;
+
+    private sealed record CachedCallDetails(
+        string RequestJson,
+        string ResponseJson,
+        string ChatName,
+        IReadOnlyList<ParsedTurnItemModel> ParsedTurns,
+        IReadOnlyList<RawApiCallImageItem> Images);
+
+    private sealed class ChatViewCacheEntry
+    {
+        public string CacheKey { get; init; } = string.Empty;
+        public Dictionary<string, CachedCallDetails> Calls { get; } = new(StringComparer.Ordinal);
+        public bool TraceLoaded { get; set; }
+        public bool IsActive { get; set; }
+    }
 
     private readonly Dictionary<long, NoxChatItem> _chatRegistry = new();
     private readonly Dictionary<string, long> _chatTitleToId = new(StringComparer.Ordinal);
@@ -89,6 +107,8 @@ public sealed partial class RawLogsApiTabViewModel
     private readonly HashSet<object> _chatHistoryMembers = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<string> _chatContentSearchMatchCallIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> _chatContentSearchMatchEventKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, LinkedListNode<ChatViewCacheEntry>> _chatViewCacheMap = new(StringComparer.Ordinal);
+    private readonly LinkedList<ChatViewCacheEntry> _chatViewCacheLru = new();
     private readonly SemaphoreSlim _chatDetailSlots = new(4, 4);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _chatDetailInflight = new(StringComparer.Ordinal);
     private CancellationTokenSource _chatCts = new();
@@ -100,8 +120,10 @@ public sealed partial class RawLogsApiTabViewModel
     private int _chatVisibleLimit = ChatInitialWindow;
     private int _chatRegistryRevision;
 
+    private readonly BulkObservableCollection<object> _chatHistory = new();
     public ObservableCollection<ChatGroupModel> ChatGroups { get; } = new();
-    public ObservableCollection<object> ChatHistory { get; } = new();
+    public ObservableCollection<object> ChatHistory => _chatHistory;
+    public int ChatViewCacheCount => _chatViewCacheMap.Count;
 
     [ObservableProperty] private string _chatFilter = string.Empty;
     [ObservableProperty] private ChatGroupModel? _selectedChatGroup;
@@ -157,24 +179,113 @@ public sealed partial class RawLogsApiTabViewModel
             ChatContentSearchStatus = string.Empty;
         }
 
-        // Unload uncompressed details from the previous chat's calls so memory stays Zstd-compressed in _apiCache
+        // Snapshot parsed turns & decoded bitmaps into the bounded LRU chat view cache, then detach
+        // uncompressed details from the previous chat's call models so switching back is instant.
         if (oldValue != null && !ReferenceEquals(oldValue, newValue))
         {
-            UnloadChatGroupDetails(oldValue.Key);
+            CacheAndUnloadChatGroupDetails(oldValue.Key);
+        }
+
+        bool traceAlreadyLoaded = false;
+        if (newValue != null && SelectedNode != null &&
+            _chatViewCacheMap.TryGetValue(ChatViewCacheKey(SelectedNode.Id, newValue.Key), out var cachedNode))
+        {
+            _chatViewCacheLru.Remove(cachedNode);
+            _chatViewCacheLru.AddFirst(cachedNode);
+            cachedNode.Value.IsActive = true;
+            traceAlreadyLoaded = cachedNode.Value.TraceLoaded;
         }
 
         RebuildChatHistory(resetLimit: true);
         ChatHistoryReset?.Invoke();
-        if (newValue != null && newValue.Key != NoChatKey)
+        if (newValue != null && newValue.Key != NoChatKey && !traceAlreadyLoaded)
         {
             _ = LoadChatTraceForGroupAsync(newValue, _chatCts.Token);
         }
     }
 
-    private void UnloadChatGroupDetails(string groupKey)
+    private static string ChatViewCacheKey(string nodeId, string groupKey) => nodeId + "\0" + groupKey;
+
+    private ChatViewCacheEntry GetOrCreateChatViewCacheEntry(string nodeId, string groupKey)
+    {
+        string key = ChatViewCacheKey(nodeId, groupKey);
+        if (_chatViewCacheMap.TryGetValue(key, out var existing))
+        {
+            _chatViewCacheLru.Remove(existing);
+            _chatViewCacheLru.AddFirst(existing);
+            return existing.Value;
+        }
+
+        var entry = new ChatViewCacheEntry { CacheKey = key };
+        var nodeRef = _chatViewCacheLru.AddFirst(entry);
+        _chatViewCacheMap[key] = nodeRef;
+        EvictChatViewCacheIfNeeded();
+        return entry;
+    }
+
+    private void EvictChatViewCacheIfNeeded()
+    {
+        while (_chatViewCacheLru.Count > ChatViewCacheSize)
+        {
+            var tail = _chatViewCacheLru.Last;
+            if (tail == null) break;
+            _chatViewCacheLru.RemoveLast();
+            _chatViewCacheMap.Remove(tail.Value.CacheKey);
+            if (!tail.Value.IsActive)
+            {
+                DisposeCachedEntryImages(tail.Value);
+            }
+        }
+    }
+
+    private void DisposeCachedEntryImages(ChatViewCacheEntry entry)
+    {
+        HashSet<Bitmap>? liveBitmaps = null;
+        if (SelectedApiCall is { Images.Count: > 0 } selectedCall)
+        {
+            liveBitmaps = new HashSet<Bitmap>(ReferenceEqualityComparer.Instance);
+            foreach (var img in selectedCall.Images)
+            {
+                if (img.Preview != null) liveBitmaps.Add(img.Preview);
+            }
+        }
+
+        foreach (var cached in entry.Calls.Values)
+        {
+            foreach (var img in cached.Images)
+            {
+                if (img.Preview != null && (liveBitmaps == null || !liveBitmaps.Contains(img.Preview)))
+                {
+                    img.Preview.Dispose();
+                }
+            }
+        }
+        entry.Calls.Clear();
+    }
+
+    private void ClearChatViewCache()
+    {
+        foreach (var entry in _chatViewCacheLru)
+        {
+            if (!entry.IsActive)
+            {
+                DisposeCachedEntryImages(entry);
+            }
+            else
+            {
+                entry.Calls.Clear();
+            }
+        }
+        _chatViewCacheLru.Clear();
+        _chatViewCacheMap.Clear();
+    }
+
+    private void CacheAndUnloadChatGroupDetails(string groupKey)
     {
         var node = SelectedNode;
         if (node == null) return;
+
+        ChatViewCacheEntry? entry = null;
         foreach (var call in AllKnownCalls())
         {
             if (call.IsDetailsLoaded &&
@@ -182,9 +293,63 @@ public sealed partial class RawLogsApiTabViewModel
                 ChatKeyOf(call) == groupKey &&
                 _apiCache.HasFullRecord(node.Id, call.CallId))
             {
-                call.UnloadDetails();
+                entry ??= GetOrCreateChatViewCacheEntry(node.Id, groupKey);
+                if (entry.Calls.TryGetValue(call.CallId, out var prev))
+                {
+                    // Dispose any old bitmaps that are no longer referenced by the updated call images
+                    var keep = new HashSet<Bitmap>(call.Images.Where(i => i.Preview != null).Select(i => i.Preview!), ReferenceEqualityComparer.Instance);
+                    foreach (var oldImg in prev.Images)
+                    {
+                        if (oldImg.Preview != null && !keep.Contains(oldImg.Preview))
+                            oldImg.Preview.Dispose();
+                    }
+                }
+
+                entry.Calls[call.CallId] = new CachedCallDetails(
+                    call.RequestJson,
+                    call.ResponseJson,
+                    call.ChatName,
+                    call.ParsedTurns.ToArray(),
+                    call.Images.ToArray());
+
+                call.DetachDetailsWithoutDisposing();
             }
         }
+
+        if (entry != null)
+        {
+            entry.IsActive = false;
+        }
+        else if (_chatViewCacheMap.TryGetValue(ChatViewCacheKey(node.Id, groupKey), out var existing))
+        {
+            existing.Value.IsActive = false;
+        }
+    }
+
+    private bool TryRestoreCachedCallDetails(string nodeId, string groupKey, IReadOnlyList<RawApiCallItemModel> shown)
+    {
+        if (!_chatViewCacheMap.TryGetValue(ChatViewCacheKey(nodeId, groupKey), out var cachedNode))
+            return false;
+
+        var entry = cachedNode.Value;
+        entry.IsActive = true;
+        bool restoredAny = false;
+        foreach (var call in shown)
+        {
+            if (call.IsDetailsLoaded) continue;
+            if (entry.Calls.TryGetValue(call.CallId, out var cached))
+            {
+                call.RequestJson = cached.RequestJson;
+                call.ResponseJson = cached.ResponseJson;
+                call.ReplaceImages(cached.Images);
+                call.ReplaceParsedTurns(cached.ParsedTurns);
+                if (string.IsNullOrEmpty(call.ChatName) && !string.IsNullOrEmpty(cached.ChatName))
+                    call.ChatName = cached.ChatName;
+                call.IsDetailsLoaded = true;
+                restoredAny = true;
+            }
+        }
+        return restoredAny;
     }
 
     // ------------------------------------------------------------------ identity
@@ -280,6 +445,7 @@ public sealed partial class RawLogsApiTabViewModel
     {
         CancelChatLoads();
         CancelChatContentSearch();
+        ClearChatViewCache();
         _chatRegistry.Clear(); _chatTitleToId.Clear(); _chatTitleToIdIgnoreCase.Clear(); _chatGroupsByKey.Clear();
         _chatTraceRows.Clear(); _chatExtraCalls.Clear(); _chatHistoryMembers.Clear();
         _chatContentSearchMatchCallIds.Clear(); _chatContentSearchMatchEventKeys.Clear();
@@ -288,7 +454,7 @@ public sealed partial class RawLogsApiTabViewModel
         IsChatContentSearchActive = false;
         _chatTraceSupported = null;
         ++_chatRegistryRevision;
-        ChatHistory.Clear(); ChatGroups.Clear();
+        _chatHistory.ReplaceAll(Array.Empty<object>()); ChatGroups.Clear();
         SelectedChatGroup = null;
         ChatListStatus = "Open this tab to load chats.";
         ChatHistoryStatus = "Select a chat.";
@@ -500,6 +666,9 @@ public sealed partial class RawLogsApiTabViewModel
         var shown = calls.Take(_chatVisibleLimit).ToList();
         ChatHasOlder = calls.Count > shown.Count;
 
+        // Restore cached parsed turns & bitmaps on cache hit before detaching/loading
+        TryRestoreCachedCallDetails(node.Id, group.Key, shown);
+
         // Unload details of calls in this chat that fell outside the visible window so memory remains Zstd-compressed
         var shownSet = new HashSet<RawApiCallItemModel>(shown, ReferenceEqualityComparer.Instance);
         foreach (var c in allChatCalls)
@@ -527,7 +696,7 @@ public sealed partial class RawLogsApiTabViewModel
         }
         // Chronological, like a chat: oldest at the top, newest at the bottom (the view opens at the bottom).
         var ordered = entries.OrderBy(e => e.Ts).Select(e => e.Item).ToList();
-        SyncChatHistory(ordered);
+        SyncChatHistory(ordered, reset: resetLimit);
 
         string trace = _chatTraceSupported == false ? " · probe has no per-chat trace index (only loaded calls shown)" : string.Empty;
         if (filterBySearch)
@@ -538,7 +707,7 @@ public sealed partial class RawLogsApiTabViewModel
         {
             ChatHistoryStatus = $"{shown.Count:N0} of {calls.Count:N0} calls" + (eventCount > 0 ? $" · {eventCount:N0} trace events" : string.Empty) + trace;
         }
-        _ = LoadChatCallDetailsAsync(node, shown, _chatCts.Token);
+        _ = LoadChatCallDetailsAsync(node, group.Key, shown, _chatCts.Token);
     }
 
     // ------------------------------------------------------------------ chat content search
@@ -740,39 +909,125 @@ public sealed partial class RawLogsApiTabViewModel
         RebuildChatHistory(resetLimit: false);
     }
 
-    /// <summary>Minimal in-place update so live arrivals don't reset scroll position or realized containers.</summary>
-    private void SyncChatHistory(List<object> desired)
+    /// <summary>
+    /// Batched update of ChatHistory so switching chats fires 1 Reset, prepending older items fires 1
+    /// range Add at index 0, and appending live items fires 1 range Add at the end.
+    /// </summary>
+    private void SyncChatHistory(List<object> desired, bool reset = false)
     {
+        if (reset || _chatHistory.Count == 0 || desired.Count == 0)
+        {
+            _chatHistoryMembers.Clear();
+            foreach (var item in desired) _chatHistoryMembers.Add(item);
+            _chatHistory.ReplaceAll(desired);
+            return;
+        }
+
+        // Fast path 1: pure prepend at index 0 (LoadOlderChatHistory) — existing items are a contiguous suffix of desired
+        if (desired.Count > _chatHistory.Count)
+        {
+            int prependCount = desired.Count - _chatHistory.Count;
+            bool isPurePrepend = true;
+            for (int i = 0; i < _chatHistory.Count; i++)
+            {
+                if (!ReferenceEquals(_chatHistory[i], desired[prependCount + i]))
+                {
+                    isPurePrepend = false;
+                    break;
+                }
+            }
+            if (isPurePrepend)
+            {
+                var prefix = desired.GetRange(0, prependCount);
+                foreach (var item in prefix) _chatHistoryMembers.Add(item);
+                _chatHistory.InsertRange(0, prefix);
+                return;
+            }
+
+            // Fast path 2: pure append at the end (live arrivals) — existing items are a contiguous prefix of desired
+            bool isPureAppend = true;
+            for (int i = 0; i < _chatHistory.Count; i++)
+            {
+                if (!ReferenceEquals(_chatHistory[i], desired[i]))
+                {
+                    isPureAppend = false;
+                    break;
+                }
+            }
+            if (isPureAppend)
+            {
+                var suffix = desired.GetRange(_chatHistory.Count, desired.Count - _chatHistory.Count);
+                foreach (var item in suffix) _chatHistoryMembers.Add(item);
+                _chatHistory.AddRange(suffix);
+                return;
+            }
+        }
+
+        // Check if already identical
+        if (desired.Count == _chatHistory.Count)
+        {
+            bool identical = true;
+            for (int i = 0; i < desired.Count; i++)
+            {
+                if (!ReferenceEquals(_chatHistory[i], desired[i])) { identical = false; break; }
+            }
+            if (identical) return;
+        }
+
+        // If the diff is large (e.g. switching chats without resetLimit or toggling search/trace), bulk replace in 1 pass
         var wanted = new HashSet<object>(desired, ReferenceEqualityComparer.Instance);
-        for (int i = ChatHistory.Count - 1; i >= 0; i--)
-            if (!wanted.Contains(ChatHistory[i])) { _chatHistoryMembers.Remove(ChatHistory[i]); ChatHistory.RemoveAt(i); }
+        int changes = 0;
+        for (int i = 0; i < _chatHistory.Count; i++)
+            if (!wanted.Contains(_chatHistory[i])) changes++;
+        for (int i = 0; i < desired.Count; i++)
+            if (!_chatHistoryMembers.Contains(desired[i])) changes++;
+        if (changes > 16)
+        {
+            _chatHistoryMembers.Clear();
+            foreach (var item in desired) _chatHistoryMembers.Add(item);
+            _chatHistory.ReplaceAll(desired);
+            return;
+        }
+
+        for (int i = _chatHistory.Count - 1; i >= 0; i--)
+            if (!wanted.Contains(_chatHistory[i])) { _chatHistoryMembers.Remove(_chatHistory[i]); _chatHistory.RemoveAt(i); }
         for (int i = 0; i < desired.Count; i++)
         {
-            if (i < ChatHistory.Count && ReferenceEquals(ChatHistory[i], desired[i])) continue;
+            if (i < _chatHistory.Count && ReferenceEquals(_chatHistory[i], desired[i])) continue;
             if (_chatHistoryMembers.Contains(desired[i]))
             {
-                int old = ChatHistory.IndexOf(desired[i]);
-                if (old >= 0) { ChatHistory.Move(old, i); continue; }
+                int old = _chatHistory.IndexOf(desired[i]);
+                if (old >= 0) { _chatHistory.Move(old, i); continue; }
             }
-            ChatHistory.Insert(i, desired[i]);
+            _chatHistory.Insert(i, desired[i]);
             _chatHistoryMembers.Add(desired[i]);
         }
     }
 
-    /// <summary>
-    /// Prefetches and parses full payloads for the active window (newest first, since the view opens at the
-    /// bottom). Records already in the Zstd in-memory cache are decoded and applied in one coalesced batch;
-    /// remote fetches are applied in coalesced batches to eliminate scrollbar layout jitter.
-    /// </summary>
-    private async Task LoadChatCallDetailsAsync(NoxNodeModel node, List<RawApiCallItemModel> calls, CancellationToken token)
+    private static Task RunOnUiAsync(Action action, DispatcherPriority priority = default)
     {
-        // `calls` is newest-first; skip anything another refresh is already fetching
+        if (Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+        return Dispatcher.UIThread.InvokeAsync(action, priority).GetTask();
+    }
+
+    /// <summary>
+    /// Prefetches and parses full payloads bottom-up (newest first, matching the bottom-anchored chat view).
+    /// Wave 0 decodes/fetches the newest calls visible at the bottom immediately with bounded parallelism;
+    /// older calls follow in coalesced waves off the UI thread. Stale or canceled results are discarded.
+    /// </summary>
+    private async Task LoadChatCallDetailsAsync(NoxNodeModel node, string groupKey, List<RawApiCallItemModel> calls, CancellationToken token)
+    {
+        // `calls` is newest-first; skip anything already loaded or being fetched by another refresh
         var pending = calls.Where(c => !c.IsDetailsLoaded && _chatDetailInflight.TryAdd(c.CallId, 0)).ToList();
         if (pending.Count == 0) return;
 
         var readyQueue = new System.Collections.Concurrent.ConcurrentQueue<(RawApiCallItemModel Target, RawApiCallItemModel Prepared)>();
 
-        async Task FlushReadyBatchAsync()
+        async Task FlushReadyBatchAsync(DispatcherPriority priority)
         {
             if (readyQueue.IsEmpty) return;
             var batch = new List<(RawApiCallItemModel Target, RawApiCallItemModel Prepared)>();
@@ -782,109 +1037,119 @@ public sealed partial class RawLogsApiTabViewModel
             }
             if (batch.Count == 0) return;
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await RunOnUiAsync(() =>
             {
+                bool stale = token.IsCancellationRequested || SelectedNode != node || SelectedChatGroup?.Key != groupKey;
                 foreach (var (target, prepared) in batch)
                 {
-                    if (token.IsCancellationRequested || SelectedNode != node || target.IsDetailsLoaded)
+                    if (stale || target.IsDetailsLoaded)
                     {
                         DisposeImages(prepared);
                         continue;
                     }
                     ApplyPreparedDetails(target, prepared);
                 }
-            }, DispatcherPriority.Background);
+            }, priority).ConfigureAwait(false);
         }
 
-        // Fast pass: decode any records already present in client Zstd memory cache (_apiCache) in one batch
-        var remotePending = new List<RawApiCallItemModel>();
+        int offset = 0;
+        int waveIndex = 0;
         try
         {
-            await Task.Run(() =>
+            while (offset < pending.Count)
             {
-                foreach (var call in pending)
+                if (token.IsCancellationRequested)
                 {
-                    if (token.IsCancellationRequested)
-                    {
-                        _chatDetailInflight.TryRemove(call.CallId, out _);
-                        continue;
-                    }
+                    for (int j = offset; j < pending.Count; j++)
+                        _chatDetailInflight.TryRemove(pending[j].CallId, out _);
+                    break;
+                }
+
+                int waveSize = waveIndex == 0 ? ChatFirstDetailWaveSize : ChatSubsequentDetailWaveSize;
+                int count = Math.Min(waveSize, pending.Count - offset);
+                var wave = pending.GetRange(offset, count);
+                offset += count;
+
+                var cachedWave = new List<(RawApiCallItemModel Call, NoxRawApiCallRecord Record)>(count);
+                var remoteWave = new List<RawApiCallItemModel>(count);
+
+                foreach (var call in wave)
+                {
                     var cached = _apiCache.GetRecord(node.Id, call.CallId);
                     if (cached != null && (!string.IsNullOrWhiteSpace(cached.RawRequestJson) || !string.IsNullOrWhiteSpace(cached.RawResponseJson)))
                     {
-                        try
-                        {
-                            var prepared = PrepareDetails(call, cached, token);
-                            readyQueue.Enqueue((call, prepared));
-                        }
-                        finally
-                        {
-                            _chatDetailInflight.TryRemove(call.CallId, out _);
-                        }
+                        cachedWave.Add((call, cached));
                     }
                     else
                     {
-                        remotePending.Add(call);
+                        remoteWave.Add(call);
                     }
                 }
-            }, CancellationToken.None).ConfigureAwait(false);
 
-            await FlushReadyBatchAsync().ConfigureAwait(false);
-        }
-        catch
-        {
-            foreach (var c in pending) _chatDetailInflight.TryRemove(c.CallId, out _);
-            while (readyQueue.TryDequeue(out var leftover)) DisposeImages(leftover.Prepared);
-            return;
-        }
-
-        if (remotePending.Count == 0 || token.IsCancellationRequested)
-        {
-            foreach (var c in remotePending) _chatDetailInflight.TryRemove(c.CallId, out _);
-            return;
-        }
-
-        // Process remote calls in small newest-first waves (8 calls per wave) so each wave updates the UI in a single layout pass
-        const int waveSize = 8;
-        for (int offset = 0; offset < remotePending.Count; offset += waveSize)
-        {
-            if (token.IsCancellationRequested)
-            {
-                for (int j = offset; j < remotePending.Count; j++)
-                    _chatDetailInflight.TryRemove(remotePending[j].CallId, out _);
-                break;
-            }
-
-            var wave = remotePending.Skip(offset).Take(waveSize).ToList();
-            var tasks = wave.Select(call => Task.Run(async () =>
-            {
-                try { await _chatDetailSlots.WaitAsync(token).ConfigureAwait(false); }
-                catch (OperationCanceledException) { _chatDetailInflight.TryRemove(call.CallId, out _); return; }
-                try
-                {
-                    if (token.IsCancellationRequested || call.IsDetailsLoaded) return;
-                    var record = _apiCache.GetRecord(node.Id, call.CallId);
-                    if (record == null || (string.IsNullOrWhiteSpace(record.RawRequestJson) && string.IsNullOrWhiteSpace(record.RawResponseJson)))
+                Task cachedTask = cachedWave.Count == 0
+                    ? Task.CompletedTask
+                    : Task.Run(() =>
                     {
-                        record = await _nodeManager.GetClient(node).GetApiCallDetailAsync(
-                            new NoxApiCallDetailRequest { NodeId = node.Id, CallId = call.CallId }, cancellationToken: token).ResponseAsync.ConfigureAwait(false);
-                        if (record == null || record.CallId != call.CallId) return;
-                        _apiCache.PutFullRecord(node.Id, record);
-                    }
-                    var prepared = PrepareDetails(call, record, token);
-                    readyQueue.Enqueue((call, prepared));
-                }
-                catch (OperationCanceledException) { }
-                catch (RpcException) { /* expired from the probe spool: the summary row stays visible */ }
-                catch (Exception) { }
-                finally { _chatDetailSlots.Release(); _chatDetailInflight.TryRemove(call.CallId, out _); }
-            }, CancellationToken.None));
+                        var parallelOptions = new ParallelOptions
+                        {
+                            MaxDegreeOfParallelism = Math.Max(1, Math.Min(4, Environment.ProcessorCount)),
+                            CancellationToken = CancellationToken.None
+                        };
+                        Parallel.ForEach(cachedWave, parallelOptions, item =>
+                        {
+                            try
+                            {
+                                if (token.IsCancellationRequested || item.Call.IsDetailsLoaded) return;
+                                var prepared = PrepareDetails(item.Call, item.Record, token);
+                                readyQueue.Enqueue((item.Call, prepared));
+                            }
+                            catch (OperationCanceledException) { }
+                            catch (Exception) { }
+                            finally
+                            {
+                                _chatDetailInflight.TryRemove(item.Call.CallId, out _);
+                            }
+                        });
+                    }, CancellationToken.None);
 
-            try { await Task.WhenAll(tasks).ConfigureAwait(false); } catch { }
-            await FlushReadyBatchAsync().ConfigureAwait(false);
+                Task remoteTask = remoteWave.Count == 0
+                    ? Task.CompletedTask
+                    : Task.WhenAll(remoteWave.Select(call => Task.Run(async () =>
+                    {
+                        try { await _chatDetailSlots.WaitAsync(token).ConfigureAwait(false); }
+                        catch (OperationCanceledException) { _chatDetailInflight.TryRemove(call.CallId, out _); return; }
+                        try
+                        {
+                            if (token.IsCancellationRequested || call.IsDetailsLoaded) return;
+                            var record = _apiCache.GetRecord(node.Id, call.CallId);
+                            if (record == null || (string.IsNullOrWhiteSpace(record.RawRequestJson) && string.IsNullOrWhiteSpace(record.RawResponseJson)))
+                            {
+                                record = await _nodeManager.GetClient(node).GetApiCallDetailAsync(
+                                    new NoxApiCallDetailRequest { NodeId = node.Id, CallId = call.CallId }, cancellationToken: token).ResponseAsync.ConfigureAwait(false);
+                                if (record == null || record.CallId != call.CallId) return;
+                                _apiCache.PutFullRecord(node.Id, record);
+                            }
+                            var prepared = PrepareDetails(call, record, token);
+                            readyQueue.Enqueue((call, prepared));
+                        }
+                        catch (OperationCanceledException) { }
+                        catch (RpcException) { /* expired from the probe spool: the summary row stays visible */ }
+                        catch (Exception) { }
+                        finally { _chatDetailSlots.Release(); _chatDetailInflight.TryRemove(call.CallId, out _); }
+                    }, CancellationToken.None)));
+
+                try { await Task.WhenAll(cachedTask, remoteTask).ConfigureAwait(false); } catch { }
+                var priority = waveIndex == 0 ? DispatcherPriority.Normal : DispatcherPriority.Background;
+                await FlushReadyBatchAsync(priority).ConfigureAwait(false);
+                waveIndex++;
+            }
         }
-
-        while (readyQueue.TryDequeue(out var remaining)) DisposeImages(remaining.Prepared);
+        finally
+        {
+            for (int j = offset; j < pending.Count; j++)
+                _chatDetailInflight.TryRemove(pending[j].CallId, out _);
+            while (readyQueue.TryDequeue(out var remaining)) DisposeImages(remaining.Prepared);
+        }
     }
 
     /// <summary>Formats JSON, decodes images and parses turns on a detached copy (safe off the UI thread).</summary>
@@ -898,8 +1163,6 @@ public sealed partial class RawLogsApiTabViewModel
             PromptTokens = call.PromptTokens, CompletionTokens = call.CompletionTokens, CachedTokens = call.CachedTokens,
             BaseUrl = call.BaseUrl, Temperature = call.Temperature, ErrorMessage = call.ErrorMessage,
             TraceContext = call.TraceContext,
-            RequestJson = FormatJsonForDisplay(record.RawRequestJson),
-            ResponseJson = FormatJsonForDisplay(record.RawResponseJson),
         };
         PopulateItemDetails(copy, record);
         token.ThrowIfCancellationRequested();
@@ -910,12 +1173,8 @@ public sealed partial class RawLogsApiTabViewModel
     {
         target.RequestJson = prepared.RequestJson;
         target.ResponseJson = prepared.ResponseJson;
-        target.Images.Clear();
-        foreach (var img in prepared.Images) target.Images.Add(img);
-        target.HasImages = target.Images.Count > 0;
-        target.ParsedTurns.Clear();
-        foreach (var turn in prepared.ParsedTurns) target.ParsedTurns.Add(turn);
-        target.HasParsedTurns = target.ParsedTurns.Count > 0;
+        target.ReplaceImages(prepared.Images.ToArray());
+        target.ReplaceParsedTurns(prepared.ParsedTurns.ToArray());
         if (string.IsNullOrEmpty(target.ChatName) && !string.IsNullOrEmpty(prepared.ChatName)) target.ChatName = prepared.ChatName;
         target.IsDetailsLoaded = true;
     }
@@ -947,8 +1206,7 @@ public sealed partial class RawLogsApiTabViewModel
         {
             var client = _nodeManager.GetClient(node);
             string cursor = string.Empty;
-            bool changed = false;
-            var newRecordsToCache = new List<NoxRawApiCallRecord>();
+            bool pendingUiFlush = false;
             for (int page = 0; page < 50 && !token.IsCancellationRequested; page++)
             {
                 var req = new NoxChatTraceRequest
@@ -963,41 +1221,104 @@ public sealed partial class RawLogsApiTabViewModel
                 var response = await client.QueryChatTraceAsync(req, deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: token);
                 if (token.IsCancellationRequested || SelectedNode != node) return false;
                 _chatTraceSupported = true;
-                foreach (var record in response.Calls)
+
+                // Build call summary models and cache records off the UI thread
+                List<RawApiCallItemModel>? builtModels = null;
+                if (response.Calls.Count > 0)
                 {
-                    if (string.IsNullOrEmpty(record.CallId) || _seenApiCallIds.Contains(record.CallId) || _chatExtraCalls.ContainsKey(record.CallId)) continue;
-                    var item = BuildApiCallItemModel(record);
-                    ResolveChatName(item);
-                    _chatExtraCalls[record.CallId] = item;
-                    newRecordsToCache.Add(record);
-                    changed = true;
+                    var unseen = new List<NoxRawApiCallRecord>(response.Calls.Count);
+                    foreach (var record in response.Calls)
+                    {
+                        if (string.IsNullOrEmpty(record.CallId) || _seenApiCallIds.Contains(record.CallId) || _chatExtraCalls.ContainsKey(record.CallId))
+                            continue;
+                        unseen.Add(record);
+                    }
+                    if (unseen.Count > 0)
+                    {
+                        builtModels = await Task.Run(() =>
+                        {
+                            var models = new List<RawApiCallItemModel>(unseen.Count);
+                            foreach (var record in unseen)
+                            {
+                                token.ThrowIfCancellationRequested();
+                                models.Add(BuildApiCallItemModel(record));
+                            }
+                            _apiCache.PutRecords(node.Id, unseen);
+                            _apiCache.FlushPending(node.Id);
+                            return models;
+                        }, token);
+                    }
                 }
-                foreach (var ev in response.Events)
-                    if (ev.TraceContext?.HasChatId == true && !string.IsNullOrEmpty(ev.EventId))
-                        changed |= AddTraceRow(ev.TraceContext.ChatId, ev);
+
+                if (token.IsCancellationRequested || SelectedNode != node) return false;
+
+                bool pageChanged = false;
+                await RunOnUiAsync(() =>
+                {
+                    if (token.IsCancellationRequested || SelectedNode != node) return;
+                    if (builtModels != null)
+                    {
+                        foreach (var item in builtModels)
+                        {
+                            if (_seenApiCallIds.Contains(item.CallId) || _chatExtraCalls.ContainsKey(item.CallId)) continue;
+                            ResolveChatName(item);
+                            _chatExtraCalls[item.CallId] = item;
+                            pageChanged = true;
+                        }
+                    }
+                    foreach (var ev in response.Events)
+                        if (ev.TraceContext?.HasChatId == true && !string.IsNullOrEmpty(ev.EventId))
+                            pageChanged |= AddTraceRow(ev.TraceContext.ChatId, ev);
+
+                    if (pageChanged) pendingUiFlush = true;
+
+                    // Publish page 0 immediately so the user sees history without waiting for remaining pages;
+                    // coalesce subsequent pages every 4 pages.
+                    if (pendingUiFlush && (page == 0 || page % 4 == 3) && SelectedChatGroup?.Key == groupKey)
+                    {
+                        pendingUiFlush = false;
+                        if (IsChatContentSearchActive && !string.IsNullOrWhiteSpace(ChatContentSearchQuery))
+                        {
+                            RunLocalChatContentFilter(ChatContentSearchQuery);
+                        }
+                        RebuildChatGroups();
+                        RebuildChatHistory(resetLimit: false);
+                    }
+                });
+
                 if (response.NextCursor.Length == 0 || response.NextCursor == cursor) break;
                 cursor = response.NextCursor;
             }
-            if (newRecordsToCache.Count > 0)
+
+            if (token.IsCancellationRequested || SelectedNode != node) return false;
+
+            await RunOnUiAsync(() =>
             {
-                _apiCache.PutRecords(node.Id, newRecordsToCache);
-                _apiCache.FlushPending(node.Id);
-            }
-            if (changed && SelectedChatGroup?.Key == groupKey)
-            {
-                if (IsChatContentSearchActive && !string.IsNullOrWhiteSpace(ChatContentSearchQuery))
+                if (token.IsCancellationRequested || SelectedNode != node) return;
+                var cacheEntry = GetOrCreateChatViewCacheEntry(node.Id, groupKey);
+                cacheEntry.TraceLoaded = true;
+                cacheEntry.IsActive = SelectedChatGroup?.Key == groupKey;
+
+                if (pendingUiFlush && SelectedChatGroup?.Key == groupKey)
                 {
-                    RunLocalChatContentFilter(ChatContentSearchQuery);
+                    if (IsChatContentSearchActive && !string.IsNullOrWhiteSpace(ChatContentSearchQuery))
+                    {
+                        RunLocalChatContentFilter(ChatContentSearchQuery);
+                    }
+                    RebuildChatGroups();
+                    RebuildChatHistory(resetLimit: false);
                 }
-                RebuildChatGroups();
-                RebuildChatHistory(resetLimit: false);
-            }
+            });
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.Unimplemented)
         {
             if (token.IsCancellationRequested || SelectedNode != node) return false;
             _chatTraceSupported = false;
-            if (SelectedChatGroup?.Key == groupKey) RebuildChatHistory(resetLimit: false);
+            await RunOnUiAsync(() =>
+            {
+                if (!token.IsCancellationRequested && SelectedNode == node && SelectedChatGroup?.Key == groupKey)
+                    RebuildChatHistory(resetLimit: false);
+            });
             return true;
         }
         catch (OperationCanceledException) { return false; }

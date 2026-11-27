@@ -29,6 +29,51 @@ public sealed class RawApiCallImageItem
     public Bitmap? Preview { get; init; }
 }
 
+/// <summary>
+/// ObservableCollection subclass supporting single-notification bulk replace/insert/add so
+/// UI containers avoid per-item layout passes when switching chats or prepending history.
+/// </summary>
+internal sealed class BulkObservableCollection<T> : ObservableCollection<T>
+{
+    private static readonly System.ComponentModel.PropertyChangedEventArgs CountChangedArgs = new(nameof(Count));
+    private static readonly System.ComponentModel.PropertyChangedEventArgs IndexerChangedArgs = new("Item[]");
+
+    public void ReplaceAll(IReadOnlyList<T> items)
+    {
+        CheckReentrancy();
+        Items.Clear();
+        for (int i = 0; i < items.Count; i++)
+        {
+            Items.Add(items[i]);
+        }
+        OnPropertyChanged(CountChangedArgs);
+        OnPropertyChanged(IndexerChangedArgs);
+        OnCollectionChanged(new System.Collections.Specialized.NotifyCollectionChangedEventArgs(
+            System.Collections.Specialized.NotifyCollectionChangedAction.Reset));
+    }
+
+    public void InsertRange(int index, IReadOnlyList<T> items)
+    {
+        if (items.Count == 0) return;
+        CheckReentrancy();
+        for (int i = 0; i < items.Count; i++)
+        {
+            Items.Insert(index + i, items[i]);
+        }
+        OnPropertyChanged(CountChangedArgs);
+        OnPropertyChanged(IndexerChangedArgs);
+        var changed = items as System.Collections.IList ?? new List<T>(items);
+        OnCollectionChanged(new System.Collections.Specialized.NotifyCollectionChangedEventArgs(
+            System.Collections.Specialized.NotifyCollectionChangedAction.Add, changed, index));
+    }
+
+    public void AddRange(IReadOnlyList<T> items)
+    {
+        if (items.Count == 0) return;
+        InsertRange(Items.Count, items);
+    }
+}
+
 public sealed partial class RawApiCallItemModel : ObservableObject
 {
     public string CallId { get; init; } = string.Empty;
@@ -50,14 +95,28 @@ public sealed partial class RawApiCallItemModel : ObservableObject
     public NoxTraceContext? TraceContext { get; init; }
     [ObservableProperty] private string _requestJson = string.Empty;
     [ObservableProperty] private string _responseJson = string.Empty;
-    public ObservableCollection<RawApiCallImageItem> Images { get; } = new();
+    private readonly BulkObservableCollection<RawApiCallImageItem> _images = new();
+    public ObservableCollection<RawApiCallImageItem> Images => _images;
     [ObservableProperty] private bool _hasImages;
-    public ObservableCollection<ParsedTurnItemModel> ParsedTurns { get; } = new();
+    private readonly BulkObservableCollection<ParsedTurnItemModel> _parsedTurns = new();
+    public ObservableCollection<ParsedTurnItemModel> ParsedTurns => _parsedTurns;
     [ObservableProperty] private bool _hasParsedTurns;
     [ObservableProperty] private bool _isDetailsLoaded;
     // Chats view: raw payload panes are collapsed by default to keep the history dense
     [ObservableProperty] private bool _showRequestJson;
     [ObservableProperty] private bool _showResponseJson;
+
+    internal void ReplaceImages(IReadOnlyList<RawApiCallImageItem> images)
+    {
+        _images.ReplaceAll(images);
+        HasImages = _images.Count > 0;
+    }
+
+    internal void ReplaceParsedTurns(IReadOnlyList<ParsedTurnItemModel> turns)
+    {
+        _parsedTurns.ReplaceAll(turns);
+        HasParsedTurns = _parsedTurns.Count > 0;
+    }
 
     /// <summary>
     /// Releases uncompressed JSON strings, parsed turn trees, and decoded Bitmaps from the view-model
@@ -65,14 +124,31 @@ public sealed partial class RawApiCallItemModel : ObservableObject
     /// </summary>
     public void UnloadDetails()
     {
-        if (!IsDetailsLoaded && RequestJson.Length == 0 && ResponseJson.Length == 0 && ParsedTurns.Count == 0 && Images.Count == 0)
+        if (!IsDetailsLoaded && RequestJson.Length == 0 && ResponseJson.Length == 0 && _parsedTurns.Count == 0 && _images.Count == 0)
             return;
 
         RequestJson = string.Empty;
         ResponseJson = string.Empty;
-        foreach (var img in Images) img.Preview?.Dispose();
-        Images.Clear();
-        ParsedTurns.Clear();
+        foreach (var img in _images) img.Preview?.Dispose();
+        _images.ReplaceAll(Array.Empty<RawApiCallImageItem>());
+        _parsedTurns.ReplaceAll(Array.Empty<ParsedTurnItemModel>());
+        HasParsedTurns = false;
+        IsDetailsLoaded = false;
+    }
+
+    /// <summary>
+    /// Detaches parsed turns and decoded Bitmaps from this model without disposing Bitmaps
+    /// because ownership was transferred to the bounded per-chat view cache.
+    /// </summary>
+    internal void DetachDetailsWithoutDisposing()
+    {
+        if (!IsDetailsLoaded && RequestJson.Length == 0 && ResponseJson.Length == 0 && _parsedTurns.Count == 0 && _images.Count == 0)
+            return;
+
+        RequestJson = string.Empty;
+        ResponseJson = string.Empty;
+        _images.ReplaceAll(Array.Empty<RawApiCallImageItem>());
+        _parsedTurns.ReplaceAll(Array.Empty<ParsedTurnItemModel>());
         HasParsedTurns = false;
         IsDetailsLoaded = false;
     }
@@ -536,7 +612,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         item.RequestJson = FormatJsonForDisplay(r.RawRequestJson);
         item.ResponseJson = FormatJsonForDisplay(r.RawResponseJson);
 
-        item.Images.Clear();
+        var decodedImages = new List<RawApiCallImageItem>();
         if (r.ImageDataUrls != null)
         {
             foreach (var img in r.ImageDataUrls)
@@ -547,9 +623,9 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                     {
                         using var ms = new MemoryStream(img.ImageBytes.ToByteArray());
                         var bmp = new Bitmap(ms);
-                        item.Images.Add(new RawApiCallImageItem
+                        decodedImages.Add(new RawApiCallImageItem
                         {
-                            Label = string.IsNullOrEmpty(img.Label) ? $"Image #{item.Images.Count + 1}" : img.Label,
+                            Label = string.IsNullOrEmpty(img.Label) ? $"Image #{decodedImages.Count + 1}" : img.Label,
                             ContentHash = Convert.ToHexString(SHA256.HashData(img.ImageBytes.Span)),
                             MimeType = img.MimeType ?? "image/jpeg",
                             Preview = bmp
@@ -559,19 +635,15 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
                 }
             }
         }
-        item.HasImages = item.Images.Count > 0;
+        item.ReplaceImages(decodedImages);
 
-        item.ParsedTurns.Clear();
+        List<ParsedTurnItemModel> parsedTurns = new();
         try
         {
-            var parsed = NoxChatSessionParser.Parse(item);
-            foreach (var p in parsed)
-            {
-                item.ParsedTurns.Add(p);
-            }
+            parsedTurns = NoxChatSessionParser.Parse(item);
         }
         catch { }
-        item.HasParsedTurns = item.ParsedTurns.Count > 0;
+        item.ReplaceParsedTurns(parsedTurns);
         item.HasImages = item.Images.Count > 0;
 
         if (string.IsNullOrEmpty(item.ChatName))
@@ -1212,6 +1284,7 @@ public sealed partial class RawLogsApiTabViewModel : ObservableObject, IDisposab
         _disposed = true;
         CancelChatLoads();
         CancelChatContentSearch();
+        ClearChatViewCache();
         _chatRefreshTimer?.Stop();
         CancelApiContentSearch();
         _historyCts.Cancel(); _historyCts.Dispose();
