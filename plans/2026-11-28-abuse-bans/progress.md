@@ -6,7 +6,7 @@
 - [x] NoxChat: tests (`tests/test_abuse_bans.py`, 15), full suite 858 passed, 2 skipped
 - [x] Probe: proto `ListBans` / `BanAction`, Go server forwarding, `bans_test.go`
 - [x] Studio: Banned users section in User Quotas (delegate: agy gemini-4-neon-medium), parser `[banned]` badge, `BannedUsersTests.cs` (13); NoxAI tests 197/197
-- [ ] Push, deploy NoxChat + probe to tp1
+- [x] Push, deploy NoxChat + probe to tp1 (2026-11-28 23:10 JST)
 
 ## Log
 - 2026-11-28: built and tested end to end. Studio view placed inside User Quotas (no new top-level tab) to stay out of in-progress MainViewModel changes.
