@@ -18,6 +18,7 @@ Start a plan's folder on the day the plan is approved. Later changes to it go in
 | Date | Plan | Status |
 |---|---|---|
 | 2026-11-28 | [Abuse bans: global, escalating, auto notice or emoji](2026-11-28-abuse-bans/README.md) | deployed |
+| 2026-11-29 | [Guest mode: ignore/ban, sticker and GIF answers, media viewing, no duplicate context](2026-11-29-guest-mode-tools/README.md) | deployed |
 | 2026-11-25 | [TTS rollout (nox-tts, vsock proxy, voiceover) + per-user /changequota overrides](2026-11-25-tts-rollout-and-quota-overrides/README.md) | in progress |
 | 2026-11-25 | [SlideForge plugin fixes: broadcasts, previews, graphs, layout](2026-11-25-slideforge-plugin-fixes/README.md) | in progress |
 | 2026-11-24 | [SlideForge monitoring: Go probe, shared auth hardening, Studio plugin](2026-11-24-slideforge-plugin/README.md) | in progress |
