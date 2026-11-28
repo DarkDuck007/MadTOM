@@ -39,6 +39,7 @@ public sealed class ParsedChatEntryModel
     public string Sender { get; init; } = string.Empty;
     public bool IsBot { get; init; }
     public bool IsMember { get; init; }
+    public bool IsEvent { get; init; }
 
     private bool? _isBodyRtl;
     private bool IsBodyRtl => _isBodyRtl ??= NoxChatSessionParser.IsRtl(Body);
@@ -49,14 +50,14 @@ public sealed class ParsedChatEntryModel
     public bool HasHeader => !string.IsNullOrWhiteSpace(Header);
 
     // Dynamic color coding: Bot messages have distinct emerald/mint styling, distinct from user messages
-    public string CardBackgroundHex => IsBot ? "#0D281E" : "#10192A";
-    public string BorderBrushHex => IsBot ? "#059669" : "#1E293B";
-    public string HeaderForegroundHex => IsBot ? "#34D399" : "#38BDF8";
-    public string TextForegroundHex => IsBot ? "#ECFDF5" : "#E2E8F0";
-    public string BadgeBackgroundHex => IsBot ? "#064E3B" : "#0C4A6E";
-    public string BadgeForegroundHex => IsBot ? "#6EE7B7" : "#7DD3FC";
-    public string BadgeText => IsBot ? "BOT" : (IsMember ? "MEMBER" : "USER");
-    public bool HasBadge => IsBot || IsMember;
+    public string CardBackgroundHex => IsEvent ? "#2A1F0A" : (IsBot ? "#0D281E" : "#10192A");
+    public string BorderBrushHex => IsEvent ? "#D97706" : (IsBot ? "#059669" : "#1E293B");
+    public string HeaderForegroundHex => IsEvent ? "#FBBF24" : (IsBot ? "#34D399" : "#38BDF8");
+    public string TextForegroundHex => IsEvent ? "#FEF3C7" : (IsBot ? "#ECFDF5" : "#E2E8F0");
+    public string BadgeBackgroundHex => IsEvent ? "#78350F" : (IsBot ? "#064E3B" : "#0C4A6E");
+    public string BadgeForegroundHex => IsEvent ? "#FCD34D" : (IsBot ? "#6EE7B7" : "#7DD3FC");
+    public string BadgeText => IsEvent ? "EVENT" : (IsBot ? "BOT" : (IsMember ? "MEMBER" : "USER"));
+    public bool HasBadge => IsEvent || IsBot || IsMember;
 }
 
 public sealed partial class ParsedTurnItemModel : ObservableObject
@@ -233,7 +234,7 @@ public static class NoxChatSessionParser
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex ChatEntryHeaderRegex = new(
-        @"(?m)^(?:((?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}(?:\s*(?:UTC|GMT|Z|[+-]\d{2}:?\d{2}))?\]\s*)?\[(?:EDIT\s+)?#\d+\s+[^\r\n]+?(?:\s+\[member\])?(?:\s+->\s+#\d+)?\]:|\[CONTEXT DIFF\]|\[NEW MESSAGES\]|\[Your previous reply was assigned message ID\(s\):[^\]]*\]|\[Ambient Check:[^\]]*\]|\[Respond to this merged batch of message IDs:[^\]]*\]|\[Replied-to message[^\]]*\]:?|\[Quoted section from replied message\]:?|\[Attached [^\]]+\]|===\s*ARCHIVED CONVERSATION HISTORY\s*===|===\s*LIVE CONTEXT & RECALLED KNOWLEDGE\s*===|===\s*RECENT MESSAGES & CURRENT TURN\s*===|===\s*GUEST SESSION HISTORY\s*===|PINNED FAVORITE STICKERS:|PINNED FAVORITE GIFS:|RELEVANT MEDIA CANDIDATES:|RELEVANT STICKERS:|RELEVANT GIFS:|PARTICIPANTS' STICKER PREFERENCES:|PARTICIPANTS' PROFILES:|USER PROFILES:|PARTICIPANTS' USER PROFILES:|CALLER PROFILE:|RELEVANT RECALLED MEMORIES:|HOT CONVERSATION MEMORY:|BACKGROUND TASK RESULTS:|ACTIVE BACKGROUND JOBS[^\r\n]*:|TIPS FOR THIS MOMENT[^\r\n]*:|STUDIO QUESTIONS WAITING FOR YOUR ANSWER[^\r\n]*:|SANDBOX DISK[^\r\n]*:|Your VM /data[^\r\n]*:|\[Current request[^\]]*\]:|\[Incoming[^\]]*\]:|(?:Group|Private)?\s*Chat:\s*['""][^'""\r\n]+['""])[ \t]*)",
+        @"(?m)^(?:((?:\[\d{4}[/-]\d{2}[/-]\d{2}\s+\d{2}:\d{2}:\d{2}(?:\s*(?:UTC|GMT|Z|[+-]\d{2}:?\d{2}))?\]\s*)?\[(?:EDIT\s+)?#\d+\s+[^\r\n]+?(?:\s+\[member\])?(?:\s+->\s+#\d+)?\]:|\[CHAT EVENT[^\]\r\n]*\]|\[CONTEXT DIFF\]|\[NEW MESSAGES\]|\[Your previous reply was assigned message ID\(s\):[^\]]*\]|\[Ambient Check:[^\]]*\]|\[Respond to this merged batch of message IDs:[^\]]*\]|\[Replied-to message[^\]]*\]:?|\[Quoted section from replied message\]:?|\[Attached [^\]]+\]|===\s*ARCHIVED CONVERSATION HISTORY\s*===|===\s*LIVE CONTEXT & RECALLED KNOWLEDGE\s*===|===\s*RECENT MESSAGES & CURRENT TURN\s*===|===\s*GUEST SESSION HISTORY\s*===|PINNED FAVORITE STICKERS:|PINNED FAVORITE GIFS:|RELEVANT MEDIA CANDIDATES:|RELEVANT STICKERS:|RELEVANT GIFS:|PARTICIPANTS' STICKER PREFERENCES:|PARTICIPANTS' PROFILES:|USER PROFILES:|PARTICIPANTS' USER PROFILES:|CALLER PROFILE:|RELEVANT RECALLED MEMORIES:|HOT CONVERSATION MEMORY:|BACKGROUND TASK RESULTS:|ACTIVE BACKGROUND JOBS[^\r\n]*:|TIPS FOR THIS MOMENT[^\r\n]*:|STUDIO QUESTIONS WAITING FOR YOUR ANSWER[^\r\n]*:|SANDBOX DISK[^\r\n]*:|Your VM /data[^\r\n]*:|\[Current request[^\]]*\]:|\[Incoming[^\]]*\]:|(?:Group|Private)?\s*Chat:\s*['""][^'""\r\n]+['""])[ \t]*)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static string NormalizeEscapedNewlines(string text)
@@ -1010,18 +1011,23 @@ public static class NoxChatSessionParser
                     continue;
                 }
 
+                bool isEvent = header.StartsWith("[CHAT EVENT", StringComparison.OrdinalIgnoreCase);
+
                 string sender = string.Empty;
                 string rawSender = string.Empty;
                 bool isMember = false;
-                var sMatch = SenderLineRegex.Match(header);
-                if (sMatch.Success)
+                if (!isEvent)
                 {
-                    rawSender = sMatch.Groups["sender"].Value;
-                    sender = CleanSenderName(rawSender);
-                    isMember = sMatch.Groups["member"].Success;
+                    var sMatch = SenderLineRegex.Match(header);
+                    if (sMatch.Success)
+                    {
+                        rawSender = sMatch.Groups["sender"].Value;
+                        sender = CleanSenderName(rawSender);
+                        isMember = sMatch.Groups["member"].Success;
+                    }
                 }
 
-                bool isBot = header.Contains("(You)", StringComparison.OrdinalIgnoreCase) ||
+                bool isBot = !isEvent && (header.Contains("(You)", StringComparison.OrdinalIgnoreCase) ||
                              header.Contains("(bot)", StringComparison.OrdinalIgnoreCase) ||
                              rawSender.Contains("(You)", StringComparison.OrdinalIgnoreCase) ||
                              rawSender.Contains("(bot)", StringComparison.OrdinalIgnoreCase) ||
@@ -1029,7 +1035,7 @@ public static class NoxChatSessionParser
                              string.Equals(sender, "Nox", StringComparison.OrdinalIgnoreCase) ||
                              string.Equals(sender, "Bot", StringComparison.OrdinalIgnoreCase) ||
                              string.Equals(sender, "Assistant", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(sender, "Minthara", StringComparison.OrdinalIgnoreCase);
+                             string.Equals(sender, "Minthara", StringComparison.OrdinalIgnoreCase));
 
                 entries.Add(new ParsedChatEntryModel
                 {
@@ -1037,7 +1043,8 @@ public static class NoxChatSessionParser
                     Body = body,
                     Sender = sender,
                     IsBot = isBot,
-                    IsMember = isMember
+                    IsMember = isMember,
+                    IsEvent = isEvent
                 });
             }
 
