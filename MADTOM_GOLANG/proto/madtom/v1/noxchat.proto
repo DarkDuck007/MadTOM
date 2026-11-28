@@ -119,6 +119,10 @@ service NoxChatControlService {
 
   // Stateful ("agy") LLM sessions: live sessions per chat, bootstraps by reason (Python agy_sessions)
   rpc GetAgySessions(NoxAgySessionsRequest) returns (NoxAgySessionsResponse);
+
+  // Global abuse bans (NoxChat src/moderation/bans.py)
+  rpc ListBans(NoxBanListRequest) returns (NoxBanListResponse);
+  rpc BanAction(NoxBanActionRequest) returns (NoxBanActionResponse);
 }
 
 // ------------------------------------------------------------------------------
@@ -1779,4 +1783,56 @@ message NoxAgySessionsResponse {
   double warm_cache_hit = 6;
   repeated NoxAgySession sessions = 7;
   string error = 8;
+}
+
+// ---------------------------------------------------------------- abuse bans
+
+message NoxBanEvent {
+  int64 chat_id = 1;
+  string action = 2;                     // ban | update | lift
+  double days = 3;                       // ban length (ban only)
+  string reason = 4;
+  string actor = 5;
+  string created_at = 6;
+}
+
+message NoxBan {
+  int64 user_id = 1;
+  string user_name = 2;
+  int32 strikes = 3;
+  string banned_until = 4;
+  string mode = 5;                       // notice | react | silent
+  string emoji = 6;
+  string reason = 7;
+  repeated int64 evidence = 8;           // message ids in source_chat_id
+  int64 source_chat_id = 9;
+  string created_at = 10;
+  string updated_at = 11;
+  string lifted_at = 12;
+  string lifted_by = 13;
+  bool active = 14;
+  int64 seconds_left = 15;
+  repeated NoxBanEvent history = 16;     // newest first
+}
+
+message NoxBanListRequest {
+  string node_id = 1;
+  bool include_inactive = 2;
+}
+
+message NoxBanListResponse {
+  repeated NoxBan bans = 1;
+  string error = 2;
+}
+
+message NoxBanActionRequest {
+  string node_id = 1;
+  string action = 2;                     // lift
+  int64 user_id = 3;
+  string reason = 4;
+}
+
+message NoxBanActionResponse {
+  bool ok = 1;
+  string message = 2;
 }

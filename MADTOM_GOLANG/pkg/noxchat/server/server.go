@@ -847,6 +847,32 @@ func (s *Server) DeleteMemory(ctx context.Context, req *madtomv1.NoxDeleteMemory
 	return &resp, nil
 }
 
+// Global abuse bans (NoxChat src/moderation/bans.py)
+
+func (s *Server) ListBans(ctx context.Context, req *madtomv1.NoxBanListRequest) (*madtomv1.NoxBanListResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("list_bans", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxBanListResponse
+	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
+		resp.Error = fmt.Sprintf("decode: %v", err)
+	}
+	return &resp, nil
+}
+
+func (s *Server) BanAction(ctx context.Context, req *madtomv1.NoxBanActionRequest) (*madtomv1.NoxBanActionResponse, error) {
+	reply, err := s.bridgeClient.CallRpc("ban_action", req, 15*time.Second)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "%v", err)
+	}
+	var resp madtomv1.NoxBanActionResponse
+	if err := json.Unmarshal(reply.Payload, &resp); err != nil {
+		resp.Message = fmt.Sprintf("decode: %v", err)
+	}
+	return &resp, nil
+}
+
 // Memory merge proposals (Studio review of one-profile-per-person merges)
 
 func (s *Server) ListMemoryMerges(ctx context.Context, req *madtomv1.NoxMemoryMergeListRequest) (*madtomv1.NoxMemoryMergeListResponse, error) {

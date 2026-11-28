@@ -92,6 +92,8 @@ const (
 	NoxChatControlService_GetUserQuota_FullMethodName               = "/madtom.v1.NoxChatControlService/GetUserQuota"
 	NoxChatControlService_SetUserQuota_FullMethodName               = "/madtom.v1.NoxChatControlService/SetUserQuota"
 	NoxChatControlService_GetAgySessions_FullMethodName             = "/madtom.v1.NoxChatControlService/GetAgySessions"
+	NoxChatControlService_ListBans_FullMethodName                   = "/madtom.v1.NoxChatControlService/ListBans"
+	NoxChatControlService_BanAction_FullMethodName                  = "/madtom.v1.NoxChatControlService/BanAction"
 )
 
 // NoxChatControlServiceClient is the client API for NoxChatControlService service.
@@ -194,6 +196,9 @@ type NoxChatControlServiceClient interface {
 	SetUserQuota(ctx context.Context, in *NoxSetUserQuotaRequest, opts ...grpc.CallOption) (*NoxSetUserQuotaResponse, error)
 	// Stateful ("agy") LLM sessions: live sessions per chat, bootstraps by reason (Python agy_sessions)
 	GetAgySessions(ctx context.Context, in *NoxAgySessionsRequest, opts ...grpc.CallOption) (*NoxAgySessionsResponse, error)
+	// Global abuse bans (NoxChat src/moderation/bans.py)
+	ListBans(ctx context.Context, in *NoxBanListRequest, opts ...grpc.CallOption) (*NoxBanListResponse, error)
+	BanAction(ctx context.Context, in *NoxBanActionRequest, opts ...grpc.CallOption) (*NoxBanActionResponse, error)
 }
 
 type noxChatControlServiceClient struct {
@@ -961,6 +966,26 @@ func (c *noxChatControlServiceClient) GetAgySessions(ctx context.Context, in *No
 	return out, nil
 }
 
+func (c *noxChatControlServiceClient) ListBans(ctx context.Context, in *NoxBanListRequest, opts ...grpc.CallOption) (*NoxBanListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxBanListResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_ListBans_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *noxChatControlServiceClient) BanAction(ctx context.Context, in *NoxBanActionRequest, opts ...grpc.CallOption) (*NoxBanActionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NoxBanActionResponse)
+	err := c.cc.Invoke(ctx, NoxChatControlService_BanAction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NoxChatControlServiceServer is the server API for NoxChatControlService service.
 // All implementations must embed UnimplementedNoxChatControlServiceServer
 // for forward compatibility.
@@ -1061,6 +1086,9 @@ type NoxChatControlServiceServer interface {
 	SetUserQuota(context.Context, *NoxSetUserQuotaRequest) (*NoxSetUserQuotaResponse, error)
 	// Stateful ("agy") LLM sessions: live sessions per chat, bootstraps by reason (Python agy_sessions)
 	GetAgySessions(context.Context, *NoxAgySessionsRequest) (*NoxAgySessionsResponse, error)
+	// Global abuse bans (NoxChat src/moderation/bans.py)
+	ListBans(context.Context, *NoxBanListRequest) (*NoxBanListResponse, error)
+	BanAction(context.Context, *NoxBanActionRequest) (*NoxBanActionResponse, error)
 	mustEmbedUnimplementedNoxChatControlServiceServer()
 }
 
@@ -1289,6 +1317,12 @@ func (UnimplementedNoxChatControlServiceServer) SetUserQuota(context.Context, *N
 }
 func (UnimplementedNoxChatControlServiceServer) GetAgySessions(context.Context, *NoxAgySessionsRequest) (*NoxAgySessionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAgySessions not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) ListBans(context.Context, *NoxBanListRequest) (*NoxBanListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListBans not implemented")
+}
+func (UnimplementedNoxChatControlServiceServer) BanAction(context.Context, *NoxBanActionRequest) (*NoxBanActionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BanAction not implemented")
 }
 func (UnimplementedNoxChatControlServiceServer) mustEmbedUnimplementedNoxChatControlServiceServer() {}
 func (UnimplementedNoxChatControlServiceServer) testEmbeddedByValue()                               {}
@@ -2604,6 +2638,42 @@ func _NoxChatControlService_GetAgySessions_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NoxChatControlService_ListBans_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxBanListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).ListBans(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_ListBans_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).ListBans(ctx, req.(*NoxBanListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NoxChatControlService_BanAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NoxBanActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NoxChatControlServiceServer).BanAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NoxChatControlService_BanAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NoxChatControlServiceServer).BanAction(ctx, req.(*NoxBanActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NoxChatControlService_ServiceDesc is the grpc.ServiceDesc for NoxChatControlService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2890,6 +2960,14 @@ var NoxChatControlService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAgySessions",
 			Handler:    _NoxChatControlService_GetAgySessions_Handler,
+		},
+		{
+			MethodName: "ListBans",
+			Handler:    _NoxChatControlService_ListBans_Handler,
+		},
+		{
+			MethodName: "BanAction",
+			Handler:    _NoxChatControlService_BanAction_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

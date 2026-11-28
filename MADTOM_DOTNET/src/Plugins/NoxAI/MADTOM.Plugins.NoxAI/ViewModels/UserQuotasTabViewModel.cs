@@ -381,6 +381,8 @@ public sealed partial class UserQuotasTabViewModel : ObservableObject, IDisposab
                     SetSuccess($"Loaded {Overrides.Count} override{(Overrides.Count == 1 ? "" : "s")}, {TopUsers.Count} top user{(TopUsers.Count == 1 ? "" : "s")}.");
                 }
             });
+
+            await RefreshBansAsync();
         }
         catch (RpcException ex)
         {

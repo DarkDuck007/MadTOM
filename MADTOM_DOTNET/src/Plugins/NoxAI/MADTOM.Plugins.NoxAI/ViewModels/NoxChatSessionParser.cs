@@ -40,6 +40,7 @@ public sealed class ParsedChatEntryModel
     public bool IsBot { get; init; }
     public bool IsMember { get; init; }
     public bool IsEvent { get; init; }
+    public bool IsBanned { get; init; }  // NoxChat tags globally banned senders " [banned]"
 
     private bool? _isBodyRtl;
     private bool IsBodyRtl => _isBodyRtl ??= NoxChatSessionParser.IsRtl(Body);
@@ -56,8 +57,8 @@ public sealed class ParsedChatEntryModel
     public string TextForegroundHex => IsEvent ? "#FEF3C7" : (IsBot ? "#ECFDF5" : "#E2E8F0");
     public string BadgeBackgroundHex => IsEvent ? "#78350F" : (IsBot ? "#064E3B" : "#0C4A6E");
     public string BadgeForegroundHex => IsEvent ? "#FCD34D" : (IsBot ? "#6EE7B7" : "#7DD3FC");
-    public string BadgeText => IsEvent ? "EVENT" : (IsBot ? "BOT" : (IsMember ? "MEMBER" : "USER"));
-    public bool HasBadge => IsEvent || IsBot || IsMember;
+    public string BadgeText => IsEvent ? "EVENT" : (IsBot ? "BOT" : (IsBanned ? "BANNED" : (IsMember ? "MEMBER" : "USER")));
+    public bool HasBadge => IsEvent || IsBot || IsBanned || IsMember;
 }
 
 public sealed partial class ParsedTurnItemModel : ObservableObject
@@ -230,7 +231,7 @@ public static class NoxChatSessionParser
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex SenderLineRegex = new(
-        @"\[(?:EDIT\s+)?#\d+\s+(?<sender>[^\r\n]+?)(?<member>\s+\[member\])?(?:\s+->\s+#\d+)?\]:",
+        @"\[(?:EDIT\s+)?#\d+\s+(?<sender>[^\r\n]+?)(?<member>\s+\[member\])?(?<banned>\s+\[banned\])?(?:\s+->\s+#\d+)?\]:",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex ChatEntryHeaderRegex = new(
@@ -1016,6 +1017,7 @@ public static class NoxChatSessionParser
                 string sender = string.Empty;
                 string rawSender = string.Empty;
                 bool isMember = false;
+                bool isBanned = false;
                 if (!isEvent)
                 {
                     var sMatch = SenderLineRegex.Match(header);
@@ -1024,6 +1026,7 @@ public static class NoxChatSessionParser
                         rawSender = sMatch.Groups["sender"].Value;
                         sender = CleanSenderName(rawSender);
                         isMember = sMatch.Groups["member"].Success;
+                        isBanned = sMatch.Groups["banned"].Success;
                     }
                 }
 
@@ -1044,7 +1047,8 @@ public static class NoxChatSessionParser
                     Sender = sender,
                     IsBot = isBot,
                     IsMember = isMember,
-                    IsEvent = isEvent
+                    IsEvent = isEvent,
+                    IsBanned = isBanned
                 });
             }
 
